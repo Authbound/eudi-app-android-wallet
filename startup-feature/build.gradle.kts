@@ -26,6 +26,12 @@ android {
     namespace = "eu.europa.ec.startupfeature"
 }
 
+dependencies {
+    implementation(libs.coil.kt)
+    implementation(libs.coil.kt.compose)
+    implementation(libs.coil.kt.gif)
+}
+
 moduleConfig {
     module = LibraryModule.StartupFeature
 }

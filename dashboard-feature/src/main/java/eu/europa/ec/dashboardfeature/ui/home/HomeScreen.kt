@@ -68,6 +68,8 @@ import eu.europa.ec.uilogic.component.wrap.BottomSheetTextData
 import eu.europa.ec.uilogic.component.wrap.BottomSheetWithTwoBigIcons
 import eu.europa.ec.uilogic.component.wrap.DialogBottomSheet
 import eu.europa.ec.uilogic.component.wrap.GenericBottomSheet
+import eu.europa.ec.uilogic.component.wrap.QuickActionCard
+import eu.europa.ec.uilogic.component.wrap.QuickActionConfig
 import eu.europa.ec.uilogic.component.wrap.WrapActionCard
 import eu.europa.ec.uilogic.component.wrap.WrapIcon
 import eu.europa.ec.uilogic.component.wrap.WrapIconButton
@@ -203,9 +205,10 @@ private fun Content(
                 )
             )
             .verticalScroll(scrollState)
-            .padding(vertical = SPACING_MEDIUM.dp),
+            .padding(horizontal = SPACING_MEDIUM.dp, vertical = SPACING_MEDIUM.dp),
         verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
     ) {
+        // Welcome message
         Text(
             text = state.welcomeUserMessage,
             style = MaterialTheme.typography.headlineMedium.copy(
@@ -213,6 +216,17 @@ private fun Content(
             )
         )
 
+        // Quick Actions section
+        QuickActionsSection(
+            quickActions = state.quickActions,
+            onQuickActionClick = { actionId ->
+                onEventSent(Event.QuickActionPressed(actionId))
+            }
+        )
+        
+        // Keep the original action cards as a fallback if needed
+        // Comment out for now as we're replacing them with the quick actions grid
+        /*
         WrapActionCard(
             config = state.authenticateCardConfig,
             onActionClick = {
@@ -240,6 +254,7 @@ private fun Content(
                 )
             }
         )
+        */
     }
 
     if (state.bleAvailability == BleAvailability.NO_PERMISSION) {
@@ -505,6 +520,55 @@ private fun RequiredPermissionsAsk(
     }
 }
 
+/**
+ * Quick Actions grid layout section
+ */
+@Composable
+private fun QuickActionsSection(
+    quickActions: List<QuickActionConfig>,
+    onQuickActionClick: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
+    ) {
+        // Section title
+        Text(
+            text = stringResource(R.string.home_screen_quick_actions),
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        
+        // First row - first two actions
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            quickActions.take(2).forEach { action ->
+                QuickActionCard(
+                    config = action,
+                    onClick = { onQuickActionClick(action.id) }
+                )
+            }
+        }
+        
+        // Second row - next two actions (if available)
+        if (quickActions.size > 2) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                quickActions.drop(2).take(2).forEach { action ->
+                    QuickActionCard(
+                        config = action,
+                        onClick = { onQuickActionClick(action.id) }
+                    )
+                }
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @ThemeModePreviews

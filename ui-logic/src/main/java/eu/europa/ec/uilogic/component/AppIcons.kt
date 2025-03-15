@@ -154,6 +154,24 @@ object AppIcons {
         imageVector = null
     )
 
+    val AuthboundLogo: IconData = IconData(
+        resourceId = R.drawable.ic_authbound_logo,
+        contentDescriptionId = R.string.content_description_logo_plain_icon,
+        imageVector = null
+    )
+
+    val AuthboundText: IconData = IconData(
+        resourceId = R.drawable.ic_authbound_text,
+        contentDescriptionId = R.string.content_description_logo_text_icon,
+        imageVector = null
+    )
+
+    val AuthboundLogoFull: IconData = IconData(
+        resourceId = R.drawable.ic_authbound_logo_full,
+        contentDescriptionId = R.string.content_description_authbound_logo_full_icon,
+        imageVector = null
+    )
+
     val KeyboardArrowDown: IconData = IconData(
         resourceId = null,
         contentDescriptionId = R.string.content_description_arrow_down_icon,
@@ -403,6 +421,12 @@ object AppIcons {
     val OpenInBrowser: IconData = IconData(
         resourceId = R.drawable.ic_open_in_browser,
         contentDescriptionId = R.string.content_description_open_in_browser_icon,
+        imageVector = null
+    )
+
+    val Settings: IconData = IconData(
+        resourceId = R.drawable.ic_settings,
+        contentDescriptionId = R.string.content_description_settings_icon,
         imageVector = null
     )
 }

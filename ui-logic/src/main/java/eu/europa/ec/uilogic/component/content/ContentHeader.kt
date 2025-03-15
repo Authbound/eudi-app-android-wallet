@@ -144,8 +144,8 @@ private fun ContentHeaderPreview(
         ContentHeader(
             config = ContentHeaderConfig(
                 appIconAndTextData = AppIconAndTextData(
-                    appIcon = AppIcons.LogoPlain,
-                    appText = AppIcons.LogoText,
+                    appIcon = AppIcons.AuthboundLogo,
+                    appText = AppIcons.AuthboundText,
                 ),
                 description = "Description: $text",
                 mainText = "Title: $text",

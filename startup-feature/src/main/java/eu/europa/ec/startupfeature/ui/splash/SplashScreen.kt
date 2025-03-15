@@ -25,7 +25,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,14 +34,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.utils.OneTimeLaunchedEffect
-import eu.europa.ec.uilogic.component.wrap.WrapImage
 import eu.europa.ec.uilogic.navigation.ModuleRoute
 import eu.europa.ec.uilogic.navigation.StartupScreens
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
+import androidx.compose.ui.graphics.Color
+import eu.europa.ec.uilogic.component.AppIcons
+import eu.europa.ec.uilogic.component.wrap.WrapImage
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.unit.dp
 
 @Composable
 fun SplashScreen(
@@ -86,12 +88,13 @@ private fun Content(
             targetState = true
         }
     }
+    
     Scaffold { paddingValues ->
         Box(
             Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.surface),
+                .background(Color(0xFF041536)), // Use the solid dark blue background
             contentAlignment = Alignment.Center
         ) {
             AnimatedVisibility(
@@ -99,8 +102,10 @@ private fun Content(
                 enter = fadeIn(animationSpec = tween(state.logoAnimationDuration)),
                 exit = fadeOut(animationSpec = tween(state.logoAnimationDuration)),
             ) {
+                // Use the existing Authbound logo with fixed size to maintain aspect ratio
                 WrapImage(
-                    iconData = AppIcons.LogoFull
+                    iconData = AppIcons.AuthboundLogo,
+                    modifier = Modifier.size(200.dp) // Fixed size to maintain aspect ratio
                 )
             }
         }

@@ -63,6 +63,7 @@
     <string name="content_description_logo_full_icon">Full Logo icon</string>
     <string name="content_description_logo_plain_icon">Plain Logo icon</string>
     <string name="content_description_logo_text_icon">Text Logo icon</string>
+    <string name="content_description_authbound_logo_full_icon">Authbound Full Logo icon</string>
     <string name="content_description_arrow_up_icon">Arrow up</string>
     <string name="content_description_arrow_down_icon">Arrow down</string>
     <string name="content_description_visibility_icon">Show</string>
@@ -107,6 +108,7 @@
     <string name="content_description_change_pin_icon">Change PIN</string>
     <string name="content_description_check_icon">Check</string>
     <string name="content_description_open_in_browser_icon">Open in browser</string>
+    <string name="content_description_settings_icon">Settings</string>
 
     <!-- Biometric prompt -->
     <string name="biometric_prompt_title">Biometric authentication</string>
@@ -222,7 +224,13 @@
     <string name="home_screen_authenticate_learn_more_inner_title">Sign documents safely</string>
     <string name="home_screen_authenticate_learn_more_description">Sign documents with just your wallet. Providing a legally binding e-signature will be faster and easier than ever, enabling you to conduct business whenever you are.</string>
     <string name="home_screen_sign_learn_more_inner_title">Access online services</string>
-    <string name="home_screen_sign_learn_more_description">Identify yourself to a wide range of public and private online services while protecting your privacy. Prove who you are with just a few taps - no need to manage countless passwords.</string>
+    <string name="home_screen_sign_learn_more_description">Identify yourself to a wide range of public and private online services while protecting your privacy. Prove who you are with just a few taps - no need to manage multiple accounts and passwords.</string>
+
+    <!-- New strings for Quick Actions -->
+    <string name="home_screen_quick_actions">Quick Actions</string>
+    <string name="home_screen_view_credentials_description">View and manage your digital credentials</string>
+    <string name="home_screen_settings_description">Configure your wallet preferences</string>
+    <string name="side_menu_settings">Settings</string>
 
     <!-- Documents Screen -->
     <string name="documents_screen_title">Documents</string>
