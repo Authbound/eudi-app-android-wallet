@@ -423,4 +423,10 @@ object AppIcons {
         contentDescriptionId = R.string.content_description_open_in_browser_icon,
         imageVector = null
     )
+
+    val Settings: IconData = IconData(
+        resourceId = R.drawable.ic_settings,
+        contentDescriptionId = R.string.content_description_settings_icon,
+        imageVector = null
+    )
 }

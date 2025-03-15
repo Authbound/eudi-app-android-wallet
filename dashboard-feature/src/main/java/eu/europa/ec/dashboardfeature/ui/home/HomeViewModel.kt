@@ -16,6 +16,8 @@
 
 package eu.europa.ec.dashboardfeature.ui.home
 
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.viewModelScope
 import eu.europa.ec.commonfeature.config.PresentationMode
 import eu.europa.ec.commonfeature.config.QrScanFlow
@@ -28,6 +30,7 @@ import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.wrap.ActionCardConfig
+import eu.europa.ec.uilogic.component.wrap.QuickActionConfig
 import eu.europa.ec.uilogic.mvi.MviViewModel
 import eu.europa.ec.uilogic.mvi.ViewEvent
 import eu.europa.ec.uilogic.mvi.ViewSideEffect
@@ -53,6 +56,9 @@ data class State(
     val welcomeUserMessage: String,
     val authenticateCardConfig: ActionCardConfig,
     val signCardConfig: ActionCardConfig,
+    
+    // New quick actions list for the grid layout
+    val quickActions: List<QuickActionConfig> = emptyList(),
 
     val bleAvailability: BleAvailability = BleAvailability.UNKNOWN,
     val isBleCentralClientModeEnabled: Boolean = false
@@ -71,6 +77,9 @@ sealed class Event : ViewEvent {
         data object SignDocumentPressed : Event()
         data object LearnMorePressed : Event()
     }
+    
+    // New event for handling quick action clicks
+    data class QuickActionPressed(val actionId: String) : Event()
 
     sealed class BottomSheet : Event() {
         data class UpdateBottomSheetState(val isOpen: Boolean) : BottomSheet()
@@ -123,6 +132,48 @@ class HomeViewModel(
 ) : MviViewModel<Event, State, Effect>() {
 
     override fun setInitialState(): State {
+        // Define colors for quick actions
+        val authenticateColor = Color(0xFF1E40AF) // Deep blue
+        val signColor = Color(0xFF7C3AED) // Purple
+        val viewCredentialsColor = Color(0xFF16A34A) // Green
+        val settingsColor = Color(0xFFD97706) // Amber
+        
+        // Create quick actions list
+        val quickActionsList = listOf(
+            QuickActionConfig(
+                id = "authenticate",
+                title = resourceProvider.getString(R.string.home_screen_authenticate),
+                description = resourceProvider.getString(R.string.home_screen_authentication_card_title),
+                icon = AppIcons.IdCards,
+                backgroundColor = authenticateColor,
+                borderColor = authenticateColor.copy(alpha = 0.7f)
+            ),
+            QuickActionConfig(
+                id = "sign",
+                title = resourceProvider.getString(R.string.home_screen_sign),
+                description = resourceProvider.getString(R.string.home_screen_sign_card_title),
+                icon = AppIcons.Contract,
+                backgroundColor = signColor,
+                borderColor = signColor.copy(alpha = 0.7f)
+            ),
+            QuickActionConfig(
+                id = "view_credentials",
+                title = resourceProvider.getString(R.string.documents_screen_title),
+                description = resourceProvider.getString(R.string.home_screen_view_credentials_description),
+                icon = AppIcons.Documents,
+                backgroundColor = viewCredentialsColor,
+                borderColor = viewCredentialsColor.copy(alpha = 0.7f)
+            ),
+            QuickActionConfig(
+                id = "settings",
+                title = resourceProvider.getString(R.string.dashboard_side_menu_title),
+                description = resourceProvider.getString(R.string.home_screen_settings_description),
+                icon = AppIcons.Settings,
+                backgroundColor = settingsColor,
+                borderColor = settingsColor.copy(alpha = 0.7f)
+            )
+        )
+        
         return State(
             welcomeUserMessage = resourceProvider.getString(R.string.home_screen_welcome),
             authenticateCardConfig = ActionCardConfig(
@@ -137,6 +188,7 @@ class HomeViewModel(
                 primaryButtonText = resourceProvider.getString(R.string.home_screen_sign),
                 secondaryButtonText = resourceProvider.getString(R.string.home_screen_learn_more)
             ),
+            quickActions = quickActionsList,
             isBleCentralClientModeEnabled = homeInteractor.isBleCentralClientModeEnabled(),
         )
     }
@@ -207,6 +259,10 @@ class HomeViewModel(
 
             is Event.BottomSheet.Bluetooth.SecondaryButtonPressed -> {
                 hideBottomSheet()
+            }
+
+            is Event.QuickActionPressed -> {
+                handleQuickAction(event.actionId)
             }
         }
     }
@@ -343,6 +399,33 @@ class HomeViewModel(
                             )
                         }
                     }
+                }
+            }
+        }
+    }
+
+    private fun handleQuickAction(actionId: String) {
+        when (actionId) {
+            "authenticate" -> {
+                showBottomSheet(sheetContent = HomeScreenBottomSheetContent.Authenticate)
+            }
+            "sign" -> {
+                navigateToDocumentSign()
+            }
+            "view_credentials" -> {
+                // Navigate to Documents tab
+                setEffect {
+                    Effect.Navigation.SwitchScreen(
+                        screenRoute = DashboardScreens.Dashboard.screenRoute
+                    )
+                }
+            }
+            "settings" -> {
+                // Navigate to Settings screen
+                setEffect {
+                    Effect.Navigation.SwitchScreen(
+                        screenRoute = DashboardScreens.Dashboard.screenRoute
+                    )
                 }
             }
         }
