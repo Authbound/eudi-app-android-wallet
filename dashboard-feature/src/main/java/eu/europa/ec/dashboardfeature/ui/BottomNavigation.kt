@@ -16,15 +16,39 @@
 
 package eu.europa.ec.dashboardfeature.ui
 
+import android.view.HapticFeedbackConstants
 import androidx.annotation.StringRes
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -72,37 +96,131 @@ fun BottomNavigationBar(navController: NavController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
-    NavigationBar(
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+    // Create a floating navigation bar
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center
     ) {
-        navItems.forEach { screen ->
-            val enabled = screen.route != BottomNavigationItem.Transactions.route
-            NavigationBarItem(
-                icon = {
-                    WrapIcon(
-                        iconData = screen.icon,
-                        enabled = enabled,
-                    )
-                },
-                label = { Text(text = stringResource(screen.titleRes)) },
-                colors = NavigationBarItemDefaults.colors()
-                    .copy(
-                        selectedIndicatorColor = MaterialTheme.colorScheme.primary,
-                        selectedIconColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                selected = currentDestination?.hierarchy?.any {
-                    it.route == screen.route
-                } == true,
-                enabled = enabled,
-                onClick = {
-                    navController.navigate(screen.route) {
-                        popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
+        // The floating navigation bar
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(70.dp),
+            shape = RoundedCornerShape(35.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.85f),
+            shadowElevation = 8.dp,
+            tonalElevation = 4.dp
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                navItems.forEach { screen ->
+                    val selected = currentDestination?.hierarchy?.any {
+                        it.route == screen.route
+                    } == true
+                    val enabled = screen.route != BottomNavigationItem.Transactions.route
+                    
+                    if (enabled) {
+                        FloatingNavItem(
+                            icon = screen.icon,
+                            label = stringResource(screen.titleRes),
+                            selected = selected,
+                            onItemClick = {
+                                navController.navigate(screen.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
+                        )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun FloatingNavItem(
+    icon: IconData,
+    label: String,
+    selected: Boolean,
+    onItemClick: () -> Unit
+) {
+    val view = LocalView.current
+    val interactionSource = remember { MutableInteractionSource() }
+    
+    // Animation for icon scaling
+    val scale by animateFloatAsState(
+        targetValue = if (selected) 1.2f else 1f,
+        animationSpec = tween(durationMillis = 200),
+        label = "scale"
+    )
+    
+    // Trigger haptic feedback when selected
+    LaunchedEffect(selected) {
+        if (selected) {
+            view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+        }
+    }
+    
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) {
+                onItemClick()
+            }
+            .padding(8.dp)
+    ) {
+        // Icon with background highlight when selected
+        Box(
+            modifier = Modifier
+                .size(50.dp)
+                .clip(CircleShape)
+                .background(
+                    if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                    else Color.Transparent
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier.scale(scale)
+            ) {
+                WrapIcon(
+                    iconData = icon,
+                    enabled = true,
+                    customTint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                )
+            }
+        }
+        
+        // Indicator dot for selected item
+        if (selected) {
+            Box(
+                modifier = Modifier
+                    .padding(top = 4.dp)
+                    .size(4.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary)
+            )
+        } else {
+            // Empty space to maintain layout
+            Box(
+                modifier = Modifier
+                    .padding(top = 4.dp)
+                    .size(4.dp)
+                    .alpha(0f)
             )
         }
     }

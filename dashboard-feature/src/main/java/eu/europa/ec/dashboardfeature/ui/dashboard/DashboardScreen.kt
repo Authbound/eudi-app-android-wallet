@@ -22,6 +22,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -30,6 +32,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -69,12 +73,20 @@ fun DashboardScreen(
     val bottomNavigationController = rememberNavController()
     val state: State by viewModel.viewState.collectAsStateWithLifecycle()
 
+    // Add extra bottom padding to account for the floating navigation bar
+    val extraBottomPadding = 80.dp
+
     Scaffold(
-        bottomBar = { BottomNavigationBar(bottomNavigationController) }
+        // The floating bottom bar is added as a regular bottom bar
+        bottomBar = { BottomNavigationBar(bottomNavigationController) },
+        // Remove any default bottom padding that might interfere with our floating bar
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { padding ->
         NavHost(
             modifier = Modifier
                 .fillMaxSize()
+                // Add extra padding at the bottom to ensure content doesn't get hidden behind the floating bar
+                .padding(bottom = extraBottomPadding)
                 .padding(padding),
             navController = bottomNavigationController,
             startDestination = BottomNavigationItem.Home.route

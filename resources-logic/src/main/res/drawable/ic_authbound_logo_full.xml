@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Copyright (c) 2023 European Commission
+  ~
+  ~ Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
+  ~ Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
+  ~ except in compliance with the Licence.
+  ~
+  ~ You may obtain a copy of the Licence at:
+  ~ https://joinup.ec.europa.eu/software/page/eupl
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software distributed under
+  ~ the Licence is distributed on an "AS IS" basis, WITHOUT WARRANTIES OR CONDITIONS OF
+  ~ ANY KIND, either express or implied. See the Licence for the specific language
+  ~ governing permissions and limitations under the Licence.
+  -->
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="160dp"
+    android:height="160dp"
+    android:viewportWidth="160"
+    android:viewportHeight="160">
+    <!-- Blue gradient background -->
+    <path
+        android:fillColor="#041536"
+        android:pathData="M0,0h160v160h-160z" />
+    
+    <!-- Shield shape -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M80,40 L40,60 L40,100 C40,124 58,144 80,150 C102,144 120,124 120,100 L120,60 L80,40z"
+        android:strokeColor="#001A41"
+        android:strokeWidth="3"/>
+    
+    <!-- A letter -->
+    <path
+        android:fillColor="#001A41"
+        android:pathData="M80,60 L60,110 L70,110 L75,95 L85,95 L90,110 L100,110 L80,60z M80,75 L83,85 L77,85 L80,75z" />
+    
+    <!-- Dash -->
+    <path
+        android:fillColor="#001A41"
+        android:pathData="M70,115 L90,115 L90,120 L70,120z" />
+</vector> 

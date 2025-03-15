@@ -28,8 +28,8 @@ import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
 import eu.europa.ec.uilogic.component.wrap.WrapImage
 
 data class AppIconAndTextData(
-    val appIcon: IconData = AppIcons.LogoPlain,
-    val appText: IconData = AppIcons.LogoText,
+    val appIcon: IconData = AppIcons.AuthboundLogo,
+    val appText: IconData = AppIcons.AuthboundText,
 )
 
 @Composable
@@ -56,8 +56,8 @@ private fun AppIconAndTextPreview() {
     PreviewTheme {
         AppIconAndText(
             appIconAndTextData = AppIconAndTextData(
-                appIcon = AppIcons.LogoPlain,
-                appText = AppIcons.LogoText,
+                appIcon = AppIcons.AuthboundLogo,
+                appText = AppIcons.AuthboundText,
             )
         )
     }
