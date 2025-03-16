@@ -43,6 +43,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import eu.europa.ec.dashboardfeature.ui.BottomNavigationBar
 import eu.europa.ec.dashboardfeature.ui.BottomNavigationItem
+import eu.europa.ec.dashboardfeature.ui.add_credentials.AddCredentialsScreen
+import eu.europa.ec.dashboardfeature.ui.add_credentials.AddCredentialsViewModel
 import eu.europa.ec.dashboardfeature.ui.documents.DocumentsScreen
 import eu.europa.ec.dashboardfeature.ui.documents.DocumentsViewModel
 import eu.europa.ec.dashboardfeature.ui.home.HomeScreen
@@ -59,9 +61,11 @@ import eu.europa.ec.uilogic.extension.openAppSettings
 import eu.europa.ec.uilogic.extension.openBleSettings
 import eu.europa.ec.uilogic.extension.openIntentChooser
 import eu.europa.ec.uilogic.extension.openUrl
+import eu.europa.ec.uilogic.navigation.DashboardScreens
 import eu.europa.ec.uilogic.navigation.helper.handleDeepLinkAction
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun DashboardScreen(
@@ -70,7 +74,8 @@ fun DashboardScreen(
     documentsViewModel: DocumentsViewModel,
     homeViewModel: HomeViewModel,
     transactionsViewModel: TransactionsViewModel,
-    settingsViewModel: SettingsViewModel
+    settingsViewModel: SettingsViewModel,
+    addCredentialsViewModel: AddCredentialsViewModel
 ) {
     val context = LocalContext.current
     val bottomNavigationController = rememberNavController()
@@ -98,6 +103,7 @@ fun DashboardScreen(
                 HomeScreen(
                     hostNavController,
                     homeViewModel,
+                    bottomNavigationController,
                     onDashboardEventSent = { event ->
                         viewModel.setEvent(event)
                     }
@@ -112,6 +118,15 @@ fun DashboardScreen(
                     }
                 )
             }
+            composable(BottomNavigationItem.Transactions.route) {
+                TransactionsScreen(hostNavController, transactionsViewModel)
+            }
+            composable(route = BottomNavigationItem.AddCredential.route) {
+                AddCredentialsScreen(
+                    hostNavController, addCredentialsViewModel,
+                )
+            }
+
 
             composable(BottomNavigationItem.Settings.route) {
                 SettingsScreen(
@@ -119,6 +134,7 @@ fun DashboardScreen(
                     settingsViewModel
                 )
             }
+
         }
     }
 

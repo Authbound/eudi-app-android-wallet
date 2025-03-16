@@ -21,6 +21,8 @@ import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.validator.FilterValidator
 import eu.europa.ec.corelogic.config.WalletCoreConfig
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
+import eu.europa.ec.dashboardfeature.interactor.AddCredentialsInteractor
+import eu.europa.ec.dashboardfeature.interactor.AddCredentialsInteractorImpl
 import eu.europa.ec.dashboardfeature.interactor.DashboardInteractor
 import eu.europa.ec.dashboardfeature.interactor.DashboardInteractorImpl
 import eu.europa.ec.dashboardfeature.interactor.DocumentSignInteractor
@@ -80,6 +82,8 @@ fun provideTransactionInteractor(): TransactionsInteractor = TransactionsInterac
 @Factory
 fun provideSettingsInteractor(): SettingsInteractor = SettingsInteractorImpl()
 
+@Factory
+fun provideAddCredentialsInteractor(): AddCredentialsInteractor = AddCredentialsInteractorImpl()
 
 @Factory
 fun provideDocumentSignInteractor(

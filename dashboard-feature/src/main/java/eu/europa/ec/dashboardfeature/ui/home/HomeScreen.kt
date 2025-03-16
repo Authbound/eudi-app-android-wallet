@@ -59,12 +59,14 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.uilogic.component.AppIconAndText
 import eu.europa.ec.uilogic.component.AppIconAndTextData
 import eu.europa.ec.uilogic.component.AppIcons
+import eu.europa.ec.uilogic.component.IconData
 import eu.europa.ec.uilogic.component.ModalOptionUi
 import eu.europa.ec.uilogic.component.content.ContentScreen
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
@@ -105,6 +107,7 @@ typealias ShowSideMenuEvent = eu.europa.ec.dashboardfeature.ui.dashboard.Event.S
 fun HomeScreen(
     navHostController: NavController,
     viewModel: HomeViewModel,
+    bottomNavHostController: NavController,
     onDashboardEventSent: (DashboardEvent) -> Unit
 ) {
     val context = LocalContext.current
@@ -132,7 +135,7 @@ fun HomeScreen(
                 viewModel.setEvent(event)
             },
             onNavigationRequested = {
-                handleNavigationEffect(it, navHostController, context)
+                handleNavigationEffect(it, navHostController, bottomNavHostController, context)
             },
             coroutineScope = scope,
             modalBottomSheetState = bottomSheetState,
@@ -190,6 +193,11 @@ private fun TopBar(
             modifier = Modifier.align(Alignment.Center),
             appIconAndTextData = AppIconAndTextData()
         )
+
+//        WrapIconButton(
+//            modifier = Modifier,
+//            iconData = AppIcons.Info
+//        ) { }
     }
 }
 
@@ -221,13 +229,13 @@ private fun Content(
         verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
     ) {
         // Welcome message
-      /**  Text(
-            text = state.welcomeUserMessage,
-            style = MaterialTheme.typography.headlineMedium.copy(
-                color = MaterialTheme.colorScheme.onSurface
-            )
+        /**  Text(
+        text = state.welcomeUserMessage,
+        style = MaterialTheme.typography.headlineMedium.copy(
+        color = MaterialTheme.colorScheme.onSurface
         )
-      */
+        )
+         */
 
         // Quick Actions section
         QuickActionsSection(
@@ -239,7 +247,7 @@ private fun Content(
 
         // Keep the original action cards as a fallback if needed
         // Comment out for now as we're replacing them with the quick actions grid
-        /*
+
         WrapActionCard(
             config = state.authenticateCardConfig,
             onActionClick = {
@@ -267,7 +275,6 @@ private fun Content(
                 )
             }
         )
-        */
     }
 
     if (state.bleAvailability == BleAvailability.NO_PERMISSION) {
@@ -307,6 +314,7 @@ private fun Content(
 private fun handleNavigationEffect(
     navigationEffect: Effect.Navigation,
     navController: NavController,
+    bottomController: NavController,
     context: Context
 ) {
     when (navigationEffect) {
@@ -315,6 +323,16 @@ private fun handleNavigationEffect(
                 popUpTo(navigationEffect.popUpToScreenRoute) {
                     inclusive = navigationEffect.inclusive
                 }
+            }
+        }
+
+        is Effect.Navigation.SwitchTab -> {
+            bottomController.navigate(navigationEffect.tabRoute) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
             }
         }
 
@@ -552,7 +570,7 @@ private fun QuickActionsSection(
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurface
         )
-        
+
         // First row - first two actions
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -565,7 +583,7 @@ private fun QuickActionsSection(
                 )
             }
         }
-        
+
         // Second row - next two actions (if available)
         if (quickActions.size > 2) {
             Row(
@@ -615,7 +633,7 @@ private fun HomeScreenContentPreview() {
                         primaryButtonText = stringResource(R.string.home_screen_sign),
                         secondaryButtonText = stringResource(R.string.home_screen_learn_more),
                     )
-                    
+
                 ),
                 effectFlow = Channel<Effect>().receiveAsFlow(),
                 onNavigationRequested = {},

@@ -4,6 +4,7 @@ package eu.europa.ec.dashboardfeature.ui.settings
 
 import androidx.lifecycle.viewModelScope
 import eu.europa.ec.dashboardfeature.interactor.SettingsInteractor
+import eu.europa.ec.dashboardfeature.ui.BottomNavigationItem
 
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.uilogic.mvi.MviViewModel
@@ -111,7 +112,7 @@ class SettingsViewModel(val interactor: SettingsInteractor,
     }
 
     private fun navigateToEditProfile() {
-        setEffect { Effect.Navigation.SwitchScreen(DashboardScreens.Settings.screenRoute) }
+        setEffect { Effect.Navigation.SwitchScreen(BottomNavigationItem.Settings.route) }
     }
 
     private fun toggleBiometric(enabled: Boolean) {
@@ -125,23 +126,23 @@ class SettingsViewModel(val interactor: SettingsInteractor,
     }
 
     private fun navigateToChangePin() {
-        setEffect { Effect.Navigation.SwitchScreen(DashboardScreens.Settings.screenRoute) }
+        setEffect { Effect.Navigation.SwitchScreen(BottomNavigationItem.Settings.route) }
     }
 
     private fun navigateToChangePassword() {
-        setEffect { Effect.Navigation.SwitchScreen(DashboardScreens.Settings.screenRoute) }
+        setEffect { Effect.Navigation.SwitchScreen(BottomNavigationItem.Settings.route) }
     }
 
     private fun navigateToDataSharing() {
-        setEffect { Effect.Navigation.SwitchScreen(DashboardScreens.Settings.screenRoute) }
+        setEffect { Effect.Navigation.SwitchScreen(BottomNavigationItem.Settings.route) }
     }
 
     private fun navigateToActivityLog() {
-        setEffect { Effect.Navigation.SwitchScreen(DashboardScreens.Settings.screenRoute) }
+        setEffect { Effect.Navigation.SwitchScreen(BottomNavigationItem.Settings.route) }
     }
 
     private fun navigateToNotifications() {
-        setEffect { Effect.Navigation.SwitchScreen(DashboardScreens.Settings.screenRoute) }
+        setEffect { Effect.Navigation.SwitchScreen(BottomNavigationItem.Settings.route) }
     }
 
     private fun showDeleteConfirmation() {

@@ -82,8 +82,13 @@ enum class BottomNavigationItem(
     ),
     Settings(
         route = "SETTINGS",
-        icon = AppIcons.Settings,
+        icon = AppIcons.UserIcon,
         labelResId = R.string.settings_screen_title
+    ),
+    AddCredential(
+        route = "ADD_CREDENTIAL",
+        icon = AppIcons.Add,
+        labelResId = R.string.dashboard_quick_action_add_credential
     )
 }
 
@@ -127,9 +132,9 @@ fun BottomNavigationBar(navController: NavController) {
                     val selected = currentDestination?.hierarchy?.any {
                         it.route == screen.route
                     } == true
-                    val enabled = screen.route != BottomNavigationItem.Transactions.route
+//                    val enabled = screen.route != BottomNavigationItem.Transactions.route
                     
-                    if (enabled) {
+//                    if (enabled) {
                         FloatingNavItem(
                             icon = screen.icon,
                             label = stringResource(screen.labelResId),
@@ -144,7 +149,7 @@ fun BottomNavigationBar(navController: NavController) {
                                 }
                             }
                         )
-                    }
+//                    }
                 }
             }
         }

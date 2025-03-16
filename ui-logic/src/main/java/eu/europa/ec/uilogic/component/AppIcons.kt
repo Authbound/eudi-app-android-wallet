@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.graphics.vector.ImageVector
 import eu.europa.ec.resourceslogic.R
@@ -175,6 +176,18 @@ object AppIcons {
     val AuthboundLogoFull: IconData = IconData(
         resourceId = R.drawable.ic_authbound_logo_full,
         contentDescriptionId = R.string.content_description_authbound_logo_full_icon,
+        imageVector = null
+    )
+
+    val UserIcon : IconData = IconData(
+        resourceId = R.drawable.baseline_person_24,
+        contentDescriptionId = R.string.user_icon,
+        imageVector = null
+    )
+
+    val Key : IconData = IconData(
+        resourceId = R.drawable.baseline_key_24,
+        contentDescriptionId = R.string.key_icon,
         imageVector = null
     )
 
