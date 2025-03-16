@@ -22,13 +22,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import eu.europa.ec.uilogic.component.AppIcons.AuthboundLogoAndText
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
 import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
 import eu.europa.ec.uilogic.component.wrap.WrapImage
 
 data class AppIconAndTextData(
-    val appIcon: IconData = AppIcons.AuthboundLogo,
+    val appIcon: IconData = AuthboundLogoAndText,
     val appText: IconData = AppIcons.AuthboundText,
 )
 
@@ -46,7 +47,7 @@ fun AppIconAndText(
         verticalAlignment = Alignment.Top
     ) {
         WrapImage(iconData = appIconAndTextData.appIcon)
-        WrapImage(iconData = appIconAndTextData.appText)
+        //WrapImage(iconData = appIconAndTextData.appText)
     }
 }
 
@@ -55,10 +56,7 @@ fun AppIconAndText(
 private fun AppIconAndTextPreview() {
     PreviewTheme {
         AppIconAndText(
-            appIconAndTextData = AppIconAndTextData(
-                appIcon = AppIcons.AuthboundLogo,
-                appText = AppIcons.AuthboundText,
-            )
+            appIconAndTextData = AppIconAndTextData(AuthboundLogoAndText, appText = AppIcons.AuthboundText)
         )
     }
 }

@@ -23,12 +23,16 @@ import androidx.navigation.compose.navigation
 import androidx.navigation.navDeepLink
 import eu.europa.ec.dashboardfeature.BuildConfig
 import eu.europa.ec.dashboardfeature.ui.dashboard.DashboardScreen
+import eu.europa.ec.dashboardfeature.ui.settings.SettingsScreen
 import eu.europa.ec.dashboardfeature.ui.sign.DocumentSignScreen
 import eu.europa.ec.uilogic.navigation.DashboardScreens
 import eu.europa.ec.uilogic.navigation.ModuleRoute
 import org.koin.androidx.compose.koinViewModel
 
-fun NavGraphBuilder.featureDashboardGraph(navController: NavController) {
+fun NavGraphBuilder.featureDashboardGraph(
+    navController: NavController,
+
+) {
     navigation(
         startDestination = DashboardScreens.Dashboard.screenRoute,
         route = ModuleRoute.DashboardModule.route
@@ -47,7 +51,8 @@ fun NavGraphBuilder.featureDashboardGraph(navController: NavController) {
                 viewModel = koinViewModel(),
                 documentsViewModel = koinViewModel(),
                 homeViewModel = koinViewModel(),
-                transactionsViewModel = koinViewModel()
+                transactionsViewModel = koinViewModel(),
+                settingsViewModel = koinViewModel()
             )
         }
 
@@ -56,5 +61,74 @@ fun NavGraphBuilder.featureDashboardGraph(navController: NavController) {
         ) {
             DocumentSignScreen(navController, koinViewModel())
         }
+
+//        composable(
+//            route = DashboardScreens.Settings.screenRoute
+//        ) {
+//            SettingsScreen(
+//                navController,
+//                koinViewModel()
+//            )
+//        }
+//
+//        composable(
+//            route = DashboardScreens.Settings.screenRoute
+//        ) {
+//            // TODO: Implement EditProfileScreen
+//            SettingsScreen(
+//                navController,
+//                koinViewModel()
+//            )
+//        }
+//
+//        composable(
+//            route = DashboardScreens.Settings.screenRoute
+//        ) {
+//            // TODO: Implement ChangePinScreen
+//            SettingsScreen(
+//                navController,
+//                koinViewModel()
+//            )
+//        }
+//
+//        composable(
+//            route = DashboardScreens.Settings.screenRoute
+//        ) {
+//            // TODO: Implement ChangePasswordScreen
+//            SettingsScreen(
+//                navController,
+//                koinViewModel()
+//            )
+//        }
+//
+//        composable(
+//            route = DashboardScreens.Settings.screenRoute
+//        ) {
+//            // TODO: Implement DataSharingScreen
+//            SettingsScreen(
+//                navController,
+//                koinViewModel()
+//            )
+//        }
+//
+//        composable(
+//            route = DashboardScreens.Settings.screenRoute
+//        ) {
+//            // TODO: Implement ActivityLogScreen
+//            SettingsScreen(
+//                navController,
+//                koinViewModel()
+//            )
+//        }
+//
+//        composable(
+//            route = DashboardScreens.Settings.screenRoute
+//        ) {
+//            // TODO: Implement NotificationsScreen
+//            SettingsScreen(
+//                navController,
+//                koinViewModel()
+//            )
+//        }
     }
 }

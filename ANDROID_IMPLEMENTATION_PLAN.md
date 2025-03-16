@@ -46,11 +46,11 @@ This document outlines the implementation plan for refactoring the Android walle
   - `dashboard-feature/src/main/java/eu/europa/ec/dashboardfeature/ui/home/HomeScreen.kt`
   - `ui-logic/src/main/java/eu/europa/ec/uilogic/component/wrap/QuickActionCard.kt`
 
-:white_large_square: **Update Bottom Navigation**
+:white_check_mark: **Update Bottom Navigation**
 - Enhance the current bottom navigation with animations and visual improvements
 - Implement haptic feedback similar to the mobile app
 - Ensure proper spacing and visual hierarchy
-- Files to modify:
+- Files modified:
   - `dashboard-feature/src/main/java/eu/europa/ec/dashboardfeature/ui/BottomNavigation.kt`
 
 ### Phase 2: Home Screen Refactoring (HIGH PRIORITY)
@@ -79,26 +79,26 @@ This document outlines the implementation plan for refactoring the Android walle
 
 ### Phase 3: Bottom Sheet Enhancements (MEDIUM PRIORITY)
 
-:white_large_square: **Redesign Bottom Sheets**
+:white_check_mark: **Redesign Bottom Sheets**
 - Update bottom sheet designs to match the mobile app's aesthetic
 - Implement smooth animations for sheet transitions
 - Ensure proper spacing and visual hierarchy
-- Files to modify:
+- Files modified:
   - `ui-logic/src/main/java/eu/europa/ec/uilogic/component/wrap/WrapModalBottomSheet.kt`
   - `dashboard-feature/src/main/java/eu/europa/ec/dashboardfeature/ui/home/HomeScreen.kt`
 
-:white_large_square: **Enhance Authentication Options**
+:white_check_mark: **Enhance Authentication Options**
 - Update the authentication bottom sheet with improved visuals
 - Add clear visual distinction between in-person and online options
 - Implement smooth animations and transitions
-- Files to modify:
+- Files modified:
   - `dashboard-feature/src/main/java/eu/europa/ec/dashboardfeature/ui/home/HomeScreen.kt`
 
-:white_large_square: **Implement Sign Document Options**
-- Fully implement the sign document bottom sheet (currently commented out)
+:white_check_mark: **Implement Sign Document Options**
+- Fully implement the sign document bottom sheet (previously commented out)
 - Add clear visual distinction between device and QR options
 - Ensure proper event handling for all options
-- Files to modify:
+- Files modified:
   - `dashboard-feature/src/main/java/eu/europa/ec/dashboardfeature/ui/home/HomeScreen.kt`
   - `dashboard-feature/src/main/java/eu/europa/ec/dashboardfeature/ui/home/HomeViewModel.kt`
 

@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -44,6 +45,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import android.view.HapticFeedbackConstants
 import eu.europa.ec.uilogic.component.IconData
@@ -86,7 +88,7 @@ fun QuickActionCard(
     
     Surface(
         modifier = Modifier
-            .size(160.dp)  // Fixed size for all cards
+            .size(155.dp)  // Fixed size for all cards
             .scale(scale)
             .clickable(
                 interactionSource = interactionSource,
@@ -104,35 +106,46 @@ fun QuickActionCard(
         shadowElevation = 4.dp
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Icon container with circular background
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(Color.White.copy(alpha = 0.25f), CircleShape),
-                contentAlignment = Alignment.Center
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                WrapIcon(
-                    iconData = config.icon,
-                    customTint = Color.White,
-                    modifier = Modifier.size(24.dp)
+                // Icon container with circular background
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(Color.White.copy(alpha = 0.25f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    WrapIcon(
+                        iconData = config.icon,
+                        customTint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                
+                // Title
+                Text(
+                    text = config.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
             
-            // Title and description
-            Text(
-                text = config.title,
-                style = MaterialTheme.typography.titleMedium,
-                color = Color.White,
-                fontWeight = FontWeight.Bold
-            )
-            
+            // Description at the bottom
             Text(
                 text = config.description,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.9f)
+                color = Color.White.copy(alpha = 0.9f),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }

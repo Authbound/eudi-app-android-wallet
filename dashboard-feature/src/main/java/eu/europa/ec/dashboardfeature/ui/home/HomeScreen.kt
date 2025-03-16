@@ -19,21 +19,31 @@ package eu.europa.ec.dashboardfeature.ui.home
 import android.Manifest
 import android.content.Context
 import android.os.Build
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SheetState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -44,6 +54,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -61,6 +72,7 @@ import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
 import eu.europa.ec.uilogic.component.utils.HSpacer
 import eu.europa.ec.uilogic.component.utils.OneTimeLaunchedEffect
+import eu.europa.ec.uilogic.component.utils.SPACING_LARGE
 import eu.europa.ec.uilogic.component.utils.SPACING_MEDIUM
 import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
 import eu.europa.ec.uilogic.component.wrap.ActionCardConfig
@@ -209,12 +221,13 @@ private fun Content(
         verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
     ) {
         // Welcome message
-        Text(
+      /**  Text(
             text = state.welcomeUserMessage,
             style = MaterialTheme.typography.headlineMedium.copy(
                 color = MaterialTheme.colorScheme.onSurface
             )
         )
+      */
 
         // Quick Actions section
         QuickActionsSection(
@@ -223,7 +236,7 @@ private fun Content(
                 onEventSent(Event.QuickActionPressed(actionId))
             }
         )
-        
+
         // Keep the original action cards as a fallback if needed
         // Comment out for now as we're replacing them with the quick actions grid
         /*
@@ -531,7 +544,7 @@ private fun QuickActionsSection(
     Column(
         modifier = Modifier
             .fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
+        verticalArrangement = Arrangement.spacedBy(SPACING_LARGE.dp)
     ) {
         // Section title
         Text(
@@ -543,7 +556,7 @@ private fun QuickActionsSection(
         // First row - first two actions
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
+            horizontalArrangement = Arrangement.spacedBy(SPACING_LARGE.dp)
         ) {
             quickActions.take(2).forEach { action ->
                 QuickActionCard(
@@ -557,7 +570,7 @@ private fun QuickActionsSection(
         if (quickActions.size > 2) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                horizontalArrangement = Arrangement.spacedBy(SPACING_LARGE.dp)
             ) {
                 quickActions.drop(2).take(2).forEach { action ->
                     QuickActionCard(
@@ -569,6 +582,7 @@ private fun QuickActionsSection(
         }
     }
 }
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @ThemeModePreviews
@@ -601,7 +615,7 @@ private fun HomeScreenContentPreview() {
                         primaryButtonText = stringResource(R.string.home_screen_sign),
                         secondaryButtonText = stringResource(R.string.home_screen_learn_more),
                     )
-
+                    
                 ),
                 effectFlow = Channel<Effect>().receiveAsFlow(),
                 onNavigationRequested = {},

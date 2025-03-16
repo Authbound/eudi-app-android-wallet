@@ -16,7 +16,6 @@
 
 package eu.europa.ec.dashboardfeature.ui.home
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.viewModelScope
 import eu.europa.ec.commonfeature.config.PresentationMode
@@ -45,23 +44,24 @@ import kotlinx.coroutines.launch
 import org.koin.android.annotation.KoinViewModel
 
 enum class BleAvailability {
-    AVAILABLE, NO_PERMISSION, DISABLED, UNKNOWN
+    AVAILABLE,
+    NO_PERMISSION,
+    DISABLED,
+    UNKNOWN
 }
 
 data class State(
-    val isLoading: Boolean = false,
-    val isBottomSheetOpen: Boolean = false,
-    val sheetContent: HomeScreenBottomSheetContent = HomeScreenBottomSheetContent.Authenticate,
+        val isLoading: Boolean = false,
+        val isBottomSheetOpen: Boolean = false,
+        val sheetContent: HomeScreenBottomSheetContent = HomeScreenBottomSheetContent.Authenticate,
+        val welcomeUserMessage: String,
+        val authenticateCardConfig: ActionCardConfig,
+        val signCardConfig: ActionCardConfig,
 
-    val welcomeUserMessage: String,
-    val authenticateCardConfig: ActionCardConfig,
-    val signCardConfig: ActionCardConfig,
-    
-    // New quick actions list for the grid layout
-    val quickActions: List<QuickActionConfig> = emptyList(),
-
-    val bleAvailability: BleAvailability = BleAvailability.UNKNOWN,
-    val isBleCentralClientModeEnabled: Boolean = false
+        // New quick actions list for the grid layout
+        val quickActions: List<QuickActionConfig> = emptyList(),
+        val bleAvailability: BleAvailability = BleAvailability.UNKNOWN,
+        val isBleCentralClientModeEnabled: Boolean = false
 ) : ViewState
 
 sealed class Event : ViewEvent {
@@ -77,7 +77,7 @@ sealed class Event : ViewEvent {
         data object SignDocumentPressed : Event()
         data object LearnMorePressed : Event()
     }
-    
+
     // New event for handling quick action clicks
     data class QuickActionPressed(val actionId: String) : Event()
 
@@ -103,9 +103,9 @@ sealed class Event : ViewEvent {
 sealed class Effect : ViewSideEffect {
     sealed class Navigation : Effect() {
         data class SwitchScreen(
-            val screenRoute: String,
-            val popUpToScreenRoute: String = DashboardScreens.Dashboard.screenRoute,
-            val inclusive: Boolean = false,
+                val screenRoute: String,
+                val popUpToScreenRoute: String = DashboardScreens.Dashboard.screenRoute,
+                val inclusive: Boolean = false,
         ) : Navigation()
 
         data object OnAppSettings : Navigation()
@@ -126,9 +126,9 @@ sealed class HomeScreenBottomSheetContent {
 
 @KoinViewModel
 class HomeViewModel(
-    private val homeInteractor: HomeInteractor,
-    private val uiSerializer: UiSerializer,
-    private val resourceProvider: ResourceProvider
+        private val homeInteractor: HomeInteractor,
+        private val uiSerializer: UiSerializer,
+        private val resourceProvider: ResourceProvider
 ) : MviViewModel<Event, State, Effect>() {
 
     override fun setInitialState(): State {
@@ -137,59 +137,93 @@ class HomeViewModel(
         val signColor = Color(0xFF7C3AED) // Purple
         val viewCredentialsColor = Color(0xFF16A34A) // Green
         val settingsColor = Color(0xFFD97706) // Amber
-        
+
         // Create quick actions list
-        val quickActionsList = listOf(
-            QuickActionConfig(
-                id = "authenticate",
-                title = resourceProvider.getString(R.string.home_screen_authenticate),
-                description = resourceProvider.getString(R.string.home_screen_authentication_card_title),
-                icon = AppIcons.IdCards,
-                backgroundColor = authenticateColor,
-                borderColor = authenticateColor.copy(alpha = 0.7f)
-            ),
-            QuickActionConfig(
-                id = "sign",
-                title = resourceProvider.getString(R.string.home_screen_sign),
-                description = resourceProvider.getString(R.string.home_screen_sign_card_title),
-                icon = AppIcons.Contract,
-                backgroundColor = signColor,
-                borderColor = signColor.copy(alpha = 0.7f)
-            ),
-            QuickActionConfig(
-                id = "view_credentials",
-                title = resourceProvider.getString(R.string.documents_screen_title),
-                description = resourceProvider.getString(R.string.home_screen_view_credentials_description),
-                icon = AppIcons.Documents,
-                backgroundColor = viewCredentialsColor,
-                borderColor = viewCredentialsColor.copy(alpha = 0.7f)
-            ),
-            QuickActionConfig(
-                id = "settings",
-                title = resourceProvider.getString(R.string.dashboard_side_menu_title),
-                description = resourceProvider.getString(R.string.home_screen_settings_description),
-                icon = AppIcons.Settings,
-                backgroundColor = settingsColor,
-                borderColor = settingsColor.copy(alpha = 0.7f)
-            )
-        )
-        
+        val quickActionsList =
+                listOf(
+                        QuickActionConfig(
+                                id = "authenticate",
+                                title =
+                                        resourceProvider.getString(
+                                                R.string.home_screen_authenticate
+                                        ),
+                                description =
+                                        resourceProvider.getString(
+                                                R.string.home_screen_authentication_card_title
+                                        ),
+                                icon = AppIcons.IdCards,
+                                backgroundColor = authenticateColor,
+                                borderColor = authenticateColor.copy(alpha = 0.7f)
+                        ),
+                        QuickActionConfig(
+                                id = "add_credentials",
+                                title =
+                                        resourceProvider.getString(
+                                                R.string.dashboard_quick_action_add_credential
+                                        ),
+                                description =
+                                        resourceProvider.getString(
+                                                R.string
+                                                        .dashboard_quick_action_add_credential_description
+                                        ),
+                                icon = AppIcons.Id,
+                                backgroundColor = settingsColor,
+                                borderColor = settingsColor.copy(alpha = 0.7f)
+                        ),
+                        QuickActionConfig(
+                                id = "view_credentials",
+                                title = resourceProvider.getString(R.string.documents_screen_title),
+                                description =
+                                        resourceProvider.getString(
+                                                R.string.home_screen_view_credentials_description
+                                        ),
+                                icon = AppIcons.Documents,
+                                backgroundColor = viewCredentialsColor,
+                                borderColor = viewCredentialsColor.copy(alpha = 0.7f)
+                        ),
+                        QuickActionConfig(
+                                id = "sign",
+                                title = resourceProvider.getString(R.string.home_screen_sign),
+                                description =
+                                        resourceProvider.getString(
+                                                R.string.home_screen_sign_card_title
+                                        ),
+                                icon = AppIcons.Contract,
+                                backgroundColor = signColor,
+                                borderColor = signColor.copy(alpha = 0.7f)
+                        ),
+                )
+
         return State(
-            welcomeUserMessage = resourceProvider.getString(R.string.home_screen_welcome),
-            authenticateCardConfig = ActionCardConfig(
-                title = resourceProvider.getString(R.string.home_screen_authentication_card_title),
-                icon = AppIcons.IdCards,
-                primaryButtonText = resourceProvider.getString(R.string.home_screen_authenticate),
-                secondaryButtonText = resourceProvider.getString(R.string.home_screen_learn_more)
-            ),
-            signCardConfig = ActionCardConfig(
-                title = resourceProvider.getString(R.string.home_screen_sign_card_title),
-                icon = AppIcons.Contract,
-                primaryButtonText = resourceProvider.getString(R.string.home_screen_sign),
-                secondaryButtonText = resourceProvider.getString(R.string.home_screen_learn_more)
-            ),
-            quickActions = quickActionsList,
-            isBleCentralClientModeEnabled = homeInteractor.isBleCentralClientModeEnabled(),
+                welcomeUserMessage = resourceProvider.getString(R.string.home_screen_welcome),
+                authenticateCardConfig =
+                        ActionCardConfig(
+                                title =
+                                        resourceProvider.getString(
+                                                R.string.home_screen_authentication_card_title
+                                        ),
+                                icon = AppIcons.IdCards,
+                                primaryButtonText =
+                                        resourceProvider.getString(
+                                                R.string.home_screen_authenticate
+                                        ),
+                                secondaryButtonText =
+                                        resourceProvider.getString(R.string.home_screen_learn_more)
+                        ),
+                signCardConfig =
+                        ActionCardConfig(
+                                title =
+                                        resourceProvider.getString(
+                                                R.string.home_screen_sign_card_title
+                                        ),
+                                icon = AppIcons.Contract,
+                                primaryButtonText =
+                                        resourceProvider.getString(R.string.home_screen_sign),
+                                secondaryButtonText =
+                                        resourceProvider.getString(R.string.home_screen_learn_more)
+                        ),
+                quickActions = quickActionsList,
+                isBleCentralClientModeEnabled = homeInteractor.isBleCentralClientModeEnabled(),
         )
     }
 
@@ -198,69 +232,55 @@ class HomeViewModel(
             is Event.Init -> {
                 getUserNameViaMainPidDocument()
             }
-
-            is Event.AuthenticateCard.AuthenticatePressed -> showBottomSheet(
-                sheetContent = HomeScreenBottomSheetContent.Authenticate
-            )
-
-            is Event.AuthenticateCard.LearnMorePressed -> showBottomSheet(
-                sheetContent = HomeScreenBottomSheetContent.LearnMoreAboutAuthenticate
-            )
-
+            is Event.AuthenticateCard.AuthenticatePressed ->
+                    showBottomSheet(sheetContent = HomeScreenBottomSheetContent.Authenticate)
+            is Event.AuthenticateCard.LearnMorePressed ->
+                    showBottomSheet(
+                            sheetContent = HomeScreenBottomSheetContent.LearnMoreAboutAuthenticate
+                    )
             is Event.SignDocumentCard.SignDocumentPressed -> {
                 navigateToDocumentSign()
             }
-
-            is Event.SignDocumentCard.LearnMorePressed -> showBottomSheet(
-                sheetContent = HomeScreenBottomSheetContent.LearnMoreAboutSignDocument
-            )
-
+            is Event.SignDocumentCard.LearnMorePressed ->
+                    showBottomSheet(
+                            sheetContent = HomeScreenBottomSheetContent.LearnMoreAboutSignDocument
+                    )
             is Event.BottomSheet.UpdateBottomSheetState -> {
-                setState {
-                    copy(isBottomSheetOpen = event.isOpen)
-                }
+                setState { copy(isBottomSheetOpen = event.isOpen) }
             }
-
             is Event.BottomSheet.Close -> {
                 hideBottomSheet()
             }
-
             is Event.BottomSheet.Authenticate.OpenAuthenticateInPerson -> {
                 checkIfBluetoothIsEnabled()
             }
-
             is Event.BottomSheet.Authenticate.OpenAuthenticateOnLine -> {
                 hideBottomSheet()
                 navigateToQrScan()
             }
-
             is Event.OnPermissionStateChanged -> {
                 setState { copy(bleAvailability = event.availability) }
             }
-
             is Event.OnShowPermissionsRational -> {
                 setState { copy(bleAvailability = BleAvailability.UNKNOWN) }
                 showBottomSheet(
-                    sheetContent = HomeScreenBottomSheetContent.Bluetooth(
-                        BleAvailability.NO_PERMISSION
-                    )
+                        sheetContent =
+                                HomeScreenBottomSheetContent.Bluetooth(
+                                        BleAvailability.NO_PERMISSION
+                                )
                 )
             }
-
             is Event.StartProximityFlow -> {
                 hideBottomSheet()
                 startProximityFlow()
             }
-
             is Event.BottomSheet.Bluetooth.PrimaryButtonPressed -> {
                 hideBottomSheet()
                 onBleUserAction(event.availability)
             }
-
             is Event.BottomSheet.Bluetooth.SecondaryButtonPressed -> {
                 hideBottomSheet()
             }
-
             is Event.QuickActionPressed -> {
                 handleQuickAction(event.actionId)
             }
@@ -274,7 +294,7 @@ class HomeViewModel(
             setState { copy(bleAvailability = BleAvailability.DISABLED) }
             hideAndShowNextBottomSheet()
             showBottomSheet(
-                sheetContent = HomeScreenBottomSheetContent.Bluetooth(BleAvailability.DISABLED)
+                    sheetContent = HomeScreenBottomSheetContent.Bluetooth(BleAvailability.DISABLED)
             )
         }
     }
@@ -284,11 +304,9 @@ class HomeViewModel(
             BleAvailability.NO_PERMISSION -> {
                 setEffect { Effect.Navigation.OnAppSettings }
             }
-
             BleAvailability.DISABLED -> {
                 setEffect { Effect.Navigation.OnSystemSettings }
             }
-
             else -> {
                 // no implementation
             }
@@ -296,31 +314,21 @@ class HomeViewModel(
     }
 
     private fun showBottomSheet(sheetContent: HomeScreenBottomSheetContent) {
-        setState {
-            copy(sheetContent = sheetContent)
-        }
-        setEffect {
-            Effect.ShowBottomSheet
-        }
+        setState { copy(sheetContent = sheetContent) }
+        setEffect { Effect.ShowBottomSheet }
     }
 
     private fun hideBottomSheet() {
-        setEffect {
-            Effect.CloseBottomSheet(false)
-        }
+        setEffect { Effect.CloseBottomSheet(false) }
     }
 
     private fun hideAndShowNextBottomSheet() {
-        setEffect {
-            Effect.CloseBottomSheet(true)
-        }
+        setEffect { Effect.CloseBottomSheet(true) }
     }
 
     private fun navigateToDocumentSign() {
         setEffect {
-            Effect.Navigation.SwitchScreen(
-                screenRoute = DashboardScreens.SignDocument.screenRoute
-            )
+            Effect.Navigation.SwitchScreen(screenRoute = DashboardScreens.SignDocument.screenRoute)
         }
     }
 
@@ -330,72 +338,96 @@ class HomeViewModel(
         getOrCreatePresentationScope()
         setEffect {
             Effect.Navigation.SwitchScreen(
-                screenRoute = generateComposableNavigationLink(
-                    screen = ProximityScreens.QR,
-                    arguments = generateComposableArguments(
-                        mapOf(
-                            RequestUriConfig.serializedKeyName to uiSerializer.toBase64(
-                                RequestUriConfig(PresentationMode.Ble(DashboardScreens.Dashboard.screenRoute)),
-                                RequestUriConfig.Parser
+                    screenRoute =
+                            generateComposableNavigationLink(
+                                    screen = ProximityScreens.QR,
+                                    arguments =
+                                            generateComposableArguments(
+                                                    mapOf(
+                                                            RequestUriConfig.serializedKeyName to
+                                                                    uiSerializer.toBase64(
+                                                                            RequestUriConfig(
+                                                                                    PresentationMode
+                                                                                            .Ble(
+                                                                                                    DashboardScreens
+                                                                                                            .Dashboard
+                                                                                                            .screenRoute
+                                                                                            )
+                                                                            ),
+                                                                            RequestUriConfig.Parser
+                                                                    )
+                                                    )
+                                            )
                             )
-                        )
-                    )
-                )
             )
         }
     }
 
     private fun navigateToQrScan() {
-        val navigationEffect = Effect.Navigation.SwitchScreen(
-            screenRoute = generateComposableNavigationLink(
-                screen = CommonScreens.QrScan,
-                arguments = generateComposableArguments(
-                    mapOf(
-                        QrScanUiConfig.serializedKeyName to uiSerializer.toBase64(
-                            QrScanUiConfig(
-                                title = resourceProvider.getString(R.string.presentation_qr_scan_title),
-                                subTitle = resourceProvider.getString(R.string.presentation_qr_scan_subtitle),
-                                qrScanFlow = QrScanFlow.Presentation
-                            ),
-                            QrScanUiConfig.Parser
-                        )
-                    )
+        val navigationEffect =
+                Effect.Navigation.SwitchScreen(
+                        screenRoute =
+                                generateComposableNavigationLink(
+                                        screen = CommonScreens.QrScan,
+                                        arguments =
+                                                generateComposableArguments(
+                                                        mapOf(
+                                                                QrScanUiConfig.serializedKeyName to
+                                                                        uiSerializer.toBase64(
+                                                                                QrScanUiConfig(
+                                                                                        title =
+                                                                                                resourceProvider
+                                                                                                        .getString(
+                                                                                                                R.string
+                                                                                                                        .presentation_qr_scan_title
+                                                                                                        ),
+                                                                                        subTitle =
+                                                                                                resourceProvider
+                                                                                                        .getString(
+                                                                                                                R.string
+                                                                                                                        .presentation_qr_scan_subtitle
+                                                                                                        ),
+                                                                                        qrScanFlow =
+                                                                                                QrScanFlow
+                                                                                                        .Presentation
+                                                                                ),
+                                                                                QrScanUiConfig
+                                                                                        .Parser
+                                                                        )
+                                                        )
+                                                )
+                                )
                 )
-            )
-        )
 
-        setEffect {
-            navigationEffect
-        }
+        setEffect { navigationEffect }
     }
 
     private fun getUserNameViaMainPidDocument() {
-        setState {
-            copy(
-                isLoading = true
-            )
-        }
+        setState { copy(isLoading = true) }
         viewModelScope.launch {
             homeInteractor.getUserNameViaMainPidDocument().collect { response ->
                 when (response) {
                     is HomeInteractorGetUserNameViaMainPidDocumentPartialState.Failure -> {
                         setState {
                             copy(
-                                isLoading = false,
+                                    isLoading = false,
                             )
                         }
                     }
-
                     is HomeInteractorGetUserNameViaMainPidDocumentPartialState.Success -> {
                         setState {
                             copy(
-                                isLoading = false,
-                                welcomeUserMessage = if (response.userFirstName.isNotBlank()) {
-                                    resourceProvider.getString(
-                                        R.string.home_screen_welcome_user_message,
-                                        response.userFirstName
-                                    )
-                                } else resourceProvider.getString(R.string.home_screen_welcome)
+                                    isLoading = false,
+                                    welcomeUserMessage =
+                                            if (response.userFirstName.isNotBlank()) {
+                                                resourceProvider.getString(
+                                                        R.string.home_screen_welcome_user_message,
+                                                        response.userFirstName
+                                                )
+                                            } else
+                                                    resourceProvider.getString(
+                                                            R.string.home_screen_welcome
+                                                    )
                             )
                         }
                     }
@@ -416,7 +448,7 @@ class HomeViewModel(
                 // Navigate to Documents tab
                 setEffect {
                     Effect.Navigation.SwitchScreen(
-                        screenRoute = DashboardScreens.Dashboard.screenRoute
+                            screenRoute = DashboardScreens.Dashboard.screenRoute
                     )
                 }
             }
@@ -424,7 +456,7 @@ class HomeViewModel(
                 // Navigate to Settings screen
                 setEffect {
                     Effect.Navigation.SwitchScreen(
-                        screenRoute = DashboardScreens.Dashboard.screenRoute
+                            screenRoute = DashboardScreens.Dashboard.screenRoute
                     )
                 }
             }

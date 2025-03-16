@@ -47,6 +47,8 @@ sealed class DashboardScreens {
     data object Dashboard : Screen(name = "DASHBOARD")
     data object SignDocument :
         Screen(name = "SIGN_DOCUMENT")
+    data object Settings : Screen(name = "SETTINGS")
+
 }
 
 sealed class PresentationScreens {

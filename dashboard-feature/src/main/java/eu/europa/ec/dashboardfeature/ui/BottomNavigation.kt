@@ -35,7 +35,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -61,27 +60,30 @@ import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
 import eu.europa.ec.uilogic.component.wrap.WrapIcon
 
-sealed class BottomNavigationItem(
+enum class BottomNavigationItem(
     val route: String,
-    @StringRes val titleRes: Int,
     val icon: IconData,
+    val labelResId: Int
 ) {
-    data object Home : BottomNavigationItem(
+    Home(
         route = "HOME",
-        titleRes = R.string.home_screen_title,
-        icon = AppIcons.Home
-    )
-
-    data object Documents : BottomNavigationItem(
+        icon = AppIcons.Home,
+        labelResId = R.string.home_screen_title
+    ),
+    Documents(
         route = "DOCUMENTS",
-        titleRes = R.string.documents_screen_title,
-        icon = AppIcons.Documents
-    )
-
-    data object Transactions : BottomNavigationItem(
+        icon = AppIcons.Documents,
+        labelResId = R.string.documents_screen_title
+    ),
+    Transactions(
         route = "TRANSACTIONS",
-        titleRes = R.string.transactions_screen_title,
-        icon = AppIcons.Transactions
+        icon = AppIcons.Transactions,
+        labelResId = R.string.transactions_screen_title
+    ),
+    Settings(
+        route = "SETTINGS",
+        icon = AppIcons.Settings,
+        labelResId = R.string.settings_screen_title
     )
 }
 
@@ -91,6 +93,7 @@ fun BottomNavigationBar(navController: NavController) {
         BottomNavigationItem.Home,
         BottomNavigationItem.Documents,
         BottomNavigationItem.Transactions,
+        BottomNavigationItem.Settings
     )
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -129,7 +132,7 @@ fun BottomNavigationBar(navController: NavController) {
                     if (enabled) {
                         FloatingNavItem(
                             icon = screen.icon,
-                            label = stringResource(screen.titleRes),
+                            label = stringResource(screen.labelResId),
                             selected = selected,
                             onItemClick = {
                                 navController.navigate(screen.route) {

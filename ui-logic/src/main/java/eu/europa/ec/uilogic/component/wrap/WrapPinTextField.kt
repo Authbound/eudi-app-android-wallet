@@ -41,6 +41,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -137,7 +138,7 @@ fun WrapPinTextField(
     ) {
         Column(modifier = modifier) {
             Row(
-                modifier = Modifier.wrapContentWidth(),
+                modifier = Modifier.fillMaxWidth().wrapContentWidth(align = Alignment.CenterHorizontally),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 for (currentTextField in fieldsRange) {

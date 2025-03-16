@@ -29,6 +29,8 @@ import eu.europa.ec.dashboardfeature.interactor.DocumentsInteractor
 import eu.europa.ec.dashboardfeature.interactor.DocumentsInteractorImpl
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractor
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorImpl
+import eu.europa.ec.dashboardfeature.interactor.SettingsInteractor
+import eu.europa.ec.dashboardfeature.interactor.SettingsInteractorImpl
 import eu.europa.ec.dashboardfeature.interactor.TransactionsInteractor
 import eu.europa.ec.dashboardfeature.interactor.TransactionsInteractorImpl
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
@@ -74,6 +76,10 @@ fun provideDocumentsInteractor(
 
 @Factory
 fun provideTransactionInteractor(): TransactionsInteractor = TransactionsInteractorImpl()
+
+@Factory
+fun provideSettingsInteractor(): SettingsInteractor = SettingsInteractorImpl()
+
 
 @Factory
 fun provideDocumentSignInteractor(
