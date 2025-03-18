@@ -203,8 +203,9 @@
 
     <string name="dashboard_quick_action_add_credential">Add Credential</string>
     <string name="dashboard_quick_action_add_credential_description">Add new credentials</string>
-    <string name="dashboard_home_screen_credential_section">Your Credentials:</string>
-    home_screen_credential_section
+    <string name="dashboard_home_screen_credential_section">Your Credentials</string>
+    <string name="dashboard_home_screen_view_all">View All</string>
+    <string name="dashboard_home_screen_no_credentials">You don\'t have any credentials yet.\nAdd your first one to get started.</string>
 
     <!-- Dashboard Side Menu -->
     <string name="dashboard_side_menu_title">My EU Wallet</string>

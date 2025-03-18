@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -40,11 +41,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -55,6 +58,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -62,12 +66,21 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
+import eu.europa.ec.commonfeature.model.DocumentUiIssuanceState
+import eu.europa.ec.corelogic.model.DocumentCategory
+import eu.europa.ec.corelogic.model.DocumentIdentifier
+import eu.europa.ec.dashboardfeature.model.DocumentUi
 import eu.europa.ec.resourceslogic.R
+import eu.europa.ec.resourceslogic.theme.values.warning
 import eu.europa.ec.uilogic.component.AppIconAndText
 import eu.europa.ec.uilogic.component.AppIconAndTextData
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.IconData
+import eu.europa.ec.uilogic.component.ListItemData
+import eu.europa.ec.uilogic.component.ListItemLeadingContentData
+import eu.europa.ec.uilogic.component.ListItemMainContentData
 import eu.europa.ec.uilogic.component.ModalOptionUi
+import eu.europa.ec.uilogic.component.SectionTitle
 import eu.europa.ec.uilogic.component.content.ContentScreen
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
@@ -87,6 +100,7 @@ import eu.europa.ec.uilogic.component.wrap.QuickActionConfig
 import eu.europa.ec.uilogic.component.wrap.WrapActionCard
 import eu.europa.ec.uilogic.component.wrap.WrapIcon
 import eu.europa.ec.uilogic.component.wrap.WrapIconButton
+import eu.europa.ec.uilogic.component.wrap.WrapListItem
 import eu.europa.ec.uilogic.component.wrap.WrapModalBottomSheet
 import eu.europa.ec.uilogic.extension.finish
 import eu.europa.ec.uilogic.extension.openAppSettings
@@ -245,36 +259,52 @@ private fun Content(
             }
         )
 
+        // Credentials section
+        CredentialsSection(
+            isLoading = state.isLoadingCredentials,
+            credentials = state.credentials,
+            showEmptyMessage = state.showEmptyCredentialsMessage,
+            onCredentialClick = { docId -> 
+                onEventSent(Event.CredentialPressed(docId))
+            },
+            onViewAllClick = {
+                onEventSent(Event.ViewAllCredentialsPressed)
+            },
+            onAddCredentialClick = {
+                onEventSent(Event.AddCredentialPressed)
+            }
+        )
+
         // Keep the original action cards as a fallback if needed
         // Comment out for now as we're replacing them with the quick actions grid
 
-        WrapActionCard(
-            config = state.authenticateCardConfig,
-            onActionClick = {
-                onEventSent(
-                    Event.AuthenticateCard.AuthenticatePressed
-                )
-            },
-            onLearnMoreClick = {
-                onEventSent(
-                    Event.AuthenticateCard.LearnMorePressed
-                )
-            }
-        )
-
-        WrapActionCard(
-            config = state.signCardConfig,
-            onActionClick = {
-                onEventSent(
-                    Event.SignDocumentCard.SignDocumentPressed
-                )
-            },
-            onLearnMoreClick = {
-                onEventSent(
-                    Event.SignDocumentCard.LearnMorePressed
-                )
-            }
-        )
+//        WrapActionCard(
+//            config = state.authenticateCardConfig,
+//            onActionClick = {
+//                onEventSent(
+//                    Event.AuthenticateCard.AuthenticatePressed
+//                )
+//            },
+//            onLearnMoreClick = {
+//                onEventSent(
+//                    Event.AuthenticateCard.LearnMorePressed
+//                )
+//            }
+//        )
+//
+//        WrapActionCard(
+//            config = state.signCardConfig,
+//            onActionClick = {
+//                onEventSent(
+//                    Event.SignDocumentCard.SignDocumentPressed
+//                )
+//            },
+//            onLearnMoreClick = {
+//                onEventSent(
+//                    Event.SignDocumentCard.LearnMorePressed
+//                )
+//            }
+//        )
     }
 
     if (state.bleAvailability == BleAvailability.NO_PERMISSION) {
@@ -378,6 +408,28 @@ private fun HomeScreenSheetContent(
                     }
                 )
             }
+        }
+
+        is HomeScreenBottomSheetContent.AddDocument -> {
+            BottomSheetWithTwoBigIcons(
+                textData = BottomSheetTextData(
+                    title = stringResource(R.string.documents_screen_add_document_title),
+                    message = stringResource(R.string.documents_screen_add_document_description)
+                ),
+                options = listOf(
+                    ModalOptionUi(
+                        title = stringResource(R.string.documents_screen_add_document_option_list),
+                        leadingIcon = AppIcons.AddDocumentFromList,
+                        event = Event.BottomSheet.AddDocument.FromList,
+                    ),
+                    ModalOptionUi(
+                        title = stringResource(R.string.documents_screen_add_document_option_qr),
+                        leadingIcon = AppIcons.AddDocumentFromQr,
+                        event = Event.BottomSheet.AddDocument.ScanQr,
+                    )
+                ),
+                onEventSent = onEventSent
+            )
         }
 
         /**
@@ -601,6 +653,143 @@ private fun QuickActionsSection(
     }
 }
 
+/**
+ * Credentials section to display user's digital documents
+ */
+@Composable
+private fun CredentialsSection(
+    isLoading: Boolean,
+    credentials: List<Pair<DocumentCategory, List<DocumentUi>>>,
+    showEmptyMessage: Boolean,
+    onCredentialClick: (String) -> Unit,
+    onViewAllClick: () -> Unit,
+    onAddCredentialClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
+    ) {
+        // Section header with title and View All button
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.dashboard_home_screen_credential_section),
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            
+            TextButton(onClick = onViewAllClick) {
+                Text(
+                    text = stringResource(R.string.dashboard_home_screen_view_all),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+        
+        // Loading indicator
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } 
+        // Empty state message
+        else if (showEmptyMessage) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = SPACING_LARGE.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.dashboard_home_screen_no_credentials),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                    
+                    Button(
+                        onClick = onAddCredentialClick,
+                        modifier = Modifier
+                            .padding(top = SPACING_SMALL.dp)
+                    ) {
+                        WrapIcon(
+                            iconData = AppIcons.Add,
+                            customTint = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.dashboard_quick_action_add_credential)
+                        )
+                    }
+                }
+            }
+        } 
+        // Display credentials list
+        else {
+            credentials.forEach { (category, documents) ->
+                if (documents.isNotEmpty()) {
+                    CredentialCategory(
+                        category = category,
+                        documents = documents,
+                        onCredentialClick = onCredentialClick
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Display a category of credentials
+ */
+@Composable
+private fun CredentialCategory(
+    category: DocumentCategory,
+    documents: List<DocumentUi>,
+    onCredentialClick: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp)
+    ) {
+        // Category title
+        SectionTitle(
+            modifier = Modifier.fillMaxWidth(),
+            text = stringResource(category.stringResId)
+        )
+        
+        // Credentials in this category
+        documents.forEach { document ->
+            WrapListItem(
+                modifier = Modifier.fillMaxWidth(),
+                item = document.uiData,
+                onItemClick = {
+                    onCredentialClick(document.uiData.itemId)
+                },
+                supportingTextColor = when (document.documentIssuanceState) {
+                    DocumentUiIssuanceState.Issued -> null
+                    DocumentUiIssuanceState.Pending -> MaterialTheme.colorScheme.warning
+                    DocumentUiIssuanceState.Failed -> MaterialTheme.colorScheme.error
+                    DocumentUiIssuanceState.Expired -> MaterialTheme.colorScheme.error
+                }
+            )
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @ThemeModePreviews
@@ -617,6 +806,40 @@ private fun HomeScreenContentPreview() {
                 )
             }
         ) { paddingValues ->
+            // Create example credentials for preview
+            val exampleCredentials = listOf(
+                DocumentCategory.Government to listOf(
+                    DocumentUi(
+                        documentIssuanceState = DocumentUiIssuanceState.Issued,
+                        uiData = ListItemData(
+                            itemId = "id1",
+                            mainContentData = ListItemMainContentData.Text(text = "National ID Card"),
+                            overlineText = "Government Authority",
+                            supportingText = "Valid until: 12/12/2025",
+                            leadingContentData = ListItemLeadingContentData.Icon(
+                                iconData = AppIcons.Documents
+                            )
+                        ),
+                        documentIdentifier = DocumentIdentifier.MdocPid,
+                        documentCategory = DocumentCategory.Government
+                    ),
+                    DocumentUi(
+                        documentIssuanceState = DocumentUiIssuanceState.Issued,
+                        uiData = ListItemData(
+                            itemId = "id2",
+                            mainContentData = ListItemMainContentData.Text(text = "Driver's License"),
+                            overlineText = "National Transport Authority",
+                            supportingText = "Valid until: 10/04/2026",
+                            leadingContentData = ListItemLeadingContentData.Icon(
+                                iconData = AppIcons.Documents
+                            )
+                        ),
+                        documentIdentifier = DocumentIdentifier.MdocPid,
+                        documentCategory = DocumentCategory.Government
+                    )
+                )
+            )
+            
             Content(
                 state = State(
                     isBottomSheetOpen = false,
@@ -632,8 +855,10 @@ private fun HomeScreenContentPreview() {
                         icon = AppIcons.Contract,
                         primaryButtonText = stringResource(R.string.home_screen_sign),
                         secondaryButtonText = stringResource(R.string.home_screen_learn_more),
-                    )
-
+                    ),
+                    credentials = exampleCredentials,
+                    isLoadingCredentials = false,
+                    showEmptyCredentialsMessage = false
                 ),
                 effectFlow = Channel<Effect>().receiveAsFlow(),
                 onNavigationRequested = {},

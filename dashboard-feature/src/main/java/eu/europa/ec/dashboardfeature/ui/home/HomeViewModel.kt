@@ -18,14 +18,19 @@ package eu.europa.ec.dashboardfeature.ui.home
 
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.viewModelScope
+import eu.europa.ec.commonfeature.config.IssuanceFlowUiConfig
 import eu.europa.ec.commonfeature.config.PresentationMode
 import eu.europa.ec.commonfeature.config.QrScanFlow
 import eu.europa.ec.commonfeature.config.QrScanUiConfig
 import eu.europa.ec.commonfeature.config.RequestUriConfig
 import eu.europa.ec.corelogic.di.getOrCreatePresentationScope
+import eu.europa.ec.corelogic.model.DocumentCategory
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractor
+import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetCredentialsPartialState
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetUserNameViaMainPidDocumentPartialState
+import eu.europa.ec.dashboardfeature.model.DocumentUi
 import eu.europa.ec.dashboardfeature.ui.BottomNavigationItem
+import eu.europa.ec.eudi.wallet.document.DocumentId
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.uilogic.component.AppIcons
@@ -37,6 +42,7 @@ import eu.europa.ec.uilogic.mvi.ViewSideEffect
 import eu.europa.ec.uilogic.mvi.ViewState
 import eu.europa.ec.uilogic.navigation.CommonScreens
 import eu.europa.ec.uilogic.navigation.DashboardScreens
+import eu.europa.ec.uilogic.navigation.IssuanceScreens
 import eu.europa.ec.uilogic.navigation.ProximityScreens
 import eu.europa.ec.uilogic.navigation.helper.generateComposableArguments
 import eu.europa.ec.uilogic.navigation.helper.generateComposableNavigationLink
@@ -62,12 +68,18 @@ data class State(
     // New quick actions list for the grid layout
     val quickActions: List<QuickActionConfig> = emptyList(),
     val bleAvailability: BleAvailability = BleAvailability.UNKNOWN,
-    val isBleCentralClientModeEnabled: Boolean = false
+    val isBleCentralClientModeEnabled: Boolean = false,
+    
+    // New credentials list for the home screen
+    val isLoadingCredentials: Boolean = false,
+    val credentials: List<Pair<DocumentCategory, List<DocumentUi>>> = emptyList(),
+    val showEmptyCredentialsMessage: Boolean = false
 ) : ViewState
 
 sealed class Event : ViewEvent {
     data object Init : Event()
     data object StartProximityFlow : Event()
+    data object GetCredentials : Event()
 
     sealed class AuthenticateCard : Event() {
         data object AuthenticatePressed : Event()
@@ -81,6 +93,11 @@ sealed class Event : ViewEvent {
 
     // New event for handling quick action clicks
     data class QuickActionPressed(val actionId: String) : Event()
+    
+    // New event for handling credential item clicks
+    data class CredentialPressed(val docId: DocumentId) : Event()
+    data object ViewAllCredentialsPressed : Event()
+    data object AddCredentialPressed : Event()
 
     sealed class BottomSheet : Event() {
         data class UpdateBottomSheetState(val isOpen: Boolean) : BottomSheet()
@@ -94,6 +111,11 @@ sealed class Event : ViewEvent {
         sealed class Bluetooth : BottomSheet() {
             data class PrimaryButtonPressed(val availability: BleAvailability) : Bluetooth()
             data object SecondaryButtonPressed : Bluetooth()
+        }
+        
+        sealed class AddDocument : BottomSheet() {
+            data object FromList : AddDocument()
+            data object ScanQr : AddDocument()
         }
     }
 
@@ -126,6 +148,7 @@ sealed class HomeScreenBottomSheetContent {
     data object Authenticate : HomeScreenBottomSheetContent()
     data object LearnMoreAboutAuthenticate : HomeScreenBottomSheetContent()
     data object LearnMoreAboutSignDocument : HomeScreenBottomSheetContent()
+    data object AddDocument : HomeScreenBottomSheetContent()
 
     data class Bluetooth(val availability: BleAvailability) : HomeScreenBottomSheetContent()
 }
@@ -224,7 +247,9 @@ class HomeViewModel(
                         ),
                     icon = AppIcons.Contract,
                     primaryButtonText =
-                        resourceProvider.getString(R.string.home_screen_sign),
+                        resourceProvider.getString(
+                            R.string.home_screen_sign
+                        ),
                     secondaryButtonText =
                         resourceProvider.getString(R.string.home_screen_learn_more)
                 ),
@@ -237,6 +262,11 @@ class HomeViewModel(
         when (event) {
             is Event.Init -> {
                 getUserNameViaMainPidDocument()
+                getCredentials()
+            }
+
+            is Event.GetCredentials -> {
+                getCredentials()
             }
 
             is Event.AuthenticateCard.AuthenticatePressed ->
@@ -272,6 +302,16 @@ class HomeViewModel(
                 hideBottomSheet()
                 navigateToQrScan()
             }
+            
+            is Event.BottomSheet.AddDocument.FromList -> {
+                hideBottomSheet()
+                navigateToAddDocument()
+            }
+            
+            is Event.BottomSheet.AddDocument.ScanQr -> {
+                hideBottomSheet()
+                navigateToQrScanForDocument()
+            }
 
             is Event.OnPermissionStateChanged -> {
                 setState { copy(bleAvailability = event.availability) }
@@ -303,6 +343,18 @@ class HomeViewModel(
 
             is Event.QuickActionPressed -> {
                 handleQuickAction(event.actionId)
+            }
+
+            is Event.CredentialPressed -> {
+                navigateToDocumentDetails(event.docId)
+            }
+
+            is Event.ViewAllCredentialsPressed -> {
+                navigateToDocumentsTab()
+            }
+
+            is Event.AddCredentialPressed -> {
+                showBottomSheet(HomeScreenBottomSheetContent.AddDocument)
             }
         }
     }
@@ -351,6 +403,22 @@ class HomeViewModel(
     private fun navigateToDocumentSign() {
         setEffect {
             Effect.Navigation.SwitchScreen(screenRoute = DashboardScreens.SignDocument.screenRoute)
+        }
+    }
+
+    private fun navigateToDocumentDetails(docId: DocumentId) {
+        setEffect {
+            Effect.Navigation.SwitchScreen(
+                screenRoute = generateComposableNavigationLink(
+                    screen = IssuanceScreens.DocumentDetails,
+                    arguments = generateComposableArguments(
+                        mapOf(
+                            "detailsType" to IssuanceFlowUiConfig.EXTRA_DOCUMENT,
+                            "documentId" to docId
+                        )
+                    )
+                )
+            )
         }
     }
 
@@ -423,6 +491,52 @@ class HomeViewModel(
 
         setEffect { navigationEffect }
     }
+    
+    private fun navigateToQrScanForDocument() {
+        setEffect {
+            Effect.Navigation.SwitchScreen(
+                screenRoute = generateComposableNavigationLink(
+                    screen = CommonScreens.QrScan,
+                    arguments = generateComposableArguments(
+                        mapOf(
+                            QrScanUiConfig.serializedKeyName to uiSerializer.toBase64(
+                                QrScanUiConfig(
+                                    title = resourceProvider.getString(R.string.issuance_qr_scan_title),
+                                    subTitle = resourceProvider.getString(R.string.issuance_qr_scan_subtitle),
+                                    qrScanFlow = QrScanFlow.Issuance(IssuanceFlowUiConfig.EXTRA_DOCUMENT)
+                                ),
+                                QrScanUiConfig.Parser
+                            )
+                        )
+                    )
+                ),
+                inclusive = false
+            )
+        }
+    }
+
+    private fun navigateToDocumentsTab() {
+        // Navigate to Documents tab
+        setEffect {
+            Effect.Navigation.SwitchTab(
+                tabRoute = BottomNavigationItem.Documents.route
+            )
+        }
+    }
+
+    private fun navigateToAddDocument() {
+        // Navigate to add credential flow
+        setEffect {
+            Effect.Navigation.SwitchScreen(
+                screenRoute = generateComposableNavigationLink(
+                    screen = IssuanceScreens.AddDocument,
+                    arguments = generateComposableArguments(
+                        mapOf("flowType" to IssuanceFlowUiConfig.EXTRA_DOCUMENT)
+                    )
+                )
+            )
+        }
+    }
 
     private fun getUserNameViaMainPidDocument() {
         setState { copy(isLoading = true) }
@@ -459,6 +573,35 @@ class HomeViewModel(
         }
     }
 
+    private fun getCredentials() {
+        setState { copy(isLoadingCredentials = true) }
+        viewModelScope.launch {
+            homeInteractor.getCredentials().collect { response ->
+                when (response) {
+                    is HomeInteractorGetCredentialsPartialState.Failure -> {
+                        setState {
+                            copy(
+                                isLoadingCredentials = false,
+                                showEmptyCredentialsMessage = true
+                            )
+                        }
+                    }
+
+                    is HomeInteractorGetCredentialsPartialState.Success -> {
+                        setState {
+                            copy(
+                                isLoadingCredentials = false,
+                                credentials = response.credentials,
+                                showEmptyCredentialsMessage = response.credentials.isEmpty() 
+                                    || response.credentials.all { it.second.isEmpty() }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private fun handleQuickAction(actionId: String) {
         when (actionId) {
             "authenticate" -> {
@@ -470,21 +613,11 @@ class HomeViewModel(
             }
 
             "view_credentials" -> {
-                // Navigate to Documents tab
-                setEffect {
-                    Effect.Navigation.SwitchTab(
-                        tabRoute =  BottomNavigationItem.Documents.route
-                    )
-                }
+                navigateToDocumentsTab()
             }
 
             "add_credentials" -> {
-                // Navigate to Settings screen
-                setEffect {
-                    Effect.Navigation.SwitchTab(
-                        tabRoute = BottomNavigationItem.AddCredential.route
-                    )
-                }
+                showBottomSheet(sheetContent = HomeScreenBottomSheetContent.AddDocument)
             }
         }
     }
