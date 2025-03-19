@@ -41,6 +41,7 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import eu.europa.ec.dashboardfeature.ui.BottomNavigationBar
 import eu.europa.ec.dashboardfeature.ui.BottomNavigationItem
 import eu.europa.ec.dashboardfeature.ui.add_credentials.AddCredentialsScreen
@@ -83,6 +84,22 @@ fun DashboardScreen(
 
     // Add extra bottom padding to account for the floating navigation bar
     val extraBottomPadding = 80.dp
+
+    // Handle navigation effects from child screens
+    LaunchedEffect(Unit) {
+        homeViewModel.effect.collect { effect ->
+            if (effect is eu.europa.ec.dashboardfeature.ui.home.Effect.Navigation.SwitchTab) {
+                // Navigate to the specified tab
+                bottomNavigationController.navigate(effect.tabRoute) {
+                    popUpTo(bottomNavigationController.graph.findStartDestination().id) {
+                        saveState = true
+                    }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            }
+        }
+    }
 
     Scaffold(
         // The floating bottom bar is added as a regular bottom bar

@@ -58,6 +58,11 @@ data class IconData(
  * A Singleton object responsible for providing access to all the app's Icons.
  */
 object AppIcons {
+    val TimeIcon : IconData = IconData(
+        resourceId = R.drawable.ic_time,
+        contentDescriptionId = R.string.content_description_time_icon,
+        imageVector = null
+    )
 
     val ArrowBack: IconData = IconData(
         resourceId = null,

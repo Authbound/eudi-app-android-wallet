@@ -357,13 +357,8 @@ private fun handleNavigationEffect(
         }
 
         is Effect.Navigation.SwitchTab -> {
-            bottomController.navigate(navigationEffect.tabRoute) {
-                popUpTo(navController.graph.findStartDestination().id) {
-                    saveState = true
-                }
-                launchSingleTop = true
-                restoreState = true
-            }
+            // Tab switching is now handled at the Dashboard level
+            // No need to handle it here
         }
 
         is Effect.Navigation.OnAppSettings -> context.openAppSettings()
@@ -426,6 +421,28 @@ private fun HomeScreenSheetContent(
                         title = stringResource(R.string.documents_screen_add_document_option_qr),
                         leadingIcon = AppIcons.AddDocumentFromQr,
                         event = Event.BottomSheet.AddDocument.ScanQr,
+                    )
+                ),
+                onEventSent = onEventSent
+            )
+        }
+
+        is HomeScreenBottomSheetContent.Verification -> {
+            BottomSheetWithTwoBigIcons(
+                textData = BottomSheetTextData(
+                    title = stringResource(R.string.verification_bottom_sheet_title),
+                    message = stringResource(R.string.verification_bottom_sheet_description)
+                ),
+                options = listOf(
+                    ModalOptionUi(
+                        title = stringResource(R.string.verification_bottom_sheet_template_option),
+                        leadingIcon = AppIcons.WalletActivated,
+                        event = Event.BottomSheet.Verification.UseTemplate,
+                    ),
+                    ModalOptionUi(
+                        title = stringResource(R.string.verification_bottom_sheet_custom_option),
+                        leadingIcon = AppIcons.Edit,
+                        event = Event.BottomSheet.Verification.CreateCustom,
                     )
                 ),
                 onEventSent = onEventSent

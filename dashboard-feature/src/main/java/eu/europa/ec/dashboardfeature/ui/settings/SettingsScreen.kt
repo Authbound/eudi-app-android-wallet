@@ -1,4 +1,3 @@
-
 package eu.europa.ec.dashboardfeature.ui.settings
 
 import android.content.Context
@@ -235,16 +234,18 @@ private fun SecuritySection(
             item = ListItemData(
                 itemId = "biometric",
                 mainContentData = ListItemMainContentData.Text(
-                    text = stringResource(R.string.settings_biometric_authentication),
-//                    supportingText = stringResource(R.string.settings_biometric_description)
+                    text = stringResource(R.string.settings_biometric_authentication)
                 ),
+                supportingText = stringResource(R.string.settings_biometric_description),
                 leadingContentData = ListItemLeadingContentData.Icon(
                     iconData = AppIcons.WalletSecured
                 ),
-//                trailingContentData = ListItemTrailingContentData.(
-//                    checked = securitySettings.isBiometricEnabled,
-//                    onCheckedChange = onBiometricToggled
-//                )
+                trailingContentData = ListItemTrailingContentData.Checkbox(
+                    checkboxData = CheckboxData(
+                        isChecked = securitySettings.isBiometricEnabled,
+                        onCheckedChange = onBiometricToggled
+                    )
+                )
             ),
             onItemClick = null
         )

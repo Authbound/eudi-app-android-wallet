@@ -24,8 +24,12 @@ import androidx.navigation.navDeepLink
 import eu.europa.ec.dashboardfeature.BuildConfig
 import eu.europa.ec.dashboardfeature.ui.add_credentials.AddCredentialsScreen
 import eu.europa.ec.dashboardfeature.ui.dashboard.DashboardScreen
-import eu.europa.ec.dashboardfeature.ui.settings.SettingsScreen
 import eu.europa.ec.dashboardfeature.ui.sign.DocumentSignScreen
+
+import eu.europa.ec.dashboardfeature.ui.settings.SettingsScreen
+import eu.europa.ec.dashboardfeature.ui.verification.VerificationCustomCreationScreen
+import eu.europa.ec.dashboardfeature.ui.verification.VerificationSharingScreen
+import eu.europa.ec.dashboardfeature.ui.verification.VerificationTemplateSelectionScreen
 import eu.europa.ec.uilogic.navigation.DashboardScreens
 import eu.europa.ec.uilogic.navigation.ModuleRoute
 import org.koin.androidx.compose.koinViewModel
@@ -65,6 +69,24 @@ fun NavGraphBuilder.featureDashboardGraph(
         }
 
 
+        
+        composable(
+            route = DashboardScreens.VerificationTemplateSelection.screenRoute
+        ) {
+            VerificationTemplateSelectionScreen(navController, koinViewModel())
+        }
+        
+        composable(
+            route = DashboardScreens.VerificationCustomCreation.screenRoute
+        ) {
+            VerificationCustomCreationScreen(navController, koinViewModel())
+        }
+
+        composable(
+            route = DashboardScreens.VerificationSharing.screenRoute
+        ) {
+            VerificationSharingScreen(navController, koinViewModel())
+        }
 
     }
 }

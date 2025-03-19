@@ -1,5 +1,3 @@
-
-
 package eu.europa.ec.dashboardfeature.ui.settings
 
 import androidx.lifecycle.viewModelScope
@@ -106,12 +104,25 @@ class SettingsViewModel(val interactor: SettingsInteractor,
     private fun loadUserProfile() {
         viewModelScope.launch {
             setState { copy(isLoading = true) }
-            // TODO: Load user profile from repository
-            setState { copy(isLoading = false) }
+            // Load biometric settings
+            try {
+//                val isBiometricEnabled = interactor.isBiometricEnabled()
+                setState { 
+                    copy(
+                        isLoading = false,
+//                        securitySettings = securitySettings.copy(
+//                            isBiometricEnabled = isBiometricEnabled
+//                        )
+                    ) 
+                }
+            } catch (e: Exception) {
+                setState { copy(isLoading = false) }
+            }
         }
     }
 
     private fun navigateToEditProfile() {
+        // TODO: Implement when Edit Profile screen is available
         setEffect { Effect.Navigation.SwitchScreen(BottomNavigationItem.Settings.route) }
     }
 
@@ -120,28 +131,39 @@ class SettingsViewModel(val interactor: SettingsInteractor,
             if (enabled) {
                 setEffect { Effect.ShowBiometricPrompt }
             } else {
-                setState { copy(securitySettings = securitySettings.copy(isBiometricEnabled = false)) }
+                try {
+//                    val success = interactor.setBiometricEnabled(false)
+//                    if (success) {
+//                        setState { copy(securitySettings = securitySettings.copy(isBiometricEnabled = false)) }
+//                    }
+                } catch (e: Exception) {
+                    // Handle error
+                }
             }
         }
     }
 
     private fun navigateToChangePin() {
-        setEffect { Effect.Navigation.SwitchScreen(BottomNavigationItem.Settings.route) }
+        setEffect { Effect.Navigation.SwitchScreen(DashboardScreens.ChangePin.screenRoute) }
     }
 
     private fun navigateToChangePassword() {
+        // TODO: Implement when Change Password screen is available
         setEffect { Effect.Navigation.SwitchScreen(BottomNavigationItem.Settings.route) }
     }
 
     private fun navigateToDataSharing() {
+        // TODO: Implement when Data Sharing screen is available
         setEffect { Effect.Navigation.SwitchScreen(BottomNavigationItem.Settings.route) }
     }
 
     private fun navigateToActivityLog() {
+        // TODO: Implement when Activity Log screen is available
         setEffect { Effect.Navigation.SwitchScreen(BottomNavigationItem.Settings.route) }
     }
 
     private fun navigateToNotifications() {
+        // TODO: Implement when Notifications screen is available
         setEffect { Effect.Navigation.SwitchScreen(BottomNavigationItem.Settings.route) }
     }
 
@@ -156,9 +178,17 @@ class SettingsViewModel(val interactor: SettingsInteractor,
     private fun deleteUserData() {
         viewModelScope.launch {
             setState { copy(isLoading = true) }
-            // TODO: Delete user data from repository
-            setState { copy(isLoading = false) }
-            closeBottomSheet()
+            try {
+//                val success = interactor.deleteAllUserData()
+//                if (success) {
+                    // Show success message or navigate to login screen
+//                }
+            } catch (e: Exception) {
+                // Handle error
+            } finally {
+                setState { copy(isLoading = false) }
+                closeBottomSheet()
+            }
         }
     }
 

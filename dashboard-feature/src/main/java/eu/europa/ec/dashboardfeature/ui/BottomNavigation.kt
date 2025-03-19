@@ -132,14 +132,13 @@ fun BottomNavigationBar(navController: NavController) {
                     val selected = currentDestination?.hierarchy?.any {
                         it.route == screen.route
                     } == true
-//                    val enabled = screen.route != BottomNavigationItem.Transactions.route
                     
-//                    if (enabled) {
-                        FloatingNavItem(
-                            icon = screen.icon,
-                            label = stringResource(screen.labelResId),
-                            selected = selected,
-                            onItemClick = {
+                    FloatingNavItem(
+                        icon = screen.icon,
+                        label = stringResource(screen.labelResId),
+                        selected = selected,
+                        onItemClick = {
+//                            if (currentDestination?.route != screen.route) {
                                 navController.navigate(screen.route) {
                                     popUpTo(navController.graph.findStartDestination().id) {
                                         saveState = true
@@ -147,9 +146,9 @@ fun BottomNavigationBar(navController: NavController) {
                                     launchSingleTop = true
                                     restoreState = true
                                 }
-                            }
-                        )
-//                    }
+//                            }
+                        }
+                    )
                 }
             }
         }

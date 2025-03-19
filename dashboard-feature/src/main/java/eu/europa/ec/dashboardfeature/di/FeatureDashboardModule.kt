@@ -35,6 +35,8 @@ import eu.europa.ec.dashboardfeature.interactor.SettingsInteractor
 import eu.europa.ec.dashboardfeature.interactor.SettingsInteractorImpl
 import eu.europa.ec.dashboardfeature.interactor.TransactionsInteractor
 import eu.europa.ec.dashboardfeature.interactor.TransactionsInteractorImpl
+import eu.europa.ec.dashboardfeature.repository.VerificationRepository
+import eu.europa.ec.dashboardfeature.repository.VerificationRepositoryImpl
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Factory
@@ -90,4 +92,11 @@ fun provideDocumentSignInteractor(
     resourceProvider: ResourceProvider,
 ): DocumentSignInteractor = DocumentSignInteractorImpl(
     resourceProvider,
+)
+
+@Factory
+fun provideVerificationRepository(
+    resourceProvider: ResourceProvider
+): VerificationRepository = VerificationRepositoryImpl(
+    resourceProvider
 )

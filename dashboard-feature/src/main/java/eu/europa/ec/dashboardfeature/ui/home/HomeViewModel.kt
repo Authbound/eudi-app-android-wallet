@@ -98,7 +98,10 @@ sealed class Event : ViewEvent {
     data class CredentialPressed(val docId: DocumentId) : Event()
     data object ViewAllCredentialsPressed : Event()
     data object AddCredentialPressed : Event()
-
+    
+    // Verification events
+    data object VerificationPressed : Event()
+    
     sealed class BottomSheet : Event() {
         data class UpdateBottomSheetState(val isOpen: Boolean) : BottomSheet()
         data object Close : BottomSheet()
@@ -116,6 +119,11 @@ sealed class Event : ViewEvent {
         sealed class AddDocument : BottomSheet() {
             data object FromList : AddDocument()
             data object ScanQr : AddDocument()
+        }
+        
+        sealed class Verification : BottomSheet() {
+            data object UseTemplate : Verification()
+            data object CreateCustom : Verification()
         }
     }
 
@@ -149,6 +157,7 @@ sealed class HomeScreenBottomSheetContent {
     data object LearnMoreAboutAuthenticate : HomeScreenBottomSheetContent()
     data object LearnMoreAboutSignDocument : HomeScreenBottomSheetContent()
     data object AddDocument : HomeScreenBottomSheetContent()
+    data object Verification : HomeScreenBottomSheetContent()
 
     data class Bluetooth(val availability: BleAvailability) : HomeScreenBottomSheetContent()
 }
@@ -166,6 +175,7 @@ class HomeViewModel(
         val signColor = Color(0xFF7C3AED) // Purple
         val viewCredentialsColor = Color(0xFF16A34A) // Green
         val settingsColor = Color(0xFFD97706) // Amber
+        val verificationColor = Color(0xFF16A34A) // Red
 
         // Create quick actions list
         val quickActionsList =
@@ -200,15 +210,15 @@ class HomeViewModel(
                     borderColor = settingsColor.copy(alpha = 0.7f)
                 ),
                 QuickActionConfig(
-                    id = "view_credentials",
-                    title = resourceProvider.getString(R.string.documents_screen_title),
+                    id = "verify",
+                    title = resourceProvider.getString(R.string.verification_quick_action_title),
                     description =
                         resourceProvider.getString(
-                            R.string.home_screen_view_credentials_description
+                            R.string.verification_quick_action_description
                         ),
-                    icon = AppIcons.Documents,
-                    backgroundColor = viewCredentialsColor,
-                    borderColor = viewCredentialsColor.copy(alpha = 0.7f)
+                    icon = AppIcons.Certified,
+                    backgroundColor = verificationColor,
+                    borderColor = verificationColor.copy(alpha = 0.7f)
                 ),
                 QuickActionConfig(
                     id = "sign",
@@ -311,6 +321,20 @@ class HomeViewModel(
             is Event.BottomSheet.AddDocument.ScanQr -> {
                 hideBottomSheet()
                 navigateToQrScanForDocument()
+            }
+
+            is Event.BottomSheet.Verification.UseTemplate -> {
+                hideBottomSheet()
+                navigateToVerificationTemplateSelection()
+            }
+            
+            is Event.BottomSheet.Verification.CreateCustom -> {
+                hideBottomSheet()
+                navigateToCustomVerification()
+            }
+
+            is Event.VerificationPressed -> {
+                showBottomSheet(HomeScreenBottomSheetContent.Verification)
             }
 
             is Event.OnPermissionStateChanged -> {
@@ -538,6 +562,22 @@ class HomeViewModel(
         }
     }
 
+    private fun navigateToVerificationTemplateSelection() {
+        setEffect {
+            Effect.Navigation.SwitchScreen(
+                screenRoute = DashboardScreens.VerificationTemplateSelection.screenRoute
+            )
+        }
+    }
+    
+    private fun navigateToCustomVerification() {
+        setEffect {
+            Effect.Navigation.SwitchScreen(
+                screenRoute = DashboardScreens.VerificationCustomCreation.screenRoute
+            )
+        }
+    }
+
     private fun getUserNameViaMainPidDocument() {
         setState { copy(isLoading = true) }
         viewModelScope.launch {
@@ -612,8 +652,8 @@ class HomeViewModel(
                 navigateToDocumentSign()
             }
 
-            "view_credentials" -> {
-                navigateToDocumentsTab()
+            "verify" -> {
+                showBottomSheet(sheetContent = HomeScreenBottomSheetContent.Verification)
             }
 
             "add_credentials" -> {
