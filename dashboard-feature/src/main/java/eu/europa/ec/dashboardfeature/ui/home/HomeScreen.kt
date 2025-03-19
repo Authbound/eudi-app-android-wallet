@@ -357,8 +357,14 @@ private fun handleNavigationEffect(
         }
 
         is Effect.Navigation.SwitchTab -> {
-            // Tab switching is now handled at the Dashboard level
-            // No need to handle it here
+            bottomController.navigate(navigationEffect.tabRoute) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
+            }
+
         }
 
         is Effect.Navigation.OnAppSettings -> context.openAppSettings()
