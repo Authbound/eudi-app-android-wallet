@@ -82,37 +82,36 @@ fun DashboardScreen(
     val bottomNavigationController = rememberNavController()
     val state: State by viewModel.viewState.collectAsStateWithLifecycle()
 
-    // Add extra bottom padding to account for the floating navigation bar
-    val extraBottomPadding = 80.dp
+    // Remove the excessive bottom padding that's creating the gap
+    // val extraBottomPadding = 80.dp
 
     // Handle navigation effects from child screens
-//    LaunchedEffect(Unit) {
-//        homeViewModel.effect.collect { effect ->
-//            if (effect is eu.europa.ec.dashboardfeature.ui.home.Effect.Navigation.SwitchTab) {
-//                // Navigate to the specified tab
-//                bottomNavigationController.navigate(effect.tabRoute) {
-//                    popUpTo(bottomNavigationController.graph.findStartDestination().id) {
-//                        saveState = true
-//                    }
-//                    launchSingleTop = true
-//                    restoreState = true
-//                }
-//            }
-//        }
-//    }
+    LaunchedEffect(Unit) {
+        homeViewModel.effect.collect { effect ->
+            if (effect is eu.europa.ec.dashboardfeature.ui.home.Effect.Navigation.SwitchTab) {
+                // Navigate to the specified tab
+                bottomNavigationController.navigate(effect.tabRoute) {
+                    popUpTo(bottomNavigationController.graph.findStartDestination().id) {
+                        saveState = true
+                    }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            }
+        }
+    }
 
     Scaffold(
         // The floating bottom bar is added as a regular bottom bar
         bottomBar = { BottomNavigationBar(bottomNavigationController) },
-        // Remove any default bottom padding that might interfere with our floating bar
+        // Set windowInsets to zero to properly handle the floating bar
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
-    ) { padding ->
+    ) { _ ->
         NavHost(
             modifier = Modifier
-                .fillMaxSize()
-                // Add extra padding at the bottom to ensure content doesn't get hidden behind the floating bar
-                .padding(bottom = extraBottomPadding)
-                .padding(padding),
+                .fillMaxSize(),
+                // Apply padding from Scaffold directly without extra padding
+                //.padding(padding),
             navController = bottomNavigationController,
             startDestination = BottomNavigationItem.Home.route
         ) {

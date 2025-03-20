@@ -108,7 +108,8 @@ fun BottomNavigationBar(navController: NavController) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 10.dp),
+            .padding(bottom = 22.dp)
+            .padding(horizontal = 25.dp),
         contentAlignment = Alignment.Center
     ) {
         // The floating navigation bar
@@ -117,7 +118,7 @@ fun BottomNavigationBar(navController: NavController) {
                 .fillMaxWidth()
                 .height(70.dp),
             shape = RoundedCornerShape(35.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.85f),
+            color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.65f),
             shadowElevation = 8.dp,
             tonalElevation = 4.dp
         ) {
