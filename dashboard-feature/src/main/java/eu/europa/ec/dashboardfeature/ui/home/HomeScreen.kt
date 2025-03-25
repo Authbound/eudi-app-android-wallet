@@ -274,6 +274,8 @@ private fun Content(
                 onEventSent(Event.AddCredentialPressed)
             }
         )
+        Spacer(modifier = Modifier.height(75.dp))
+
 
         // Keep the original action cards as a fallback if needed
         // Comment out for now as we're replacing them with the quick actions grid
@@ -787,7 +789,8 @@ private fun CredentialCategory(
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp)
+        verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp),
+        
     ) {
         // Category title
         SectionTitle(
