@@ -530,11 +530,11 @@ class TestDocumentsInteractor {
                 assertTrue(state is DocumentInteractorFilterPartialState.FilterUpdateResult)
                 assertEquals(state.filters.size, mockFilters.filterGroups.size)
                 assertEquals(
-                    (state.filters.first().collapsed.mainContentData as ListItemMainContentData.Text).text,
+                    (state.filters.first().header.mainContentData as ListItemMainContentData.Text).text,
                     mockFilters.filterGroups.first().name
                 )
                 assertEquals(
-                    state.filters.first().expanded.size,
+                    state.filters.first().nestedItems.size,
                     mockFilters.filterGroups.first().filters.size
                 )
             }
@@ -563,22 +563,23 @@ class TestDocumentsInteractor {
     //endregion
 
     //region Mock domain models
-    private val mockFilterableItem = FilterableItem(payload = DocumentUi(
-        documentIssuanceState = DocumentUiIssuanceState.Pending,
-        uiData = ListItemData(
-            itemId = "sumo",
-            mainContentData = ListItemMainContentData.Text("test"),
-            overlineText = null,
-            supportingText = null,
-            leadingContentData = null,
-            trailingContentData = null
-        ),
-        documentIdentifier = DocumentIdentifier.MdocPid,
-        documentCategory = DocumentCategory.Government,
-    ), attributes = object : FilterableAttributes {
-        override val searchTags: List<String>
-            get() = listOf("docName", "issuerName")
-    })
+    private val mockFilterableItem = FilterableItem(
+        payload = DocumentUi(
+            documentIssuanceState = DocumentUiIssuanceState.Pending,
+            uiData = ListItemData(
+                itemId = "sumo",
+                mainContentData = ListItemMainContentData.Text("test"),
+                overlineText = null,
+                supportingText = null,
+                leadingContentData = null,
+                trailingContentData = null
+            ),
+            documentIdentifier = DocumentIdentifier.MdocPid,
+            documentCategory = DocumentCategory.Government,
+        ), attributes = object : FilterableAttributes {
+            override val searchTags: List<String>
+                get() = listOf("docName", "issuerName")
+        })
 
     private val mockFilters = Filters(
         filterGroups = listOf(

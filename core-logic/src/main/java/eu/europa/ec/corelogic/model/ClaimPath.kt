@@ -14,19 +14,26 @@
  * governing permissions and limitations under the Licence.
  */
 
-import org.gradle.api.Plugin
-import org.gradle.api.Project
-import org.gradle.kotlin.dsl.dependencies
-import project.convention.logic.libs
+package eu.europa.ec.corelogic.model
 
-class AppCenterPlugin : Plugin<Project> {
-    override fun apply(target: Project) {
-        with(target) {
-            dependencies {
-                add("implementation", libs.findLibrary("appcenter.analytics").get())
-                add("implementation", libs.findLibrary("appcenter.crashes").get())
-                add("implementation", libs.findLibrary("appcenter.distribute").get())
-            }
+data class ClaimPath(val value: List<String>) {
+    companion object {
+        const val PATH_SEPARATOR = ","
+
+        fun toElementIdentifier(itemId: String): String {
+            return itemId
+                .split(PATH_SEPARATOR)
+                .drop(1)
+                .first()
+        }
+
+        fun toSdJwtVcPath(itemId: String): List<String> {
+            return itemId
+                .split(PATH_SEPARATOR)
+                .drop(1)
         }
     }
+
+    fun toId(docId: String): String =
+        (listOf(docId) + value).joinToString(separator = PATH_SEPARATOR)
 }

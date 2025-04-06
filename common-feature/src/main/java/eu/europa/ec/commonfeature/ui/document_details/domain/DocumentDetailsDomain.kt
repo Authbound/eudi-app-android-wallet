@@ -17,15 +17,8 @@
 package eu.europa.ec.commonfeature.ui.document_details.domain
 
 import eu.europa.ec.corelogic.model.DocumentIdentifier
+import eu.europa.ec.corelogic.model.DomainClaim
 import eu.europa.ec.eudi.wallet.document.DocumentId
-import eu.europa.ec.eudi.wallet.document.ElementIdentifier
-
-data class DocumentItem(
-    val elementIdentifier: ElementIdentifier,
-    val value: String,
-    val readableName: String,
-    val docId: DocumentId
-)
 
 data class DocumentDetailsDomain(
     val docName: String,
@@ -33,5 +26,5 @@ data class DocumentDetailsDomain(
     val documentIdentifier: DocumentIdentifier,
     val documentExpirationDateFormatted: String,
     val documentHasExpired: Boolean,
-    val detailsItems: List<DocumentItem>
+    val documentClaims: List<DomainClaim>
 )

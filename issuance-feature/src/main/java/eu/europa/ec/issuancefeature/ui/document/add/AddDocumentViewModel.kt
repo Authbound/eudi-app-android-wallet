@@ -24,6 +24,8 @@ import eu.europa.ec.commonfeature.config.IssuanceFlowUiConfig
 import eu.europa.ec.commonfeature.config.IssuanceSuccessUiConfig
 import eu.europa.ec.commonfeature.config.OfferUiConfig
 import eu.europa.ec.commonfeature.config.PresentationMode
+import eu.europa.ec.commonfeature.config.QrScanFlow
+import eu.europa.ec.commonfeature.config.QrScanUiConfig
 import eu.europa.ec.commonfeature.config.RequestUriConfig
 import eu.europa.ec.commonfeature.model.DocumentOptionItemUi
 import eu.europa.ec.corelogic.controller.IssuanceMethod
@@ -41,9 +43,11 @@ import eu.europa.ec.uilogic.mvi.MviViewModel
 import eu.europa.ec.uilogic.mvi.ViewEvent
 import eu.europa.ec.uilogic.mvi.ViewSideEffect
 import eu.europa.ec.uilogic.mvi.ViewState
+import eu.europa.ec.uilogic.navigation.CommonScreens
 import eu.europa.ec.uilogic.navigation.DashboardScreens
 import eu.europa.ec.uilogic.navigation.IssuanceScreens
 import eu.europa.ec.uilogic.navigation.PresentationScreens
+import eu.europa.ec.uilogic.navigation.helper.DeepLinkAction
 import eu.europa.ec.uilogic.navigation.helper.DeepLinkType
 import eu.europa.ec.uilogic.navigation.helper.generateComposableArguments
 import eu.europa.ec.uilogic.navigation.helper.generateComposableNavigationLink
@@ -65,11 +69,13 @@ data class State(
 
     val title: String = "",
     val subtitle: String = "",
-    val options: List<DocumentOptionItemUi> = emptyList()
+    val options: List<DocumentOptionItemUi> = emptyList(),
+    val showFooterScanner: Boolean,
 ) : ViewState
 
 sealed class Event : ViewEvent {
     data class Init(val deepLink: Uri?) : Event()
+    data object GoToQrScan : Event()
     data object Pop : Event()
     data object OnPause : Event()
     data class OnResumeIssuance(val uri: String) : Event()
@@ -106,7 +112,8 @@ class AddDocumentViewModel(
         navigatableAction = getNavigatableAction(flowType),
         onBackAction = getOnBackAction(flowType),
         title = resourceProvider.getString(R.string.issuance_add_document_title),
-        subtitle = resourceProvider.getString(R.string.issuance_add_document_subtitle)
+        subtitle = resourceProvider.getString(R.string.issuance_add_document_subtitle),
+        showFooterScanner = shouldShowFooterScanner(flowType),
     )
 
     override fun handleEvents(event: Event) {
@@ -172,6 +179,10 @@ class AddDocumentViewModel(
                     )
                 }
             }
+
+            is Event.GoToQrScan -> {
+                navigateToQrScanScreen()
+            }
         }
     }
 
@@ -200,17 +211,27 @@ class AddDocumentViewModel(
                     }
 
                     is AddDocumentInteractorPartialState.Failure -> {
+
+                        val deepLinkAction = getDeepLinkAction(deepLinkUri)
+
                         setState {
                             copy(
-                                error = ContentErrorConfig(
-                                    onRetry = { setEvent(event) },
-                                    errorSubTitle = response.error,
-                                    onCancel = { setEvent(Event.DismissError) }
-                                ),
+                                error = if (deepLinkAction == null) {
+                                    ContentErrorConfig(
+                                        onRetry = { setEvent(event) },
+                                        errorSubTitle = response.error,
+                                        onCancel = { setEvent(Event.DismissError) }
+                                    )
+                                } else {
+                                    null
+                                },
                                 options = emptyList(),
                                 isInitialised = true,
                                 isLoading = false
                             )
+                        }
+                        deepLinkAction?.let {
+                            handleDeepLink(it.first, it.second)
                         }
                     }
                 }
@@ -343,6 +364,36 @@ class AddDocumentViewModel(
         }
     }
 
+    private fun navigateToQrScanScreen() {
+        setEffect {
+            Effect.Navigation.SwitchScreen(
+                screenRoute = generateComposableNavigationLink(
+                    screen = CommonScreens.QrScan,
+                    arguments = generateComposableArguments(
+                        mapOf(
+                            QrScanUiConfig.serializedKeyName to uiSerializer.toBase64(
+                                QrScanUiConfig(
+                                    title = resourceProvider.getString(R.string.issuance_qr_scan_title),
+                                    subTitle = resourceProvider.getString(R.string.issuance_qr_scan_subtitle),
+                                    qrScanFlow = QrScanFlow.Issuance(flowType)
+                                ),
+                                QrScanUiConfig.Parser
+                            )
+                        )
+                    )
+                ),
+                inclusive = false
+            )
+        }
+    }
+
+    private fun shouldShowFooterScanner(flowType: IssuanceFlowUiConfig): Boolean {
+        return when (flowType) {
+            IssuanceFlowUiConfig.NO_DOCUMENT -> true
+            IssuanceFlowUiConfig.EXTRA_DOCUMENT -> false
+        }
+    }
+
     private fun getNavigatableAction(flowType: IssuanceFlowUiConfig): ScreenNavigateAction {
         return when (flowType) {
             IssuanceFlowUiConfig.NO_DOCUMENT -> ScreenNavigateAction.NONE
@@ -362,49 +413,59 @@ class AddDocumentViewModel(
         }
     }
 
-    private fun handleDeepLink(deepLinkUri: Uri?) {
-        deepLinkUri?.let { uri ->
+    private fun getDeepLinkAction(deepLinkUri: Uri?): Pair<Uri, DeepLinkAction>? {
+        return deepLinkUri?.let { uri ->
             hasDeepLink(uri)?.let {
-                when (it.type) {
-                    DeepLinkType.CREDENTIAL_OFFER -> {
-                        setEffect {
-                            Effect.Navigation.OpenDeepLinkAction(
-                                deepLinkUri = uri,
-                                arguments = generateComposableArguments(
-                                    mapOf(
-                                        OfferUiConfig.serializedKeyName to uiSerializer.toBase64(
-                                            OfferUiConfig(
-                                                offerURI = it.link.toString(),
-                                                onSuccessNavigation = ConfigNavigation(
-                                                    navigationType = NavigationType.PushScreen(
-                                                        screen = DashboardScreens.Dashboard,
-                                                        popUpToScreen = IssuanceScreens.AddDocument
-                                                    )
-                                                ),
-                                                onCancelNavigation = ConfigNavigation(
-                                                    navigationType = NavigationType.Pop
-                                                )
-                                            ),
-                                            OfferUiConfig.Parser
+                uri to it
+            }
+        }
+    }
+
+    private fun handleDeepLink(deepLinkUri: Uri?) {
+        getDeepLinkAction(deepLinkUri)?.let { pair ->
+            handleDeepLink(pair.first, pair.second)
+        }
+    }
+
+    private fun handleDeepLink(uri: Uri, action: DeepLinkAction) {
+        when (action.type) {
+            DeepLinkType.CREDENTIAL_OFFER -> {
+                setEffect {
+                    Effect.Navigation.OpenDeepLinkAction(
+                        deepLinkUri = uri,
+                        arguments = generateComposableArguments(
+                            mapOf(
+                                OfferUiConfig.serializedKeyName to uiSerializer.toBase64(
+                                    OfferUiConfig(
+                                        offerURI = action.link.toString(),
+                                        onSuccessNavigation = ConfigNavigation(
+                                            navigationType = NavigationType.PushScreen(
+                                                screen = DashboardScreens.Dashboard,
+                                                popUpToScreen = IssuanceScreens.AddDocument
+                                            )
+                                        ),
+                                        onCancelNavigation = ConfigNavigation(
+                                            navigationType = NavigationType.Pop
                                         )
-                                    )
+                                    ),
+                                    OfferUiConfig.Parser
                                 )
                             )
-                        }
-                    }
-
-                    DeepLinkType.EXTERNAL -> {
-                        setEffect {
-                            Effect.Navigation.OpenDeepLinkAction(
-                                deepLinkUri = uri,
-                                arguments = null
-                            )
-                        }
-                    }
-
-                    else -> {}
+                        )
+                    )
                 }
             }
+
+            DeepLinkType.EXTERNAL -> {
+                setEffect {
+                    Effect.Navigation.OpenDeepLinkAction(
+                        deepLinkUri = uri,
+                        arguments = null
+                    )
+                }
+            }
+
+            else -> {}
         }
     }
 }
