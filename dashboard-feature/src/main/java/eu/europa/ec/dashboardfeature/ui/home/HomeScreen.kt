@@ -454,13 +454,12 @@ private fun HomeScreenSheetContent(
                     )
                 ),
                 onEventSent = onEventSent
-            )
-        }
+            )}
 
         /**
          * Bottom sheet for Sign Document click event,
          * will be implemented in the future
-         *
+         */
         is HomeScreenBottomSheetContent.Sign -> {
             WrapModalBottomSheet(
                 onDismissRequest = {
@@ -704,7 +703,7 @@ private fun CredentialsSection(
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            
+
             TextButton(onClick = onViewAllClick) {
                 Text(
                     text = stringResource(R.string.dashboard_home_screen_view_all),
@@ -713,7 +712,7 @@ private fun CredentialsSection(
                 )
             }
         }
-        
+
         // Loading indicator
         if (isLoading) {
             Box(
@@ -724,7 +723,7 @@ private fun CredentialsSection(
             ) {
                 CircularProgressIndicator()
             }
-        } 
+        }
         // Empty state message
         else if (showEmptyMessage) {
             Box(
@@ -743,7 +742,7 @@ private fun CredentialsSection(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
-                    
+
                     Button(
                         onClick = onAddCredentialClick,
                         modifier = Modifier
@@ -760,7 +759,7 @@ private fun CredentialsSection(
                     }
                 }
             }
-        } 
+        }
         // Display credentials list
         else {
             credentials.forEach { (category, documents) ->
@@ -788,14 +787,14 @@ private fun CredentialCategory(
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp),
-        
+
     ) {
         // Category title
         SectionTitle(
             modifier = Modifier.fillMaxWidth(),
             text = stringResource(category.stringResId)
         )
-        
+
         // Credentials in this category
         documents.forEach { document ->
             WrapListItem(
@@ -863,7 +862,7 @@ private fun HomeScreenContentPreview() {
                     )
                 )
             )
-            
+
             Content(
                 state = State(
                     isBottomSheetOpen = false,

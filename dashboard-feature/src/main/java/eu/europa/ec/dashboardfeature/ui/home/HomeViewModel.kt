@@ -365,12 +365,10 @@ class HomeViewModel(
                 setState { copy(bleAvailability = BleAvailability.UNKNOWN) }
                 showBottomSheet(
                     sheetContent =
-                        HomeScreenBottomSheetContent.Bluetooth(
+                        Bluetooth(
                             BleAvailability.NO_PERMISSION
                         )
-                    sheetContent = Bluetooth(
-                        BleAvailability.NO_PERMISSION
-                    )
+
                 )
             }
 
@@ -579,6 +577,11 @@ class HomeViewModel(
                     screen = IssuanceScreens.AddDocument,
                     arguments = generateComposableArguments(
                         mapOf("flowType" to IssuanceFlowUiConfig.EXTRA_DOCUMENT)
+                    )
+                )
+            )
+        }
+        }
     private fun navigateToQrSignatureScan() {
         val navigationEffect = Effect.Navigation.SwitchScreen(
             screenRoute = generateComposableNavigationLink(
@@ -602,28 +605,28 @@ class HomeViewModel(
         }
     }
 
-    private fun navigateToQrScan() {
-        val navigationEffect = Effect.Navigation.SwitchScreen(
-            screenRoute = generateComposableNavigationLink(
-                screen = CommonScreens.QrScan,
-                arguments = generateComposableArguments(
-                    mapOf(
-                        QrScanUiConfig.serializedKeyName to uiSerializer.toBase64(
-                            QrScanUiConfig(
-                                title = resourceProvider.getString(R.string.presentation_qr_scan_title),
-                                subTitle = resourceProvider.getString(R.string.presentation_qr_scan_subtitle),
-                                qrScanFlow = QrScanFlow.Presentation
-                            ),
-                            QrScanUiConfig.Parser
-                        )
-                    )
-                )
-            )
-        }
-    }
+//    private fun navigateToQrScan() {
+//        val navigationEffect = Effect.Navigation.SwitchScreen(
+//            screenRoute = generateComposableNavigationLink(
+//                screen = CommonScreens.QrScan,
+//                arguments = generateComposableArguments(
+//                    mapOf(
+//                        QrScanUiConfig.serializedKeyName to uiSerializer.toBase64(
+//                            QrScanUiConfig(
+//                                title = resourceProvider.getString(R.string.presentation_qr_scan_title),
+//                                subTitle = resourceProvider.getString(R.string.presentation_qr_scan_subtitle),
+//                                qrScanFlow = QrScanFlow.Presentation
+//                            ),
+//                            QrScanUiConfig.Parser
+//                        )
+//                    )
+//                )
+//            ))
+//        }
+//    }
 
     private fun navigateToVerificationTemplateSelection() {
-        )
+
         setEffect {
             Effect.Navigation.SwitchScreen(
                 screenRoute = DashboardScreens.VerificationTemplateSelection.screenRoute
