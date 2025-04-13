@@ -15,7 +15,7 @@
  */
 
 package eu.europa.ec.corelogic.controller
-
+import android.util.Log
 import com.android.identity.securearea.KeyUnlockData
 import eu.europa.ec.authenticationlogic.controller.authentication.DeviceAuthenticationResult
 import eu.europa.ec.authenticationlogic.model.BiometricCrypto
@@ -189,6 +189,8 @@ class WalletCoreDocumentsControllerImpl(
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : WalletCoreDocumentsController {
 
+    private val TAG = "WalletCoreDocumentsController"
+
     private val genericErrorMessage
         get() = resourceProvider.genericErrorMessage()
 
@@ -207,8 +209,12 @@ class WalletCoreDocumentsControllerImpl(
 
     override suspend fun getScopedDocuments(locale: Locale): FetchScopedDocumentsPartialState {
         return withContext(dispatcher) {
+            Log.d(TAG, "Getting scoped documents")
             runCatching {
+                Log.d(TAG, "Getting issuer metadata")
                 val metadata = openId4VciManager.getIssuerMetadata().getOrThrow()
+                
+                Log.d(TAG, "Metadata: $metadata")
 
                 val documents =
                     metadata.credentialConfigurationsSupported.map { (id, config) ->
@@ -231,13 +237,19 @@ class WalletCoreDocumentsControllerImpl(
                             isPid = isPid
                         )
                     }
+
+                Log.d(TAG, "Documents: $documents")
+
                 if (documents.isNotEmpty()) {
+                    Log.d(TAG, "Documents are not empty")
                     FetchScopedDocumentsPartialState.Success(documents = documents)
                 } else {
+                    Log.d(TAG, "Documents are empty")
                     FetchScopedDocumentsPartialState.Failure(errorMessage = genericErrorMessage)
                 }
             }
         }.getOrElse {
+            Log.e(TAG, "Error: parsing metadata ${it.localizedMessage}")
             FetchScopedDocumentsPartialState.Failure(
                 errorMessage = it.localizedMessage ?: genericErrorMessage
             )

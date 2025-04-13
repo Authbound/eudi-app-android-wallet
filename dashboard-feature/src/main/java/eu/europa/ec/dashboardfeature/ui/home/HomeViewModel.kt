@@ -294,9 +294,6 @@ class HomeViewModel(
                     sheetContent = HomeScreenBottomSheetContent.LearnMoreAboutAuthenticate
                 )
 
-            is Event.SignDocumentCard.SignDocumentPressed -> {
-                navigateToDocumentSign()
-            }
             is Event.SignDocumentCard.SignDocumentPressed -> showBottomSheet(
                 sheetContent = HomeScreenBottomSheetContent.Sign
             )

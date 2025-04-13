@@ -24,6 +24,7 @@ import eu.europa.ec.eudi.wallet.transfer.openId4vp.ClientIdScheme
 import eu.europa.ec.eudi.wallet.transfer.openId4vp.EncryptionAlgorithm
 import eu.europa.ec.eudi.wallet.transfer.openId4vp.EncryptionMethod
 import eu.europa.ec.eudi.wallet.transfer.openId4vp.Format
+import eu.europa.ec.eudi.wallet.transfer.openId4vp.PreregisteredVerifier
 import eu.europa.ec.resourceslogic.R
 
 internal class WalletCoreConfigImpl(
@@ -34,6 +35,11 @@ internal class WalletCoreConfigImpl(
         const val VCI_ISSUER_URL = "https://issuer.eudiw.dev"
         const val VCI_CLIENT_ID = "wallet-dev"
         const val AUTHENTICATION_REQUIRED = false
+
+        const val OPENID4VP_VERIFIER_API_URI = "http://10.0.2.2:8080"
+        const val OPENID4VP_VERIFIER_LEGAL_NAME = "Authbound.io"
+        const val OPENID4VP_VERIFIER_CLIENT_ID = "Verifier"
+
     }
 
     private var _config: EudiWalletConfig? = null
@@ -47,6 +53,7 @@ internal class WalletCoreConfigImpl(
                         userAuthenticationTimeout = 30_000L,
                         useStrongBoxForKeys = true
                     )
+
                     configureOpenId4Vp {
                         withEncryptionAlgorithms(listOf(EncryptionAlgorithm.ECDH_ES))
                         withEncryptionMethods(
@@ -57,7 +64,13 @@ internal class WalletCoreConfigImpl(
                         )
 
                         withClientIdSchemes(
-                            listOf(ClientIdScheme.X509SanDns)
+                            listOf(ClientIdScheme.X509SanDns, ClientIdScheme.Preregistered(listOf(
+                                PreregisteredVerifier(
+                                    clientId = OPENID4VP_VERIFIER_CLIENT_ID,
+                                    verifierApi = OPENID4VP_VERIFIER_API_URI,
+                                    legalName = OPENID4VP_VERIFIER_LEGAL_NAME
+                                )
+                            )))
                         )
                         withSchemes(
                             listOf(
