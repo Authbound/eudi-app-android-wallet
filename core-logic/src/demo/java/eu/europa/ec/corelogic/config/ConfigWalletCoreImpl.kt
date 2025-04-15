@@ -36,9 +36,12 @@ internal class WalletCoreConfigImpl(
         const val VCI_CLIENT_ID = "wallet-dev"
         const val AUTHENTICATION_REQUIRED = false
 
-        const val OPENID4VP_VERIFIER_API_URI = "http://10.0.2.2:8080"
+        const val OPENID4VP_LOCAL_VERIFIER_API_URI = "http://10.0.2.2:8080"
         const val OPENID4VP_VERIFIER_LEGAL_NAME = "Authbound.io"
         const val OPENID4VP_VERIFIER_CLIENT_ID = "Verifier"
+
+        const val OPENID4VP_VERIFIER_API_URI = "https://verifier.authbound.io"
+
 
     }
 
@@ -69,7 +72,12 @@ internal class WalletCoreConfigImpl(
                                     clientId = OPENID4VP_VERIFIER_CLIENT_ID,
                                     verifierApi = OPENID4VP_VERIFIER_API_URI,
                                     legalName = OPENID4VP_VERIFIER_LEGAL_NAME
-                                )
+                                ),
+//                                PreregisteredVerifier(
+//                                    clientId = OPENID4VP_VERIFIER_CLIENT_ID,
+//                                    verifierApi = OPENID4VP_LOCAL_VERIFIER_API_URI,
+//                                    legalName = OPENID4VP_VERIFIER_LEGAL_NAME
+//                                )
                             )))
                         )
                         withSchemes(

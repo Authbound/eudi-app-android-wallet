@@ -83,7 +83,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DashboardScreen(
+internal fun DashboardScreen(
     hostNavController: NavController,
     viewModel: DashboardViewModel,
     documentsViewModel: DocumentsViewModel,
@@ -167,7 +167,10 @@ fun DashboardScreen(
             composable(BottomNavigationItem.Settings.route) {
                 SettingsScreen(
                     hostNavController,
-                    settingsViewModel
+                    settingsViewModel,
+                    onDashboardEventSent = { event ->
+                        viewModel.setEvent(event)
+                    }
                 )
             }
 
