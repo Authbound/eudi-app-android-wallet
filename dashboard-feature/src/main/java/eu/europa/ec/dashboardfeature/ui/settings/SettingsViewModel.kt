@@ -2,7 +2,8 @@ package eu.europa.ec.dashboardfeature.ui.settings
 
 import androidx.lifecycle.viewModelScope
 import eu.europa.ec.dashboardfeature.interactor.SettingsInteractor
-import eu.europa.ec.dashboardfeature.ui.BottomNavigationItem
+import eu.europa.ec.dashboardfeature.ui.component.BottomNavigationItem
+
 
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.uilogic.mvi.MviViewModel
@@ -144,7 +145,7 @@ class SettingsViewModel(val interactor: SettingsInteractor,
     }
 
     private fun navigateToChangePin() {
-        setEffect { Effect.Navigation.SwitchScreen(DashboardScreens.ChangePin.screenRoute) }
+        setEffect { Effect.Navigation.SwitchScreen(DashboardScreens.Dashboard.screenRoute) }
     }
 
     private fun navigateToChangePassword() {

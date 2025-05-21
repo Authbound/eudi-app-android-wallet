@@ -114,209 +114,209 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
-typealias DashboardEvent = eu.europa.ec.dashboardfeature.ui.dashboard.Event
-typealias ShowSideMenuEvent = eu.europa.ec.dashboardfeature.ui.dashboard.Event.SideMenu.Show
+//typealias DashboardEvent = eu.europa.ec.dashboardfeature.ui.dashboard.Event
+//typealias ShowSideMenuEvent = eu.europa.ec.dashboardfeature.ui.dashboard.Event.SideMenu.Show
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun TransactionsScreen(
-    navHostController: NavController,
-    viewModel: TransactionsViewModel,
-    onDashboardEventSent: (DashboardEvent) -> Unit,
-) {
-    val state: State by viewModel.viewState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-
-    val datePickerDialogConfig = state.datePickerDialogConfig
-
-    val scope = rememberCoroutineScope()
-    val bottomSheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true
-    )
-
-    ContentScreen(
-        isLoading = state.isLoading,
-        contentErrorConfig = state.error,
-        navigatableAction = ScreenNavigateAction.NONE,
-        onBack = { context.finish() },
-        topBar = {
-            TopBar(
-                onDashboardEventSent = onDashboardEventSent
-            )
-        }
-    ) { paddingValues ->
-        Content(
-            state = state,
-            effectFlow = viewModel.effect,
-            onEventSend = { viewModel.setEvent(it) },
-            onNavigationRequested = { navigationEffect ->
-                handleNavigationEffect(navigationEffect, navHostController, context)
-            },
-            paddingValues = paddingValues,
-            coroutineScope = scope,
-            modalBottomSheetState = bottomSheetState,
-        )
-
-        if (state.isBottomSheetOpen) {
-            WrapModalBottomSheet(
-                onDismissRequest = {
-                    viewModel.setEvent(
-                        Event.BottomSheet.UpdateBottomSheetState(
-                            isOpen = false
-                        )
-                    )
-                },
-                sheetState = bottomSheetState
-            ) {
-                TransactionsSheetContent(
-                    sheetContent = state.sheetContent,
-                    filtersUi = state.filtersUi,
-                    snapshotFilterDateRangeData = state.snapshotFilterDateRangeSelectionData,
-                    sortOrder = state.sortOrder,
-                    onEventSent = {
-                        viewModel.setEvent(it)
-                    }
-                )
-            }
-        }
-
-        if (state.isDatePickerDialogVisible) {
-            FiltersDatePickerDialog(
-                onDateSelected = { millis ->
-                    safeLet(
-                        datePickerDialogConfig.type,
-                        millis,
-                    ) { dateSelectionType, safeMillis ->
-                        when (dateSelectionType) {
-                            DatePickerDialogType.SelectStartDate -> {
-                                viewModel.setEvent(
-                                    Event.OnStartDateSelected(
-                                        selectedDateUtcMillis = safeMillis
-                                    )
-                                )
-                            }
-
-                            DatePickerDialogType.SelectEndDate -> {
-                                viewModel.setEvent(
-                                    Event.OnEndDateSelected(
-                                        selectedDateUtcMillis = safeMillis
-                                    )
-                                )
-                            }
-                        }
-                    }
-                },
-                onDismiss = {
-                    viewModel.setEvent(
-                        Event.DatePickerDialog.UpdateDialogState(isVisible = false)
-                    )
-                },
-                datePickerDialogConfig = datePickerDialogConfig
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun Content(
-    state: State,
-    effectFlow: Flow<Effect>,
-    onEventSend: (Event) -> Unit,
-    onNavigationRequested: (navigationEffect: Effect.Navigation) -> Unit,
-    paddingValues: PaddingValues,
-    coroutineScope: CoroutineScope,
-    modalBottomSheetState: SheetState,
-) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(
-                paddingValues = PaddingValues(
-                    top = paddingValues.calculateTopPadding(),
-                    bottom = 0.dp,
-                    start = paddingValues.calculateStartPadding(LayoutDirection.Ltr),
-                    end = paddingValues.calculateEndPadding(LayoutDirection.Ltr)
-                )
-            ),
-        contentPadding = PaddingValues(bottom = paddingValues.calculateBottomPadding()),
-    ) {
-        item {
-            val searchItem =
-                SearchItem(searchLabel = stringResource(R.string.transactions_screen_search_label))
-            FiltersSearchBar(
-                placeholder = searchItem.searchLabel,
-                onValueChange = { onEventSend(Event.OnSearchQueryChanged(it)) },
-                onFilterClick = { onEventSend(Event.FiltersPressed) },
-                onClearClick = { onEventSend(Event.OnSearchQueryChanged("")) },
-                isFilteringActive = state.isFilteringActive,
-                text = state.searchText
-            )
-            VSpacer.Large()
-        }
-
-        if (state.showNoResultsFound) {
-            item {
-                NoResults(modifier = Modifier.fillMaxWidth())
-            }
-        } else {
-            itemsIndexed(items = state.transactionsUi) { index, (documentCategory, documents) ->
-                TransactionCategory(
-                    modifier = Modifier.fillMaxWidth(),
-                    category = documentCategory,
-                    transactions = documents,
-                    onEventSend = onEventSend
-                )
-
-                if (index != state.transactionsUi.lastIndex) {
-                    VSpacer.ExtraLarge()
-                }
-            }
-        }
-    }
-
-    LifecycleEffect(
-        lifecycleOwner = LocalLifecycleOwner.current,
-        lifecycleEvent = Lifecycle.Event.ON_RESUME
-    ) {
-        onEventSend(Event.OnResume)
-    }
-    LifecycleEffect(
-        lifecycleOwner = LocalLifecycleOwner.current,
-        lifecycleEvent = Lifecycle.Event.ON_PAUSE
-    ) {
-        onEventSend(Event.OnPause)
-    }
-
-    OneTimeLaunchedEffect {
-        onEventSend(Event.Init)
-    }
-
-    LaunchedEffect(Unit) {
-        effectFlow.onEach { effect ->
-            when (effect) {
-                is Effect.Navigation -> onNavigationRequested(effect)
-
-                is Effect.CloseBottomSheet -> {
-                    coroutineScope.launch {
-                        modalBottomSheetState.hide()
-                        if (!modalBottomSheetState.isVisible) {
-                            onEventSend(Event.BottomSheet.UpdateBottomSheetState(isOpen = false))
-                        }
-                    }
-                }
-
-                is Effect.ShowBottomSheet -> {
-                    onEventSend(Event.BottomSheet.UpdateBottomSheetState(isOpen = true))
-                }
-
-                is Effect.ShowDatePickerDialog -> {
-                    onEventSend(Event.DatePickerDialog.UpdateDialogState(isVisible = true))
-                }
-            }
-        }.collect()
-    }
-}
+//@OptIn(ExperimentalMaterial3Api::class)
+//@Composable
+//fun TransactionsScreen(
+//    navHostController: NavController,
+//    viewModel: TransactionsViewModel,
+//    onDashboardEventSent: (DashboardEvent) -> Unit,
+//) {
+//    val state: State by viewModel.viewState.collectAsStateWithLifecycle()
+//    val context = LocalContext.current
+//
+//    val datePickerDialogConfig = state.datePickerDialogConfig
+//
+//    val scope = rememberCoroutineScope()
+//    val bottomSheetState = rememberModalBottomSheetState(
+//        skipPartiallyExpanded = true
+//    )
+//
+//    ContentScreen(
+//        isLoading = state.isLoading,
+//        contentErrorConfig = state.error,
+//        navigatableAction = ScreenNavigateAction.NONE,
+//        onBack = { context.finish() },
+//        topBar = {
+//            TopBar(
+//                onDashboardEventSent = onDashboardEventSent
+//            )
+//        }
+//    ) { paddingValues ->
+//        Content(
+//            state = state,
+//            effectFlow = viewModel.effect,
+//            onEventSend = { viewModel.setEvent(it) },
+//            onNavigationRequested = { navigationEffect ->
+//                handleNavigationEffect(navigationEffect, navHostController, context)
+//            },
+//            paddingValues = paddingValues,
+//            coroutineScope = scope,
+//            modalBottomSheetState = bottomSheetState,
+//        )
+//
+//        if (state.isBottomSheetOpen) {
+//            WrapModalBottomSheet(
+//                onDismissRequest = {
+//                    viewModel.setEvent(
+//                        Event.BottomSheet.UpdateBottomSheetState(
+//                            isOpen = false
+//                        )
+//                    )
+//                },
+//                sheetState = bottomSheetState
+//            ) {
+//                TransactionsSheetContent(
+//                    sheetContent = state.sheetContent,
+//                    filtersUi = state.filtersUi,
+//                    snapshotFilterDateRangeData = state.snapshotFilterDateRangeSelectionData,
+//                    sortOrder = state.sortOrder,
+//                    onEventSent = {
+//                        viewModel.setEvent(it)
+//                    }
+//                )
+//            }
+//        }
+//
+//        if (state.isDatePickerDialogVisible) {
+//            FiltersDatePickerDialog(
+//                onDateSelected = { millis ->
+//                    safeLet(
+//                        datePickerDialogConfig.type,
+//                        millis,
+//                    ) { dateSelectionType, safeMillis ->
+//                        when (dateSelectionType) {
+//                            DatePickerDialogType.SelectStartDate -> {
+//                                viewModel.setEvent(
+//                                    Event.OnStartDateSelected(
+//                                        selectedDateUtcMillis = safeMillis
+//                                    )
+//                                )
+//                            }
+//
+//                            DatePickerDialogType.SelectEndDate -> {
+//                                viewModel.setEvent(
+//                                    Event.OnEndDateSelected(
+//                                        selectedDateUtcMillis = safeMillis
+//                                    )
+//                                )
+//                            }
+//                        }
+//                    }
+//                },
+//                onDismiss = {
+//                    viewModel.setEvent(
+//                        Event.DatePickerDialog.UpdateDialogState(isVisible = false)
+//                    )
+//                },
+//                datePickerDialogConfig = datePickerDialogConfig
+//            )
+//        }
+//    }
+//}
+//
+//@OptIn(ExperimentalMaterial3Api::class)
+//@Composable
+//private fun Content(
+//    state: State,
+//    effectFlow: Flow<Effect>,
+//    onEventSend: (Event) -> Unit,
+//    onNavigationRequested: (navigationEffect: Effect.Navigation) -> Unit,
+//    paddingValues: PaddingValues,
+//    coroutineScope: CoroutineScope,
+//    modalBottomSheetState: SheetState,
+//) {
+//    LazyColumn(
+//        modifier = Modifier
+//            .fillMaxSize()
+//            .padding(
+//                paddingValues = PaddingValues(
+//                    top = paddingValues.calculateTopPadding(),
+//                    bottom = 0.dp,
+//                    start = paddingValues.calculateStartPadding(LayoutDirection.Ltr),
+//                    end = paddingValues.calculateEndPadding(LayoutDirection.Ltr)
+//                )
+//            ),
+//        contentPadding = PaddingValues(bottom = paddingValues.calculateBottomPadding()),
+//    ) {
+//        item {
+//            val searchItem =
+//                SearchItem(searchLabel = stringResource(R.string.transactions_screen_search_label))
+//            FiltersSearchBar(
+//                placeholder = searchItem.searchLabel,
+//                onValueChange = { onEventSend(Event.OnSearchQueryChanged(it)) },
+//                onFilterClick = { onEventSend(Event.FiltersPressed) },
+//                onClearClick = { onEventSend(Event.OnSearchQueryChanged("")) },
+//                isFilteringActive = state.isFilteringActive,
+//                text = state.searchText
+//            )
+//            VSpacer.Large()
+//        }
+//
+//        if (state.showNoResultsFound) {
+//            item {
+//                NoResults(modifier = Modifier.fillMaxWidth())
+//            }
+//        } else {
+//            itemsIndexed(items = state.transactionsUi) { index, (documentCategory, documents) ->
+//                TransactionCategory(
+//                    modifier = Modifier.fillMaxWidth(),
+//                    category = documentCategory,
+//                    transactions = documents,
+//                    onEventSend = onEventSend
+//                )
+//
+//                if (index != state.transactionsUi.lastIndex) {
+//                    VSpacer.ExtraLarge()
+//                }
+//            }
+//        }
+//    }
+//
+//    LifecycleEffect(
+//        lifecycleOwner = LocalLifecycleOwner.current,
+//        lifecycleEvent = Lifecycle.Event.ON_RESUME
+//    ) {
+//        onEventSend(Event.OnResume)
+//    }
+//    LifecycleEffect(
+//        lifecycleOwner = LocalLifecycleOwner.current,
+//        lifecycleEvent = Lifecycle.Event.ON_PAUSE
+//    ) {
+//        onEventSend(Event.OnPause)
+//    }
+//
+//    OneTimeLaunchedEffect {
+//        onEventSend(Event.Init)
+//    }
+//
+//    LaunchedEffect(Unit) {
+//        effectFlow.onEach { effect ->
+//            when (effect) {
+//                is Effect.Navigation -> onNavigationRequested(effect)
+//
+//                is Effect.CloseBottomSheet -> {
+//                    coroutineScope.launch {
+//                        modalBottomSheetState.hide()
+//                        if (!modalBottomSheetState.isVisible) {
+//                            onEventSend(Event.BottomSheet.UpdateBottomSheetState(isOpen = false))
+//                        }
+//                    }
+//                }
+//
+//                is Effect.ShowBottomSheet -> {
+//                    onEventSend(Event.BottomSheet.UpdateBottomSheetState(isOpen = true))
+//                }
+//
+//                is Effect.ShowDatePickerDialog -> {
+//                    onEventSend(Event.DatePickerDialog.UpdateDialogState(isVisible = true))
+//                }
+//            }
+//        }.collect()
+//    }
+//}
 
 private fun handleNavigationEffect(
     navigationEffect: Effect.Navigation,
@@ -584,40 +584,40 @@ private fun TransactionsSheetContent(
     }
 }
 
-@Composable
-fun FiltersDatePickerField(
-    modifier: Modifier = Modifier,
-    dialogType: DatePickerDialogType,
-    selectDateLabel: String,
-    displayedSelectedDate: String,
-    onEventSent: (event: Event) -> Unit
-) {
-    OutlinedTextField(
-        readOnly = true,
-        value = displayedSelectedDate,
-        onValueChange = {},
-        label = { Text(selectDateLabel) },
-        placeholder = { Text(stringResource(R.string.transactions_screen_text_field_date_pattern)) },
-        trailingIcon = { WrapIcon(AppIcons.DateRange) },
-        colors = OutlinedTextFieldDefaults.colors(
-            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest
-        ),
-        modifier = modifier
-            .fillMaxWidth()
-            .pointerInput(displayedSelectedDate) {
-                awaitEachGesture {
-                    awaitFirstDown(pass = PointerEventPass.Initial)
-                    val upEvent = waitForUpOrCancellation(pass = PointerEventPass.Initial)
-                    if (upEvent != null) {
-                        onEventSent(
-                            Event.ShowDatePicker(datePickerType = dialogType)
-                        )
-                    }
-                }
-            }
-    )
-}
+//@Composable
+//fun FiltersDatePickerField(
+//    modifier: Modifier = Modifier,
+//    dialogType: DatePickerDialogType,
+//    selectDateLabel: String,
+//    displayedSelectedDate: String,
+//    onEventSent: (event: Event) -> Unit
+//) {
+//    OutlinedTextField(
+//        readOnly = true,
+//        value = displayedSelectedDate,
+//        onValueChange = {},
+//        label = { Text(selectDateLabel) },
+//        placeholder = { Text(stringResource(R.string.transactions_screen_text_field_date_pattern)) },
+//        trailingIcon = { WrapIcon(AppIcons.DateRange) },
+//        colors = OutlinedTextFieldDefaults.colors(
+//            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+//            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest
+//        ),
+//        modifier = modifier
+//            .fillMaxWidth()
+//            .pointerInput(displayedSelectedDate) {
+//                awaitEachGesture {
+//                    awaitFirstDown(pass = PointerEventPass.Initial)
+//                    val upEvent = waitForUpOrCancellation(pass = PointerEventPass.Initial)
+//                    if (upEvent != null) {
+//                        onEventSent(
+//                            Event.ShowDatePicker(datePickerType = dialogType)
+//                        )
+//                    }
+//                }
+//            }
+//    )
+//}
 
 @ThemeModePreviews
 @Composable

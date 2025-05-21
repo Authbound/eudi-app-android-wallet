@@ -105,7 +105,8 @@ internal fun DashboardScreen(
                     homeViewModel,
                     onDashboardEventSent = { event ->
                         viewModel.setEvent(event)
-                    }
+                    },
+                    bottomNavHostController = hostNavController
                 )
             }
             composable(BottomNavigationItem.Documents.route) {
@@ -118,13 +119,13 @@ internal fun DashboardScreen(
                 )
             }
             composable(BottomNavigationItem.Transactions.route) {
-                TransactionsScreen(
-                    hostNavController,
-                    transactionsViewModel,
-                    onDashboardEventSent = { event ->
-                        viewModel.setEvent(event)
-                    }
-                )
+//                TransactionsScreen(
+//                    hostNavController,
+//                    transactionsViewModel,
+//                    onDashboardEventSent = { event ->
+//                        viewModel.setEvent(event)
+//                    }
+//                )
             }
         }
 

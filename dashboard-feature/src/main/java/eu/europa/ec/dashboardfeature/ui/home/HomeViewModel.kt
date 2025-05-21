@@ -29,7 +29,7 @@ import eu.europa.ec.dashboardfeature.interactor.HomeInteractor
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetCredentialsPartialState
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetUserNameViaMainPidDocumentPartialState
 import eu.europa.ec.dashboardfeature.model.DocumentUi
-import eu.europa.ec.dashboardfeature.ui.BottomNavigationItem
+import eu.europa.ec.dashboardfeature.ui.component.BottomNavigationItem
 import eu.europa.ec.eudi.wallet.document.DocumentId
 import eu.europa.ec.dashboardfeature.ui.home.HomeScreenBottomSheetContent.Bluetooth
 import eu.europa.ec.resourceslogic.R
@@ -452,7 +452,7 @@ class HomeViewModel(
         setEffect {
             Effect.Navigation.SwitchScreen(
                 screenRoute = generateComposableNavigationLink(
-                    screen = IssuanceScreens.DocumentDetails,
+                    screen = IssuanceScreens.DocumentOffer,
                     arguments = generateComposableArguments(
                         mapOf(
                             "detailsType" to IssuanceFlowUiConfig.EXTRA_DOCUMENT,
@@ -626,7 +626,7 @@ class HomeViewModel(
 
         setEffect {
             Effect.Navigation.SwitchScreen(
-                screenRoute = DashboardScreens.VerificationTemplateSelection.screenRoute
+                screenRoute = DashboardScreens.DocumentDetails.screenRoute
             )
         }
     }
@@ -634,7 +634,7 @@ class HomeViewModel(
     private fun navigateToCustomVerification() {
         setEffect {
             Effect.Navigation.SwitchScreen(
-                screenRoute = DashboardScreens.VerificationCustomCreation.screenRoute
+                screenRoute = DashboardScreens.DocumentDetails.screenRoute
             )
         }
     }

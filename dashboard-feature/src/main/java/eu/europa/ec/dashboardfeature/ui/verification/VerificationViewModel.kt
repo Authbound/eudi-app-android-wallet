@@ -231,7 +231,7 @@ class VerificationViewModel(
         
         if (template.type == VerificationTemplateType.CUSTOM) {
             // For custom template, proceed to custom creation screen where user can add parameters
-            navigateToCustomVerification()
+//            navigateToCustomVerification()
         } else {
             // For pre-defined templates, create a session automatically and go directly to sharing
             val title = template.title
@@ -264,7 +264,7 @@ class VerificationViewModel(
                 }
                 
                 // Navigate to sharing screen
-                navigateToSharingScreen()
+//                navigateToSharingScreen()
             } catch (e: Exception) {
                 setState { 
                     copy(
@@ -334,27 +334,27 @@ class VerificationViewModel(
         createSessionForTemplate(title, description)
     }
     
-    private fun navigateToCustomVerification() {
-        setEffect {
-            Effect.Navigation.SwitchScreen(
-                screenRoute = DashboardScreens.VerificationCustomCreation.screenRoute
-            )
-        }
-    }
+//    private fun navigateToCustomVerification() {
+//        setEffect {
+//            Effect.Navigation.SwitchScreen(
+//                screenRoute = DashboardScreens.VerificationCustomCreation.screenRoute
+//            )
+//        }
+//    }
     
-    private fun navigateToParametersScreen() {
-        setEffect {
-            Effect.Navigation.SwitchScreen(
-                screenRoute = DashboardScreens.VerificationCustomCreation.screenRoute
-            )
-        }
-    }
-    
-    private fun navigateToSharingScreen() {
-        setEffect {
-            Effect.Navigation.SwitchScreen(
-                screenRoute = DashboardScreens.VerificationSharing.screenRoute
-            )
-        }
-    }
+//    private fun navigateToParametersScreen() {
+//        setEffect {
+//            Effect.Navigation.SwitchScreen(
+//                screenRoute = DashboardScreens.VerificationCustomCreation.screenRoute
+//            )
+//        }
+//    }
+//
+//    private fun navigateToSharingScreen() {
+//        setEffect {
+//            Effect.Navigation.SwitchScreen(
+//                screenRoute = DashboardScreens.VerificationSharing.screenRoute
+//            )
+//        }
+//    }
 } 
