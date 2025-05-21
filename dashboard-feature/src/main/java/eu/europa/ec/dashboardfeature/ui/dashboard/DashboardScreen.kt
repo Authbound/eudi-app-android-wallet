@@ -22,8 +22,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -35,8 +33,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -45,23 +41,18 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import eu.europa.ec.businesslogic.extension.getParcelableArrayListExtra
 import eu.europa.ec.corelogic.model.RevokedDocumentPayload
 import eu.europa.ec.corelogic.util.CoreActions
-import eu.europa.ec.dashboardfeature.ui.BottomNavigationBar
-import eu.europa.ec.dashboardfeature.ui.BottomNavigationItem
-import eu.europa.ec.dashboardfeature.ui.add_credentials.AddCredentialsScreen
-import eu.europa.ec.dashboardfeature.ui.add_credentials.AddCredentialsViewModel
-import eu.europa.ec.dashboardfeature.ui.documents.DocumentsScreen
-import eu.europa.ec.dashboardfeature.ui.documents.DocumentsViewModel
+import eu.europa.ec.dashboardfeature.ui.component.BottomNavigationBar
+import eu.europa.ec.dashboardfeature.ui.component.BottomNavigationItem
+import eu.europa.ec.dashboardfeature.ui.documents.list.DocumentsScreen
+import eu.europa.ec.dashboardfeature.ui.documents.list.DocumentsViewModel
 import eu.europa.ec.dashboardfeature.ui.home.HomeScreen
 import eu.europa.ec.dashboardfeature.ui.home.HomeViewModel
-import eu.europa.ec.dashboardfeature.ui.settings.SettingsScreen
-import eu.europa.ec.dashboardfeature.ui.settings.SettingsViewModel
 import eu.europa.ec.dashboardfeature.ui.sidemenu.SideMenuScreen
-import eu.europa.ec.dashboardfeature.ui.transactions.TransactionsScreen
-import eu.europa.ec.dashboardfeature.ui.transactions.TransactionsViewModel
+import eu.europa.ec.dashboardfeature.ui.transactions.list.TransactionsScreen
+import eu.europa.ec.dashboardfeature.ui.transactions.list.TransactionsViewModel
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.uilogic.component.SystemBroadcastReceiver
 import eu.europa.ec.uilogic.component.utils.LifecycleEffect
@@ -74,11 +65,9 @@ import eu.europa.ec.uilogic.extension.openAppSettings
 import eu.europa.ec.uilogic.extension.openBleSettings
 import eu.europa.ec.uilogic.extension.openIntentChooser
 import eu.europa.ec.uilogic.extension.openUrl
-import eu.europa.ec.uilogic.navigation.DashboardScreens
 import eu.europa.ec.uilogic.navigation.helper.handleDeepLinkAction
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
-import org.koin.androidx.compose.koinViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -89,8 +78,6 @@ internal fun DashboardScreen(
     documentsViewModel: DocumentsViewModel,
     homeViewModel: HomeViewModel,
     transactionsViewModel: TransactionsViewModel,
-    settingsViewModel: SettingsViewModel,
-    addCredentialsViewModel: AddCredentialsViewModel
 ) {
     val context = LocalContext.current
 
@@ -102,36 +89,13 @@ internal fun DashboardScreen(
         skipPartiallyExpanded = false
     )
 
-    // Remove the excessive bottom padding that's creating the gap
-    // val extraBottomPadding = 80.dp
-
-    // Handle navigation effects from child screens
-    LaunchedEffect(Unit) {
-        homeViewModel.effect.collect { effect ->
-            if (effect is eu.europa.ec.dashboardfeature.ui.home.Effect.Navigation.SwitchTab) {
-                // Navigate to the specified tab
-                bottomNavigationController.navigate(effect.tabRoute) {
-                    popUpTo(bottomNavigationController.graph.findStartDestination().id) {
-                        saveState = true
-                    }
-                    launchSingleTop = true
-                    restoreState = true
-                }
-            }
-        }
-    }
-
     Scaffold(
-        // The floating bottom bar is added as a regular bottom bar
-        bottomBar = { BottomNavigationBar(bottomNavigationController) },
-        // Set windowInsets to zero to properly handle the floating bar
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
-    ) { _ ->
+        bottomBar = { BottomNavigationBar(bottomNavigationController) }
+    ) { padding ->
         NavHost(
             modifier = Modifier
-                .fillMaxSize(),
-                // Apply padding from Scaffold directly without extra padding
-                //.padding(padding),
+                .fillMaxSize()
+                .padding(padding),
             navController = bottomNavigationController,
             startDestination = BottomNavigationItem.Home.route
         ) {
@@ -139,7 +103,6 @@ internal fun DashboardScreen(
                 HomeScreen(
                     hostNavController,
                     homeViewModel,
-                    bottomNavigationController,
                     onDashboardEventSent = { event ->
                         viewModel.setEvent(event)
                     }
@@ -155,25 +118,14 @@ internal fun DashboardScreen(
                 )
             }
             composable(BottomNavigationItem.Transactions.route) {
-                TransactionsScreen(hostNavController, transactionsViewModel)
-            }
-            composable(route = BottomNavigationItem.AddCredential.route) {
-                AddCredentialsScreen(
-                    hostNavController, addCredentialsViewModel,
-                )
-            }
-
-
-            composable(BottomNavigationItem.Settings.route) {
-                SettingsScreen(
+                TransactionsScreen(
                     hostNavController,
-                    settingsViewModel,
+                    transactionsViewModel,
                     onDashboardEventSent = { event ->
                         viewModel.setEvent(event)
                     }
                 )
             }
-
         }
 
         if (state.isBottomSheetOpen) {
@@ -253,7 +205,7 @@ internal fun DashboardScreen(
     }
 
     SystemBroadcastReceiver(
-        actions = listOf(
+        intentFilters = listOf(
             CoreActions.REVOCATION_WORK_MESSAGE_ACTION
         )
     ) { intent ->

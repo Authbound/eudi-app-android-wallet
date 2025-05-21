@@ -43,21 +43,20 @@ sealed class CommonScreens {
     )
 }
 
-sealed class DashboardScreens  {
+sealed class DashboardScreens {
     data object Dashboard : Screen(name = "DASHBOARD")
+
     data object SignDocument : Screen(name = "SIGN_DOCUMENT")
-    data object Settings : Screen(name = "SETTINGS")
-    data object EditProfile : Screen(name = "EDIT_PROFILE")
-    data object ChangePin : Screen(name = "CHANGE_PIN")
-    data object ChangePassword : Screen(name = "CHANGE_PASSWORD")
-    data object DataSharing : Screen(name = "DATA_SHARING")
-    data object ActivityLog : Screen(name = "ACTIVITY_LOG")
-    data object Notifications : Screen(name = "NOTIFICATIONS")
-    
-    // Verification screens
-    data object VerificationTemplateSelection : Screen(name = "VERIFICATION_TEMPLATE_SELECTION")
-    data object VerificationCustomCreation : Screen(name = "VERIFICATION_CUSTOM_CREATION")
-    data object VerificationSharing : Screen(name = "VERIFICATION_SHARING")
+
+    data object DocumentDetails : Screen(
+        name = "DOCUMENT_DETAILS",
+        parameters = "?documentId={documentId}"
+    )
+
+    data object TransactionDetails : Screen(
+        name = "TRANSACTION_DETAILS",
+        parameters = "?transactionId={transactionId}"
+    )
 }
 
 sealed class PresentationScreens {
@@ -91,16 +90,6 @@ sealed class IssuanceScreens {
     data object AddDocument : Screen(
         name = "ISSUANCE_ADD_DOCUMENT",
         parameters = "?flowType={flowType}"
-    )
-
-    data object DocumentDetails : Screen(
-        name = "ISSUANCE_DOCUMENT_DETAILS",
-        parameters = "?documentId={documentId}"
-    )
-
-    data object TransactionDetails : Screen(
-        name = "ISSUANCE_TRANSACTION_DETAILS",
-        parameters = "?transactionId={transactionId}"
     )
 
     data object DocumentOffer : Screen(

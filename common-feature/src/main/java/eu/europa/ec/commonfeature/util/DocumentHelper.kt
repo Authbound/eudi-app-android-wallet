@@ -95,15 +95,14 @@ private fun getGenderValue(value: String, resourceProvider: ResourceProvider): S
     }
 
 fun getReadableNameFromIdentifier(
-    metadata: DocumentMetaData?,
+    claimMetaData: DocumentMetaData.Claim?,
     userLocale: Locale,
-    identifier: String,
+    fallback: String,
 ): String {
-    return metadata?.claims
-        ?.find { it.name.name == identifier }
+    return claimMetaData
         ?.display.getLocalizedClaimName(
             userLocale = userLocale,
-            fallback = identifier
+            fallback = fallback
         )
 }
 
@@ -113,7 +112,7 @@ fun createKeyValue(
     childKey: String = "",
     disclosurePath: ClaimPath,
     resourceProvider: ResourceProvider,
-    metadata: DocumentMetaData?,
+    claimMetaData: DocumentMetaData.Claim?,
     allItems: MutableList<DomainClaim>,
 ) {
 
@@ -122,8 +121,7 @@ fun createKeyValue(
         allItems: MutableList<DomainClaim>,
         children: List<DomainClaim>,
         groupKey: String,
-        metadata: DocumentMetaData?,
-        locale: Locale,
+        displayTitle: String,
         predicate: () -> Boolean
     ) {
 
@@ -135,11 +133,7 @@ fun createKeyValue(
             allItems.add(
                 DomainClaim.Group(
                     key = groupKey,
-                    displayTitle = getReadableNameFromIdentifier(
-                        metadata = metadata,
-                        userLocale = locale,
-                        identifier = groupKey
-                    ),
+                    displayTitle = displayTitle,
                     path = ClaimPath(listOf(Uuid.random().toString())),
                     items = children
                 )
@@ -170,7 +164,7 @@ fun createKeyValue(
                         childKey = newChildKey,
                         disclosurePath = disclosurePath,
                         resourceProvider = resourceProvider,
-                        metadata = metadata,
+                        claimMetaData = null,
                         allItems = children
                     )
                 }
@@ -180,10 +174,13 @@ fun createKeyValue(
                 allItems = allItems,
                 children = children,
                 groupKey = groupKey,
-                metadata = metadata,
-                locale = resourceProvider.getLocale()
+                displayTitle = getReadableNameFromIdentifier(
+                    claimMetaData = claimMetaData,
+                    userLocale = resourceProvider.getLocale(),
+                    fallback = groupKey
+                )
             ) {
-                !childKeys.any { it.isEmpty() }
+                childKeys.none { it.isEmpty() }
             }
         }
 
@@ -198,7 +195,7 @@ fun createKeyValue(
                         groupKey = groupKey,
                         disclosurePath = disclosurePath,
                         resourceProvider = resourceProvider,
-                        metadata = metadata,
+                        claimMetaData = claimMetaData,
                         allItems = children
                     )
                 }
@@ -208,8 +205,11 @@ fun createKeyValue(
                 allItems = allItems,
                 children = children,
                 groupKey = groupKey,
-                metadata = metadata,
-                locale = resourceProvider.getLocale()
+                displayTitle = getReadableNameFromIdentifier(
+                    claimMetaData = claimMetaData,
+                    userLocale = resourceProvider.getLocale(),
+                    fallback = groupKey
+                )
             ) {
                 childKey.isEmpty()
             }
@@ -238,11 +238,13 @@ fun createKeyValue(
             allItems.add(
                 DomainClaim.Primitive(
                     key = childKey.ifEmpty { groupKey },
-                    displayTitle = getReadableNameFromIdentifier(
-                        metadata = metadata,
-                        userLocale = resourceProvider.getLocale(),
-                        identifier = childKey.ifEmpty { groupKey }
-                    ),
+                    displayTitle = childKey.ifEmpty {
+                        getReadableNameFromIdentifier(
+                            claimMetaData = claimMetaData,
+                            userLocale = resourceProvider.getLocale(),
+                            fallback = groupKey
+                        )
+                    },
                     path = disclosurePath,
                     isRequired = false,
                     value = formattedValue
@@ -282,7 +284,6 @@ private fun insertPath(
     path: ClaimPath,
     disclosurePath: ClaimPath,
     claims: List<DocumentClaim>,
-    metadata: DocumentMetaData?,
     resourceProvider: ResourceProvider,
 ): List<DomainClaim> {
     if (path.value.isEmpty()) return tree
@@ -303,7 +304,7 @@ private fun insertPath(
                 item = currentClaim.value!!,
                 groupKey = currentClaim.identifier,
                 resourceProvider = resourceProvider,
-                metadata = metadata,
+                claimMetaData = currentClaim.metadata,
                 disclosurePath = disclosurePath,
                 allItems = accumulatedClaims,
             )
@@ -323,7 +324,6 @@ private fun insertPath(
                     path = ClaimPath(path.value.drop(1)),
                     disclosurePath = disclosurePath,
                     claims = childClaims,
-                    metadata = metadata,
                     resourceProvider = resourceProvider,
                 )
             )
@@ -332,9 +332,9 @@ private fun insertPath(
             DomainClaim.Group(
                 key = currentClaim?.identifier ?: key,
                 displayTitle = getReadableNameFromIdentifier(
-                    metadata = metadata,
+                    claimMetaData = currentClaim?.metadata,
                     userLocale = userLocale,
-                    identifier = currentClaim?.identifier ?: key
+                    fallback = currentClaim?.identifier ?: key
                 ),
                 path = ClaimPath(disclosurePath.value.take((disclosurePath.value.size - path.value.size) + 1)),
                 items = insertPath(
@@ -342,7 +342,6 @@ private fun insertPath(
                     path = ClaimPath(path.value.drop(1)),
                     disclosurePath = disclosurePath,
                     claims = childClaims,
-                    metadata = metadata,
                     resourceProvider = resourceProvider,
                 )
             )
@@ -356,7 +355,6 @@ private fun insertPath(
 fun transformPathsToDomainClaims(
     paths: List<ClaimPath>,
     claims: List<DocumentClaim>,
-    metadata: DocumentMetaData?,
     resourceProvider: ResourceProvider,
 ): List<DomainClaim> {
     return paths.fold<ClaimPath, List<DomainClaim>>(initial = emptyList()) { acc, path ->
@@ -365,7 +363,6 @@ fun transformPathsToDomainClaims(
             path = path,
             disclosurePath = path,
             claims = claims,
-            metadata = metadata,
             resourceProvider = resourceProvider,
         )
     }.removeEmptyGroups()

@@ -18,26 +18,23 @@ package eu.europa.ec.dashboardfeature.router
 
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
+import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
+import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import eu.europa.ec.dashboardfeature.BuildConfig
-import eu.europa.ec.dashboardfeature.ui.add_credentials.AddCredentialsScreen
 import eu.europa.ec.dashboardfeature.ui.dashboard.DashboardScreen
+import eu.europa.ec.dashboardfeature.ui.documents.detail.DocumentDetailsScreen
 import eu.europa.ec.dashboardfeature.ui.sign.DocumentSignScreen
-
-import eu.europa.ec.dashboardfeature.ui.settings.SettingsScreen
-import eu.europa.ec.dashboardfeature.ui.verification.VerificationCustomCreationScreen
-import eu.europa.ec.dashboardfeature.ui.verification.VerificationSharingScreen
-import eu.europa.ec.dashboardfeature.ui.verification.VerificationTemplateSelectionScreen
+import eu.europa.ec.dashboardfeature.ui.transactions.detail.TransactionDetailsScreen
 import eu.europa.ec.uilogic.navigation.DashboardScreens
 import eu.europa.ec.uilogic.navigation.ModuleRoute
+import org.koin.androidx.compose.getViewModel
 import org.koin.androidx.compose.koinViewModel
+import org.koin.core.parameter.parametersOf
 
-fun NavGraphBuilder.featureDashboardGraph(
-    navController: NavController,
-
-) {
+fun NavGraphBuilder.featureDashboardGraph(navController: NavController) {
     navigation(
         startDestination = DashboardScreens.Dashboard.screenRoute,
         route = ModuleRoute.DashboardModule.route
@@ -56,9 +53,7 @@ fun NavGraphBuilder.featureDashboardGraph(
                 viewModel = koinViewModel(),
                 documentsViewModel = koinViewModel(),
                 homeViewModel = koinViewModel(),
-                transactionsViewModel = koinViewModel(),
-                settingsViewModel = koinViewModel(),
-                addCredentialsViewModel = koinViewModel()
+                transactionsViewModel = koinViewModel()
             )
         }
 
@@ -68,25 +63,56 @@ fun NavGraphBuilder.featureDashboardGraph(
             DocumentSignScreen(navController, koinViewModel())
         }
 
-
-        
         composable(
-            route = DashboardScreens.VerificationTemplateSelection.screenRoute
+            route = DashboardScreens.DocumentDetails.screenRoute,
+            deepLinks = listOf(
+                navDeepLink {
+                    uriPattern =
+                        BuildConfig.DEEPLINK + DashboardScreens.DocumentDetails.screenRoute
+                }
+            ),
+            arguments = listOf(
+                navArgument("documentId") {
+                    type = NavType.StringType
+                },
+            )
         ) {
-            VerificationTemplateSelectionScreen(navController, koinViewModel())
-        }
-        
-        composable(
-            route = DashboardScreens.VerificationCustomCreation.screenRoute
-        ) {
-            VerificationCustomCreationScreen(navController, koinViewModel())
+            DocumentDetailsScreen(
+                navController,
+                getViewModel(
+                    parameters = {
+                        parametersOf(
+                            it.arguments?.getString("documentId").orEmpty(),
+                        )
+                    }
+                )
+            )
         }
 
         composable(
-            route = DashboardScreens.VerificationSharing.screenRoute
+            route = DashboardScreens.TransactionDetails.screenRoute,
+            deepLinks = listOf(
+                navDeepLink {
+                    uriPattern =
+                        BuildConfig.DEEPLINK + DashboardScreens.TransactionDetails.screenRoute
+                }
+            ),
+            arguments = listOf(
+                navArgument("transactionId") {
+                    type = NavType.StringType
+                },
+            )
         ) {
-            VerificationSharingScreen(navController, koinViewModel())
+            TransactionDetailsScreen(
+                navController,
+                getViewModel(
+                    parameters = {
+                        parametersOf(
+                            it.arguments?.getString("transactionId").orEmpty(),
+                        )
+                    }
+                )
+            )
         }
-
     }
 }

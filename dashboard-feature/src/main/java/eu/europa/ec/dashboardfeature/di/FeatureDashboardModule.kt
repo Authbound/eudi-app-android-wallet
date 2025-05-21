@@ -21,22 +21,20 @@ import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.validator.FilterValidator
 import eu.europa.ec.corelogic.config.WalletCoreConfig
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
-import eu.europa.ec.dashboardfeature.interactor.AddCredentialsInteractor
-import eu.europa.ec.dashboardfeature.interactor.AddCredentialsInteractorImpl
 import eu.europa.ec.dashboardfeature.interactor.DashboardInteractor
 import eu.europa.ec.dashboardfeature.interactor.DashboardInteractorImpl
+import eu.europa.ec.dashboardfeature.interactor.DocumentDetailsInteractor
+import eu.europa.ec.dashboardfeature.interactor.DocumentDetailsInteractorImpl
 import eu.europa.ec.dashboardfeature.interactor.DocumentSignInteractor
 import eu.europa.ec.dashboardfeature.interactor.DocumentSignInteractorImpl
 import eu.europa.ec.dashboardfeature.interactor.DocumentsInteractor
 import eu.europa.ec.dashboardfeature.interactor.DocumentsInteractorImpl
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractor
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorImpl
-import eu.europa.ec.dashboardfeature.interactor.SettingsInteractor
-import eu.europa.ec.dashboardfeature.interactor.SettingsInteractorImpl
+import eu.europa.ec.dashboardfeature.interactor.TransactionDetailsInteractor
+import eu.europa.ec.dashboardfeature.interactor.TransactionDetailsInteractorImpl
 import eu.europa.ec.dashboardfeature.interactor.TransactionsInteractor
 import eu.europa.ec.dashboardfeature.interactor.TransactionsInteractorImpl
-import eu.europa.ec.dashboardfeature.repository.VerificationRepository
-import eu.europa.ec.dashboardfeature.repository.VerificationRepositoryImpl
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Factory
@@ -90,12 +88,6 @@ fun provideTransactionInteractor(
 )
 
 @Factory
-fun provideSettingsInteractor(): SettingsInteractor = SettingsInteractorImpl()
-
-@Factory
-fun provideAddCredentialsInteractor(): AddCredentialsInteractor = AddCredentialsInteractorImpl()
-
-@Factory
 fun provideDocumentSignInteractor(
     resourceProvider: ResourceProvider,
 ): DocumentSignInteractor = DocumentSignInteractorImpl(
@@ -103,8 +95,21 @@ fun provideDocumentSignInteractor(
 )
 
 @Factory
-fun provideVerificationRepository(
-    resourceProvider: ResourceProvider
-): VerificationRepository = VerificationRepositoryImpl(
-    resourceProvider
-)
+fun provideDocumentDetailsInteractor(
+    walletCoreDocumentsController: WalletCoreDocumentsController,
+    resourceProvider: ResourceProvider,
+): DocumentDetailsInteractor =
+    DocumentDetailsInteractorImpl(
+        walletCoreDocumentsController,
+        resourceProvider
+    )
+
+@Factory
+fun provideTransactionDetailsInteractor(
+    walletCoreDocumentsController: WalletCoreDocumentsController,
+    resourceProvider: ResourceProvider,
+): TransactionDetailsInteractor =
+    TransactionDetailsInteractorImpl(
+        walletCoreDocumentsController,
+        resourceProvider,
+    )
