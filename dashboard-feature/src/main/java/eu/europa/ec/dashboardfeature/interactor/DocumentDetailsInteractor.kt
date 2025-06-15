@@ -17,6 +17,7 @@
 package eu.europa.ec.dashboardfeature.interactor
 
 import eu.europa.ec.businesslogic.extension.safeAsync
+import eu.europa.ec.businesslogic.provider.UuidProvider
 import eu.europa.ec.commonfeature.ui.document_details.domain.DocumentDetailsDomain
 import eu.europa.ec.commonfeature.ui.document_details.transformer.DocumentDetailsTransformer
 import eu.europa.ec.corelogic.controller.DeleteAllDocumentsPartialState
@@ -88,7 +89,8 @@ interface DocumentDetailsInteractor {
 
 class DocumentDetailsInteractorImpl(
     private val walletCoreDocumentsController: WalletCoreDocumentsController,
-    private val resourceProvider: ResourceProvider
+    private val resourceProvider: ResourceProvider,
+    private val uuidProvider: UuidProvider
 ) : DocumentDetailsInteractor {
 
     private val genericErrorMsg
@@ -106,7 +108,8 @@ class DocumentDetailsInteractorImpl(
                 val documentDetailsDomainResult =
                     DocumentDetailsTransformer.transformToDocumentDetailsDomain(
                         document = safeIssuedDocument,
-                        resourceProvider = resourceProvider
+                        resourceProvider = resourceProvider,
+                        uuidProvider = uuidProvider
                     )
                 val documentDetailsDomain = documentDetailsDomainResult.getOrThrow()
 

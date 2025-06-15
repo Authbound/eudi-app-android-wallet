@@ -17,9 +17,10 @@
 package eu.europa.ec.dashboardfeature.interactor
 
 import eu.europa.ec.businesslogic.extension.safeAsync
+import eu.europa.ec.businesslogic.provider.UuidProvider
 import eu.europa.ec.businesslogic.util.FULL_DATETIME_PATTERN
 import eu.europa.ec.businesslogic.util.formatLocalDateTime
-import eu.europa.ec.commonfeature.extensions.toExpandableListItems
+import eu.europa.ec.commonfeature.extension.toExpandableListItems
 import eu.europa.ec.commonfeature.model.TransactionUiStatus
 import eu.europa.ec.commonfeature.model.TransactionUiStatus.Companion.toUiText
 import eu.europa.ec.commonfeature.model.toTransactionUiStatus
@@ -84,6 +85,7 @@ interface TransactionDetailsInteractor {
 class TransactionDetailsInteractorImpl(
     private val walletCoreDocumentsController: WalletCoreDocumentsController,
     private val resourceProvider: ResourceProvider,
+    private val uuidProvider: UuidProvider,
 ) : TransactionDetailsInteractor {
 
     private val genericErrorMsg
@@ -119,6 +121,7 @@ class TransactionDetailsInteractorImpl(
                                 itemIdentifierPrefix = resourceProvider.getString(R.string.transaction_details_data_shared_prefix_id),
                                 userLocale = userLocale,
                                 resourceProvider = resourceProvider,
+                                uuidProvider = uuidProvider,
                             )
                         }
 
@@ -182,7 +185,8 @@ class TransactionDetailsInteractorImpl(
         documentSupportingText: String,
         itemIdentifierPrefix: String,
         userLocale: Locale,
-        resourceProvider: ResourceProvider
+        resourceProvider: ResourceProvider,
+        uuidProvider: UuidProvider
     ): List<ExpandableListItem.NestedListItemData> {
         return this.mapIndexed { index, presentedDocument ->
             val domainClaims: MutableList<DomainClaim> = mutableListOf()
@@ -205,6 +209,7 @@ class TransactionDetailsInteractorImpl(
                     resourceProvider = resourceProvider,
                     claimMetaData = presentedClaim.metadata,
                     allItems = domainClaims,
+                    uuidProvider = uuidProvider
                 )
             }
 

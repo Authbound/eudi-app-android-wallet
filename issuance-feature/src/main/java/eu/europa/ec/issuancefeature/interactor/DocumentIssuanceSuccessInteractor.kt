@@ -17,7 +17,8 @@
 package eu.europa.ec.issuancefeature.interactor
 
 import eu.europa.ec.businesslogic.extension.safeAsync
-import eu.europa.ec.commonfeature.extensions.toExpandableListItems
+import eu.europa.ec.businesslogic.provider.UuidProvider
+import eu.europa.ec.commonfeature.extension.toExpandableListItems
 import eu.europa.ec.commonfeature.util.transformPathsToDomainClaims
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
 import eu.europa.ec.corelogic.extension.localizedIssuerMetadata
@@ -55,6 +56,7 @@ interface DocumentIssuanceSuccessInteractor {
 class DocumentIssuanceSuccessInteractorImpl(
     private val walletCoreDocumentsController: WalletCoreDocumentsController,
     private val resourceProvider: ResourceProvider,
+    private val uuidProvider: UuidProvider
 ) : DocumentIssuanceSuccessInteractor {
 
     private val genericErrorMsg
@@ -95,6 +97,7 @@ class DocumentIssuanceSuccessInteractorImpl(
                         paths = claimsPaths,
                         claims = document.data.claims,
                         resourceProvider = resourceProvider,
+                        uuidProvider = uuidProvider
                     )
 
                     val claimsUi = domainClaims.map { selectedDomainClaim ->

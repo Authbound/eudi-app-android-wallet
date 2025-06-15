@@ -16,7 +16,8 @@
 
 package eu.europa.ec.commonfeature.ui.request.transformer
 
-import eu.europa.ec.commonfeature.extensions.toSelectiveExpandableListItems
+import eu.europa.ec.businesslogic.provider.UuidProvider
+import eu.europa.ec.commonfeature.extension.toSelectiveExpandableListItems
 import eu.europa.ec.commonfeature.ui.request.model.DocumentPayloadDomain
 import eu.europa.ec.commonfeature.ui.request.model.DomainDocumentFormat
 import eu.europa.ec.commonfeature.ui.request.model.RequestDocumentItemUi
@@ -45,6 +46,7 @@ object RequestTransformer {
     fun transformToDomainItems(
         storageDocuments: List<IssuedDocument>,
         resourceProvider: ResourceProvider,
+        uuidProvider: UuidProvider,
         requestDocuments: List<RequestedDocument>,
     ): Result<List<DocumentPayloadDomain>> = runCatching {
         val resultList = mutableListOf<DocumentPayloadDomain>()
@@ -73,6 +75,7 @@ object RequestTransformer {
                 paths = filteredPaths,
                 claims = storageDocument.data.claims,
                 resourceProvider = resourceProvider,
+                uuidProvider = uuidProvider
             )
 
             if (domainClaims.isNotEmpty()) {

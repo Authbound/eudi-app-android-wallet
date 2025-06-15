@@ -14,6 +14,18 @@
  * governing permissions and limitations under the Licence.
  */
 
-package eu.europa.ec.storagelogic.model.type
+package eu.europa.ec.businesslogic.provider
 
-interface StoredObject
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
+
+interface UuidProvider {
+    fun provideUuid(): String
+}
+
+class UuidProviderImpl() : UuidProvider {
+    @OptIn(ExperimentalUuidApi::class)
+    override fun provideUuid(): String {
+        return Uuid.random().toString()
+    }
+}

@@ -16,6 +16,7 @@
 
 package eu.europa.ec.dashboardfeature.interactor
 
+import eu.europa.ec.businesslogic.provider.UuidProvider
 import eu.europa.ec.commonfeature.ui.document_details.domain.DocumentDetailsDomain
 import eu.europa.ec.commonfeature.util.TestsData.mockedBasicMdlDomain
 import eu.europa.ec.commonfeature.util.TestsData.mockedBasicPidDomain
@@ -71,6 +72,9 @@ class TestDocumentDetailsInteractor {
     private lateinit var walletCoreDocumentsController: WalletCoreDocumentsController
 
     @Mock
+    private lateinit var uuidProvider: UuidProvider
+
+    @Mock
     private lateinit var resourceProvider: ResourceProvider
 
     private lateinit var interactor: DocumentDetailsInteractor
@@ -84,6 +88,7 @@ class TestDocumentDetailsInteractor {
         interactor = DocumentDetailsInteractorImpl(
             walletCoreDocumentsController = walletCoreDocumentsController,
             resourceProvider = resourceProvider,
+            uuidProvider = uuidProvider
         )
 
         whenever(resourceProvider.genericErrorMessage()).thenReturn(mockedGenericErrorMessage)

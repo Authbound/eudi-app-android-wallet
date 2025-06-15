@@ -18,6 +18,7 @@ package eu.europa.ec.dashboardfeature.di
 
 import eu.europa.ec.businesslogic.config.ConfigLogic
 import eu.europa.ec.businesslogic.controller.log.LogController
+import eu.europa.ec.businesslogic.provider.UuidProvider
 import eu.europa.ec.businesslogic.validator.FilterValidator
 import eu.europa.ec.corelogic.config.WalletCoreConfig
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
@@ -98,18 +99,22 @@ fun provideDocumentSignInteractor(
 fun provideDocumentDetailsInteractor(
     walletCoreDocumentsController: WalletCoreDocumentsController,
     resourceProvider: ResourceProvider,
+    uuidProvider: UuidProvider
 ): DocumentDetailsInteractor =
     DocumentDetailsInteractorImpl(
         walletCoreDocumentsController,
-        resourceProvider
+        resourceProvider,
+        uuidProvider
     )
 
 @Factory
 fun provideTransactionDetailsInteractor(
     walletCoreDocumentsController: WalletCoreDocumentsController,
     resourceProvider: ResourceProvider,
+    uuidProvider: UuidProvider
 ): TransactionDetailsInteractor =
     TransactionDetailsInteractorImpl(
         walletCoreDocumentsController,
         resourceProvider,
+        uuidProvider
     )

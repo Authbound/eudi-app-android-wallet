@@ -16,6 +16,7 @@
 
 package eu.europa.ec.issuancefeature.di
 
+import eu.europa.ec.businesslogic.provider.UuidProvider
 import eu.europa.ec.commonfeature.interactor.DeviceAuthenticationInteractor
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
 import eu.europa.ec.issuancefeature.interactor.AddDocumentInteractor
@@ -51,10 +52,12 @@ fun provideAddDocumentInteractor(
 @Factory
 fun provideDocumentIssuanceSuccessInteractor(
     walletCoreDocumentsController: WalletCoreDocumentsController,
-    resourceProvider: ResourceProvider
+    resourceProvider: ResourceProvider,
+    uuIdProvider: UuidProvider
 ): DocumentIssuanceSuccessInteractor = DocumentIssuanceSuccessInteractorImpl(
     walletCoreDocumentsController,
     resourceProvider,
+    uuIdProvider,
 )
 
 @Factory
