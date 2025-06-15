@@ -558,6 +558,7 @@ class HomeViewModel(
     }
 
     private fun navigateToDocumentsTab() {
+        println("NAVIGATE DOCUMENTS")
         // Navigate to Documents tab
         setEffect {
             Effect.Navigation.SwitchTab(

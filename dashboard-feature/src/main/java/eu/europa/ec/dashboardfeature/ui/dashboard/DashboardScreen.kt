@@ -50,6 +50,7 @@ import eu.europa.ec.dashboardfeature.ui.documents.list.DocumentsScreen
 import eu.europa.ec.dashboardfeature.ui.documents.list.DocumentsViewModel
 import eu.europa.ec.dashboardfeature.ui.home.HomeScreen
 import eu.europa.ec.dashboardfeature.ui.home.HomeViewModel
+import eu.europa.ec.dashboardfeature.ui.settings.SettingsScreen
 import eu.europa.ec.dashboardfeature.ui.sidemenu.SideMenuScreen
 import eu.europa.ec.dashboardfeature.ui.transactions.list.TransactionsScreen
 import eu.europa.ec.dashboardfeature.ui.transactions.list.TransactionsViewModel
@@ -69,6 +70,7 @@ import eu.europa.ec.uilogic.navigation.helper.handleDeepLinkAction
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,12 +103,12 @@ internal fun DashboardScreen(
         ) {
             composable(BottomNavigationItem.Home.route) {
                 HomeScreen(
-                    hostNavController,
-                    homeViewModel,
+                    navHostController = hostNavController,
+                    viewModel = homeViewModel,
+                    bottomNavHostController = bottomNavigationController,
                     onDashboardEventSent = { event ->
                         viewModel.setEvent(event)
-                    },
-                    bottomNavHostController = hostNavController
+                    }
                 )
             }
             composable(BottomNavigationItem.Documents.route) {
@@ -119,13 +121,19 @@ internal fun DashboardScreen(
                 )
             }
             composable(BottomNavigationItem.Transactions.route) {
-//                TransactionsScreen(
-//                    hostNavController,
-//                    transactionsViewModel,
-//                    onDashboardEventSent = { event ->
-//                        viewModel.setEvent(event)
-//                    }
-//                )
+                TransactionsScreen(
+                    hostNavController,
+                    transactionsViewModel,
+                    onDashboardEventSent = { event ->
+                        viewModel.setEvent(event)
+                    }
+                )
+            }
+            composable(BottomNavigationItem.Settings.route) {
+                SettingsScreen(
+                    navHostController = hostNavController,
+                    viewModel = koinViewModel()
+                )
             }
         }
 

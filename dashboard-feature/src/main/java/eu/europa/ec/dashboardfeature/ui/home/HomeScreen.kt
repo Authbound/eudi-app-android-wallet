@@ -349,28 +349,48 @@ private fun handleNavigationEffect(
     bottomController: NavController,
     context: Context
 ) {
-    when (navigationEffect) {
-        is Effect.Navigation.SwitchScreen -> {
-            navController.navigate(navigationEffect.screenRoute) {
-                popUpTo(navigationEffect.popUpToScreenRoute) {
-                    inclusive = navigationEffect.inclusive
+    try {
+        when (navigationEffect) {
+            is Effect.Navigation.SwitchScreen -> {
+                navController.navigate(navigationEffect.screenRoute) {
+                    popUpTo(navigationEffect.popUpToScreenRoute) {
+                        inclusive = navigationEffect.inclusive
+                    }
                 }
             }
-        }
 
-        is Effect.Navigation.SwitchTab -> {
-            bottomController.navigate(navigationEffect.tabRoute) {
-                popUpTo(navController.graph.findStartDestination().id) {
-                    saveState = true
+            is Effect.Navigation.SwitchTab -> {
+                // Ensure the route exists in the bottom navigation graph before navigating
+                bottomController.graph.findNode(navigationEffect.tabRoute)?.let {
+                    bottomController.navigate(navigationEffect.tabRoute) {
+                        popUpTo(bottomController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                } ?: run {
+                    // Log error for debugging and fallback to switching screens
+                    android.util.Log.e("HomeScreen", "Route '${navigationEffect.tabRoute}' not found in bottom navigation graph")
+                    // Fallback: navigate to the tab using the main nav controller
+                    // This ensures we don't crash even if there's a configuration issue
+                    navController.navigate(navigationEffect.tabRoute) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
                 }
-                launchSingleTop = true
-                restoreState = true
             }
 
+            is Effect.Navigation.OnAppSettings -> context.openAppSettings()
+            is Effect.Navigation.OnSystemSettings -> context.openBleSettings()
         }
-
-        is Effect.Navigation.OnAppSettings -> context.openAppSettings()
-        is Effect.Navigation.OnSystemSettings -> context.openBleSettings()
+    } catch (e: Exception) {
+        // Log the error for debugging
+        android.util.Log.e("HomeScreen", "Navigation error: ${e.message}", e)
+        // Don't crash the app, just log the error
     }
 }
 
