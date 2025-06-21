@@ -70,7 +70,7 @@ data class State(
     val quickActions: List<QuickActionConfig> = emptyList(),
     val bleAvailability: BleAvailability = BleAvailability.UNKNOWN,
     val isBleCentralClientModeEnabled: Boolean = false,
-    
+
     // New credentials list for the home screen
     val isLoadingCredentials: Boolean = false,
     val credentials: List<Pair<DocumentCategory, List<DocumentUi>>> = emptyList(),
@@ -94,15 +94,15 @@ sealed class Event : ViewEvent {
 
     // New event for handling quick action clicks
     data class QuickActionPressed(val actionId: String) : Event()
-    
+
     // New event for handling credential item clicks
     data class CredentialPressed(val docId: DocumentId) : Event()
     data object ViewAllCredentialsPressed : Event()
     data object AddCredentialPressed : Event()
-    
+
     // Verification events
     data object VerificationPressed : Event()
-    
+
     sealed class BottomSheet : Event() {
         data class UpdateBottomSheetState(val isOpen: Boolean) : BottomSheet()
         data object Close : BottomSheet()
@@ -121,12 +121,12 @@ sealed class Event : ViewEvent {
             data class PrimaryButtonPressed(val availability: BleAvailability) : Bluetooth()
             data object SecondaryButtonPressed : Bluetooth()
         }
-        
+
         sealed class AddDocument : BottomSheet() {
             data object FromList : AddDocument()
             data object ScanQr : AddDocument()
         }
-        
+
         sealed class Verification : BottomSheet() {
             data object UseTemplate : Verification()
             data object CreateCustom : Verification()
@@ -319,12 +319,12 @@ class HomeViewModel(
                 hideBottomSheet()
                 navigateToQrScan()
             }
-            
+
             is Event.BottomSheet.AddDocument.FromList -> {
                 hideBottomSheet()
                 navigateToAddDocument()
             }
-            
+
             is Event.BottomSheet.AddDocument.ScanQr -> {
                 hideBottomSheet()
                 navigateToQrScanForDocument()
@@ -334,7 +334,7 @@ class HomeViewModel(
                 hideBottomSheet()
                 navigateToVerificationTemplateSelection()
             }
-            
+
             is Event.BottomSheet.Verification.CreateCustom -> {
                 hideBottomSheet()
                 navigateToCustomVerification()
@@ -451,15 +451,7 @@ class HomeViewModel(
     private fun navigateToDocumentDetails(docId: DocumentId) {
         setEffect {
             Effect.Navigation.SwitchScreen(
-                screenRoute = generateComposableNavigationLink(
-                    screen = IssuanceScreens.DocumentOffer,
-                    arguments = generateComposableArguments(
-                        mapOf(
-                            "detailsType" to IssuanceFlowUiConfig.EXTRA_DOCUMENT,
-                            "documentId" to docId
-                        )
-                    )
-                )
+                screenRoute = DashboardScreens.DocumentSign.screenRoute
             )
         }
     }
@@ -470,116 +462,21 @@ class HomeViewModel(
         getOrCreatePresentationScope()
         setEffect {
             Effect.Navigation.SwitchScreen(
-                screenRoute =
-                    generateComposableNavigationLink(
-                        screen = ProximityScreens.QR,
-                        arguments =
-                            generateComposableArguments(
-                                mapOf(
-                                    RequestUriConfig.serializedKeyName to
-                                            uiSerializer.toBase64(
-                                                RequestUriConfig(
-                                                    PresentationMode
-                                                        .Ble(
-                                                            DashboardScreens
-                                                                .Dashboard
-                                                                .screenRoute
-                                                        )
-                                                ),
-                                                RequestUriConfig.Parser
-                                            )
-                                )
-                            )
-                    )
-            )
-        }
-    }
-
-    private fun navigateToQrScan() {
-        val navigationEffect =
-            Effect.Navigation.SwitchScreen(
-                screenRoute =
-                    generateComposableNavigationLink(
-                        screen = CommonScreens.QrScan,
-                        arguments =
-                            generateComposableArguments(
-                                mapOf(
-                                    QrScanUiConfig.serializedKeyName to
-                                            uiSerializer.toBase64(
-                                                QrScanUiConfig(
-                                                    title =
-                                                        resourceProvider
-                                                            .getString(
-                                                                R.string
-                                                                    .presentation_qr_scan_title
-                                                            ),
-                                                    subTitle =
-                                                        resourceProvider
-                                                            .getString(
-                                                                R.string
-                                                                    .presentation_qr_scan_subtitle
-                                                            ),
-                                                    qrScanFlow =
-                                                        QrScanFlow
-                                                            .Presentation
-                                                ),
-                                                QrScanUiConfig
-                                                    .Parser
-                                            )
-                                )
-                            )
-                    )
-            )
-
-        setEffect { navigationEffect }
-    }
-    
-    private fun navigateToQrScanForDocument() {
-        setEffect {
-            Effect.Navigation.SwitchScreen(
                 screenRoute = generateComposableNavigationLink(
-                    screen = CommonScreens.QrScan,
+                    screen = ProximityScreens.QR,
                     arguments = generateComposableArguments(
                         mapOf(
-                            QrScanUiConfig.serializedKeyName to uiSerializer.toBase64(
-                                QrScanUiConfig(
-                                    title = resourceProvider.getString(R.string.issuance_qr_scan_title),
-                                    subTitle = resourceProvider.getString(R.string.issuance_qr_scan_subtitle),
-                                    qrScanFlow = QrScanFlow.Issuance(IssuanceFlowUiConfig.EXTRA_DOCUMENT)
-                                ),
-                                QrScanUiConfig.Parser
+                            RequestUriConfig.serializedKeyName to uiSerializer.toBase64(
+                                RequestUriConfig(PresentationMode.Ble(DashboardScreens.Dashboard.screenRoute)),
+                                RequestUriConfig.Parser
                             )
                         )
-                    )
-                ),
-                inclusive = false
-            )
-        }
-    }
-
-    private fun navigateToDocumentsTab() {
-        println("NAVIGATE DOCUMENTS")
-        // Navigate to Documents tab
-        setEffect {
-            Effect.Navigation.SwitchTab(
-                tabRoute = BottomNavigationItem.Documents.route
-            )
-        }
-    }
-
-    private fun navigateToAddDocument() {
-        // Navigate to add credential flow
-        setEffect {
-            Effect.Navigation.SwitchScreen(
-                screenRoute = generateComposableNavigationLink(
-                    screen = IssuanceScreens.AddDocument,
-                    arguments = generateComposableArguments(
-                        mapOf("flowType" to IssuanceFlowUiConfig.EXTRA_DOCUMENT)
                     )
                 )
             )
         }
-        }
+    }
+
     private fun navigateToQrSignatureScan() {
         val navigationEffect = Effect.Navigation.SwitchScreen(
             screenRoute = generateComposableNavigationLink(
@@ -591,6 +488,29 @@ class HomeViewModel(
                                 title = resourceProvider.getString(R.string.signature_qr_scan_title),
                                 subTitle = resourceProvider.getString(R.string.signature_qr_scan_subtitle),
                                 qrScanFlow = QrScanFlow.Signature
+                            ),
+                            QrScanUiConfig.Parser
+                        )
+                    )
+                )
+            )
+        )
+        setEffect {
+            navigationEffect
+        }
+    }
+
+    private fun navigateToQrScan() {
+        val navigationEffect = Effect.Navigation.SwitchScreen(
+            screenRoute = generateComposableNavigationLink(
+                screen = CommonScreens.QrScan,
+                arguments = generateComposableArguments(
+                    mapOf(
+                        QrScanUiConfig.serializedKeyName to uiSerializer.toBase64(
+                            QrScanUiConfig(
+                                title = resourceProvider.getString(R.string.presentation_qr_scan_title),
+                                subTitle = resourceProvider.getString(R.string.presentation_qr_scan_subtitle),
+                                qrScanFlow = QrScanFlow.Presentation
                             ),
                             QrScanUiConfig.Parser
                         )
@@ -631,7 +551,7 @@ class HomeViewModel(
             )
         }
     }
-    
+
     private fun navigateToCustomVerification() {
         setEffect {
             Effect.Navigation.SwitchScreen(
@@ -657,16 +577,12 @@ class HomeViewModel(
                         setState {
                             copy(
                                 isLoading = false,
-                                welcomeUserMessage =
-                                    if (response.userFirstName.isNotBlank()) {
-                                        resourceProvider.getString(
-                                            R.string.home_screen_welcome_user_message,
-                                            response.userFirstName
-                                        )
-                                    } else
-                                        resourceProvider.getString(
-                                            R.string.home_screen_welcome
-                                        )
+                                welcomeUserMessage = if (response.userFirstName.isNotBlank()) {
+                                    resourceProvider.getString(
+                                        R.string.home_screen_welcome_user_message,
+                                        response.userFirstName
+                                    )
+                                } else resourceProvider.getString(R.string.home_screen_welcome)
                             )
                         }
                     }
@@ -694,7 +610,7 @@ class HomeViewModel(
                             copy(
                                 isLoadingCredentials = false,
                                 credentials = response.credentials,
-                                showEmptyCredentialsMessage = response.credentials.isEmpty() 
+                                showEmptyCredentialsMessage = response.credentials.isEmpty()
                                     || response.credentials.all { it.second.isEmpty() }
                             )
                         }

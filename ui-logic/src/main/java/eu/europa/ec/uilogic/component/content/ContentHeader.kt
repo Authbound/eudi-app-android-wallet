@@ -31,7 +31,7 @@ import eu.europa.ec.uilogic.component.AppIconAndText
 import eu.europa.ec.uilogic.component.AppIconAndTextData
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.RelyingParty
-import eu.europa.ec.uilogic.component.RelyingPartyData
+import eu.europa.ec.uilogic.component.RelyingPartyDataUi
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.TextLengthPreviewProvider
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
@@ -59,7 +59,7 @@ data class ContentHeaderConfig(
     val descriptionTextConfig: TextConfig? = null,
     val mainText: String? = null,
     val mainTextConfig: TextConfig? = null,
-    val relyingPartyData: RelyingPartyData? = null,
+    val relyingPartyData: RelyingPartyDataUi? = null,
 )
 
 /**
@@ -149,7 +149,7 @@ private fun ContentHeaderPreview(
                 ),
                 description = "Description: $text",
                 mainText = "Title: $text",
-                relyingPartyData = RelyingPartyData(
+                relyingPartyData = RelyingPartyDataUi(
                     isVerified = true,
                     name = "Relying Party Name: $text",
                     description = "Relying Party Description: $text",

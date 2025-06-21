@@ -1,207 +1,121 @@
+/*
+ * Copyright (c) 2023 European Commission
+ *
+ * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
+ * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
+ * except in compliance with the Licence.
+ *
+ * You may obtain a copy of the Licence at:
+ * https://joinup.ec.europa.eu/software/page/eupl
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the Licence is distributed on an "AS IS" basis, WITHOUT WARRANTIES OR CONDITIONS OF
+ * ANY KIND, either express or implied. See the Licence for the specific language
+ * governing permissions and limitations under the Licence.
+ */
+
 package eu.europa.ec.dashboardfeature.ui.settings
 
-import androidx.lifecycle.viewModelScope
+import android.content.Intent
+import android.net.Uri
+import eu.europa.ec.businesslogic.extension.toUri
 import eu.europa.ec.dashboardfeature.interactor.SettingsInteractor
-import eu.europa.ec.dashboardfeature.ui.component.BottomNavigationItem
-
-
+import eu.europa.ec.dashboardfeature.ui.settings.model.SettingsItemUi
+import eu.europa.ec.dashboardfeature.ui.settings.model.SettingsMenuItemType
+import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.uilogic.mvi.MviViewModel
 import eu.europa.ec.uilogic.mvi.ViewEvent
 import eu.europa.ec.uilogic.mvi.ViewSideEffect
 import eu.europa.ec.uilogic.mvi.ViewState
-import eu.europa.ec.uilogic.navigation.DashboardScreens
-import eu.europa.ec.uilogic.serializer.UiSerializer
-
-import kotlinx.coroutines.launch
 import org.koin.android.annotation.KoinViewModel
 
-data class ProfileData(
-    val name: String,
-    val email: String,
-    val phone: String,
-    val avatarText: String
-)
-
-data class SecuritySettings(
-    val isBiometricEnabled: Boolean
-)
-
 data class State(
-    val isLoading: Boolean = false,
-    val profile: ProfileData = ProfileData(
-        name = "John Doe",
-        email = "john.doe@example.com",
-        phone = "+1234567890",
-        avatarText = "JD"
-    ),
-    val securitySettings: SecuritySettings = SecuritySettings(
-        isBiometricEnabled = false
-    ),
-    val isBottomSheetOpen: Boolean = false,
-    val sheetContent: SettingsBottomSheetContent? = null
+    val screenTitle: String,
+
+    val settingsItems: List<SettingsItemUi> = emptyList(),
+
+    val appVersion: String = "",
+    val changelogUrl: String?,
 ) : ViewState
 
-
-
-
 sealed class Event : ViewEvent {
-    object Init : Event()
-    object EditProfilePressed : Event()
-    data class BiometricToggled(val enabled: Boolean) : Event()
-    object ChangePinPressed : Event()
-    object ChangePasswordPressed : Event()
-    object DataSharingPressed : Event()
-    object ActivityLogPressed : Event()
-    object DeleteDataPressed : Event()
-    object NotificationsPressed : Event()
-
-    sealed class BottomSheet {
-        data class UpdateBottomSheetState(val isOpen: Boolean) : Event()
-        object ConfirmDeleteData : Event()
-        object Close : Event()
-    }
+    data object Pop : Event()
+    data class ItemClicked(val itemType: SettingsMenuItemType) : Event()
 }
 
-sealed class Effect : ViewSideEffect{
+sealed class Effect : ViewSideEffect {
     sealed class Navigation : Effect() {
-        data class SwitchScreen(val screenRoute: String) : Navigation()
+        data object Pop : Navigation()
+
+        data class OpenUrlExternally(val url: Uri) : Navigation()
     }
 
-    object ShowBiometricPrompt : Effect()
-    object ShowBottomSheet : Effect()
-    object CloseBottomSheet : Effect()
-}
-
-sealed class SettingsBottomSheetContent {
-    object DeleteConfirmation : SettingsBottomSheetContent()
+    data class ShareLogFile(val intent: Intent, val chooserTitle: String) : Effect()
 }
 
 @KoinViewModel
-class SettingsViewModel(val interactor: SettingsInteractor,
-                        private val uiSerializer: UiSerializer,
-                        private val resourceProvider: ResourceProvider
+class SettingsViewModel(
+    private val settingsInteractor: SettingsInteractor,
+    private val resourceProvider: ResourceProvider,
 ) : MviViewModel<Event, State, Effect>() {
+    override fun setInitialState(): State {
+        val changelogUrl = settingsInteractor.getChangelogUrl()
+        return State(
+            screenTitle = resourceProvider.getString(R.string.settings_screen_title),
+            settingsItems = settingsInteractor.getSettingsItemsUi(changelogUrl = changelogUrl),
 
-    override fun setInitialState(): State = State()
+            appVersion = settingsInteractor.getAppVersion(),
+            changelogUrl = changelogUrl,
+        )
+    }
 
     override fun handleEvents(event: Event) {
         when (event) {
-            is Event.Init -> loadUserProfile()
-            is Event.EditProfilePressed -> navigateToEditProfile()
-            is Event.BiometricToggled -> toggleBiometric(event.enabled)
-            is Event.ChangePinPressed -> navigateToChangePin()
-            is Event.ChangePasswordPressed -> navigateToChangePassword()
-            is Event.DataSharingPressed -> navigateToDataSharing()
-            is Event.ActivityLogPressed -> navigateToActivityLog()
-            is Event.DeleteDataPressed -> showDeleteConfirmation()
-            is Event.NotificationsPressed -> navigateToNotifications()
-            is Event.BottomSheet.UpdateBottomSheetState -> updateBottomSheetState(event.isOpen)
-            is Event.BottomSheet.ConfirmDeleteData -> deleteUserData()
-            is Event.BottomSheet.Close -> closeBottomSheet()
+            is Event.Pop -> setEffect { Effect.Navigation.Pop }
+
+            is Event.ItemClicked -> handleSettingsMenuItemClicked(event.itemType)
         }
     }
 
-    private fun loadUserProfile() {
-        viewModelScope.launch {
-            setState { copy(isLoading = true) }
-            // Load biometric settings
-            try {
-//                val isBiometricEnabled = interactor.isBiometricEnabled()
-                setState { 
+    private fun handleSettingsMenuItemClicked(itemType: SettingsMenuItemType) {
+        when (itemType) {
+            SettingsMenuItemType.SHOW_BATCH_ISSUANCE_COUNTER -> {
+                settingsInteractor.toggleShowBatchIssuanceCounter()
+
+                setState {
                     copy(
-                        isLoading = false,
-//                        securitySettings = securitySettings.copy(
-//                            isBiometricEnabled = isBiometricEnabled
-//                        )
-                    ) 
-                }
-            } catch (e: Exception) {
-                setState { copy(isLoading = false) }
-            }
-        }
-    }
-
-    private fun navigateToEditProfile() {
-        // TODO: Implement when Edit Profile screen is available
-        setEffect { Effect.Navigation.SwitchScreen(BottomNavigationItem.Settings.route) }
-    }
-
-    private fun toggleBiometric(enabled: Boolean) {
-        viewModelScope.launch {
-            if (enabled) {
-                setEffect { Effect.ShowBiometricPrompt }
-            } else {
-                try {
-//                    val success = interactor.setBiometricEnabled(false)
-//                    if (success) {
-//                        setState { copy(securitySettings = securitySettings.copy(isBiometricEnabled = false)) }
-//                    }
-                } catch (e: Exception) {
-                    // Handle error
+                        settingsItems = settingsInteractor.getSettingsItemsUi(changelogUrl = viewState.value.changelogUrl)
+                    )
                 }
             }
-        }
-    }
 
-    private fun navigateToChangePin() {
-        setEffect { Effect.Navigation.SwitchScreen(DashboardScreens.Dashboard.screenRoute) }
-    }
+            SettingsMenuItemType.RETRIEVE_LOGS -> {
+                val logs = settingsInteractor.retrieveLogFileUris()
+                if (logs.isNotEmpty()) {
+                    setEffect {
+                        Effect.ShareLogFile(
+                            intent = Intent().apply {
+                                action = Intent.ACTION_SEND_MULTIPLE
+                                putParcelableArrayListExtra(Intent.EXTRA_STREAM, logs)
+                                type = "text/*"
+                            },
+                            chooserTitle = resourceProvider.getString(R.string.settings_intent_chooser_logs_share_title)
+                        )
+                    }
+                }
+            }
 
-    private fun navigateToChangePassword() {
-        // TODO: Implement when Change Password screen is available
-        setEffect { Effect.Navigation.SwitchScreen(BottomNavigationItem.Settings.route) }
-    }
-
-    private fun navigateToDataSharing() {
-        // TODO: Implement when Data Sharing screen is available
-        setEffect { Effect.Navigation.SwitchScreen(BottomNavigationItem.Settings.route) }
-    }
-
-    private fun navigateToActivityLog() {
-        // TODO: Implement when Activity Log screen is available
-        setEffect { Effect.Navigation.SwitchScreen(BottomNavigationItem.Settings.route) }
-    }
-
-    private fun navigateToNotifications() {
-        // TODO: Implement when Notifications screen is available
-        setEffect { Effect.Navigation.SwitchScreen(BottomNavigationItem.Settings.route) }
-    }
-
-    private fun showDeleteConfirmation() {
-        setState { copy(
-            isBottomSheetOpen = true,
-            sheetContent = SettingsBottomSheetContent.DeleteConfirmation
-        ) }
-        setEffect { Effect.ShowBottomSheet }
-    }
-
-    private fun deleteUserData() {
-        viewModelScope.launch {
-            setState { copy(isLoading = true) }
-            try {
-//                val success = interactor.deleteAllUserData()
-//                if (success) {
-                    // Show success message or navigate to login screen
-//                }
-            } catch (e: Exception) {
-                // Handle error
-            } finally {
-                setState { copy(isLoading = false) }
-                closeBottomSheet()
+            SettingsMenuItemType.CHANGELOG -> {
+                val changelogUrl = viewState.value.changelogUrl
+                if (changelogUrl != null) {
+                    setEffect {
+                        Effect.Navigation.OpenUrlExternally(
+                            url = changelogUrl.toUri()
+                        )
+                    }
+                }
             }
         }
-    }
-
-    private fun updateBottomSheetState(isOpen: Boolean) {
-        setState { copy(isBottomSheetOpen = isOpen) }
-    }
-
-    private fun closeBottomSheet() {
-        setState { copy(
-            isBottomSheetOpen = false,
-            sheetContent = null
-        ) }
-        setEffect { Effect.CloseBottomSheet }
     }
 }

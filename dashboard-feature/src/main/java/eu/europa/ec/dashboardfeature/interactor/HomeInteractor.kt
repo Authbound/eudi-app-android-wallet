@@ -19,6 +19,7 @@ package eu.europa.ec.dashboardfeature.interactor
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import eu.europa.ec.businesslogic.extension.safeAsync
+import eu.europa.ec.commonfeature.util.DocumentJsonKeys
 import eu.europa.ec.businesslogic.extension.isExpired
 import eu.europa.ec.commonfeature.model.DocumentUiIssuanceState
 import eu.europa.ec.commonfeature.ui.document_details.model.DocumentJsonKeys
@@ -109,29 +110,29 @@ class HomeInteractorImpl(
                 error = it.localizedMessage ?: genericErrorMsg
             )
         }
-        
+
     override fun getCredentials(): Flow<HomeInteractorGetCredentialsPartialState> =
         flow {
             try {
                 val documentCategories = walletCoreDocumentsController.getAllDocumentCategories()
                 val userLocale = resourceProvider.getLocale()
-                
+
                 // Get all documents and convert them to UI models
                 val documents = walletCoreDocumentsController.getAllDocuments().mapNotNull { document ->
                     if (document is IssuedDocument) {
                         val localizedIssuerMetadata = document.localizedIssuerMetadata(userLocale)
                         val issuerName = localizedIssuerMetadata?.name
-                        
+
                         val documentIdentifier = document.toDocumentIdentifier()
                         val documentCategory = documentIdentifier.toDocumentCategory(documentCategories)
-                        
+
                         val documentHasExpired = documentHasExpired(document.validUntil)
                         val documentIssuanceState = if (documentHasExpired) {
                             DocumentUiIssuanceState.Expired
                         } else {
                             DocumentUiIssuanceState.Issued
                         }
-                        
+
                         // Format date for display
                         val dateFormatter = SimpleDateFormat("dd/MM/yyyy", userLocale)
                         val validUntilText = document.validUntil?.let {
@@ -144,7 +145,7 @@ class HomeInteractorImpl(
                                 )
                             }
                         } ?: ""
-                        
+
                         DocumentUi(
                             documentIssuanceState = documentIssuanceState,
                             uiData = ListItemData(
@@ -163,19 +164,19 @@ class HomeInteractorImpl(
                         null
                     }
                 }
-                
+
                 // Group by category and sort
                 val groupedByCategory = documents.groupBy { it.documentCategory }
                     .map { (category, docs) -> category to docs }
-                    .sortedWith { a, b -> 
+                    .sortedWith { a, b ->
                         a.first.toString().compareTo(b.first.toString())
                     }
-                
+
                 // Limit to 3 documents per category for home screen
                 val limitedDocuments = groupedByCategory.map { (category, docs) ->
                     category to docs.take(3)
                 }
-                
+
                 emit(HomeInteractorGetCredentialsPartialState.Success(limitedDocuments))
             } catch (e: Exception) {
                 emit(HomeInteractorGetCredentialsPartialState.Failure(e.localizedMessage ?: genericErrorMsg))

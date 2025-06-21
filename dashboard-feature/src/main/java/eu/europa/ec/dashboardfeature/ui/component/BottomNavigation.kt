@@ -55,40 +55,39 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.uilogic.component.AppIcons
-import eu.europa.ec.uilogic.component.IconData
+import eu.europa.ec.uilogic.component.IconDataUi
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
 import eu.europa.ec.uilogic.component.wrap.WrapIcon
 
-enum class BottomNavigationItem(
+sealed class BottomNavigationItem(
     val route: String,
-    val icon: IconData,
-    val labelResId: Int
+    @StringRes val titleRes: Int,
+    val icon: IconDataUi,
+
 ) {
-    Home(
+    data object Home : BottomNavigationItem(
         route = "HOME",
-        icon = AppIcons.Home,
-        labelResId = R.string.home_screen_title
-    ),
-    Documents(
+        titleRes = R.string.home_screen_title,
+        icon = AppIcons.Home
+    )
+
+    data object Documents : BottomNavigationItem(
         route = "DOCUMENTS",
-        icon = AppIcons.Documents,
-        labelResId = R.string.documents_screen_title
-    ),
-    Transactions(
+        titleRes = R.string.documents_screen_title,
+        icon = AppIcons.Documents
+    )
+
+    data object Transactions : BottomNavigationItem(
         route = "TRANSACTIONS",
-        icon = AppIcons.Transactions,
-        labelResId = R.string.transactions_screen_title
-    ),
-    Settings(
+        titleRes = R.string.transactions_screen_title,
+        icon = AppIcons.Transactions
+    )
+
+    data object Settings: BottomNavigationItem(
         route = "SETTINGS",
+        titleRes = R.string.content_description_user_icon,
         icon = AppIcons.UserIcon,
-        labelResId = R.string.settings_screen_title
-    ),
-    AddCredential(
-        route = "ADD_CREDENTIAL",
-        icon = AppIcons.Add,
-        labelResId = R.string.dashboard_quick_action_add_credential
     )
 }
 
@@ -133,10 +132,10 @@ fun BottomNavigationBar(navController: NavController) {
                     val selected = currentDestination?.hierarchy?.any {
                         it.route == screen.route
                     } == true
-                    
+
                     FloatingNavItem(
                         icon = screen.icon,
-                        label = stringResource(screen.labelResId),
+                        label = stringResource(screen.titleRes),
                         selected = selected,
                         onItemClick = {
 //                            if (currentDestination?.route != screen.route) {
@@ -158,28 +157,28 @@ fun BottomNavigationBar(navController: NavController) {
 
 @Composable
 fun FloatingNavItem(
-    icon: IconData,
+    icon: IconDataUi,
     label: String,
     selected: Boolean,
     onItemClick: () -> Unit
 ) {
     val view = LocalView.current
     val interactionSource = remember { MutableInteractionSource() }
-    
+
     // Animation for icon scaling
     val scale by animateFloatAsState(
         targetValue = if (selected) 1.2f else 1f,
         animationSpec = tween(durationMillis = 200),
         label = "scale"
     )
-    
+
     // Trigger haptic feedback when selected
     LaunchedEffect(selected) {
         if (selected) {
             view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
         }
     }
-    
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
@@ -212,7 +211,7 @@ fun FloatingNavItem(
                 )
             }
         }
-        
+
         // Indicator dot for selected item
         if (selected) {
             Box(

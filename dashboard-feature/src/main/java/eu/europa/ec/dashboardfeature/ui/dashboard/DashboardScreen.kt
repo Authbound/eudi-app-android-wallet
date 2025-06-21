@@ -42,22 +42,23 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import eu.europa.ec.businesslogic.extension.getParcelableArrayListExtra
-import eu.europa.ec.corelogic.model.RevokedDocumentPayload
+import eu.europa.ec.corelogic.model.RevokedDocumentDataDomain
 import eu.europa.ec.corelogic.util.CoreActions
 import eu.europa.ec.dashboardfeature.ui.component.BottomNavigationBar
 import eu.europa.ec.dashboardfeature.ui.component.BottomNavigationItem
+import eu.europa.ec.dashboardfeature.ui.dashboard.sidemenu.SideMenuScreen
 import eu.europa.ec.dashboardfeature.ui.documents.list.DocumentsScreen
 import eu.europa.ec.dashboardfeature.ui.documents.list.DocumentsViewModel
 import eu.europa.ec.dashboardfeature.ui.home.HomeScreen
 import eu.europa.ec.dashboardfeature.ui.home.HomeViewModel
 import eu.europa.ec.dashboardfeature.ui.settings.SettingsScreen
-import eu.europa.ec.dashboardfeature.ui.sidemenu.SideMenuScreen
+
 import eu.europa.ec.dashboardfeature.ui.transactions.list.TransactionsScreen
 import eu.europa.ec.dashboardfeature.ui.transactions.list.TransactionsViewModel
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.uilogic.component.SystemBroadcastReceiver
 import eu.europa.ec.uilogic.component.utils.LifecycleEffect
-import eu.europa.ec.uilogic.component.wrap.BottomSheetTextData
+import eu.europa.ec.uilogic.component.wrap.BottomSheetTextDataUi
 import eu.europa.ec.uilogic.component.wrap.BottomSheetWithOptionsList
 import eu.europa.ec.uilogic.component.wrap.WrapModalBottomSheet
 import eu.europa.ec.uilogic.extension.finish
@@ -70,7 +71,7 @@ import eu.europa.ec.uilogic.navigation.helper.handleDeepLinkAction
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import org.koin.androidx.compose.koinViewModel
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -127,12 +128,6 @@ internal fun DashboardScreen(
                     onDashboardEventSent = { event ->
                         viewModel.setEvent(event)
                     }
-                )
-            }
-            composable(BottomNavigationItem.Settings.route) {
-                SettingsScreen(
-                    navHostController = hostNavController,
-                    viewModel = koinViewModel()
                 )
             }
         }
@@ -218,7 +213,7 @@ internal fun DashboardScreen(
             CoreActions.REVOCATION_WORK_MESSAGE_ACTION
         )
     ) { intent ->
-        intent.getParcelableArrayListExtra<RevokedDocumentPayload>(
+        intent.getParcelableArrayListExtra<RevokedDocumentDataDomain>(
             action = CoreActions.REVOCATION_IDS_EXTRA
         )?.let {
             viewModel.setEvent(
@@ -265,7 +260,7 @@ private fun DashboardSheetContent(
     when (sheetContent) {
         is DashboardBottomSheetContent.DocumentRevocation -> {
             BottomSheetWithOptionsList(
-                textData = BottomSheetTextData(
+                textData = BottomSheetTextDataUi(
                     title = stringResource(
                         id = R.string.dashboard_bottom_sheet_revoked_document_dialog_title
                     ),
