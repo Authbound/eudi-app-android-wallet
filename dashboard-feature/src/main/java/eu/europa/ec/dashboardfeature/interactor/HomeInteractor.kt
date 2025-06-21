@@ -20,9 +20,7 @@ import android.bluetooth.BluetoothManager
 import android.content.Context
 import eu.europa.ec.businesslogic.extension.safeAsync
 import eu.europa.ec.commonfeature.util.DocumentJsonKeys
-import eu.europa.ec.businesslogic.extension.isExpired
-import eu.europa.ec.commonfeature.model.DocumentUiIssuanceState
-import eu.europa.ec.commonfeature.ui.document_details.model.DocumentJsonKeys
+
 import eu.europa.ec.commonfeature.util.documentHasExpired
 import eu.europa.ec.commonfeature.util.extractValueFromDocumentOrEmpty
 import eu.europa.ec.corelogic.config.WalletCoreConfig
@@ -31,15 +29,17 @@ import eu.europa.ec.corelogic.extension.localizedIssuerMetadata
 import eu.europa.ec.corelogic.model.DocumentCategory
 import eu.europa.ec.corelogic.model.toDocumentCategory
 import eu.europa.ec.corelogic.model.toDocumentIdentifier
-import eu.europa.ec.dashboardfeature.model.DocumentUi
+import eu.europa.ec.dashboardfeature.ui.documents.detail.model.DocumentIssuanceStateUi
+
+import eu.europa.ec.dashboardfeature.ui.documents.list.model.DocumentUi
 import eu.europa.ec.eudi.wallet.document.DocumentId
 import eu.europa.ec.eudi.wallet.document.IssuedDocument
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.uilogic.component.AppIcons
-import eu.europa.ec.uilogic.component.ListItemData
-import eu.europa.ec.uilogic.component.ListItemLeadingContentData
-import eu.europa.ec.uilogic.component.ListItemMainContentData
+import eu.europa.ec.uilogic.component.ListItemDataUi
+import eu.europa.ec.uilogic.component.ListItemLeadingContentDataUi
+import eu.europa.ec.uilogic.component.ListItemMainContentDataUi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import java.text.SimpleDateFormat
@@ -128,9 +128,9 @@ class HomeInteractorImpl(
 
                         val documentHasExpired = documentHasExpired(document.validUntil)
                         val documentIssuanceState = if (documentHasExpired) {
-                            DocumentUiIssuanceState.Expired
+                            DocumentIssuanceStateUi.Expired
                         } else {
-                            DocumentUiIssuanceState.Issued
+                            DocumentIssuanceStateUi.Issued
                         }
 
                         // Format date for display
@@ -148,12 +148,12 @@ class HomeInteractorImpl(
 
                         DocumentUi(
                             documentIssuanceState = documentIssuanceState,
-                            uiData = ListItemData(
+                            uiData = ListItemDataUi(
                                 itemId = document.id,
-                                mainContentData = ListItemMainContentData.Text(text = document.name),
+                                mainContentData = ListItemMainContentDataUi.Text(text = document.name),
                                 overlineText = issuerName,
                                 supportingText = validUntilText,
-                                leadingContentData = ListItemLeadingContentData.Icon(
+                                leadingContentData = ListItemLeadingContentDataUi.Icon(
                                     iconData = AppIcons.Documents
                                 )
                             ),

@@ -29,8 +29,8 @@ import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
 import eu.europa.ec.uilogic.component.wrap.WrapImage
 
 data class AppIconAndTextData(
-    val appIcon: IconData = AuthboundLogoAndText,
-    val appText: IconData = AppIcons.AuthboundText,
+    val appIcon: IconDataUi = AuthboundLogoAndText,
+    val appText: IconDataUi = AppIcons.AuthboundText,
 )
 
 @Composable

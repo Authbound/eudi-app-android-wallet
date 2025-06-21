@@ -61,10 +61,10 @@ import eu.europa.ec.dashboardfeature.model.verification.ValidationCriteria
 import eu.europa.ec.dashboardfeature.model.verification.VerificationParameter
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.uilogic.component.AppIcons
-import eu.europa.ec.uilogic.component.ListItemData
-import eu.europa.ec.uilogic.component.ListItemLeadingContentData
-import eu.europa.ec.uilogic.component.ListItemMainContentData
-import eu.europa.ec.uilogic.component.ListItemTrailingContentData
+import eu.europa.ec.uilogic.component.ListItemDataUi
+import eu.europa.ec.uilogic.component.ListItemLeadingContentDataUi
+import eu.europa.ec.uilogic.component.ListItemMainContentDataUi
+import eu.europa.ec.uilogic.component.ListItemTrailingContentDataUi
 import eu.europa.ec.uilogic.component.content.ContentScreen
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
 import eu.europa.ec.uilogic.component.utils.OneTimeLaunchedEffect
@@ -361,12 +361,12 @@ private fun ParameterEditor(
                 Column {
                     types.forEach { type ->
                         WrapListItem(
-                            item = ListItemData(
+                            item = ListItemDataUi(
                                 itemId = type.name,
-                                mainContentData = ListItemMainContentData.Text(
+                                mainContentData = ListItemMainContentDataUi.Text(
                                     text = type.name.lowercase().capitalize()
                                 ),
-                                leadingContentData = ListItemLeadingContentData.Icon(
+                                leadingContentData = ListItemLeadingContentDataUi.Icon(
                                     iconData = when (type) {
                                         ParameterType.AGE -> AppIcons.WalletActivated
                                         ParameterType.NAME -> AppIcons.User
@@ -378,7 +378,7 @@ private fun ParameterEditor(
                                         ParameterType.CUSTOM -> AppIcons.Edit
                                     }
                                 ),
-                                trailingContentData = ListItemTrailingContentData.Icon(
+                                trailingContentData = ListItemTrailingContentDataUi.Icon(
                                     iconData = AppIcons.KeyboardArrowRight
                                 )
                             ),
@@ -406,13 +406,13 @@ private fun ParameterEditor(
                 
                 // Required checkbox
                 WrapListItem(
-                    item = ListItemData(
+                    item = ListItemDataUi(
                         itemId = "required",
-                        mainContentData = ListItemMainContentData.Text(
+                        mainContentData = ListItemMainContentDataUi.Text(
                             text = "Required"
                         ),
-                        trailingContentData = ListItemTrailingContentData.Checkbox(
-                            checkboxData = eu.europa.ec.uilogic.component.wrap.CheckboxData(
+                        trailingContentData = ListItemTrailingContentDataUi.Checkbox(
+                            checkboxData = eu.europa.ec.uilogic.component.wrap.CheckboxDataUi(
                                 isChecked = isRequired,
                                 onCheckedChange = { isRequired = it }
                             )

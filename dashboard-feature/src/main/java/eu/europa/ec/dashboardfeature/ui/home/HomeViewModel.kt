@@ -28,8 +28,9 @@ import eu.europa.ec.corelogic.model.DocumentCategory
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractor
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetCredentialsPartialState
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetUserNameViaMainPidDocumentPartialState
-import eu.europa.ec.dashboardfeature.model.DocumentUi
+
 import eu.europa.ec.dashboardfeature.ui.component.BottomNavigationItem
+import eu.europa.ec.dashboardfeature.ui.documents.list.model.DocumentUi
 import eu.europa.ec.eudi.wallet.document.DocumentId
 import eu.europa.ec.dashboardfeature.ui.home.HomeScreenBottomSheetContent.Bluetooth
 import eu.europa.ec.resourceslogic.R
@@ -322,12 +323,12 @@ class HomeViewModel(
 
             is Event.BottomSheet.AddDocument.FromList -> {
                 hideBottomSheet()
-                navigateToAddDocument()
+//                navigateToAddDocument()
             }
 
             is Event.BottomSheet.AddDocument.ScanQr -> {
                 hideBottomSheet()
-                navigateToQrScanForDocument()
+//                navigateToQrScanForDocument()
             }
 
             is Event.BottomSheet.Verification.UseTemplate -> {
@@ -392,7 +393,7 @@ class HomeViewModel(
             }
 
             is Event.ViewAllCredentialsPressed -> {
-                navigateToDocumentsTab()
+//                navigateToDocumentsTab()
             }
 
             is Event.AddCredentialPressed -> {
@@ -444,7 +445,7 @@ class HomeViewModel(
 
     private fun navigateToDocumentSign() {
         setEffect {
-            Effect.Navigation.SwitchScreen(screenRoute = DashboardScreens.SignDocument.screenRoute)
+            Effect.Navigation.SwitchScreen(screenRoute = DashboardScreens.DocumentSign.screenRoute)
         }
     }
 
@@ -455,6 +456,8 @@ class HomeViewModel(
             )
         }
     }
+
+
 
     private fun startProximityFlow() {
         setState { copy(bleAvailability = BleAvailability.AVAILABLE) }

@@ -66,19 +66,21 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
-import eu.europa.ec.commonfeature.model.DocumentUiIssuanceState
+
 import eu.europa.ec.corelogic.model.DocumentCategory
 import eu.europa.ec.corelogic.model.DocumentIdentifier
-import eu.europa.ec.dashboardfeature.model.DocumentUi
+import eu.europa.ec.dashboardfeature.ui.documents.detail.model.DocumentIssuanceStateUi
+import eu.europa.ec.dashboardfeature.ui.documents.list.model.DocumentUi
+
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.theme.values.warning
 import eu.europa.ec.uilogic.component.AppIconAndText
-import eu.europa.ec.uilogic.component.AppIconAndTextDataUi
+import eu.europa.ec.uilogic.component.AppIconAndTextData
 import eu.europa.ec.uilogic.component.AppIcons
-import eu.europa.ec.uilogic.component.IconData
-import eu.europa.ec.uilogic.component.ListItemData
-import eu.europa.ec.uilogic.component.ListItemLeadingContentData
-import eu.europa.ec.uilogic.component.ListItemMainContentData
+import eu.europa.ec.uilogic.component.IconDataUi
+import eu.europa.ec.uilogic.component.ListItemDataUi
+import eu.europa.ec.uilogic.component.ListItemLeadingContentDataUi
+import eu.europa.ec.uilogic.component.ListItemMainContentDataUi
 import eu.europa.ec.uilogic.component.ModalOptionUi
 import eu.europa.ec.uilogic.component.SectionTitle
 import eu.europa.ec.uilogic.component.content.ContentScreen
@@ -205,7 +207,7 @@ private fun TopBar(
         // wallet logo
         AppIconAndText(
             modifier = Modifier.align(Alignment.Center),
-            appIconAndTextData = AppIconAndTextDataUi()
+            appIconAndTextData = AppIconAndTextData()
         )
 
 //        WrapIconButton(
@@ -435,7 +437,7 @@ private fun HomeScreenSheetContent(
 
         is HomeScreenBottomSheetContent.AddDocument -> {
             BottomSheetWithTwoBigIcons(
-                textData = BottomSheetTextData(
+                textData = BottomSheetTextDataUi(
                     title = stringResource(R.string.documents_screen_add_document_title),
                     message = stringResource(R.string.documents_screen_add_document_description)
                 ),
@@ -457,7 +459,7 @@ private fun HomeScreenSheetContent(
 
         is HomeScreenBottomSheetContent.Verification -> {
             BottomSheetWithTwoBigIcons(
-                textData = BottomSheetTextData(
+                textData = BottomSheetTextDataUi(
                     title = stringResource(R.string.verification_bottom_sheet_title),
                     message = stringResource(R.string.verification_bottom_sheet_description)
                 ),
@@ -823,11 +825,11 @@ private fun CredentialCategory(
                     onCredentialClick(document.uiData.itemId)
                 },
                 supportingTextColor = when (document.documentIssuanceState) {
-                    DocumentUiIssuanceState.Issued -> null
-                    DocumentUiIssuanceState.Pending -> MaterialTheme.colorScheme.warning
-                    DocumentUiIssuanceState.Failed -> MaterialTheme.colorScheme.error
-                    DocumentUiIssuanceState.Expired -> MaterialTheme.colorScheme.error
-                    DocumentUiIssuanceState.Revoked -> MaterialTheme.colorScheme.error
+                    DocumentIssuanceStateUi.Issued -> null
+                    DocumentIssuanceStateUi.Pending -> MaterialTheme.colorScheme.warning
+                    DocumentIssuanceStateUi.Failed -> MaterialTheme.colorScheme.error
+                    DocumentIssuanceStateUi.Expired -> MaterialTheme.colorScheme.error
+                    DocumentIssuanceStateUi.Revoked -> MaterialTheme.colorScheme.error
                 }
             )
         }
@@ -853,13 +855,13 @@ private fun HomeScreenContentPreview() {
             val exampleCredentials = listOf(
                 DocumentCategory.Government to listOf(
                     DocumentUi(
-                        documentIssuanceState = DocumentUiIssuanceState.Issued,
-                        uiData = ListItemData(
+                        documentIssuanceState = DocumentIssuanceStateUi.Issued,
+                        uiData = ListItemDataUi(
                             itemId = "id1",
-                            mainContentData = ListItemMainContentData.Text(text = "National ID Card"),
+                            mainContentData = ListItemMainContentDataUi.Text(text = "National ID Card"),
                             overlineText = "Government Authority",
                             supportingText = "Valid until: 12/12/2025",
-                            leadingContentData = ListItemLeadingContentData.Icon(
+                            leadingContentData = ListItemLeadingContentDataUi.Icon(
                                 iconData = AppIcons.Documents
                             )
                         ),
@@ -867,13 +869,13 @@ private fun HomeScreenContentPreview() {
                         documentCategory = DocumentCategory.Government
                     ),
                     DocumentUi(
-                        documentIssuanceState = DocumentUiIssuanceState.Issued,
-                        uiData = ListItemData(
+                        documentIssuanceState = DocumentIssuanceStateUi.Issued,
+                        uiData = ListItemDataUi(
                             itemId = "id2",
-                            mainContentData = ListItemMainContentData.Text(text = "Driver's License"),
+                            mainContentData = ListItemMainContentDataUi.Text(text = "Driver's License"),
                             overlineText = "National Transport Authority",
                             supportingText = "Valid until: 10/04/2026",
-                            leadingContentData = ListItemLeadingContentData.Icon(
+                            leadingContentData = ListItemLeadingContentDataUi.Icon(
                                 iconData = AppIcons.Documents
                             )
                         ),

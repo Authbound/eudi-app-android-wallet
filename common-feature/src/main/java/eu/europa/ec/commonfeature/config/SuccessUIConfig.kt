@@ -20,7 +20,7 @@ import androidx.compose.ui.graphics.Color
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import eu.europa.ec.resourceslogic.theme.values.ThemeColors
-import eu.europa.ec.uilogic.component.AppIconAndTextDataUi
+import eu.europa.ec.uilogic.component.AppIconAndTextData
 import eu.europa.ec.uilogic.component.IconDataUi
 import eu.europa.ec.uilogic.component.content.ContentHeaderConfig
 import eu.europa.ec.uilogic.component.utils.PERCENTAGE_60
@@ -33,7 +33,7 @@ import eu.europa.ec.uilogic.serializer.adapter.SerializableTypeAdapter
 data class SuccessUIConfig(
     val textElementsConfig: TextElementsConfig,
     val headerConfig: ContentHeaderConfig = ContentHeaderConfig(
-        appIconAndTextData = AppIconAndTextDataUi(),
+        appIconAndTextData = AppIconAndTextData(),
         description = null,
     ),
     val imageConfig: ImageConfig,

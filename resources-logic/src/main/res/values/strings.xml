@@ -455,8 +455,6 @@
     <string name="transaction_category_today">TODAY</string>">
     <string name="transaction_category_this_week">THIS WEEK</string>">
     <string name="transaction_category_month_year">MONTH</string>">
-    <!-- Settings Screen -->
-    <string name="settings_screen_title">Settings</string>
 
     <!-- Profile Section -->
     <string name="settings_edit_profile">Edit Profile</string>

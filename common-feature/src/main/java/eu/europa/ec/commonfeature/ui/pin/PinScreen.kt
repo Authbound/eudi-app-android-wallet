@@ -43,7 +43,7 @@ import androidx.navigation.NavController
 import eu.europa.ec.commonfeature.model.PinFlow
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.uilogic.component.AppIconAndText
-import eu.europa.ec.uilogic.component.AppIconAndTextDataUi
+import eu.europa.ec.uilogic.component.AppIconAndTextData
 import eu.europa.ec.uilogic.component.content.ContentScreen
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
@@ -186,7 +186,7 @@ private fun Content(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = SPACING_LARGE.dp),
-            appIconAndTextData = AppIconAndTextDataUi(),
+            appIconAndTextData = AppIconAndTextData(),
         )
 
         Column(

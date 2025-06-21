@@ -33,7 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import android.view.HapticFeedbackConstants
-import eu.europa.ec.uilogic.component.IconData
+import eu.europa.ec.uilogic.component.IconDataUi
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
 import eu.europa.ec.uilogic.component.AppIcons
@@ -45,7 +45,7 @@ data class QuickActionConfig(
     val id: String,
     val title: String,
     val description: String,
-    val icon: IconData,
+    val icon: IconDataUi,
     val backgroundColor: Color,
     val borderColor: Color,
     val isEnabled: Boolean = true,

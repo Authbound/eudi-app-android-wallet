@@ -40,8 +40,7 @@ import eu.europa.ec.dashboardfeature.interactor.TransactionDetailsInteractorImpl
 import eu.europa.ec.dashboardfeature.interactor.TransactionsInteractor
 import eu.europa.ec.dashboardfeature.interactor.TransactionsInteractorImpl
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
-import eu.europa.ec.dashboardfeature.interactor.SettingsInteractor
-import eu.europa.ec.dashboardfeature.interactor.SettingsInteractorImpl
+
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Module
@@ -138,6 +137,3 @@ fun provideTransactionDetailsInteractor(
         resourceProvider,
         uuidProvider
     )
-
-@Factory
-fun provideSettingsInteractor(): SettingsInteractor = SettingsInteractorImpl()
