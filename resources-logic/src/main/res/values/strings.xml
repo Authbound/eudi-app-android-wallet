@@ -17,7 +17,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Generic -->
-    <string name="generic_error_message">Oups! Something went wrong</string>
+    <string name="generic_error_message">An unexpected error has occurred. Please try again.</string>
     <string name="generic_error_description">If the issue persists, please contact customer support</string>
     <string name="generic_error_button_retry">TRY AGAIN</string>
     <string name="generic_network_error_message">You are not connected to the internet</string>
@@ -560,5 +560,17 @@
     <string name="settings_change_pin_success_title">PIN Changed Successfully</string>
     <string name="settings_change_pin_success_message">Your PIN has been updated. Use your new PIN for future logins.</string>
     <string name="settings_change_pin_success_button">Done</string>
+
+    <!-- Authentication -->
+    <string name="login_with_google">Sign in with Google</string>
+    <string name="login_with_microsoft">Sign in with Microsoft</string>
+    <string name="login_with_meta">Sign in with Meta</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="sign_in">Sign In</string>
+
+    <!-- Content descriptions -->
+    <string name="content_description_back_button">Back button</string>
+    <string name="content_description_relying_party_logo">Relying Party logo</string>
 
 </resources>

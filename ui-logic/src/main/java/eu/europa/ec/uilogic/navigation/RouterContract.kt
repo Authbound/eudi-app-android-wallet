@@ -70,6 +70,8 @@ sealed class PresentationScreens {
     data object PresentationLoading : Screen(name = "PRESENTATION_LOADING")
 
     data object PresentationSuccess : Screen(name = "PRESENTATION_SUCCESS")
+
+    data object QrScan : PresentationScreens()
 }
 
 sealed class ProximityScreens {
@@ -117,4 +119,8 @@ sealed class ModuleRoute(val route: String) : NavigatableItem {
     data object PresentationModule : ModuleRoute("PRESENTATION_MODULE")
     data object ProximityModule : ModuleRoute("PROXIMITY_MODULE")
     data object IssuanceModule : ModuleRoute("ISSUANCE_MODULE")
+}
+
+sealed class AuthenticationScreens(val screenRoute: String) {
+    data object Login : AuthenticationScreens("login")
 }

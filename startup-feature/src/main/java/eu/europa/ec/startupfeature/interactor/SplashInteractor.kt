@@ -16,6 +16,7 @@
 
 package eu.europa.ec.startupfeature.interactor
 
+import eu.europa.ec.authenticationlogic.usecase.IsUserAuthenticatedUseCase
 import eu.europa.ec.commonfeature.config.BiometricMode
 import eu.europa.ec.commonfeature.config.BiometricUiConfig
 import eu.europa.ec.commonfeature.config.IssuanceFlowUiConfig
@@ -27,6 +28,7 @@ import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.uilogic.config.ConfigNavigation
 import eu.europa.ec.uilogic.config.NavigationType
+import eu.europa.ec.uilogic.navigation.AuthenticationScreens
 import eu.europa.ec.uilogic.navigation.CommonScreens
 import eu.europa.ec.uilogic.navigation.DashboardScreens
 import eu.europa.ec.uilogic.navigation.IssuanceScreens
@@ -35,28 +37,34 @@ import eu.europa.ec.uilogic.navigation.helper.generateComposableNavigationLink
 import eu.europa.ec.uilogic.serializer.UiSerializer
 
 interface SplashInteractor {
-    fun getAfterSplashRoute(): String
+    suspend fun getAfterSplashRoute(): String
 }
 
 class SplashInteractorImpl(
     private val quickPinInteractor: QuickPinInteractor,
     private val uiSerializer: UiSerializer,
     private val resourceProvider: ResourceProvider,
-    private val walletCoreDocumentsController: WalletCoreDocumentsController
+    private val walletCoreDocumentsController: WalletCoreDocumentsController,
+    private val isUserAuthenticatedUseCase: IsUserAuthenticatedUseCase
 ) : SplashInteractor {
 
     private val hasDocuments: Boolean
         get() = walletCoreDocumentsController.getAllDocuments().isNotEmpty()
 
-    override fun getAfterSplashRoute(): String = when (quickPinInteractor.hasPin()) {
-        true -> {
-            getBiometricsConfig()
-        }
+    override suspend fun getAfterSplashRoute(): String =
+        if (isUserAuthenticatedUseCase()) {
+            when (quickPinInteractor.hasPin()) {
+                true -> {
+                    getBiometricsConfig()
+                }
 
-        false -> {
-            getQuickPinConfig()
+                false -> {
+                    getQuickPinConfig()
+                }
+            }
+        } else {
+            AuthenticationScreens.Login.screenRoute
         }
-    }
 
     private fun getQuickPinConfig(): String {
         return generateComposableNavigationLink(

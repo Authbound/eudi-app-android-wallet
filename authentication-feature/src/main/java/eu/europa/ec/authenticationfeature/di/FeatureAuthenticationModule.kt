@@ -14,30 +14,12 @@
  * governing permissions and limitations under the Licence.
  */
 
-import project.convention.logic.config.LibraryModule
-import project.convention.logic.kover.KoverExclusionRules
-import project.convention.logic.kover.excludeFromKoverReport
+package eu.europa.ec.authenticationfeature.di
 
-plugins {
-    id("project.android.feature")
-}
+import org.koin.core.annotation.ComponentScan
+import org.koin.core.annotation.Module
 
-android {
-    namespace = "eu.europa.ec.startupfeature"
-}
 
-dependencies {
-    implementation(project(LibraryModule.AuthenticationLogic.path))
-    implementation(libs.coil.kt)
-    implementation(libs.coil.kt.compose)
-//    implementation(libs.coil.kt.gif)
-}
-
-moduleConfig {
-    module = LibraryModule.StartupFeature
-}
-
-excludeFromKoverReport(
-    excludedClasses = KoverExclusionRules.StartupFeature.classes,
-    excludedPackages = KoverExclusionRules.StartupFeature.packages,
-)
+@Module
+@ComponentScan("eu.europa.ec.authenticationfeature")
+class FeatureAuthenticationModule

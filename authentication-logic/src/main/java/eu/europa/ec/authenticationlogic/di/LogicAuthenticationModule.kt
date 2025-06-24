@@ -26,8 +26,22 @@ import eu.europa.ec.authenticationlogic.controller.storage.BiometryStorageContro
 import eu.europa.ec.authenticationlogic.controller.storage.BiometryStorageControllerImpl
 import eu.europa.ec.authenticationlogic.controller.storage.PinStorageController
 import eu.europa.ec.authenticationlogic.controller.storage.PinStorageControllerImpl
+import eu.europa.ec.authenticationlogic.provider.BiometryStorageProvider
+import eu.europa.ec.authenticationlogic.provider.PinStorageProvider
+import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
+import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepositoryImpl
 import eu.europa.ec.authenticationlogic.storage.PrefsBiometryStorageProvider
 import eu.europa.ec.authenticationlogic.storage.PrefsPinStorageProvider
+import eu.europa.ec.authenticationlogic.usecase.IsUserAuthenticatedUseCase
+import eu.europa.ec.authenticationlogic.usecase.IsUserAuthenticatedUseCaseImpl
+import eu.europa.ec.authenticationlogic.usecase.ObserveAuthStateUseCase
+import eu.europa.ec.authenticationlogic.usecase.ObserveAuthStateUseCaseImpl
+import eu.europa.ec.authenticationlogic.usecase.SignInWithEmailPasswordUseCase
+import eu.europa.ec.authenticationlogic.usecase.SignInWithEmailPasswordUseCaseImpl
+import eu.europa.ec.authenticationlogic.usecase.SignInWithOAuthUseCase
+import eu.europa.ec.authenticationlogic.usecase.SignInWithOAuthUseCaseImpl
+import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
+import eu.europa.ec.authenticationlogic.usecase.SignOutUseCaseImpl
 import eu.europa.ec.businesslogic.controller.crypto.CryptoController
 import eu.europa.ec.businesslogic.controller.storage.PrefsController
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
@@ -79,3 +93,33 @@ fun providePinStorageController(
 fun provideBiometryStorageController(
     storageConfig: StorageConfig
 ): BiometryStorageController = BiometryStorageControllerImpl(storageConfig)
+
+@Factory
+fun provideSupabaseAuthRepository(
+    supabaseClient: io.github.jan.supabase.SupabaseClient
+): SupabaseAuthRepository = SupabaseAuthRepositoryImpl(supabaseClient)
+
+@Factory
+fun provideIsUserAuthenticatedUseCase(
+    supabaseAuthRepository: SupabaseAuthRepository
+): IsUserAuthenticatedUseCase = IsUserAuthenticatedUseCaseImpl(supabaseAuthRepository)
+
+@Factory
+fun provideObserveAuthStateUseCase(
+    supabaseAuthRepository: SupabaseAuthRepository
+): ObserveAuthStateUseCase = ObserveAuthStateUseCaseImpl(supabaseAuthRepository)
+
+@Factory
+fun provideSignInWithEmailPasswordUseCase(
+    supabaseAuthRepository: SupabaseAuthRepository
+): SignInWithEmailPasswordUseCase = SignInWithEmailPasswordUseCaseImpl(supabaseAuthRepository)
+
+@Factory
+fun provideSignInWithOAuthUseCase(
+    supabaseAuthRepository: SupabaseAuthRepository
+): SignInWithOAuthUseCase = SignInWithOAuthUseCaseImpl(supabaseAuthRepository)
+
+@Factory
+fun provideSignOutUseCase(
+    supabaseAuthRepository: SupabaseAuthRepository
+): SignOutUseCase = SignOutUseCaseImpl(supabaseAuthRepository)

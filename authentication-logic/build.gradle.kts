@@ -37,6 +37,11 @@ dependencies {
 
     implementation(libs.gson)
     api(libs.androidx.biometric)
+
+    implementation(platform(libs.bom))
+    implementation(libs.supabase.postgrest.kt)
+    implementation(libs.supabase.auth.kt)
+    implementation(libs.supabase.realtime.kt)
 }
 
 excludeFromKoverReport(

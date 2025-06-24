@@ -30,6 +30,7 @@ import project.convention.logic.configureGradleManagedDevices
 import project.convention.logic.configureKotlinAndroid
 import project.convention.logic.configurePrintApksTask
 import project.convention.logic.disableUnnecessaryAndroidTests
+import project.convention.logic.getProperty
 import project.convention.logic.libs
 
 class AndroidLibraryConventionPlugin : Plugin<Project> {
@@ -85,6 +86,9 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
 
                     targetSdk = 34
 
+                    addConfigField("SUPABASE_URL", project.getProperty("SUPABASE_URL") ?: "")
+                    addConfigField("SUPABASE_ANON_KEY", project.getProperty("SUPABASE_ANON_KEY") ?: "")
+                    addConfigField("GOOGLE_AUTH_CLIENT_ID", project.getProperty("GOOGLE_AUTH_CLIENT_ID") ?: "")
                     addConfigField("DEEPLINK", "$walletScheme://")
                     addConfigField("EUDI_OPENID4VP_SCHEME", eudiOpenId4VpScheme)
                     addConfigField("MDOC_OPENID4VP_SCHEME", mdocOpenId4VpScheme)

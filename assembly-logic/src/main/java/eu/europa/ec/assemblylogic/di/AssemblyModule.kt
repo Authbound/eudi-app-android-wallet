@@ -18,7 +18,9 @@ package eu.europa.ec.assemblylogic.di
 
 import android.app.Application
 import eu.europa.ec.analyticslogic.di.LogicAnalyticsModule
+import eu.europa.ec.authenticationfeature.di.FeatureAuthenticationModule
 import eu.europa.ec.authenticationlogic.di.LogicAuthenticationModule
+import eu.europa.ec.authenticationlogic.di.supabaseModule
 import eu.europa.ec.businesslogic.di.LogicBusinessModule
 import eu.europa.ec.commonfeature.di.FeatureCommonModule
 import eu.europa.ec.corelogic.di.LogicCoreModule
@@ -49,13 +51,17 @@ private val assembledModules = listOf(
     LogicCoreModule().module,
     LogicStorageModule().module,
 
+    // Supabase
+    supabaseModule,
+
     // Feature Modules
     FeatureCommonModule().module,
     FeatureDashboardModule().module,
     FeatureStartupModule().module,
     FeaturePresentationModule().module,
     FeatureProximityModule().module,
-    FeatureIssuanceModule().module
+    FeatureIssuanceModule().module,
+    FeatureAuthenticationModule().module
 )
 
 internal fun Application.setupKoin(): KoinApplication {

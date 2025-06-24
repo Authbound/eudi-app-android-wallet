@@ -1,0 +1,156 @@
+/*
+ * Copyright (c) 2024 European Commission
+ *
+ * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
+ * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
+ * except in compliance with the Licence.
+ *
+ * You may obtain a copy of the Licence at:
+ * https://joinup.ec.europa.eu/software/page/eupl
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the Licence is distributed on an "AS IS" basis, WITHOUT WARRANTIES OR CONDITIONS OF
+ * ANY KIND, either express or implied. See the Licence for the specific language
+ * governing permissions and limitations under the Licence.
+ */
+package eu.europa.ec.authenticationfeature.ui
+
+import android.widget.Toast
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.dp
+import eu.europa.ec.authenticationlogic.model.OAuthProvider
+import eu.europa.ec.resourceslogic.R
+import eu.europa.ec.uilogic.component.content.ContentScreen
+import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
+import eu.europa.ec.uilogic.component.wrap.ButtonConfig
+import eu.europa.ec.uilogic.component.wrap.ButtonType
+import eu.europa.ec.uilogic.component.wrap.WrapButton
+import kotlinx.coroutines.flow.collectLatest
+import org.koin.androidx.compose.koinViewModel
+
+@Composable
+fun LoginScreen(
+    viewModel: AuthenticationViewModel,
+    onNavigateToHome: () -> Unit,
+) {
+    val state by viewModel.viewState.collectAsState()
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        viewModel.effect.collectLatest { effect ->
+            when (effect) {
+                is Effect.NavigateToHome -> onNavigateToHome()
+                is Effect.ShowError -> {
+                    Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    ContentScreen(
+        isLoading = state.isLoading,
+        navigatableAction = ScreenNavigateAction.NONE,
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            TextField(
+                value = state.email,
+                onValueChange = { viewModel.setEvent(Event.OnEmailChanged(it)) },
+                label = { Text(stringResource(id = R.string.email)) },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            TextField(
+                value = state.password,
+                onValueChange = { viewModel.setEvent(Event.OnPasswordChanged(it)) },
+                label = { Text(stringResource(id = R.string.password)) },
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            WrapButton(
+                modifier = Modifier.fillMaxWidth(),
+                buttonConfig = ButtonConfig(
+                    type = ButtonType.PRIMARY,
+                    onClick = { viewModel.setEvent(Event.SignInWithEmailAndPassword) },
+                )
+            ) {
+                Text(text = stringResource(id = R.string.sign_in))
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            WrapButton(
+                modifier = Modifier.fillMaxWidth(),
+                buttonConfig = ButtonConfig(
+                    type = ButtonType.SECONDARY,
+                    onClick = {
+                        viewModel.setEvent(
+                            Event.SignInWithOAuth(
+                                OAuthProvider.GOOGLE,
+                                context
+                            )
+                        )
+                    },
+                )
+            ) {
+                Text(text = stringResource(id = R.string.login_with_google))
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            WrapButton(
+                modifier = Modifier.fillMaxWidth(),
+                buttonConfig = ButtonConfig(
+                    type = ButtonType.SECONDARY,
+                    onClick = {
+                        viewModel.setEvent(
+                            Event.SignInWithOAuth(
+                                OAuthProvider.MICROSOFT,
+                                context
+                            )
+                        )
+                    },
+                )
+            ) {
+                Text(text = stringResource(id = R.string.login_with_microsoft))
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            WrapButton(
+                modifier = Modifier.fillMaxWidth(),
+                buttonConfig = ButtonConfig(
+                    type = ButtonType.SECONDARY,
+                    onClick = {
+                        viewModel.setEvent(
+                            Event.SignInWithOAuth(
+                                OAuthProvider.META,
+                                context
+                            )
+                        )
+                    },
+                )
+            ) {
+                Text(text = stringResource(id = R.string.login_with_meta))
+            }
+        }
+    }
+} 
