@@ -42,6 +42,8 @@ import eu.europa.ec.authenticationlogic.usecase.SignInWithOAuthUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignInWithOAuthUseCaseImpl
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCaseImpl
+import eu.europa.ec.authenticationlogic.usecase.SignUpWithEmailPasswordUseCase
+import eu.europa.ec.authenticationlogic.usecase.SignUpWithEmailPasswordUseCaseImpl
 import eu.europa.ec.businesslogic.controller.crypto.CryptoController
 import eu.europa.ec.businesslogic.controller.storage.PrefsController
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
@@ -113,6 +115,11 @@ fun provideObserveAuthStateUseCase(
 fun provideSignInWithEmailPasswordUseCase(
     supabaseAuthRepository: SupabaseAuthRepository
 ): SignInWithEmailPasswordUseCase = SignInWithEmailPasswordUseCaseImpl(supabaseAuthRepository)
+
+@Factory
+fun provideSignUpWithEmailPasswordUseCase(
+    supabaseAuthRepository: SupabaseAuthRepository
+): SignUpWithEmailPasswordUseCase = SignUpWithEmailPasswordUseCaseImpl(supabaseAuthRepository)
 
 @Factory
 fun provideSignInWithOAuthUseCase(

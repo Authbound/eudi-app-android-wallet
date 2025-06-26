@@ -11,7 +11,12 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
     implementation(project(":authentication-logic"))
+    implementation(project(":ui-logic"))
+    implementation(project(":resources-logic"))
     implementation(platform(libs.bom))
     implementation(libs.supabase.postgrest.kt)
     implementation(libs.supabase.auth.kt)

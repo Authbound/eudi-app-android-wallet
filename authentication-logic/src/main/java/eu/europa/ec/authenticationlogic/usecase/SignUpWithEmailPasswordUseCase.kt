@@ -15,18 +15,17 @@
  */
 package eu.europa.ec.authenticationlogic.usecase
 
-import android.content.Context
-import eu.europa.ec.authenticationlogic.model.OAuthProvider
+import eu.europa.ec.authenticationlogic.model.EmailPasswordRequest
 import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
 
-interface SignInWithOAuthUseCase {
-    suspend operator fun invoke(provider: OAuthProvider, context: Context)
+interface SignUpWithEmailPasswordUseCase {
+    suspend operator fun invoke(request: EmailPasswordRequest)
 }
 
-class SignInWithOAuthUseCaseImpl(
+class SignUpWithEmailPasswordUseCaseImpl(
     private val supabaseAuthRepository: SupabaseAuthRepository
-) : SignInWithOAuthUseCase {
-    override suspend fun invoke(provider: OAuthProvider, context: Context) {
-        supabaseAuthRepository.signInWithOAuth(provider, context)
+) : SignUpWithEmailPasswordUseCase {
+    override suspend fun invoke(request: EmailPasswordRequest) {
+        supabaseAuthRepository.signUpWithEmailPassword(request)
     }
-} 
+}

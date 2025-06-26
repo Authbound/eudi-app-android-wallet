@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -60,6 +61,10 @@ fun LoginScreen(
                 is Effect.ShowError -> {
                     Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
                 }
+
+                is Effect.ShowSuccess -> {
+                    Toast.makeText(context, effect.message, Toast.LENGTH_LONG).show()
+                }
             }
         }
     }
@@ -90,15 +95,32 @@ fun LoginScreen(
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth()
             )
+            if (state.isSignUpMode) {
+                Spacer(modifier = Modifier.height(8.dp))
+                TextField(
+                    value = state.confirmPassword,
+                    onValueChange = { viewModel.setEvent(Event.OnConfirmPasswordChanged(it)) },
+                    label = { Text(stringResource(id = R.string.confirm_password)) },
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = state.error != null
+                )
+            }
             Spacer(modifier = Modifier.height(16.dp))
             WrapButton(
                 modifier = Modifier.fillMaxWidth(),
                 buttonConfig = ButtonConfig(
                     type = ButtonType.PRIMARY,
-                    onClick = { viewModel.setEvent(Event.SignInWithEmailAndPassword) },
+                    onClick = {
+                        if (state.isSignUpMode) {
+                            viewModel.setEvent(Event.SignUpWithEmailAndPassword)
+                        } else {
+                            viewModel.setEvent(Event.SignInWithEmailAndPassword)
+                        }
+                    },
                 )
             ) {
-                Text(text = stringResource(id = R.string.sign_in))
+                Text(text = stringResource(id = if (state.isSignUpMode) R.string.sign_up else R.string.sign_in))
             }
             Spacer(modifier = Modifier.height(16.dp))
             WrapButton(
@@ -150,6 +172,14 @@ fun LoginScreen(
                 )
             ) {
                 Text(text = stringResource(id = R.string.login_with_meta))
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            TextButton(onClick = { viewModel.setEvent(Event.ToggleMode) }) {
+                Text(
+                    text = stringResource(
+                        id = if (state.isSignUpMode) R.string.already_have_account else R.string.dont_have_account
+                    )
+                )
             }
         }
     }

@@ -22,6 +22,7 @@ import eu.europa.ec.authenticationlogic.model.OAuthProvider
 import eu.europa.ec.authenticationlogic.usecase.ObserveAuthStateUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignInWithEmailPasswordUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignInWithOAuthUseCase
+import eu.europa.ec.authenticationlogic.usecase.SignUpWithEmailPasswordUseCase
 import eu.europa.ec.uilogic.mvi.MviViewModel
 import eu.europa.ec.uilogic.mvi.ViewEvent
 import eu.europa.ec.uilogic.mvi.ViewSideEffect
@@ -29,11 +30,14 @@ import eu.europa.ec.uilogic.mvi.ViewState
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
+import io.github.jan.supabase.auth.status.SessionStatus
 import org.koin.android.annotation.KoinViewModel
 
 data class State(
     val email: String = "",
     val password: String = "",
+    val confirmPassword: String = "",
+    val isSignUpMode: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null,
 ) : ViewState
@@ -41,18 +45,23 @@ data class State(
 sealed class Event : ViewEvent {
     data class OnEmailChanged(val email: String) : Event()
     data class OnPasswordChanged(val password: String) : Event()
+    data class OnConfirmPasswordChanged(val password: String) : Event()
+    data object ToggleMode : Event()
     data object SignInWithEmailAndPassword : Event()
+    data object SignUpWithEmailAndPassword : Event()
     data class SignInWithOAuth(val provider: OAuthProvider, val context: Context) : Event()
 }
 
 sealed class Effect : ViewSideEffect {
     data object NavigateToHome : Effect()
     data class ShowError(val message: String) : Effect()
+    data class ShowSuccess(val message: String) : Effect()
 }
 
 @KoinViewModel
 class AuthenticationViewModel(
     private val signInWithEmailPasswordUseCase: SignInWithEmailPasswordUseCase,
+    private val signUpWithEmailPasswordUseCase: SignUpWithEmailPasswordUseCase,
     private val signInWithOAuthUseCase: SignInWithOAuthUseCase,
     private val observeAuthStateUseCase: ObserveAuthStateUseCase
 ) : MviViewModel<Event, State, Effect>() {
@@ -65,7 +74,10 @@ class AuthenticationViewModel(
         when (event) {
             is Event.OnEmailChanged -> setState { copy(email = event.email) }
             is Event.OnPasswordChanged -> setState { copy(password = event.password) }
+            is Event.OnConfirmPasswordChanged -> setState { copy(confirmPassword = event.password) }
+            is Event.ToggleMode -> setState { copy(isSignUpMode = !viewState.value.isSignUpMode, error = null) }
             is Event.SignInWithEmailAndPassword -> signInWithEmailPassword()
+            is Event.SignUpWithEmailAndPassword -> signUpWithEmailPassword()
             is Event.SignInWithOAuth -> signInWithOAuth(event.provider, event.context)
         }
     }
@@ -76,6 +88,35 @@ class AuthenticationViewModel(
                 setState { copy(isLoading = true, error = null) }
                 val request = EmailPasswordRequest(viewState.value.email, viewState.value.password)
                 signInWithEmailPasswordUseCase(request)
+            } catch (e: Exception) {
+                setState { copy(isLoading = false, error = e.message) }
+                setEffect { Effect.ShowError(e.message ?: "An unknown error occurred") }
+            }
+        }
+    }
+
+    private fun signUpWithEmailPassword() {
+        if (viewState.value.password != viewState.value.confirmPassword) {
+            val message = "Passwords do not match"
+            setState { copy(error = message) }
+            setEffect { Effect.ShowError(message) }
+            return
+        }
+        viewModelScope.launch {
+            try {
+                setState { copy(isLoading = true, error = null) }
+                val request = EmailPasswordRequest(viewState.value.email, viewState.value.password)
+                signUpWithEmailPasswordUseCase(request)
+                setEffect { Effect.ShowSuccess("Confirmation email sent. Please verify your email.") }
+                setState {
+                    copy(
+                        isLoading = false,
+                        isSignUpMode = false,
+                        email = "",
+                        password = "",
+                        confirmPassword = ""
+                    )
+                }
             } catch (e: Exception) {
                 setState { copy(isLoading = false, error = e.message) }
                 setEffect { Effect.ShowError(e.message ?: "An unknown error occurred") }

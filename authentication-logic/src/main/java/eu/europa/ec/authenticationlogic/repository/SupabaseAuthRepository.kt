@@ -25,6 +25,7 @@ interface SupabaseAuthRepository {
     suspend fun isUserAuthenticated(): Boolean
     fun observeAuthState(): Flow<SessionStatus>
     suspend fun signInWithEmailPassword(request: EmailPasswordRequest)
+    suspend fun signUpWithEmailPassword(request: EmailPasswordRequest)
     suspend fun signInWithOAuth(provider: OAuthProvider, context: Context)
     suspend fun signOut()
 }

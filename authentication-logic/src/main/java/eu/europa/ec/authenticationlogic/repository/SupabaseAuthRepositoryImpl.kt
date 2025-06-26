@@ -48,6 +48,13 @@ class SupabaseAuthRepositoryImpl(
         }
     }
 
+    override suspend fun signUpWithEmailPassword(request: EmailPasswordRequest) {
+        supabaseClient.auth.signUpWith(Email) {
+            email = request.email
+            password = request.password
+        }
+    }
+
     override suspend fun signInWithOAuth(provider: OAuthProvider, context: Context) {
         val supabaseProvider = when (provider) {
             OAuthProvider.GOOGLE -> Google
