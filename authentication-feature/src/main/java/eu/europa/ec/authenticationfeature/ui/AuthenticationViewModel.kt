@@ -50,12 +50,13 @@ sealed class Event : ViewEvent {
     data object SignInWithEmailAndPassword : Event()
     data object SignUpWithEmailAndPassword : Event()
     data class SignInWithOAuth(val provider: OAuthProvider, val context: Context) : Event()
+    data object DismissLoading : Event()
 }
 
 sealed class Effect : ViewSideEffect {
     data object NavigateToHome : Effect()
     data class ShowError(val message: String) : Effect()
-    data class ShowSuccess(val message: String) : Effect()
+    data class ShowInfo(val message: String) : Effect()
 }
 
 @KoinViewModel
@@ -75,10 +76,16 @@ class AuthenticationViewModel(
             is Event.OnEmailChanged -> setState { copy(email = event.email) }
             is Event.OnPasswordChanged -> setState { copy(password = event.password) }
             is Event.OnConfirmPasswordChanged -> setState { copy(confirmPassword = event.password) }
-            is Event.ToggleMode -> setState { copy(isSignUpMode = !viewState.value.isSignUpMode, error = null) }
+            is Event.ToggleMode -> setState {
+                copy(
+                    isSignUpMode = !viewState.value.isSignUpMode,
+                    error = null
+                )
+            }
             is Event.SignInWithEmailAndPassword -> signInWithEmailPassword()
             is Event.SignUpWithEmailAndPassword -> signUpWithEmailPassword()
             is Event.SignInWithOAuth -> signInWithOAuth(event.provider, event.context)
+            is Event.DismissLoading -> setState { copy(isLoading = false) }
         }
     }
 
@@ -107,7 +114,7 @@ class AuthenticationViewModel(
                 setState { copy(isLoading = true, error = null) }
                 val request = EmailPasswordRequest(viewState.value.email, viewState.value.password)
                 signUpWithEmailPasswordUseCase(request)
-                setEffect { Effect.ShowSuccess("Confirmation email sent. Please verify your email.") }
+                setEffect { Effect.ShowInfo("Confirmation email sent. Please verify your email.") }
                 setState {
                     copy(
                         isLoading = false,
@@ -145,9 +152,47 @@ class AuthenticationViewModel(
                     setEffect { Effect.ShowError(it.message ?: "An unknown error occurred") }
                 }
                 .collect { status ->
-                    setState { copy(isLoading = false) }
-                    if (status is SessionStatus.Authenticated) {
-                        setEffect { Effect.NavigateToHome }
+                    when (status) {
+                        is SessionStatus.Authenticated -> {
+                            val user = status.session.user
+
+                            if (user === null) {
+
+                                setState { copy(isLoading = false) }
+                                setEffect { Effect.ShowError("User is null") }
+                                return@collect
+                            }
+
+                            val isEmailOnlyProvider =
+                                user.identities?.size == 1 && user.identities?.first()?.provider == "email"
+
+
+                            if (isEmailOnlyProvider && user.emailConfirmedAt == null) {
+                                setState { copy(isLoading = false) }
+                                setEffect { Effect.ShowInfo("Please verify your email to continue.") }
+                                if (viewState.value.isSignUpMode) {
+                                    setState {
+                                        copy(
+                                            isSignUpMode = false,
+                                            email = "",
+                                            password = "",
+                                            confirmPassword = ""
+                                        )
+                                    }
+                                }
+                            } else {
+                                setState { copy(isLoading = false) }
+                                setEffect { Effect.NavigateToHome }
+                            }
+                        }
+
+                        is SessionStatus.NotAuthenticated -> {
+                            setState { copy(isLoading = false) }
+                        }
+
+                        else -> {
+                            // No-op for Loading and Initial, as onStart handles the initial loading state.
+                        }
                     }
                 }
         }

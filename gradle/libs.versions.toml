@@ -66,10 +66,15 @@ baselineprofile = "1.3.4"
 timber = "5.0.1"
 treessence = "1.1.2"
 rqesUiSDK = "0.2.2"
-androidxRoom = "2.7.1"
+androidxRoom = "2.7.2"
+
 supabase-auth-kt = "3.1.4"
 supabase-realtime-kt = "3.1.4"
 supabase-postgrest-kt = "3.1.4"
+
+credentials="1.5.0"
+googleid="1.1.1"
+
 
 [libraries]
 accompanist-permissions = { group = "com.google.accompanist", name = "accompanist-permissions", version.ref = "accompanist" }
@@ -139,9 +144,17 @@ retrofit-core = { group = "com.squareup.retrofit2", name = "retrofit", version.r
 retrofit-gson = { group = "com.squareup.retrofit2", name = "converter-gson", version.ref = "retrofit" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 robolectric-shadows = { group = "org.robolectric", name = "shadows-framework", version.ref = "robolectric" }
+
+# Supabase
 supabase-auth-kt = { module = "io.github.jan-tennert.supabase:auth-kt" }
 supabase-postgrest-kt = { module = "io.github.jan-tennert.supabase:postgrest-kt" }
 supabase-realtime-kt = { module = "io.github.jan-tennert.supabase:realtime-kt" }
+
+# Google
+androidx-credentials = {module="androidx.credentials:credentials", version.ref="credentials"}
+androidx-credentials-play-services-auth = {module="androidx.credentials:credentials-play-services-auth", version.ref="credentials"}
+googleid = {module = "com.google.android.libraries.identity.googleid:googleid", version.ref="googleid"}
+
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 koin-android = { group = "io.insert-koin", name = "koin-android", version.ref = "koin" }
 koin-compose = { group = "io.insert-koin", name = "koin-androidx-compose", version.ref = "koin" }
