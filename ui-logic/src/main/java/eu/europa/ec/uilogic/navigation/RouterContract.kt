@@ -121,6 +121,7 @@ sealed class ModuleRoute(val route: String) : NavigatableItem {
     data object IssuanceModule : ModuleRoute("ISSUANCE_MODULE")
 }
 
-sealed class AuthenticationScreens(val screenRoute: String) {
+sealed class AuthenticationScreens(name: String, parameters: String = "") : Screen(name, parameters) {
     data object Login : AuthenticationScreens("login")
+    data object WalletSetup : AuthenticationScreens("wallet_setup")
 }

@@ -30,6 +30,8 @@ enum class LibraryModule(val path: String) {
     ResourcesLogic(":resources-logic"),
     StorageLogic(":storage-logic"),
     BaselineProfileLogic(":baseline-profile"),
+    WalletActivationLogic(":wallet-activation-logic"),
+    NotificationLogic(":notification-logic"),
     CommonFeature(":common-feature"),
     StartupFeature(":startup-feature"),
     DashboardFeature(":dashboard-feature"),

@@ -18,6 +18,7 @@ package eu.europa.ec.dashboardfeature.ui.settings
 
 import android.content.Intent
 import android.net.Uri
+import androidx.lifecycle.viewModelScope
 import eu.europa.ec.businesslogic.extension.toUri
 import eu.europa.ec.dashboardfeature.interactor.SettingsInteractor
 import eu.europa.ec.dashboardfeature.ui.settings.model.SettingsItemUi
@@ -28,7 +29,10 @@ import eu.europa.ec.uilogic.mvi.MviViewModel
 import eu.europa.ec.uilogic.mvi.ViewEvent
 import eu.europa.ec.uilogic.mvi.ViewSideEffect
 import eu.europa.ec.uilogic.mvi.ViewState
+import eu.europa.ec.uilogic.navigation.DashboardScreens
+import eu.europa.ec.uilogic.navigation.StartupScreens
 import org.koin.android.annotation.KoinViewModel
+import kotlinx.coroutines.launch
 
 data class State(
     val screenTitle: String,
@@ -37,16 +41,24 @@ data class State(
 
     val appVersion: String = "",
     val changelogUrl: String?,
+    val userEmail: String? = null
 ) : ViewState
 
 sealed class Event : ViewEvent {
     data object Pop : Event()
     data class ItemClicked(val itemType: SettingsMenuItemType) : Event()
+    data object Logout : Event()
 }
 
 sealed class Effect : ViewSideEffect {
     sealed class Navigation : Effect() {
         data object Pop : Navigation()
+
+        data class SwitchScreen(
+            val screenRoute: String,
+            val popUpToScreenRoute: String,
+            val inclusive: Boolean
+        ) : Navigation()
 
         data class OpenUrlExternally(val url: Uri) : Navigation()
     }
@@ -61,6 +73,7 @@ class SettingsViewModel(
 ) : MviViewModel<Event, State, Effect>() {
     override fun setInitialState(): State {
         val changelogUrl = settingsInteractor.getChangelogUrl()
+        loadUserSettings()
         return State(
             screenTitle = resourceProvider.getString(R.string.settings_screen_title),
             settingsItems = settingsInteractor.getSettingsItemsUi(changelogUrl = changelogUrl),
@@ -75,6 +88,29 @@ class SettingsViewModel(
             is Event.Pop -> setEffect { Effect.Navigation.Pop }
 
             is Event.ItemClicked -> handleSettingsMenuItemClicked(event.itemType)
+
+            is Event.Logout -> logout()
+        }
+    }
+
+    private fun loadUserSettings() {
+        viewModelScope.launch {
+            settingsInteractor.getUserEmail().collect { email ->
+                setState { copy(userEmail = email) }
+            }
+        }
+    }
+
+    private fun logout() {
+        viewModelScope.launch {
+            settingsInteractor.logout()
+            setEffect {
+                Effect.Navigation.SwitchScreen(
+                    screenRoute = StartupScreens.Splash.screenRoute,
+                    popUpToScreenRoute = DashboardScreens.Dashboard.screenRoute,
+                    inclusive = true
+                )
+            }
         }
     }
 

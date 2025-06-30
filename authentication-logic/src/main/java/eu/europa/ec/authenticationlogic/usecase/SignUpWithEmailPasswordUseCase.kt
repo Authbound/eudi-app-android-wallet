@@ -29,3 +29,4 @@ class SignUpWithEmailPasswordUseCaseImpl(
         supabaseAuthRepository.signUpWithEmailPassword(request)
     }
 }
+ 

@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -34,21 +35,26 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.navigation.compose.rememberNavController
 import eu.europa.ec.authenticationlogic.model.OAuthProvider
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.uilogic.component.content.ContentScreen
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
+import eu.europa.ec.uilogic.component.preview.PreviewTheme
+import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
 import eu.europa.ec.uilogic.component.wrap.ButtonConfig
 import eu.europa.ec.uilogic.component.wrap.ButtonType
 import eu.europa.ec.uilogic.component.wrap.WrapButton
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.androidx.compose.koinViewModel
+import eu.europa.ec.uilogic.navigation.DashboardScreens
+import eu.europa.ec.uilogic.navigation.StartupScreens
 
 @Composable
 fun LoginScreen(
@@ -89,9 +95,23 @@ fun LoginScreen(
     }
 
     ContentScreen(
-        isLoading = state.isLoading,
+        isLoading = state.isLoading || state.isActivating,
         navigatableAction = ScreenNavigateAction.NONE,
     ) { paddingValues ->
+        if (state.isActivating) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "Securing wallet...",
+                    style = MaterialTheme.typography.titleLarge
+                )
+            }
+        } else {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -114,32 +134,32 @@ fun LoginScreen(
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth()
             )
-            if (state.isSignUpMode) {
-                Spacer(modifier = Modifier.height(8.dp))
-                TextField(
-                    value = state.confirmPassword,
-                    onValueChange = { viewModel.setEvent(Event.OnConfirmPasswordChanged(it)) },
-                    label = { Text(stringResource(id = R.string.confirm_password)) },
-                    visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth(),
-                    isError = state.error != null
-                )
-            }
+                if (state.isSignUpMode) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextField(
+                        value = state.confirmPassword,
+                        onValueChange = { viewModel.setEvent(Event.OnConfirmPasswordChanged(it)) },
+                        label = { Text(stringResource(id = R.string.confirm_password)) },
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth(),
+                        isError = state.error != null
+                    )
+                }
             Spacer(modifier = Modifier.height(16.dp))
             WrapButton(
                 modifier = Modifier.fillMaxWidth(),
                 buttonConfig = ButtonConfig(
                     type = ButtonType.PRIMARY,
-                    onClick = {
-                        if (state.isSignUpMode) {
-                            viewModel.setEvent(Event.SignUpWithEmailAndPassword)
-                        } else {
-                            viewModel.setEvent(Event.SignInWithEmailAndPassword)
-                        }
-                    },
+                        onClick = {
+                            if (state.isSignUpMode) {
+                                viewModel.setEvent(Event.SignUpWithEmailAndPassword)
+                            } else {
+                                viewModel.setEvent(Event.SignInWithEmailAndPassword)
+                            }
+                        },
                 )
             ) {
-                Text(text = stringResource(id = if (state.isSignUpMode) R.string.sign_up else R.string.sign_in))
+                    Text(text = stringResource(id = if (state.isSignUpMode) R.string.sign_up else R.string.sign_in))
             }
             Spacer(modifier = Modifier.height(16.dp))
             WrapButton(
@@ -192,14 +212,24 @@ fun LoginScreen(
             ) {
                 Text(text = stringResource(id = R.string.login_with_meta))
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            TextButton(onClick = { viewModel.setEvent(Event.ToggleMode) }) {
-                Text(
-                    text = stringResource(
-                        id = if (state.isSignUpMode) R.string.already_have_account else R.string.dont_have_account
+                Spacer(modifier = Modifier.height(8.dp))
+                TextButton(onClick = { viewModel.setEvent(Event.ToggleMode) }) {
+                    Text(
+                        text = stringResource(
+                            id = if (state.isSignUpMode) R.string.already_have_account else R.string.dont_have_account
+                        )
                     )
-                )
+                }
             }
         }
+    }
+}
+
+
+@ThemeModePreviews
+@Composable
+private fun LoginScreenPreview() {
+    PreviewTheme {
+        LoginScreen(viewModel = koinViewModel(), onNavigateToHome = {})
     }
 } 

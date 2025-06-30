@@ -26,7 +26,7 @@ import timber.log.Timber
 import java.io.File
 
 interface LogController {
-    fun d(tag: String, message: () -> String)
+    fun d(tag: String, message: String)
     fun d(message: () -> String)
     fun e(tag: String, message: () -> String)
     fun e(tag: String, exception: Throwable)
@@ -67,12 +67,12 @@ class LogControllerImpl(
 
     private val tag: String = "EUDI Wallet ${configLogic.appFlavor}-${configLogic.appBuildType}"
 
-    override fun d(tag: String, message: () -> String) {
-        Timber.tag(tag).d(message())
+    override fun d(tag: String, message: String) {
+        Timber.tag(tag).d(message)
     }
 
     override fun d(message: () -> String) {
-        d(tag = tag, message = message)
+        d(tag = tag, message = message())
     }
 
     override fun e(tag: String, message: () -> String) {

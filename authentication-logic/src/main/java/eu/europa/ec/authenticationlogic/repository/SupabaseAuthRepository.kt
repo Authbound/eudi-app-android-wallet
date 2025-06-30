@@ -19,10 +19,13 @@ import android.content.Context
 import eu.europa.ec.authenticationlogic.model.EmailPasswordRequest
 import eu.europa.ec.authenticationlogic.model.OAuthProvider
 import io.github.jan.supabase.auth.status.SessionStatus
+import io.github.jan.supabase.auth.user.UserInfo
+
 import kotlinx.coroutines.flow.Flow
 
 interface SupabaseAuthRepository {
     suspend fun isUserAuthenticated(): Boolean
+    suspend fun getCurrentUser(): UserInfo?
     fun observeAuthState(): Flow<SessionStatus>
     suspend fun signInWithEmailPassword(request: EmailPasswordRequest)
     suspend fun signUpWithEmailPassword(request: EmailPasswordRequest)

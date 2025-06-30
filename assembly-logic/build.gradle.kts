@@ -31,6 +31,8 @@ import project.convention.logic.config.LibraryModule.StartupFeature
 import project.convention.logic.config.LibraryModule.StorageLogic
 import project.convention.logic.config.LibraryModule.UiLogic
 import project.convention.logic.config.LibraryModule.AuthenticationFeature
+import project.convention.logic.config.LibraryModule.WalletActivationLogic
+import project.convention.logic.config.LibraryModule.NotificationLogic
 import project.convention.logic.kover.KoverExclusionRules
 import project.convention.logic.kover.excludeFromKoverReport
 import project.convention.logic.kover.koverModules
@@ -46,7 +48,7 @@ android {
 
     defaultConfig {
         // App name
-        manifestPlaceholders["appName"] = "EUDI Wallet"
+        manifestPlaceholders["appName"] = "Authbound Identity Wallet"
     }
 }
 
@@ -65,6 +67,8 @@ dependencies {
     api(project(AuthenticationLogic.path))
     api(project(CoreLogic.path))
     api(project(StorageLogic.path))
+    api(project(WalletActivationLogic.path))
+    api(project(NotificationLogic.path))
 
     // Feature Modules
     api(project(CommonFeature.path))
@@ -74,6 +78,7 @@ dependencies {
     api(project(ProximityFeature.path))
     api(project(IssuanceFeature.path))
     api(project(AuthenticationFeature.path))
+
 
     // Modules Kover Report
     koverModules.forEach {

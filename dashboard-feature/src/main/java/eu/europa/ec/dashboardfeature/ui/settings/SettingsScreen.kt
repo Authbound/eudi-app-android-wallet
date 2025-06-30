@@ -52,9 +52,14 @@ import eu.europa.ec.uilogic.component.content.ContentTitle
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
+import eu.europa.ec.uilogic.component.utils.SPACING_LARGE
 import eu.europa.ec.uilogic.component.utils.SPACING_MEDIUM
 import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
+import eu.europa.ec.uilogic.component.utils.VSpacer
+import eu.europa.ec.uilogic.component.wrap.ButtonConfig
+import eu.europa.ec.uilogic.component.wrap.ButtonType
 import eu.europa.ec.uilogic.component.wrap.SwitchDataUi
+import eu.europa.ec.uilogic.component.wrap.WrapButton
 import eu.europa.ec.uilogic.component.wrap.WrapListItem
 import eu.europa.ec.uilogic.extension.openIntentChooser
 import eu.europa.ec.uilogic.extension.openUrl
@@ -96,8 +101,14 @@ private fun handleNavigationEffect(
 ) {
     when (navigationEffect) {
         is Effect.Navigation.Pop -> navController.popBackStack()
-
         is Effect.Navigation.OpenUrlExternally -> context.openUrl(uri = navigationEffect.url)
+        is Effect.Navigation.SwitchScreen -> {
+            navController.navigate(navigationEffect.screenRoute) {
+                popUpTo(navigationEffect.popUpToScreenRoute) {
+                    inclusive = navigationEffect.inclusive
+                }
+            }
+        }
     }
 }
 
@@ -115,19 +126,46 @@ private fun Content(
             .fillMaxSize()
             .padding(paddingValues)
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+        ) {
             ContentTitle(
                 modifier = Modifier.fillMaxWidth(),
                 title = state.screenTitle,
             )
 
+            state.userEmail?.let { email ->
+                VSpacer.Medium()
+                Text(
+                    modifier = Modifier.fillMaxWidth(),
+                    text = email,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center
+                )
+                VSpacer.Medium()
+            }
+
             SettingsItems(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
+                    .fillMaxWidth(),
                 items = state.settingsItems,
                 onEventSent = onEventSend,
             )
+        }
+
+        WrapButton(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(SPACING_MEDIUM.dp),
+            buttonConfig = ButtonConfig(
+                type = ButtonType.SECONDARY,
+                onClick = { onEventSend(Event.Logout) }
+            )
+        ) {
+            Text(text = "Logout")
         }
 
         Text(
@@ -201,7 +239,7 @@ private fun SettingsScreenPreview() {
             SettingsItemUi(
                 type = SettingsMenuItemType.SHOW_BATCH_ISSUANCE_COUNTER,
                 data = ListItemDataUi(
-                    itemId = stringResource(R.string.settings_screen_option_show_batch_issuance_counter_id),
+                    itemId = "show_batch_issuance_counter",
                     mainContentData = ListItemMainContentDataUi.Text(
                         text = stringResource(R.string.settings_screen_option_show_batch_issuance_counter)
                     ),
@@ -216,7 +254,7 @@ private fun SettingsScreenPreview() {
             SettingsItemUi(
                 type = SettingsMenuItemType.RETRIEVE_LOGS,
                 data = ListItemDataUi(
-                    itemId = stringResource(R.string.settings_screen_option_retrieve_logs_id),
+                    itemId = "retrieve_logs",
                     mainContentData = ListItemMainContentDataUi.Text(
                         text = stringResource(R.string.settings_screen_option_retrieve_logs)
                     ),
@@ -235,7 +273,8 @@ private fun SettingsScreenPreview() {
                 screenTitle = stringResource(R.string.settings_screen_title),
                 settingsItems = settingsItems,
                 appVersion = "1.0.0",
-                changelogUrl = ""
+                changelogUrl = "",
+                userEmail = "john.doe@example.com"
             ),
             effectFlow = emptyFlow(),
             onEventSend = {},

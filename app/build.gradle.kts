@@ -21,6 +21,7 @@ import project.convention.logic.getProperty
 plugins {
     id("project.android.application")
     id("project.android.application.compose")
+    id("com.google.gms.google-services")
 }
 
 android {

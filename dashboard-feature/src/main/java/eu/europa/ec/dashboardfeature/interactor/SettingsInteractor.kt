@@ -30,6 +30,10 @@ import eu.europa.ec.uilogic.component.ListItemLeadingContentDataUi
 import eu.europa.ec.uilogic.component.ListItemMainContentDataUi
 import eu.europa.ec.uilogic.component.ListItemTrailingContentDataUi
 import eu.europa.ec.uilogic.component.wrap.SwitchDataUi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
+import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 
 interface SettingsInteractor {
     fun getAppVersion(): String
@@ -38,6 +42,8 @@ interface SettingsInteractor {
     fun getSettingsItemsUi(changelogUrl: String?): List<SettingsItemUi>
     fun getShowBatchIssuanceCounter(): Boolean
     fun toggleShowBatchIssuanceCounter()
+    fun getUserEmail(): Flow<String?>
+    suspend fun logout()
 }
 
 class SettingsInteractorImpl(
@@ -45,6 +51,8 @@ class SettingsInteractorImpl(
     private val logController: LogController,
     private val resourceProvider: ResourceProvider,
     private val prefKeys: PrefKeys,
+    private val getCurrentUserUseCase: GetCurrentUserUseCase,
+    private val signOutUseCase: SignOutUseCase
 ) : SettingsInteractor {
 
     override fun getAppVersion(): String = configLogic.appVersion
@@ -127,5 +135,14 @@ class SettingsInteractorImpl(
 
     private fun getCurrentShowBatchIssuanceCounter(): Boolean {
         return prefKeys.getShowBatchIssuanceCounter()
+    }
+
+    override fun getUserEmail(): Flow<String?> = flow {
+        val user = getCurrentUserUseCase()
+        emit(user?.email)
+    }
+
+    override suspend fun logout() {
+        signOutUseCase()
     }
 }

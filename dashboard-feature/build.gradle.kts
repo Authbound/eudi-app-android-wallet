@@ -31,6 +31,15 @@ moduleConfig {
     module = LibraryModule.DashboardFeature
 }
 
+dependencies {
+
+    implementation(platform(libs.bom))
+    implementation(libs.supabase.postgrest.kt)
+    implementation(libs.supabase.auth.kt)
+    implementation(libs.supabase.realtime.kt)
+}
+
+
 excludeFromKoverReport(
     excludedClasses = KoverExclusionRules.DashboardFeature.classes,
     excludedPackages = KoverExclusionRules.DashboardFeature.packages,

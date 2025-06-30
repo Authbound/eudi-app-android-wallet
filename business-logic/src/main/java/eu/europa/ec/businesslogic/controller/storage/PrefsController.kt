@@ -312,6 +312,9 @@ interface PrefKeys {
 
     fun getShowBatchIssuanceCounter(): Boolean
     fun setShowBatchIssuanceCounter(value: Boolean)
+
+    fun isWalletActivated(): Boolean
+    fun setWalletActivated(isActivated: Boolean)
 }
 
 class PrefKeysImpl(
@@ -351,5 +354,11 @@ class PrefKeysImpl(
      */
     override fun setShowBatchIssuanceCounter(value: Boolean) {
         prefsController.setBool("ShowBatchIssuanceCounter", value)
+    }
+
+    override fun isWalletActivated(): Boolean = prefsController.getBool("is_wallet_activated", false)
+
+    override fun setWalletActivated(isActivated: Boolean) {
+        prefsController.setBool("is_wallet_activated", isActivated)
     }
 }

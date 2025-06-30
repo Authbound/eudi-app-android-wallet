@@ -32,6 +32,14 @@ moduleConfig {
 
 dependencies {
     implementation(project(LibraryModule.BusinessLogic.path))
+    implementation(project(LibraryModule.ResourcesLogic.path))
+
+    implementation(platform(libs.bom))
+    implementation(libs.ktor.logging)
+    implementation(libs.ktor.android)
+
+    implementation(libs.supabase.postgrest.kt)
+    implementation(libs.supabase.auth.kt)
 
     api(libs.retrofit.core)
     implementation(libs.retrofit.gson)

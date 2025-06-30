@@ -17,6 +17,7 @@
 package eu.europa.ec.startupfeature.interactor
 
 import eu.europa.ec.authenticationlogic.usecase.IsUserAuthenticatedUseCase
+import eu.europa.ec.businesslogic.controller.storage.PrefKeys
 import eu.europa.ec.commonfeature.config.BiometricMode
 import eu.europa.ec.commonfeature.config.BiometricUiConfig
 import eu.europa.ec.commonfeature.config.IssuanceFlowUiConfig
@@ -45,25 +46,28 @@ class SplashInteractorImpl(
     private val uiSerializer: UiSerializer,
     private val resourceProvider: ResourceProvider,
     private val walletCoreDocumentsController: WalletCoreDocumentsController,
-    private val isUserAuthenticatedUseCase: IsUserAuthenticatedUseCase
+    private val isUserAuthenticatedUseCase: IsUserAuthenticatedUseCase,
+    private val prefKeys: PrefKeys,
 ) : SplashInteractor {
 
     private val hasDocuments: Boolean
         get() = walletCoreDocumentsController.getAllDocuments().isNotEmpty()
 
     override suspend fun getAfterSplashRoute(): String =
-        if (isUserAuthenticatedUseCase()) {
-            when (quickPinInteractor.hasPin()) {
-                true -> {
+        when {
+            isUserAuthenticatedUseCase() && prefKeys.isWalletActivated() -> {
+                if (walletCoreDocumentsController.getAllDocuments().isNotEmpty()) {
                     getBiometricsConfig()
-                }
-
-                false -> {
+                } else {
                     getQuickPinConfig()
                 }
             }
-        } else {
-            AuthenticationScreens.Login.screenRoute
+
+            isUserAuthenticatedUseCase() && !prefKeys.isWalletActivated() -> {
+                AuthenticationScreens.WalletSetup.screenRoute
+            }
+
+            else -> AuthenticationScreens.Login.screenRoute
         }
 
     private fun getQuickPinConfig(): String {

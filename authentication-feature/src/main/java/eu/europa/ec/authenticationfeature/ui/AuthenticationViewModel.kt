@@ -23,14 +23,19 @@ import eu.europa.ec.authenticationlogic.usecase.ObserveAuthStateUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignInWithEmailPasswordUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignInWithOAuthUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignUpWithEmailPasswordUseCase
+import eu.europa.ec.businesslogic.controller.device.DeviceController
+import eu.europa.ec.businesslogic.controller.log.LogController
+import eu.europa.ec.businesslogic.controller.storage.PrefKeys
+import eu.europa.ec.notificationlogic.controller.PushNotificationController
 import eu.europa.ec.uilogic.mvi.MviViewModel
 import eu.europa.ec.uilogic.mvi.ViewEvent
 import eu.europa.ec.uilogic.mvi.ViewSideEffect
 import eu.europa.ec.uilogic.mvi.ViewState
+import eu.europa.ec.walletactivationlogic.usecase.CreateWalletAttestationUseCase
+import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
-import io.github.jan.supabase.auth.status.SessionStatus
 import org.koin.android.annotation.KoinViewModel
 
 data class State(
@@ -39,6 +44,8 @@ data class State(
     val confirmPassword: String = "",
     val isSignUpMode: Boolean = false,
     val isLoading: Boolean = false,
+    val isActivating: Boolean = false,
+    val isWalletActivated: Boolean = false,
     val error: String? = null,
 ) : ViewState
 
@@ -51,6 +58,7 @@ sealed class Event : ViewEvent {
     data object SignUpWithEmailAndPassword : Event()
     data class SignInWithOAuth(val provider: OAuthProvider, val context: Context) : Event()
     data object DismissLoading : Event()
+    data object ActivateWallet : Event()
 }
 
 sealed class Effect : ViewSideEffect {
@@ -64,7 +72,12 @@ class AuthenticationViewModel(
     private val signInWithEmailPasswordUseCase: SignInWithEmailPasswordUseCase,
     private val signUpWithEmailPasswordUseCase: SignUpWithEmailPasswordUseCase,
     private val signInWithOAuthUseCase: SignInWithOAuthUseCase,
-    private val observeAuthStateUseCase: ObserveAuthStateUseCase
+    private val observeAuthStateUseCase: ObserveAuthStateUseCase,
+    private val createWalletAttestationUseCase: CreateWalletAttestationUseCase,
+    private val deviceController: DeviceController,
+    private val pushNotificationController: PushNotificationController,
+    private val prefKeys: PrefKeys,
+    private val logController: LogController
 ) : MviViewModel<Event, State, Effect>() {
     override fun setInitialState(): State {
         observeAuthState()
@@ -86,6 +99,7 @@ class AuthenticationViewModel(
             is Event.SignUpWithEmailAndPassword -> signUpWithEmailPassword()
             is Event.SignInWithOAuth -> signInWithOAuth(event.provider, event.context)
             is Event.DismissLoading -> setState { copy(isLoading = false) }
+            is Event.ActivateWallet -> activateWallet()
         }
     }
 
@@ -143,6 +157,27 @@ class AuthenticationViewModel(
         }
     }
 
+    private fun activateWallet() {
+        viewModelScope.launch {
+            setState { copy(isActivating = true, isLoading = false) }
+            try {
+                val pushToken =
+                    pushNotificationController.registerForPushNotifications().getOrThrow()
+                val deviceInfo = deviceController.getDeviceInfo().toString()
+
+                logController.d("WalletActivation", "Push Token: $pushToken")
+                logController.d("WalletActivation", "Device Info: $deviceInfo")
+
+                createWalletAttestationUseCase(deviceInfo, pushToken).getOrThrow()
+                setState { copy(isActivating = false, isWalletActivated = true) }
+                setEffect { Effect.NavigateToHome }
+            } catch (e: Exception) {
+                setState { copy(isActivating = false, error = e.message) }
+                setEffect { Effect.ShowError(e.message ?: "An unknown error occurred") }
+            }
+        }
+    }
+
     private fun observeAuthState() {
         viewModelScope.launch {
             observeAuthStateUseCase()
@@ -157,7 +192,6 @@ class AuthenticationViewModel(
                             val user = status.session.user
 
                             if (user === null) {
-
                                 setState { copy(isLoading = false) }
                                 setEffect { Effect.ShowError("User is null") }
                                 return@collect
@@ -165,7 +199,6 @@ class AuthenticationViewModel(
 
                             val isEmailOnlyProvider =
                                 user.identities?.size == 1 && user.identities?.first()?.provider == "email"
-
 
                             if (isEmailOnlyProvider && user.emailConfirmedAt == null) {
                                 setState { copy(isLoading = false) }
@@ -181,8 +214,11 @@ class AuthenticationViewModel(
                                     }
                                 }
                             } else {
-                                setState { copy(isLoading = false) }
-                                setEffect { Effect.NavigateToHome }
+                                if (prefKeys.isWalletActivated()) {
+                                    setEffect { Effect.NavigateToHome }
+                                } else {
+                                    setEvent(Event.ActivateWallet)
+                                }
                             }
                         }
 

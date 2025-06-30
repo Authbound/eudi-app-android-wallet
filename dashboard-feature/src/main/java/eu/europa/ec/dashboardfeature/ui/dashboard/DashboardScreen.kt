@@ -52,6 +52,7 @@ import eu.europa.ec.dashboardfeature.ui.documents.list.DocumentsViewModel
 import eu.europa.ec.dashboardfeature.ui.home.HomeScreen
 import eu.europa.ec.dashboardfeature.ui.home.HomeViewModel
 import eu.europa.ec.dashboardfeature.ui.settings.SettingsScreen
+import eu.europa.ec.dashboardfeature.ui.settings.SettingsViewModel
 
 import eu.europa.ec.dashboardfeature.ui.transactions.list.TransactionsScreen
 import eu.europa.ec.dashboardfeature.ui.transactions.list.TransactionsViewModel
@@ -81,6 +82,7 @@ internal fun DashboardScreen(
     documentsViewModel: DocumentsViewModel,
     homeViewModel: HomeViewModel,
     transactionsViewModel: TransactionsViewModel,
+    settingsViewModel: SettingsViewModel
 ) {
     val context = LocalContext.current
 
@@ -128,6 +130,12 @@ internal fun DashboardScreen(
                     onDashboardEventSent = { event ->
                         viewModel.setEvent(event)
                     }
+                )
+            }
+            composable(BottomNavigationItem.Settings.route) {
+                SettingsScreen(
+                    navController = hostNavController,
+                    viewModel = settingsViewModel,
                 )
             }
         }

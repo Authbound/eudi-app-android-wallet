@@ -21,12 +21,16 @@ import android.security.keystore.KeyProperties
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeys
 import eu.europa.ec.businesslogic.provider.UuidProvider
+import java.security.KeyPairGenerator
 import java.security.KeyStore
+import java.security.cert.Certificate
+import java.security.spec.ECGenParameterSpec
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 
 interface KeystoreController {
     fun retrieveOrGenerateBiometricSecretKey(): SecretKey?
+    fun generateWuaKeyPair(): Array<Certificate>?
 }
 
 class KeystoreControllerImpl(
@@ -37,6 +41,7 @@ class KeystoreControllerImpl(
 
     companion object {
         private const val STORE_TYPE = "AndroidKeyStore"
+        private const val WUA_KEY_ALIAS = "wua_key_alias"
     }
 
     private var androidKeyStore: KeyStore? = null
@@ -72,6 +77,35 @@ class KeystoreControllerImpl(
             } else {
                 getBiometricSecretKey(it, alias)
             }
+        }
+    }
+
+    override fun generateWuaKeyPair(): Array<Certificate>? {
+        return androidKeyStore?.let {
+            if (!it.containsAlias(WUA_KEY_ALIAS)) {
+                val keyPairGenerator =
+                    KeyPairGenerator.getInstance(
+                        KeyProperties.KEY_ALGORITHM_EC,
+                        STORE_TYPE
+                    )
+
+                val parameterSpec = KeyGenParameterSpec.Builder(
+                    WUA_KEY_ALIAS,
+                    KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY
+                ).run {
+                    setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
+                    setDigests(
+                        KeyProperties.DIGEST_SHA256,
+                        KeyProperties.DIGEST_SHA512
+                    )
+                    setUserAuthenticationRequired(false)
+                    setAttestationChallenge("authbound".toByteArray())
+                    build()
+                }
+                keyPairGenerator.initialize(parameterSpec)
+                keyPairGenerator.generateKeyPair()
+            }
+            it.getCertificateChain(WUA_KEY_ALIAS)
         }
     }
 

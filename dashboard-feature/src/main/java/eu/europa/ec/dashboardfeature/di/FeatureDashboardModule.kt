@@ -21,6 +21,8 @@ import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeys
 import eu.europa.ec.businesslogic.provider.UuidProvider
 import eu.europa.ec.businesslogic.validator.FilterValidator
+import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
+import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.corelogic.config.WalletCoreConfig
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
 import eu.europa.ec.dashboardfeature.interactor.DashboardInteractor
@@ -62,11 +64,15 @@ fun provideSettingsInteractor(
     logController: LogController,
     resourceProvider: ResourceProvider,
     prefKeys: PrefKeys,
+    getCurrentUserUseCase: GetCurrentUserUseCase,
+    signOutUseCase: SignOutUseCase,
 ): SettingsInteractor = SettingsInteractorImpl(
     configLogic,
     logController,
     resourceProvider,
     prefKeys,
+    getCurrentUserUseCase,
+    signOutUseCase
 )
 
 @Factory

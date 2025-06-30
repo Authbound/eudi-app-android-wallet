@@ -20,6 +20,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import eu.europa.ec.authenticationfeature.ui.LoginScreen
+import eu.europa.ec.authenticationfeature.ui.WalletSetupScreen
 import eu.europa.ec.uilogic.navigation.AuthenticationScreens
 import eu.europa.ec.uilogic.navigation.DashboardScreens
 import org.koin.androidx.compose.koinViewModel
@@ -43,6 +44,14 @@ fun NavGraphBuilder.featureAuthenticationGraph(navController: NavController) {
                     launchSingleTop = true
                 }
             }
+        )
+    }
+
+    composable(
+        route = AuthenticationScreens.WalletSetup.screenRoute,
+    ) {
+        WalletSetupScreen(
+            viewModel = koinViewModel()
         )
     }
 } 

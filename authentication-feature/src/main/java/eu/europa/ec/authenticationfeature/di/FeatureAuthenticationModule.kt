@@ -16,10 +16,42 @@
 
 package eu.europa.ec.authenticationfeature.di
 
+import eu.europa.ec.authenticationlogic.usecase.SignUpWithEmailPasswordUseCase
+import eu.europa.ec.businesslogic.controller.device.DeviceController
+import eu.europa.ec.businesslogic.controller.log.LogController
+import eu.europa.ec.businesslogic.controller.storage.PrefKeys
+import eu.europa.ec.notificationlogic.controller.PushNotificationController
+import eu.europa.ec.walletactivationlogic.usecase.CreateWalletAttestationUseCase
 import org.koin.core.annotation.ComponentScan
+import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Module
-
+import eu.europa.ec.authenticationfeature.ui.AuthenticationViewModel
+import eu.europa.ec.authenticationlogic.usecase.ObserveAuthStateUseCase
+import eu.europa.ec.authenticationlogic.usecase.SignInWithEmailPasswordUseCase
+import eu.europa.ec.authenticationlogic.usecase.SignInWithOAuthUseCase
 
 @Module
 @ComponentScan("eu.europa.ec.authenticationfeature")
 class FeatureAuthenticationModule
+
+fun provideAuthenticationViewModel(
+    signInWithEmailPasswordUseCase: SignInWithEmailPasswordUseCase,
+    signUpWithEmailPasswordUseCase: SignUpWithEmailPasswordUseCase,
+    signInWithOAuthUseCase: SignInWithOAuthUseCase,
+    observeAuthStateUseCase: ObserveAuthStateUseCase,
+    createWalletAttestationUseCase: CreateWalletAttestationUseCase,
+    deviceController: DeviceController,
+    pushNotificationController: PushNotificationController,
+    prefKeys: PrefKeys,
+    logController: LogController
+): AuthenticationViewModel = AuthenticationViewModel(
+    signInWithEmailPasswordUseCase,
+    signUpWithEmailPasswordUseCase,
+    signInWithOAuthUseCase,
+    observeAuthStateUseCase,
+    createWalletAttestationUseCase,
+    deviceController,
+    pushNotificationController,
+    prefKeys,
+    logController
+)

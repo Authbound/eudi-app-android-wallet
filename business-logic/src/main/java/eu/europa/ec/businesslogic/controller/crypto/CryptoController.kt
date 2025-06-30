@@ -17,6 +17,9 @@
 package eu.europa.ec.businesslogic.controller.crypto
 
 import android.util.Base64
+import java.security.KeyStore
+import java.security.Signature
+import java.security.cert.Certificate
 import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
@@ -25,6 +28,8 @@ typealias GUID = String
 
 interface CryptoController {
     fun generateCodeVerifier(): String
+    fun generateWuaKeyPair(): Array<Certificate>?
+    fun signData(data: ByteArray): ByteArray?
 
     /**
      * Returns the [Cipher] needed to create the [androidx.biometric.BiometricPrompt.CryptoObject]
@@ -51,6 +56,7 @@ class CryptoControllerImpl(
         private const val AES_EXTERNAL_TRANSFORMATION = "AES/GCM/NoPadding"
         private const val IV_SIZE = 128
         const val MAX_GUID_LENGTH = 64
+        private const val WUA_KEY_ALIAS = "wua_key_alias"
     }
 
     override fun generateCodeVerifier(): String {
@@ -59,6 +65,20 @@ class CryptoControllerImpl(
             nextBytes(code)
         }
         return Base64.encodeToString(code, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
+    }
+
+    override fun generateWuaKeyPair(): Array<Certificate>? {
+        return keystoreController.generateWuaKeyPair()
+    }
+
+    override fun signData(data: ByteArray): ByteArray? {
+        val keyStore = KeyStore.getInstance("AndroidKeyStore")
+        keyStore.load(null)
+        val entry = keyStore.getEntry(WUA_KEY_ALIAS, null) as KeyStore.PrivateKeyEntry
+        val signature = Signature.getInstance("SHA256withECDSA")
+        signature.initSign(entry.privateKey)
+        signature.update(data)
+        return signature.sign()
     }
 
     override fun getBiometricCipher(encrypt: Boolean, ivBytes: ByteArray?): Cipher? =
@@ -80,7 +100,6 @@ class CryptoControllerImpl(
         } catch (e: Exception) {
             null
         }
-
 
     override fun encryptDecryptBiometric(cipher: Cipher?, byteArray: ByteArray): ByteArray {
         return cipher?.doFinal(byteArray) ?: ByteArray(0)

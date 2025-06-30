@@ -47,6 +47,8 @@ import eu.europa.ec.authenticationlogic.usecase.SignUpWithEmailPasswordUseCaseIm
 import eu.europa.ec.businesslogic.controller.crypto.CryptoController
 import eu.europa.ec.businesslogic.controller.storage.PrefsController
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
+import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
+import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCaseImpl
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Module
@@ -110,6 +112,11 @@ fun provideIsUserAuthenticatedUseCase(
 fun provideObserveAuthStateUseCase(
     supabaseAuthRepository: SupabaseAuthRepository
 ): ObserveAuthStateUseCase = ObserveAuthStateUseCaseImpl(supabaseAuthRepository)
+
+@Factory
+fun provideGetCurrentUserUseCase(
+    supabaseAuthRepository: SupabaseAuthRepository
+): GetCurrentUserUseCase = GetCurrentUserUseCaseImpl(supabaseAuthRepository)
 
 @Factory
 fun provideSignInWithEmailPasswordUseCase(

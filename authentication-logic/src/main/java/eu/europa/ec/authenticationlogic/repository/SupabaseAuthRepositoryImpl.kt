@@ -24,8 +24,10 @@ import io.github.jan.supabase.auth.providers.Google
 import io.github.jan.supabase.auth.providers.Azure
 import io.github.jan.supabase.auth.providers.Facebook
 import io.github.jan.supabase.auth.auth
+import eu.europa.ec.authenticationlogic.BuildConfig
 
 import io.github.jan.supabase.auth.status.SessionStatus
+import io.github.jan.supabase.auth.user.UserInfo
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -37,6 +39,15 @@ class SupabaseAuthRepositoryImpl(
     override suspend fun isUserAuthenticated(): Boolean {
         val sessionStatus = supabaseClient.auth.sessionStatus.first()
         return sessionStatus is SessionStatus.Authenticated
+    }
+
+    override suspend fun getCurrentUser(): UserInfo? {
+        val sessionStatus = supabaseClient.auth.sessionStatus.first()
+        return if (sessionStatus is SessionStatus.Authenticated) {
+            sessionStatus.session.user
+        } else {
+            null
+        }
     }
 
     override fun observeAuthState(): Flow<SessionStatus> = supabaseClient.auth.sessionStatus
@@ -63,7 +74,7 @@ class SupabaseAuthRepositoryImpl(
         }
         supabaseClient.auth.signInWith(
             provider = supabaseProvider,
-            redirectUrl = "io.supabase.YOUR_SUPABASE_PROJECT_ID://login-callback"
+            redirectUrl = "${BuildConfig.SUPABASE_URL}://login-callback"
         )
     }
 
