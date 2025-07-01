@@ -26,6 +26,7 @@ import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Module
 import eu.europa.ec.authenticationfeature.ui.AuthenticationViewModel
+import eu.europa.ec.authenticationlogic.controller.authentication.BiometricAuthenticationController
 import eu.europa.ec.authenticationlogic.usecase.ObserveAuthStateUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignInWithEmailPasswordUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignInWithOAuthUseCase
@@ -34,6 +35,7 @@ import eu.europa.ec.authenticationlogic.usecase.SignInWithOAuthUseCase
 @ComponentScan("eu.europa.ec.authenticationfeature")
 class FeatureAuthenticationModule
 
+@Factory
 fun provideAuthenticationViewModel(
     signInWithEmailPasswordUseCase: SignInWithEmailPasswordUseCase,
     signUpWithEmailPasswordUseCase: SignUpWithEmailPasswordUseCase,
@@ -41,6 +43,7 @@ fun provideAuthenticationViewModel(
     observeAuthStateUseCase: ObserveAuthStateUseCase,
     createWalletAttestationUseCase: CreateWalletAttestationUseCase,
     deviceController: DeviceController,
+    biometricAuthenticationController: BiometricAuthenticationController,
     pushNotificationController: PushNotificationController,
     prefKeys: PrefKeys,
     logController: LogController
@@ -51,7 +54,8 @@ fun provideAuthenticationViewModel(
     observeAuthStateUseCase,
     createWalletAttestationUseCase,
     deviceController,
+    biometricAuthenticationController,
     pushNotificationController,
     prefKeys,
-    logController
+    logController,
 )

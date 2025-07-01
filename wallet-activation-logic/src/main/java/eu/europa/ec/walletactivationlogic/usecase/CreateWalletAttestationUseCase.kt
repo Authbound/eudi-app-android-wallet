@@ -16,15 +16,19 @@
 package eu.europa.ec.walletactivationlogic.usecase
 
 import eu.europa.ec.businesslogic.controller.crypto.CryptoController
+
+import eu.europa.ec.businesslogic.model.DeviceInfo
+import eu.europa.ec.networklogic.model.response.WalletActivationResponse
 import eu.europa.ec.walletactivationlogic.repository.WalletActivationRepository
-import io.github.jan.supabase.auth.user.UserInfo
+
+
 
 
 interface CreateWalletAttestationUseCase {
     suspend operator fun invoke(
-        deviceInfo: String,
+        deviceInfo: DeviceInfo,
         pushToken: String,
-    ): Result<UserInfo>
+    ): Result<WalletActivationResponse>
 }
 
 class CreateWalletAttestationUseCaseImpl(
@@ -32,9 +36,9 @@ class CreateWalletAttestationUseCaseImpl(
     private val walletActivationRepository: WalletActivationRepository,
 ) : CreateWalletAttestationUseCase {
     override suspend fun invoke(
-        deviceInfo: String,
+        deviceInfo: DeviceInfo,
         pushToken: String,
-    ): Result<UserInfo> {
+    ): Result<WalletActivationResponse> {
         val certificateChain = cryptoController.generateWuaKeyPair()
             ?: return Result.failure(Exception("Failed to generate key pair"))
 

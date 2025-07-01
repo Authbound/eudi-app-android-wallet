@@ -30,9 +30,6 @@ import org.koin.core.annotation.Single
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
-import eu.europa.ec.networklogic.client.createAuthboundApiClient
-import io.ktor.client.HttpClient
-import org.koin.dsl.module
 
 @Module
 @ComponentScan("eu.europa.ec.networklogic")
@@ -80,6 +77,3 @@ fun provideRetrofit(
         .client(okHttpClient)
         .addConverterFactory(converterFactory).build()
 }
-
-@Single
-fun provideAuthboundApiClient(): HttpClient = createAuthboundApiClient()

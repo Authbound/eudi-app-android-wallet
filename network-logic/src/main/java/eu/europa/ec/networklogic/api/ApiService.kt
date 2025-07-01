@@ -16,27 +16,43 @@
 
 package eu.europa.ec.networklogic.api
 
+import eu.europa.ec.networklogic.model.request.WalletActivationRequest
 import eu.europa.ec.networklogic.model.request.DummyRequest
 import eu.europa.ec.networklogic.model.response.DummyResponse
+import eu.europa.ec.networklogic.model.response.WalletActivationResponse
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.Header
 import retrofit2.http.POST
+
 
 interface Api {
     @POST("test/path")
     suspend fun test(
         @Body body: DummyRequest
     ): Response<DummyResponse>
+
+    @POST("api/mobile/wallet-activate")
+    suspend fun activateWallet(
+        @Body body: WalletActivationRequest,
+        @Header("Authorization") auth: String
+    ): Response<WalletActivationResponse>
 }
 
 interface ApiClient {
     suspend fun test(
         body: DummyRequest
     ): Response<DummyResponse>
+
+    suspend fun activateWallet(body: WalletActivationRequest, bearerToken: String): Response<WalletActivationResponse>
 }
 
 class ApiClientImpl(private val apiService: Api) : ApiClient {
     override suspend fun test(body: DummyRequest): Response<DummyResponse> {
         return apiService.test(body)
+    }
+
+    override suspend fun activateWallet(body: WalletActivationRequest, bearerToken: String): Response<WalletActivationResponse> {
+        return apiService.activateWallet(body, "Bearer $bearerToken")
     }
 }

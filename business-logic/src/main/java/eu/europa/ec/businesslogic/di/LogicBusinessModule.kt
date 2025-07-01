@@ -88,4 +88,4 @@ fun provideUuidProvider(): UuidProvider {
 }
 
 @Factory
-fun provideDeviceController(): DeviceController = DeviceControllerImpl()
+fun provideDeviceController(resourceProvider: ResourceProvider): DeviceController = DeviceControllerImpl(resourceProvider)

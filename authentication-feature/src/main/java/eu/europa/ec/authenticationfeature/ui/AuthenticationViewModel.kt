@@ -23,8 +23,10 @@ import eu.europa.ec.authenticationlogic.usecase.ObserveAuthStateUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignInWithEmailPasswordUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignInWithOAuthUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignUpWithEmailPasswordUseCase
+import eu.europa.ec.authenticationlogic.controller.authentication.BiometricAuthenticationController
 import eu.europa.ec.businesslogic.controller.device.DeviceController
 import eu.europa.ec.businesslogic.controller.log.LogController
+import eu.europa.ec.businesslogic.model.DeviceInfo
 import eu.europa.ec.businesslogic.controller.storage.PrefKeys
 import eu.europa.ec.notificationlogic.controller.PushNotificationController
 import eu.europa.ec.uilogic.mvi.MviViewModel
@@ -75,6 +77,7 @@ class AuthenticationViewModel(
     private val observeAuthStateUseCase: ObserveAuthStateUseCase,
     private val createWalletAttestationUseCase: CreateWalletAttestationUseCase,
     private val deviceController: DeviceController,
+    private val biometricAuthenticationController: BiometricAuthenticationController,
     private val pushNotificationController: PushNotificationController,
     private val prefKeys: PrefKeys,
     private val logController: LogController
@@ -163,7 +166,7 @@ class AuthenticationViewModel(
             try {
                 val pushToken =
                     pushNotificationController.registerForPushNotifications().getOrThrow()
-                val deviceInfo = deviceController.getDeviceInfo().toString()
+                val deviceInfo = getCombinedDeviceInfo()
 
                 logController.d("WalletActivation", "Push Token: $pushToken")
                 logController.d("WalletActivation", "Device Info: $deviceInfo")
@@ -172,10 +175,23 @@ class AuthenticationViewModel(
                 setState { copy(isActivating = false, isWalletActivated = true) }
                 setEffect { Effect.NavigateToHome }
             } catch (e: Exception) {
+                logController.e("WalletActivation", e)
                 setState { copy(isActivating = false, error = e.message) }
                 setEffect { Effect.ShowError(e.message ?: "An unknown error occurred") }
             }
         }
+    }
+
+    /**
+     * Combines basic device info from business-logic with biometric capability from authentication-logic
+     */
+    private fun getCombinedDeviceInfo(): DeviceInfo {
+        val basicDeviceInfo = deviceController.getDeviceInfo()
+        val hasBiometricHardware = biometricAuthenticationController.hasBiometricHardware()
+        
+        return basicDeviceInfo.copy(
+            hasBiometricHardware = hasBiometricHardware
+        )
     }
 
     private fun observeAuthState() {

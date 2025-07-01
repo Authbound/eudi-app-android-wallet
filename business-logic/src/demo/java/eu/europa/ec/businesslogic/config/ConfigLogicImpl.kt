@@ -35,7 +35,7 @@ class ConfigLogicImpl(val context: Context) : ConfigLogic {
 
 private class DemoEnvironmentConfig : EnvironmentConfig() {
     override fun getServerHost(): String = when (environment) {
-        ServerConfig.Debug -> ""
-        ServerConfig.Release -> ""
+        ServerConfig.Debug -> "http://10.0.2.2:3008"
+        ServerConfig.Release -> "https://api.authbound.io"
     }
 }

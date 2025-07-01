@@ -21,8 +21,10 @@ import eu.europa.ec.walletactivationlogic.repository.WalletActivationRepositoryI
 import eu.europa.ec.walletactivationlogic.usecase.CreateWalletAttestationUseCase
 import eu.europa.ec.walletactivationlogic.usecase.CreateWalletAttestationUseCaseImpl
 import io.github.jan.supabase.SupabaseClient
-import io.ktor.client.HttpClient
+
 import eu.europa.ec.businesslogic.controller.log.LogController
+
+import eu.europa.ec.networklogic.api.ApiClient
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Module
@@ -34,9 +36,9 @@ class FeatureWalletActivationModule
 @Factory
 fun provideWalletActivationRepository(
     supabaseClient: SupabaseClient,
-    httpClient: HttpClient,
+    api: ApiClient,
     logController: LogController
-): WalletActivationRepository = WalletActivationRepositoryImpl(supabaseClient, httpClient, logController)
+): WalletActivationRepository = WalletActivationRepositoryImpl(supabaseClient, api, logController)
 
 @Factory
 fun provideCreateWalletAttestationUseCase(

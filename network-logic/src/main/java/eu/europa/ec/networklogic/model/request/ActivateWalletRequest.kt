@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 European Commission
+ * Copyright (c) 2023 European Commission
  *
  * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
  * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
@@ -14,27 +14,17 @@
  * governing permissions and limitations under the Licence.
  */
 
-import project.convention.logic.config.LibraryModule
+package eu.europa.ec.networklogic.model.request
 
-plugins {
-    id("project.android.library")
-}
+import com.google.gson.annotations.SerializedName
+import eu.europa.ec.businesslogic.model.DeviceInfo
 
-android {
-    namespace = "eu.europa.ec.walletactivationlogic"
-}
 
-moduleConfig {
-    module = LibraryModule.WalletActivationLogic
-}
-
-dependencies {
-    implementation(project(LibraryModule.BusinessLogic.path))
-    implementation(project(LibraryModule.NetworkLogic.path))
-    implementation(platform(libs.bom))
-    implementation(libs.supabase.postgrest.kt)
-    implementation(libs.supabase.auth.kt)
-
-    implementation(libs.ktor.android)
-
-} 
+data class WalletActivationRequest(
+    @SerializedName("wua_public_key")
+    val wuaPublicKey: String,
+    @SerializedName("device_info")
+    val deviceInfo: DeviceInfo,
+    @SerializedName("push_notification_token")
+    val pushNotificationToken: String
+)

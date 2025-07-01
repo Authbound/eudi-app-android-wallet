@@ -64,6 +64,12 @@ interface BiometricAuthenticationController {
     ): BiometricPromptData
 
     fun launchBiometricSystemScreen()
+    
+    /**
+     * Checks if device has biometric hardware capability.
+     * Returns true if biometric authentication is supported (enrolled or not).
+     */
+    fun hasBiometricHardware(): Boolean
 }
 
 class BiometricAuthenticationControllerImpl(
@@ -145,6 +151,19 @@ class BiometricAuthenticationControllerImpl(
         }
         enrollIntent.addFlags(FLAG_ACTIVITY_NEW_TASK)
         resourceProvider.provideContext().startActivity(enrollIntent)
+    }
+
+    override fun hasBiometricHardware(): Boolean {
+        return try {
+            val biometricManager = BiometricManager.from(resourceProvider.provideContext())
+            when (biometricManager.canAuthenticate(BIOMETRIC_WEAK)) {
+                BiometricManager.BIOMETRIC_SUCCESS,
+                BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> true
+                else -> false
+            }
+        } catch (e: Exception) {
+            false
+        }
     }
 
     override suspend fun authenticate(

@@ -15,8 +15,33 @@
  */
 package eu.europa.ec.businesslogic.model
 
+import com.google.gson.annotations.SerializedName
+
 data class DeviceInfo(
-    val osVersion: String,
+    @SerializedName("device_id")
+    val deviceId: String,
+    @SerializedName("device_name")
+    val deviceName: String,
+    @SerializedName("device_model")
     val deviceModel: String,
-    val isHardwareBacked: Boolean
-) 
+    @SerializedName("os_version")
+    val deviceOs: String,
+    @SerializedName("device_os_version")
+    val deviceOsVersion: String,
+    @SerializedName("security_patch_level")
+    val securityPatchLevel: String,
+    @SerializedName("has_secure_element")
+    val hasSecureElement: Boolean,
+    @SerializedName("has_hardware_keystore")
+    val hasHardwareKeystore: Boolean,
+    @SerializedName("has_strongbox")
+    val hasStrongBox: Boolean,
+    @SerializedName("attestation_supported")
+    val attestationSupported: Boolean,
+    @SerializedName("device_verified_boot")
+    val deviceVerifiedBoot: Boolean,
+    @SerializedName("play_protect_verified")
+    val playProtectVerified: Boolean,
+    @SerializedName("has_biometric_hardware")
+    val hasBiometricHardware: Boolean
+)

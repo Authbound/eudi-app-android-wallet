@@ -15,71 +15,70 @@
  */
 package eu.europa.ec.walletactivationlogic.repository
 
+
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.auth.user.UserInfo
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.SerialName
+
 import android.util.Base64
 import eu.europa.ec.businesslogic.controller.log.LogController
+import eu.europa.ec.businesslogic.model.DeviceInfo
+
+import eu.europa.ec.networklogic.api.ApiClient
+
+import eu.europa.ec.networklogic.model.request.WalletActivationRequest
+import eu.europa.ec.networklogic.model.response.WalletActivationResponse
 
 import java.security.cert.Certificate
 
-@Serializable
-data class WalletActivationRequest(
-    @SerialName("wua_public_key")
-    val wuaPublicKey: String,
-    @SerialName("device_info")
-    val deviceInfo: String,
-    @SerialName("push_notification_token")
-    val pushNotificationToken: String
-)
+
 
 interface WalletActivationRepository {
     suspend fun activateWallet(
         publicKey: Certificate,
         attestationChain: Array<Certificate>,
-        deviceInfo: String,
+        deviceInfo: DeviceInfo,
         pushToken: String,
-    ): Result<UserInfo>
+    ): Result<WalletActivationResponse>
 }
 
 class WalletActivationRepositoryImpl(
     private val supabaseClient: SupabaseClient,
-    private val httpClient: HttpClient,
+    private val api: ApiClient,
     private val logController: LogController
 ) : WalletActivationRepository {
     override suspend fun activateWallet(
         publicKey: Certificate,
         attestationChain: Array<Certificate>,
-        deviceInfo: String,
+        deviceInfo: DeviceInfo,
         pushToken: String,
-    ): Result<UserInfo> {
+    ): Result<WalletActivationResponse> {
         return try {
             val token = supabaseClient.auth.currentSessionOrNull()?.accessToken
                 ?: return Result.failure(Exception("User not authenticated"))
 
             val request = WalletActivationRequest(
+                pushNotificationToken = pushToken,
                 wuaPublicKey = Base64.encodeToString(publicKey.encoded, Base64.NO_WRAP),
-                deviceInfo = deviceInfo,
-                pushNotificationToken = pushToken
-            )
-            
+                deviceInfo = deviceInfo)
+
+
             logController.d("WalletActivation", "Request Body: $request")
-
-            val response = httpClient.post("/api/mobile/wallet-activation") {
-                contentType(ContentType.Application.Json)
-                setBody(request)
-                headers.append("Authorization", "Bearer $token")
-            }.body<UserInfo>()
-
-            Result.success(response)
+            val response = api.activateWallet(request, token)
+            
+            if (response.isSuccessful) {
+                val responseBody = response.body()
+                if (responseBody != null) {
+                    logController.d("WalletActivation", "Success: $responseBody")
+                    Result.success(responseBody)
+                } else {
+                    logController.e("WalletActivation", Exception("WalletActivation failed. Error body is null"))
+                    Result.failure(Exception("Empty response body"))
+                }
+            } else {
+                val errorMsg = "HTTP ${response.code()}: ${response.message()}"
+                logController.e("WalletActivation", Exception(errorMsg))
+                Result.failure(Exception(errorMsg))
+            }
         } catch (e: Exception) {
             logController.e("WalletActivation", e)
             Result.failure(e)
