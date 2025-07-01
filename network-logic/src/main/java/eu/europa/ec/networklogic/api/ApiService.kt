@@ -32,7 +32,7 @@ interface Api {
         @Body body: DummyRequest
     ): Response<DummyResponse>
 
-    @POST("api/mobile/wallet-activate")
+    @POST("api/mobile/wallet-activation")
     suspend fun activateWallet(
         @Body body: WalletActivationRequest,
         @Header("Authorization") auth: String

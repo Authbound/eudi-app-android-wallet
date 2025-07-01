@@ -22,6 +22,7 @@ import eu.europa.ec.authenticationlogic.model.OAuthProvider
 import eu.europa.ec.authenticationlogic.usecase.ObserveAuthStateUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignInWithEmailPasswordUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignInWithOAuthUseCase
+import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignUpWithEmailPasswordUseCase
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricAuthenticationController
 import eu.europa.ec.businesslogic.controller.device.DeviceController
@@ -48,6 +49,7 @@ data class State(
     val isLoading: Boolean = false,
     val isActivating: Boolean = false,
     val isWalletActivated: Boolean = false,
+    val walletActivationError: String? = null,
     val error: String? = null,
 ) : ViewState
 
@@ -61,8 +63,11 @@ sealed class Event : ViewEvent {
     data class SignInWithOAuth(val provider: OAuthProvider, val context: Context) : Event()
     data object DismissLoading : Event()
     data object ActivateWallet : Event()
+    data object RetryWalletActivation : Event()
     data object NavigateBack : Event()
     data object NavigateToWalletSetup : Event()
+    data object Initialize : Event()
+    data object SignOut : Event()
 }
 
 sealed class Effect : ViewSideEffect {
@@ -72,7 +77,9 @@ sealed class Effect : ViewSideEffect {
     
     sealed class Navigation : Effect() {
         data object NavigateToWalletSetup : Navigation()
-        data object NavigateBackToLogin : Navigation()
+        data object PopBackStack : Navigation()
+        data class NavigateToLoginAndClearStack(val replaceCurrentScreen: Boolean = true) : Navigation()
+        data object SignOutAndNavigateToLogin : Navigation()
     }
 }
 
@@ -81,6 +88,7 @@ class AuthenticationViewModel(
     private val signInWithEmailPasswordUseCase: SignInWithEmailPasswordUseCase,
     private val signUpWithEmailPasswordUseCase: SignUpWithEmailPasswordUseCase,
     private val signInWithOAuthUseCase: SignInWithOAuthUseCase,
+    private val signOutUseCase: SignOutUseCase,
     private val observeAuthStateUseCase: ObserveAuthStateUseCase,
     private val createWalletAttestationUseCase: CreateWalletAttestationUseCase,
     private val deviceController: DeviceController,
@@ -89,12 +97,20 @@ class AuthenticationViewModel(
     private val prefKeys: PrefKeys,
     private val logController: LogController
 ) : MviViewModel<Event, State, Effect>() {
+    
+    private var navigationSource: NavigationSource = NavigationSource.UNKNOWN
+    private var isInitialized: Boolean = false
+    private var backNavigationInProgress: Boolean = false
+    
     override fun setInitialState(): State {
+        logController.d("AuthViewModel", "ViewModel created - Instance: ${this.hashCode()}")
         observeAuthState()
         return State()
     }
 
     override fun handleEvents(event: Event) {
+        logController.d("AuthViewModel",  "Event received: $event (Instance: ${this.hashCode()})" )
+        
         when (event) {
             is Event.OnEmailChanged -> setState { copy(email = event.email) }
             is Event.OnPasswordChanged -> setState { copy(password = event.password) }
@@ -110,10 +126,35 @@ class AuthenticationViewModel(
             is Event.SignInWithOAuth -> signInWithOAuth(event.provider, event.context)
             is Event.DismissLoading -> setState { copy(isLoading = false) }
             is Event.ActivateWallet -> activateWallet()
-            is Event.NavigateBack -> handleNavigateBack()
+            is Event.RetryWalletActivation -> retryWalletActivation()
+            is Event.NavigateBack -> {
+                if (!backNavigationInProgress) {
+                    handleNavigateBack()
+                } else {
+                    logController.w("AuthViewModel") { "Back navigation already in progress - ignoring" }
+                }
+            }
             is Event.NavigateToWalletSetup -> {
+                logController.d("AuthViewModel",  "NavigateToWalletSetup - Setting source to FROM_LOGIN")
+                navigationSource = NavigationSource.FROM_LOGIN
+                logController.d("AuthViewModel", "Emitting effect: NavigateToWalletSetup (Instance: ${this.hashCode()})" )
                 setEffect { Effect.Navigation.NavigateToWalletSetup }
             }
+            is Event.Initialize -> {
+                if (!isInitialized) {
+                    isInitialized = true
+                    // If we haven't set a source yet, it means we came directly (e.g., from Splash)
+                    if (navigationSource == NavigationSource.UNKNOWN) {
+                        navigationSource = NavigationSource.DIRECT
+                        logController.d("AuthViewModel", "WalletSetup initialized - Direct navigation detected" )
+                    } else {
+                        logController.d("AuthViewModel", "WalletSetup initialized - Source already set to: $navigationSource" )
+                    }
+                } else {
+                    logController.d("AuthViewModel", "Initialize called but already initialized - ignoring")
+                }
+            }
+            is Event.SignOut -> signOut()
         }
     }
 
@@ -173,7 +214,7 @@ class AuthenticationViewModel(
 
     private fun activateWallet() {
         viewModelScope.launch {
-            setState { copy(isActivating = true, isLoading = false) }
+            setState { copy(isActivating = true, isLoading = false, walletActivationError = null) }
             try {
                 val pushToken =
                     pushNotificationController.registerForPushNotifications().getOrThrow()
@@ -183,24 +224,112 @@ class AuthenticationViewModel(
                 logController.d("WalletActivation", "Device Info: $deviceInfo")
 
                 createWalletAttestationUseCase(deviceInfo, pushToken).getOrThrow()
-                setState { copy(isActivating = false, isWalletActivated = true) }
+                setState { copy(isActivating = false, isWalletActivated = true, walletActivationError = null) }
                 setEffect { Effect.NavigateToHome }
             } catch (e: Exception) {
                 logController.e("WalletActivation", e)
-                setState { copy(isActivating = false, error = e.message) }
-                setEffect { Effect.ShowError(e.message ?: "An unknown error occurred") }
+                setState { copy(isActivating = false, walletActivationError = e.message) }
+                setEffect { Effect.ShowError(e.message ?: "Wallet activation failed") }
+            }
+        }
+    }
+
+    private fun retryWalletActivation() {
+        viewModelScope.launch {
+            setState { copy(isActivating = true, walletActivationError = null) }
+            try {
+                val pushToken =
+                    pushNotificationController.registerForPushNotifications().getOrThrow()
+                val deviceInfo = getCombinedDeviceInfo()
+
+                logController.d("WalletActivation", "Retry - Push Token: $pushToken")
+                logController.d("WalletActivation", "Retry - Device Info: $deviceInfo")
+
+                createWalletAttestationUseCase(deviceInfo, pushToken).getOrThrow()
+                setState { copy(isActivating = false, isWalletActivated = true, walletActivationError = null) }
+                setEffect { Effect.NavigateToHome }
+            } catch (e: Exception) {
+                logController.e("WalletActivation", e)
+                setState { copy(isActivating = false, walletActivationError = e.message) }
+                setEffect { Effect.ShowError(e.message ?: "Wallet activation failed") }
             }
         }
     }
 
     private fun handleNavigateBack() {
+        if (backNavigationInProgress) {
+            logController.w("AuthViewModel") { "Back navigation already in progress - skipping" }
+            return
+        }
+        
+        backNavigationInProgress = true
+        logController.d("AuthViewModel", "Navigate back requested - Source: $navigationSource (Instance: ${this.hashCode()})")
+        
         setState { 
             copy(
                 isActivating = false,
+                walletActivationError = null,
                 error = null
             ) 
         }
-        setEffect { Effect.Navigation.NavigateBackToLogin }
+        
+        when (navigationSource) {
+            NavigationSource.FROM_LOGIN -> {
+                // Normal flow: Login -> WalletSetup -> Back to Login
+                logController.d("AuthViewModel", "Normal back navigation - using PopBackStack")
+                setEffect { Effect.Navigation.PopBackStack }
+            }
+            NavigationSource.DIRECT -> {
+                // Direct flow: Splash -> WalletSetup -> User wants to exit
+                // Sign out user since they don't want to complete wallet setup
+                logController.d("AuthViewModel", "Direct navigation back - signing out user")
+                signOutAndNavigateToLogin()
+            }
+            NavigationSource.UNKNOWN -> {
+                // Fallback: User backing out of wallet setup - sign out for clean state
+                logController.d("AuthViewModel", "Unknown navigation source - signing out for clear UX")
+                signOutAndNavigateToLogin()
+            }
+        }
+        
+        // Reset flags immediately - no artificial delays needed
+        navigationSource = NavigationSource.UNKNOWN
+        isInitialized = false
+        backNavigationInProgress = false
+    }
+
+    private fun signOut() {
+        viewModelScope.launch {
+            try {
+                logController.d("AuthViewModel", "Signing out user...")
+                setState { copy(isLoading = true, error = null) }
+                signOutUseCase()
+                setState { copy(isLoading = false) }
+                logController.d("AuthViewModel", "User signed out successfully")
+                // Don't emit navigation effect here - let the auth state observer handle it
+            } catch (e: Exception) {
+                logController.e("AuthViewModel", e)
+                setState { copy(isLoading = false, error = e.message) }
+                setEffect { Effect.ShowError(e.message ?: "Sign out failed") }
+            }
+        }
+    }
+
+    private fun signOutAndNavigateToLogin() {
+        viewModelScope.launch {
+            try {
+                logController.d("AuthViewModel", "Signing out user and navigating to login...")
+                setState { copy(isLoading = true, error = null) }
+                signOutUseCase()
+                setState { copy(isLoading = false) }
+                logController.d("AuthViewModel", "User signed out successfully, emitting navigation effect")
+                setEffect { Effect.Navigation.SignOutAndNavigateToLogin }
+            } catch (e: Exception) {
+                logController.e("AuthViewModel", e)
+                setState { copy(isLoading = false, error = e.message) }
+                setEffect { Effect.ShowError(e.message ?: "Sign out failed") }
+            }
+        }
     }
 
     /**
@@ -251,23 +380,46 @@ class AuthenticationViewModel(
                                     }
                                 }
                             } else {
+                                setState { copy(isLoading = false) }
                                 if (prefKeys.isWalletActivated()) {
+                                    logController.d("AuthViewModel", "User authenticated with wallet activated - navigating to home")
+                                    setState { copy(isWalletActivated = true) }
                                     setEffect { Effect.NavigateToHome }
                                 } else {
-                                    setEvent(Event.NavigateToWalletSetup)
+                                    logController.d("AuthViewModel", "User authenticated but wallet not activated - auto-starting wallet activation")
+                                    setState { copy(isWalletActivated = false) }
+                                    // Auto-start wallet activation
+                                    activateWallet()
                                 }
                             }
                         }
 
                         is SessionStatus.NotAuthenticated -> {
-                            setState { copy(isLoading = false) }
+                            setState { 
+                                copy(
+                                    isLoading = false,
+                                    isWalletActivated = false,
+                                    walletActivationError = null
+                                ) 
+                            }
                         }
 
-                        else -> {
-                            // No-op for Loading and Initial, as onStart handles the initial loading state.
+                        is SessionStatus.Initializing -> {
+                            // Keep loading state for these transient states
+                        }
+
+                        is SessionStatus.RefreshFailure -> {
+                            setState { copy(isLoading = false) }
+                            setEffect { Effect.ShowError("An unknown error occurred while refreshing the session.") }
                         }
                     }
                 }
         }
+    }
+    
+    private enum class NavigationSource {
+        FROM_LOGIN,  // Normal flow: Login -> WalletSetup
+        DIRECT,      // Direct flow: Splash -> WalletSetup or Auth state change
+        UNKNOWN      // Initial/fallback state
     }
 } 

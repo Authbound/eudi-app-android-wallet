@@ -30,6 +30,7 @@ import eu.europa.ec.authenticationlogic.controller.authentication.BiometricAuthe
 import eu.europa.ec.authenticationlogic.usecase.ObserveAuthStateUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignInWithEmailPasswordUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignInWithOAuthUseCase
+import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 
 @Module
 @ComponentScan("eu.europa.ec.authenticationfeature")
@@ -40,6 +41,7 @@ fun provideAuthenticationViewModel(
     signInWithEmailPasswordUseCase: SignInWithEmailPasswordUseCase,
     signUpWithEmailPasswordUseCase: SignUpWithEmailPasswordUseCase,
     signInWithOAuthUseCase: SignInWithOAuthUseCase,
+    signOutUseCase: SignOutUseCase,
     observeAuthStateUseCase: ObserveAuthStateUseCase,
     createWalletAttestationUseCase: CreateWalletAttestationUseCase,
     deviceController: DeviceController,
@@ -51,6 +53,7 @@ fun provideAuthenticationViewModel(
     signInWithEmailPasswordUseCase,
     signUpWithEmailPasswordUseCase,
     signInWithOAuthUseCase,
+    signOutUseCase,
     observeAuthStateUseCase,
     createWalletAttestationUseCase,
     deviceController,

@@ -16,6 +16,8 @@
 package eu.europa.ec.authenticationfeature.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,13 +26,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
 import eu.europa.ec.businesslogic.controller.log.LogController
+import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.uilogic.component.content.ContentScreen
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
-import eu.europa.ec.uilogic.navigation.AuthenticationScreens
 import eu.europa.ec.uilogic.component.wrap.ButtonConfig
 import eu.europa.ec.uilogic.component.wrap.ButtonType
 import eu.europa.ec.uilogic.component.wrap.WrapButton
@@ -40,63 +43,82 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun WalletSetupScreen(
     viewModel: AuthenticationViewModel,
-    navController: NavController,
     logController: LogController,
-    onNavigateBackToLogin: () -> Unit
+    onPopBackStack: () -> Unit,
+    onNavigateToLogin: () -> Unit,
+    onSignOutAndNavigateToLogin: () -> Unit
 ) {
     val state by viewModel.viewState.collectAsState()
 
+    // Initialize the ViewModel to track navigation source
     LaunchedEffect(Unit) {
-        viewModel.effect.collectLatest { effect ->
-            logController.d { "WalletSetupScreen: Effect: $effect" }
-            when (effect) {
-                is Effect.Navigation.NavigateBackToLogin -> {
-                    // Debug the navigation back stack
-                    val currentEntry = navController.currentBackStackEntry
-                    val previousEntry = navController.previousBackStackEntry
-                    val currentDestination = navController.currentDestination
-                    
-                    logController.d { 
-                        """
-                        WalletSetupScreen Navigation Debug:
-                        - Current Entry: ${currentEntry?.destination?.route}
-                        - Previous Entry: ${previousEntry?.destination?.route}
-                        - Current Destination: ${currentDestination?.route}
-
-                        - Can Pop Back: ${navController.previousBackStackEntry != null}
-                        """.trimIndent()
-                    }
-                    
-                    // Check if we can actually navigate back
-                    if (navController.previousBackStackEntry != null) {
-                        logController.d { "Navigating back using popBackStack()" }
-                        onNavigateBackToLogin()
-                    } else {
-                        logController.w { "No previous back stack entry - navigating to Login directly" }
-                        // If no previous entry, navigate directly to Login screen
-                        navController.navigate(AuthenticationScreens.Login.screenRoute) {
-                            popUpTo(AuthenticationScreens.WalletSetup.screenRoute) {
-                                inclusive = true
-                            }
-                        }
-                    }
-                }
-                else -> {
-                    // Handle other effects if needed in the future
-                }
-            }
+        logController.d("WalletSetupScreen", "Screen composition - Initializing ViewModel")
+        viewModel.setEvent(Event.Initialize)
+        // Auto-start wallet activation if not already activating and no error
+        if (!state.isActivating && state.walletActivationError == null) {
+            logController.d("WalletSetupScreen", "Auto-starting wallet activation")
+            viewModel.setEvent(Event.ActivateWallet)
         }
     }
 
-    // Add initial back stack debugging
+    // Handle navigation effects from ViewModel
     LaunchedEffect(Unit) {
-        logController.d { 
-            """
-            WalletSetupScreen Initial State:
-            - Current Route: ${navController.currentDestination?.route}
-            - Previous Entry: ${navController.previousBackStackEntry?.destination?.route}
-
-            """.trimIndent()
+        logController.d("WalletSetupScreen", "Starting effect collection" )
+        var effectCount = 0
+        var lastEffectTime = 0L
+        
+        viewModel.effect.collectLatest { effect ->
+            effectCount++
+            val currentTime = System.currentTimeMillis()
+            val timeSinceLastEffect = currentTime - lastEffectTime
+            
+            logController.d("WalletSetupScreen", "Effect #$effectCount received: $effect (Time since last: ${timeSinceLastEffect}ms)" )
+            
+            // Emergency fix: Ignore rapid duplicate navigation effects
+            val isNavigationEffect = effect is Effect.Navigation.PopBackStack || 
+                                   effect is Effect.Navigation.NavigateToLoginAndClearStack ||
+                                   effect is Effect.Navigation.SignOutAndNavigateToLogin
+            val isTooRapid = timeSinceLastEffect < 500 && effectCount > 1
+            
+            if (isNavigationEffect && isTooRapid) {
+                logController.w("WalletSetupScreen") { "Ignoring rapid duplicate navigation effect #$effectCount (${timeSinceLastEffect}ms)" }
+                return@collectLatest
+            }
+            
+            lastEffectTime = currentTime
+            
+            when (effect) {
+                is Effect.Navigation.PopBackStack -> {
+                    logController.d("WalletSetupScreen", "Processing PopBackStack effect #$effectCount")
+                    onPopBackStack()
+                    logController.d("WalletSetupScreen", "PopBackStack effect #$effectCount completed" )
+                }
+                is Effect.Navigation.NavigateToLoginAndClearStack -> {
+                    logController.d("WalletSetupScreen", "Processing NavigateToLoginAndClearStack effect #$effectCount")
+                    onNavigateToLogin()
+                    logController.d("WalletSetupScreen", "NavigateToLoginAndClearStack effect #$effectCount completed")
+                }
+                is Effect.Navigation.SignOutAndNavigateToLogin -> {
+                    logController.d("WalletSetupScreen", "Processing SignOutAndNavigateToLogin effect #$effectCount - User will be signed out")
+                    onSignOutAndNavigateToLogin()
+                    logController.d("WalletSetupScreen", "SignOutAndNavigateToLogin effect #$effectCount completed")
+                }
+                is Effect.ShowError -> {
+                    logController.d("WalletSetupScreen", "Ignoring ShowError effect in WalletSetupScreen")
+                }
+                is Effect.ShowInfo -> {
+                    logController.d("WalletSetupScreen", "Ignoring ShowInfo effect in WalletSetupScreen")
+                }
+                is Effect.NavigateToHome -> {
+                    logController.d("WalletSetupScreen","Ignoring NavigateToHome effect in WalletSetupScreen")
+                }
+                is Effect.Navigation.NavigateToWalletSetup -> {
+                    logController.d("WalletSetupScreen", "Ignoring NavigateToWalletSetup effect in WalletSetupScreen")
+                }
+                else -> {
+                    logController.w("WalletSetupScreen") { "Unhandled effect #$effectCount: $effect" }
+                }
+            }
         }
     }
 
@@ -104,7 +126,7 @@ fun WalletSetupScreen(
         isLoading = state.isActivating,
         navigatableAction = ScreenNavigateAction.BACKABLE,
         onBack = {
-            logController.d { "WalletSetupScreen: Back button pressed" }
+            logController.d("WalletSetupScreen", "Back button pressed - will sign out user")
             viewModel.setEvent(Event.NavigateBack)
         }
     ) { padding ->
@@ -112,29 +134,73 @@ fun WalletSetupScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
+                .padding(24.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "Secure Your Wallet",
-                style = MaterialTheme.typography.headlineLarge,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "To keep your information safe, we need to create a secure key on this device. This is a one-time setup.",
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(32.dp))
-            WrapButton(
-                buttonConfig = ButtonConfig(
-                    type = ButtonType.PRIMARY,
-                    onClick = { viewModel.setEvent(Event.ActivateWallet) },
+            if (state.walletActivationError != null) {
+                // Error state
+                val errorMessage = state.walletActivationError
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_error),
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.error
                 )
-            ) {
-                Text(text = "Create Secure Wallet")
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = "Wallet Setup Failed",
+                    style = MaterialTheme.typography.headlineLarge,
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = errorMessage.toString(),
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(32.dp))
+                WrapButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    buttonConfig = ButtonConfig(
+                        type = ButtonType.PRIMARY,
+                        onClick = { 
+                            logController.d("WalletSetupScreen", "Retry button pressed")
+                            viewModel.setEvent(Event.RetryWalletActivation) 
+                        },
+                    )
+                ) {
+                    Text(text = "Try Again")
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "If the problem persists, try signing out and signing back in.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                // Loading state - wallet activation in progress
+                CircularProgressIndicator(
+                    modifier = Modifier.size(64.dp),
+                    strokeWidth = 6.dp
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = "Setting up your secure wallet...",
+                    style = MaterialTheme.typography.headlineLarge,
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "This may take a few moments. Please don't close the app.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
