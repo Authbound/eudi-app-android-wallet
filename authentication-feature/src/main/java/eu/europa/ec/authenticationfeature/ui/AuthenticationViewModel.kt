@@ -61,12 +61,19 @@ sealed class Event : ViewEvent {
     data class SignInWithOAuth(val provider: OAuthProvider, val context: Context) : Event()
     data object DismissLoading : Event()
     data object ActivateWallet : Event()
+    data object NavigateBack : Event()
+    data object NavigateToWalletSetup : Event()
 }
 
 sealed class Effect : ViewSideEffect {
     data object NavigateToHome : Effect()
     data class ShowError(val message: String) : Effect()
     data class ShowInfo(val message: String) : Effect()
+    
+    sealed class Navigation : Effect() {
+        data object NavigateToWalletSetup : Navigation()
+        data object NavigateBackToLogin : Navigation()
+    }
 }
 
 @KoinViewModel
@@ -103,6 +110,10 @@ class AuthenticationViewModel(
             is Event.SignInWithOAuth -> signInWithOAuth(event.provider, event.context)
             is Event.DismissLoading -> setState { copy(isLoading = false) }
             is Event.ActivateWallet -> activateWallet()
+            is Event.NavigateBack -> handleNavigateBack()
+            is Event.NavigateToWalletSetup -> {
+                setEffect { Effect.Navigation.NavigateToWalletSetup }
+            }
         }
     }
 
@@ -182,6 +193,16 @@ class AuthenticationViewModel(
         }
     }
 
+    private fun handleNavigateBack() {
+        setState { 
+            copy(
+                isActivating = false,
+                error = null
+            ) 
+        }
+        setEffect { Effect.Navigation.NavigateBackToLogin }
+    }
+
     /**
      * Combines basic device info from business-logic with biometric capability from authentication-logic
      */
@@ -233,7 +254,7 @@ class AuthenticationViewModel(
                                 if (prefKeys.isWalletActivated()) {
                                     setEffect { Effect.NavigateToHome }
                                 } else {
-                                    setEvent(Event.ActivateWallet)
+                                    setEvent(Event.NavigateToWalletSetup)
                                 }
                             }
                         }

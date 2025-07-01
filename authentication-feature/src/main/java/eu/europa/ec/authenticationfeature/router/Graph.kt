@@ -19,11 +19,14 @@ package eu.europa.ec.authenticationfeature.router
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
+import eu.europa.ec.authenticationfeature.ui.Effect
 import eu.europa.ec.authenticationfeature.ui.LoginScreen
 import eu.europa.ec.authenticationfeature.ui.WalletSetupScreen
 import eu.europa.ec.uilogic.navigation.AuthenticationScreens
 import eu.europa.ec.uilogic.navigation.DashboardScreens
+
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 fun NavGraphBuilder.featureAuthenticationGraph(navController: NavController) {
     composable(
@@ -43,15 +46,24 @@ fun NavGraphBuilder.featureAuthenticationGraph(navController: NavController) {
                     // reselecting the same item
                     launchSingleTop = true
                 }
+            },
+            onNavigateToWalletSetup = {
+                navController.navigate(AuthenticationScreens.WalletSetup.screenRoute)
             }
         )
     }
 
     composable(
         route = AuthenticationScreens.WalletSetup.screenRoute,
+
     ) {
         WalletSetupScreen(
-            viewModel = koinViewModel()
+            viewModel = koinViewModel(),
+            navController = navController,
+            logController = koinInject(),
+            onNavigateBackToLogin = {
+                navController.popBackStack()
+            }
         )
     }
 } 

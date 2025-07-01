@@ -60,6 +60,7 @@ import eu.europa.ec.uilogic.navigation.StartupScreens
 fun LoginScreen(
     viewModel: AuthenticationViewModel,
     onNavigateToHome: () -> Unit,
+    onNavigateToWalletSetup: () -> Unit,
 ) {
     val state by viewModel.viewState.collectAsState()
     val context = LocalContext.current
@@ -89,6 +90,12 @@ fun LoginScreen(
 
                 is Effect.ShowInfo -> {
                     Toast.makeText(context, effect.message, Toast.LENGTH_LONG).show()
+                }
+                
+                is Effect.Navigation.NavigateToWalletSetup -> onNavigateToWalletSetup()
+                
+                is Effect.Navigation.NavigateBackToLogin -> {
+                    // No-op for LoginScreen as this is the target screen
                 }
             }
         }
@@ -230,6 +237,6 @@ fun LoginScreen(
 @Composable
 private fun LoginScreenPreview() {
     PreviewTheme {
-        LoginScreen(viewModel = koinViewModel(), onNavigateToHome = {})
+        LoginScreen(viewModel = koinViewModel(), onNavigateToHome = {}, onNavigateToWalletSetup = {})
     }
 } 
