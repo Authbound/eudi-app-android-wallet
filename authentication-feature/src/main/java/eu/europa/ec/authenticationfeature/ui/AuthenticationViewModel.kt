@@ -47,9 +47,6 @@ data class State(
     val confirmPassword: String = "",
     val isSignUpMode: Boolean = false,
     val isLoading: Boolean = false,
-    val isActivating: Boolean = false,
-    val isWalletActivated: Boolean = false,
-    val walletActivationError: String? = null,
     val error: String? = null,
 ) : ViewState
 
@@ -62,10 +59,7 @@ sealed class Event : ViewEvent {
     data object SignUpWithEmailAndPassword : Event()
     data class SignInWithOAuth(val provider: OAuthProvider, val context: Context) : Event()
     data object DismissLoading : Event()
-    data object ActivateWallet : Event()
-    data object RetryWalletActivation : Event()
     data object NavigateBack : Event()
-    data object NavigateToWalletSetup : Event()
     data object Initialize : Event()
     data object SignOut : Event()
 }
@@ -90,10 +84,7 @@ class AuthenticationViewModel(
     private val signInWithOAuthUseCase: SignInWithOAuthUseCase,
     private val signOutUseCase: SignOutUseCase,
     private val observeAuthStateUseCase: ObserveAuthStateUseCase,
-    private val createWalletAttestationUseCase: CreateWalletAttestationUseCase,
-    private val deviceController: DeviceController,
-    private val biometricAuthenticationController: BiometricAuthenticationController,
-    private val pushNotificationController: PushNotificationController,
+    
     private val prefKeys: PrefKeys,
     private val logController: LogController
 ) : MviViewModel<Event, State, Effect>() {
@@ -125,20 +116,12 @@ class AuthenticationViewModel(
             is Event.SignUpWithEmailAndPassword -> signUpWithEmailPassword()
             is Event.SignInWithOAuth -> signInWithOAuth(event.provider, event.context)
             is Event.DismissLoading -> setState { copy(isLoading = false) }
-            is Event.ActivateWallet -> activateWallet()
-            is Event.RetryWalletActivation -> retryWalletActivation()
             is Event.NavigateBack -> {
                 if (!backNavigationInProgress) {
                     handleNavigateBack()
                 } else {
                     logController.w("AuthViewModel") { "Back navigation already in progress - ignoring" }
                 }
-            }
-            is Event.NavigateToWalletSetup -> {
-                logController.d("AuthViewModel",  "NavigateToWalletSetup - Setting source to FROM_LOGIN")
-                navigationSource = NavigationSource.FROM_LOGIN
-                logController.d("AuthViewModel", "Emitting effect: NavigateToWalletSetup (Instance: ${this.hashCode()})" )
-                setEffect { Effect.Navigation.NavigateToWalletSetup }
             }
             is Event.Initialize -> {
                 if (!isInitialized) {
@@ -212,50 +195,6 @@ class AuthenticationViewModel(
         }
     }
 
-    private fun activateWallet() {
-        viewModelScope.launch {
-            setState { copy(isActivating = true, isLoading = false, walletActivationError = null) }
-            try {
-                val pushToken =
-                    pushNotificationController.registerForPushNotifications().getOrThrow()
-                val deviceInfo = getCombinedDeviceInfo()
-
-                logController.d("WalletActivation", "Push Token: $pushToken")
-                logController.d("WalletActivation", "Device Info: $deviceInfo")
-
-                createWalletAttestationUseCase(deviceInfo, pushToken).getOrThrow()
-                setState { copy(isActivating = false, isWalletActivated = true, walletActivationError = null) }
-                setEffect { Effect.NavigateToHome }
-            } catch (e: Exception) {
-                logController.e("WalletActivation", e)
-                setState { copy(isActivating = false, walletActivationError = e.message) }
-                setEffect { Effect.ShowError(e.message ?: "Wallet activation failed") }
-            }
-        }
-    }
-
-    private fun retryWalletActivation() {
-        viewModelScope.launch {
-            setState { copy(isActivating = true, walletActivationError = null) }
-            try {
-                val pushToken =
-                    pushNotificationController.registerForPushNotifications().getOrThrow()
-                val deviceInfo = getCombinedDeviceInfo()
-
-                logController.d("WalletActivation", "Retry - Push Token: $pushToken")
-                logController.d("WalletActivation", "Retry - Device Info: $deviceInfo")
-
-                createWalletAttestationUseCase(deviceInfo, pushToken).getOrThrow()
-                setState { copy(isActivating = false, isWalletActivated = true, walletActivationError = null) }
-                setEffect { Effect.NavigateToHome }
-            } catch (e: Exception) {
-                logController.e("WalletActivation", e)
-                setState { copy(isActivating = false, walletActivationError = e.message) }
-                setEffect { Effect.ShowError(e.message ?: "Wallet activation failed") }
-            }
-        }
-    }
-
     private fun handleNavigateBack() {
         if (backNavigationInProgress) {
             logController.w("AuthViewModel") { "Back navigation already in progress - skipping" }
@@ -267,8 +206,6 @@ class AuthenticationViewModel(
         
         setState { 
             copy(
-                isActivating = false,
-                walletActivationError = null,
                 error = null
             ) 
         }
@@ -332,18 +269,6 @@ class AuthenticationViewModel(
         }
     }
 
-    /**
-     * Combines basic device info from business-logic with biometric capability from authentication-logic
-     */
-    private fun getCombinedDeviceInfo(): DeviceInfo {
-        val basicDeviceInfo = deviceController.getDeviceInfo()
-        val hasBiometricHardware = biometricAuthenticationController.hasBiometricHardware()
-        
-        return basicDeviceInfo.copy(
-            hasBiometricHardware = hasBiometricHardware
-        )
-    }
-
     private fun observeAuthState() {
         viewModelScope.launch {
             observeAuthStateUseCase()
@@ -383,13 +308,10 @@ class AuthenticationViewModel(
                                 setState { copy(isLoading = false) }
                                 if (prefKeys.isWalletActivated()) {
                                     logController.d("AuthViewModel", "User authenticated with wallet activated - navigating to home")
-                                    setState { copy(isWalletActivated = true) }
                                     setEffect { Effect.NavigateToHome }
                                 } else {
-                                    logController.d("AuthViewModel", "User authenticated but wallet not activated - auto-starting wallet activation")
-                                    setState { copy(isWalletActivated = false) }
-                                    // Auto-start wallet activation
-                                    activateWallet()
+                                    logController.d("AuthViewModel", "User authenticated but wallet not activated - navigating to setup.")
+                                    setEffect { Effect.Navigation.NavigateToWalletSetup }
                                 }
                             }
                         }
@@ -398,8 +320,7 @@ class AuthenticationViewModel(
                             setState { 
                                 copy(
                                     isLoading = false,
-                                    isWalletActivated = false,
-                                    walletActivationError = null
+                                    error = null
                                 ) 
                             }
                         }

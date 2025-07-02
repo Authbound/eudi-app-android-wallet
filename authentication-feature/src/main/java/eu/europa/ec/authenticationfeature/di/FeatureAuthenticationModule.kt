@@ -25,28 +25,26 @@ import eu.europa.ec.walletactivationlogic.usecase.CreateWalletAttestationUseCase
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Module
+import org.koin.core.annotation.Single
 import eu.europa.ec.authenticationfeature.ui.AuthenticationViewModel
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricAuthenticationController
 import eu.europa.ec.authenticationlogic.usecase.ObserveAuthStateUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignInWithEmailPasswordUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignInWithOAuthUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
+import eu.europa.ec.authenticationfeature.ui.WalletSetupViewModel
 
 @Module
 @ComponentScan("eu.europa.ec.authenticationfeature")
 class FeatureAuthenticationModule
 
-@Factory
+@Single
 fun provideAuthenticationViewModel(
     signInWithEmailPasswordUseCase: SignInWithEmailPasswordUseCase,
     signUpWithEmailPasswordUseCase: SignUpWithEmailPasswordUseCase,
     signInWithOAuthUseCase: SignInWithOAuthUseCase,
     signOutUseCase: SignOutUseCase,
     observeAuthStateUseCase: ObserveAuthStateUseCase,
-    createWalletAttestationUseCase: CreateWalletAttestationUseCase,
-    deviceController: DeviceController,
-    biometricAuthenticationController: BiometricAuthenticationController,
-    pushNotificationController: PushNotificationController,
     prefKeys: PrefKeys,
     logController: LogController
 ): AuthenticationViewModel = AuthenticationViewModel(
@@ -55,10 +53,25 @@ fun provideAuthenticationViewModel(
     signInWithOAuthUseCase,
     signOutUseCase,
     observeAuthStateUseCase,
+    prefKeys,
+    logController,
+)
+
+@Factory
+fun provideWalletSetupViewModel(
+    createWalletAttestationUseCase: CreateWalletAttestationUseCase,
+    signOutUseCase: SignOutUseCase,
+    deviceController: DeviceController,
+    biometricAuthenticationController: BiometricAuthenticationController,
+    pushNotificationController: PushNotificationController,
+    prefKeys: PrefKeys,
+    logController: LogController
+): WalletSetupViewModel = WalletSetupViewModel(
     createWalletAttestationUseCase,
+    signOutUseCase,
     deviceController,
     biometricAuthenticationController,
     pushNotificationController,
     prefKeys,
-    logController,
+    logController
 )

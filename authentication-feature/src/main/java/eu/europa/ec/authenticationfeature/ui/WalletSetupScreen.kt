@@ -15,6 +15,7 @@
  */
 package eu.europa.ec.authenticationfeature.ui
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -26,6 +27,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -42,81 +44,28 @@ import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun WalletSetupScreen(
-    viewModel: AuthenticationViewModel,
+    viewModel: WalletSetupViewModel = koinViewModel(),
     logController: LogController,
-    onPopBackStack: () -> Unit,
+    onNavigateToHome: () -> Unit,
     onNavigateToLogin: () -> Unit,
-    onSignOutAndNavigateToLogin: () -> Unit
 ) {
     val state by viewModel.viewState.collectAsState()
+    val context = LocalContext.current
 
-    // Initialize the ViewModel to track navigation source
+    // This screen's purpose is to activate the wallet, so trigger it on launch.
     LaunchedEffect(Unit) {
-        logController.d("WalletSetupScreen", "Screen composition - Initializing ViewModel")
-        viewModel.setEvent(Event.Initialize)
-        // Auto-start wallet activation if not already activating and no error
-        if (!state.isActivating && state.walletActivationError == null) {
-            logController.d("WalletSetupScreen", "Auto-starting wallet activation")
-            viewModel.setEvent(Event.ActivateWallet)
-        }
+        logController.d("WalletSetupScreen", "Screen launched, triggering wallet activation.")
+        viewModel.setEvent(WalletSetupEvent.ActivateWallet)
     }
 
-    // Handle navigation effects from ViewModel
+    // Handle navigation and error effects from the ViewModel
     LaunchedEffect(Unit) {
-        logController.d("WalletSetupScreen", "Starting effect collection" )
-        var effectCount = 0
-        var lastEffectTime = 0L
-        
         viewModel.effect.collectLatest { effect ->
-            effectCount++
-            val currentTime = System.currentTimeMillis()
-            val timeSinceLastEffect = currentTime - lastEffectTime
-            
-            logController.d("WalletSetupScreen", "Effect #$effectCount received: $effect (Time since last: ${timeSinceLastEffect}ms)" )
-            
-            // Emergency fix: Ignore rapid duplicate navigation effects
-            val isNavigationEffect = effect is Effect.Navigation.PopBackStack || 
-                                   effect is Effect.Navigation.NavigateToLoginAndClearStack ||
-                                   effect is Effect.Navigation.SignOutAndNavigateToLogin
-            val isTooRapid = timeSinceLastEffect < 500 && effectCount > 1
-            
-            if (isNavigationEffect && isTooRapid) {
-                logController.w("WalletSetupScreen") { "Ignoring rapid duplicate navigation effect #$effectCount (${timeSinceLastEffect}ms)" }
-                return@collectLatest
-            }
-            
-            lastEffectTime = currentTime
-            
             when (effect) {
-                is Effect.Navigation.PopBackStack -> {
-                    logController.d("WalletSetupScreen", "Processing PopBackStack effect #$effectCount")
-                    onPopBackStack()
-                    logController.d("WalletSetupScreen", "PopBackStack effect #$effectCount completed" )
-                }
-                is Effect.Navigation.NavigateToLoginAndClearStack -> {
-                    logController.d("WalletSetupScreen", "Processing NavigateToLoginAndClearStack effect #$effectCount")
-                    onNavigateToLogin()
-                    logController.d("WalletSetupScreen", "NavigateToLoginAndClearStack effect #$effectCount completed")
-                }
-                is Effect.Navigation.SignOutAndNavigateToLogin -> {
-                    logController.d("WalletSetupScreen", "Processing SignOutAndNavigateToLogin effect #$effectCount - User will be signed out")
-                    onSignOutAndNavigateToLogin()
-                    logController.d("WalletSetupScreen", "SignOutAndNavigateToLogin effect #$effectCount completed")
-                }
-                is Effect.ShowError -> {
-                    logController.d("WalletSetupScreen", "Ignoring ShowError effect in WalletSetupScreen")
-                }
-                is Effect.ShowInfo -> {
-                    logController.d("WalletSetupScreen", "Ignoring ShowInfo effect in WalletSetupScreen")
-                }
-                is Effect.NavigateToHome -> {
-                    logController.d("WalletSetupScreen","Ignoring NavigateToHome effect in WalletSetupScreen")
-                }
-                is Effect.Navigation.NavigateToWalletSetup -> {
-                    logController.d("WalletSetupScreen", "Ignoring NavigateToWalletSetup effect in WalletSetupScreen")
-                }
-                else -> {
-                    logController.w("WalletSetupScreen") { "Unhandled effect #$effectCount: $effect" }
+                is WalletSetupEffect.NavigateToHome -> onNavigateToHome()
+                is WalletSetupEffect.NavigateToLogin -> onNavigateToLogin()
+                is WalletSetupEffect.ShowError -> {
+                    Toast.makeText(context, effect.message, Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -124,11 +73,7 @@ fun WalletSetupScreen(
 
     ContentScreen(
         isLoading = state.isActivating,
-        navigatableAction = ScreenNavigateAction.BACKABLE,
-        onBack = {
-            logController.d("WalletSetupScreen", "Back button pressed - will sign out user")
-            viewModel.setEvent(Event.NavigateBack)
-        }
+        navigatableAction = ScreenNavigateAction.NONE, // No back action, user must sign out
     ) { padding ->
         Column(
             modifier = Modifier
@@ -138,9 +83,8 @@ fun WalletSetupScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (state.walletActivationError != null) {
+            if (state.activationError != null) {
                 // Error state
-                val errorMessage = state.walletActivationError
                 Icon(
                     painter = painterResource(id = R.drawable.ic_error),
                     contentDescription = null,
@@ -156,7 +100,7 @@ fun WalletSetupScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = errorMessage.toString(),
+                    text = state.activationError.orEmpty(),
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -168,19 +112,25 @@ fun WalletSetupScreen(
                         type = ButtonType.PRIMARY,
                         onClick = { 
                             logController.d("WalletSetupScreen", "Retry button pressed")
-                            viewModel.setEvent(Event.RetryWalletActivation) 
+                            viewModel.setEvent(WalletSetupEvent.Retry) 
                         },
                     )
                 ) {
                     Text(text = "Try Again")
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "If the problem persists, try signing out and signing back in.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                WrapButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    buttonConfig = ButtonConfig(
+                        type = ButtonType.SECONDARY,
+                        onClick = {
+                            logController.d("WalletSetupScreen", "Sign Out button pressed")
+                            viewModel.setEvent(WalletSetupEvent.SignOut)
+                        },
+                    )
+                ) {
+                    Text(text = "Sign Out")
+                }
             } else {
                 // Loading state - wallet activation in progress
                 CircularProgressIndicator(

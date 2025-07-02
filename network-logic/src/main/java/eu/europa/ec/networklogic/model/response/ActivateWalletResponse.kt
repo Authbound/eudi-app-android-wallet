@@ -18,8 +18,6 @@ package eu.europa.ec.networklogic.model.response
 import com.google.gson.annotations.SerializedName
 
 data class WalletActivationResponse(
-    @SerializedName("status")
-    val status: String,
-    @SerializedName("message")
-    val message: String
+    @SerializedName("wua")
+    val wua: String
 )

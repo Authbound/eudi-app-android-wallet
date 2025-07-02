@@ -17,14 +17,24 @@
 package eu.europa.ec.networklogic.model.request
 
 import com.google.gson.annotations.SerializedName
-import eu.europa.ec.businesslogic.model.DeviceInfo
 
+// Simplified DeviceInfo that matches backend schema
+data class SimpleDeviceInfo(
+    @SerializedName("osVersion")
+    val osVersion: String,
+    @SerializedName("deviceModel") 
+    val deviceModel: String,
+    @SerializedName("isHardwareBacked")
+    val isHardwareBacked: Boolean
+)
 
 data class WalletActivationRequest(
-    @SerializedName("wua_public_key")
+    @SerializedName("wuaPublicKey")
     val wuaPublicKey: String,
-    @SerializedName("device_info")
-    val deviceInfo: DeviceInfo,
-    @SerializedName("push_notification_token")
-    val pushNotificationToken: String
+    @SerializedName("deviceInfo")
+    val deviceInfo: SimpleDeviceInfo,
+    @SerializedName("pushNotificationToken")
+    val pushNotificationToken: String?,
+    @SerializedName("pushNotificationProvider")
+    val pushNotificationProvider: String? = "fcm"
 )

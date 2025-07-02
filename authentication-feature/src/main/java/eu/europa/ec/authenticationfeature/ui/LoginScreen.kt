@@ -162,99 +162,12 @@ fun LoginScreen(
                     )
                 )
         ) {
-            if (state.isActivating) {
-                // Show wallet activation progress
-                WalletActivationScreen(
-                    error = state.walletActivationError,
-                    onRetry = { viewModel.setEvent(Event.RetryWalletActivation) },
-                    onSignOut = { viewModel.setEvent(Event.SignOut) }
-                )
-            } else {
-                // Show login form
-                LoginFormContent(
-                    state = state,
-                    paddingValues = paddingValues,
-                    onEvent = viewModel::setEvent
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun WalletActivationScreen(
-    error: String?,
-    onRetry: () -> Unit,
-    onSignOut: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        if (error != null) {
-            // Error state
-            Icon(
-                painter = painterResource(id = R.drawable.ic_error),
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.error
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                text = "Wallet Setup Failed",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = error,
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(32.dp))
-            WrapButton(
-                modifier = Modifier.fillMaxWidth(),
-                buttonConfig = ButtonConfig(
-                    type = ButtonType.PRIMARY,
-                    onClick = onRetry,
-                )
-            ) {
-                Text(text = "Try Again")
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            WrapButton(
-                modifier = Modifier.fillMaxWidth(),
-                buttonConfig = ButtonConfig(
-                    type = ButtonType.SECONDARY,
-                    onClick = onSignOut,
-                )
-            ) {
-                Text(text = "Sign Out")
-            }
-        } else {
-            // Loading state
-            CircularProgressIndicator(
-                modifier = Modifier.size(64.dp),
-                strokeWidth = 6.dp
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                text = "Setting up your secure wallet...",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "This may take a few moments. Please don't close the app.",
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            // The LoginScreen's only responsibility is to show the login form.
+            // Navigation to the WalletSetupScreen handles the activation UI.
+            LoginFormContent(
+                state = state,
+                paddingValues = paddingValues,
+                onEvent = viewModel::setEvent
             )
         }
     }

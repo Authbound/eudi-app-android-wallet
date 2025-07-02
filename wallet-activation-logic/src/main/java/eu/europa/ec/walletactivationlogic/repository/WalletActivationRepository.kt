@@ -26,6 +26,7 @@ import eu.europa.ec.businesslogic.model.DeviceInfo
 import eu.europa.ec.networklogic.api.ApiClient
 
 import eu.europa.ec.networklogic.model.request.WalletActivationRequest
+import eu.europa.ec.networklogic.model.request.SimpleDeviceInfo
 import eu.europa.ec.networklogic.model.response.WalletActivationResponse
 
 import java.security.cert.Certificate
@@ -56,10 +57,19 @@ class WalletActivationRepositoryImpl(
             val token = supabaseClient.auth.currentSessionOrNull()?.accessToken
                 ?: return Result.failure(Exception("User not authenticated"))
 
+            // Convert full DeviceInfo to simplified version for backend
+            val simpleDeviceInfo = SimpleDeviceInfo(
+                osVersion = deviceInfo.deviceOs,
+                deviceModel = deviceInfo.deviceModel,
+                isHardwareBacked = deviceInfo.hasHardwareKeystore || deviceInfo.hasSecureElement
+            )
+
             val request = WalletActivationRequest(
                 pushNotificationToken = pushToken,
                 wuaPublicKey = Base64.encodeToString(publicKey.encoded, Base64.NO_WRAP),
-                deviceInfo = deviceInfo)
+                deviceInfo = simpleDeviceInfo,
+                pushNotificationProvider = "fcm"
+            )
 
 
             logController.d("WalletActivation", "Request Body: $request")
