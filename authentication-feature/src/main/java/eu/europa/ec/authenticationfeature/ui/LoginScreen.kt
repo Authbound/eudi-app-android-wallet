@@ -29,11 +29,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -87,9 +90,6 @@ import eu.europa.ec.uilogic.component.wrap.ButtonConfig
 import eu.europa.ec.uilogic.component.wrap.ButtonType
 import eu.europa.ec.uilogic.component.wrap.WrapButton
 import kotlinx.coroutines.flow.collectLatest
-import org.koin.androidx.compose.koinViewModel
-import eu.europa.ec.uilogic.navigation.DashboardScreens
-import eu.europa.ec.uilogic.navigation.StartupScreens
 
 @Composable
 fun LoginScreen(
@@ -126,17 +126,17 @@ fun LoginScreen(
                 is Effect.ShowInfo -> {
                     Toast.makeText(context, effect.message, Toast.LENGTH_LONG).show()
                 }
-                
+
                 is Effect.Navigation.NavigateToWalletSetup -> onNavigateToWalletSetup()
-                
+
                 is Effect.Navigation.PopBackStack -> {
                     // No-op for LoginScreen - this would only apply if LoginScreen had a back stack
                 }
-                
+
                 is Effect.Navigation.NavigateToLoginAndClearStack -> {
                     // No-op for LoginScreen as this is the target screen
                 }
-                
+
                 is Effect.Navigation.SignOutAndNavigateToLogin -> {
                     // No-op for LoginScreen - user is already being navigated here
                     // The logout has already been handled by the ViewModel
@@ -150,37 +150,22 @@ fun LoginScreen(
         isLoading = state.isLoading,
         navigatableAction = ScreenNavigateAction.NONE,
     ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                            MaterialTheme.colorScheme.background
-                        )
-                    )
-                )
-        ) {
-            // The LoginScreen's only responsibility is to show the login form.
-            // Navigation to the WalletSetupScreen handles the activation UI.
-            LoginFormContent(
-                state = state,
-                paddingValues = paddingValues,
-                onEvent = viewModel::setEvent
-            )
-        }
+        LoginFormContent(
+            state = state,
+            paddingValues = paddingValues,
+            onEvent = viewModel::setEvent
+        )
     }
 }
 
 @Composable
 private fun LoginFormContent(
     state: State,
-    paddingValues: androidx.compose.foundation.layout.PaddingValues,
+    paddingValues: PaddingValues,
     onEvent: (Event) -> Unit
 ) {
     val context = LocalContext.current
-    
+
     // Animated gradient colors
     val infiniteTransition = rememberInfiniteTransition(label = "gradient")
     val gradientOffset by infiniteTransition.animateFloat(
@@ -192,7 +177,7 @@ private fun LoginFormContent(
         ),
         label = "gradientOffset"
     )
-    
+
     // Logo scale animation
     val logoScale by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -203,337 +188,312 @@ private fun LoginFormContent(
         ),
         label = "logoScale"
     )
-    
-    Column(
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(paddingValues)
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+            .background(MaterialTheme.colorScheme.surface)
     ) {
-        // Animated Authbound branding
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(bottom = 48.dp)
-        ) {
-            // Main Authbound logo with animation
-            Box(
-                modifier = Modifier
-                    .scale(logoScale)
-                    .background(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                                Color.Transparent
-                            ),
-                            radius = 120f
-                        ),
-                        shape = CircleShape
-                    )
-                    .padding(16.dp)
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_authbound_logo),
-                    contentDescription = null,
-                    modifier = Modifier.size(80.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // Animated gradient text for main title
-            Text(
-                text = "Authbound",
-                style = MaterialTheme.typography.displaySmall.copy(
-                    brush = Brush.linearGradient(
+        // Header background with arc shape
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(460.dp)
+                .clip(CustomWaveShape())
+                .background(
+                    Brush.verticalGradient(
                         colors = listOf(
                             MaterialTheme.colorScheme.primary,
-                            MaterialTheme.colorScheme.secondary,
-                            MaterialTheme.colorScheme.tertiary
-                        ),
-                        start = Offset(gradientOffset * 200f, 0f),
-                        end = Offset(gradientOffset * 200f + 200f, 0f)
-                    )
-                ),
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            // Subtitle with fade-in animation
-            Text(
-                text = "Identity Wallet",
-                style = MaterialTheme.typography.titleLarge.copy(
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.onSurfaceVariant,
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
                         )
-                    )
-                ),
-                textAlign = TextAlign.Center
-            )
-            
-            Spacer(modifier = Modifier.height(4.dp))
-            
-            // Security tagline
-            Text(
-                text = "Secure • Private • Trusted",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                textAlign = TextAlign.Center
-            )
-        }
-        
-        // Enhanced login form card with glass morphism effect
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
-            border = BorderStroke(
-                width = 1.dp,
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f),
-                        MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f)
                     )
                 )
-            )
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+//            Spacer(Modifier.height(40.dp))
+
+            // Animated Authbound branding
             Column(
-                modifier = Modifier
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.surface.copy(alpha = 0.1f),
-                                Color.Transparent
-                            )
-                        )
-                    )
-                    .padding(28.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                // Welcome header with icon
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier.fillMaxWidth()
+                // Main Authbound logo with animation
+                Box(
+                    modifier = Modifier
+                        .scale(logoScale)
+                        .background(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.1f),
+                                    Color.Transparent
+                                ),
+                                radius = 120f
+                            ),
+                            shape = CircleShape
+                        )
+                        .padding(16.dp)
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_authbound_logo),
                         contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = if (state.isSignUpMode) "Create Account" else "Welcome Back",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        modifier = Modifier.size(148.dp),
+                        tint = Color.Unspecified
                     )
                 }
-                
-                // Enhanced input fields
-                OutlinedTextField(
-                    value = state.email,
-                    onValueChange = { onEvent(Event.OnEmailChanged(it)) },
-                    label = { Text(stringResource(id = R.string.email)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
+
+//                Spacer(modifier = Modifier.height(4.dp))
+
+                // Animated gradient text for main title
+                Text(
+                    text = "AUTHBOUND",
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.onPrimary,
+                                MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
+                            ),
+                            start = Offset(gradientOffset * 200f, 0f),
+                            end = Offset(gradientOffset * 200f + 200f, 0f)
+                        )
+                    ),
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+
+//                Spacer(modifier = Modifier.height(6.dp))
+
+                // Subtitle
+                Text(
+                    text = "Identity Wallet",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f),
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Security tagline
+                Text(
+                    text = "Secure • Private • Trusted",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            Spacer(Modifier.height(30.dp))
+
+            // Enhanced login form card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 16.dp),
+                border = BorderStroke(
+                    width = 1.dp,
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                            Color.Transparent
+                        )
                     )
                 )
-                
-                OutlinedTextField(
-                    value = state.password,
-                    onValueChange = { onEvent(Event.OnPasswordChanged(it)) },
-                    label = { Text(stringResource(id = R.string.password)) },
-                    visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
-                    )
-                )
-                
-                if (state.isSignUpMode) {
+            ) {
+                Column(
+                    modifier = Modifier.padding(32.dp),
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                ) {
+                    // Welcome header inside the card
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = if (state.isSignUpMode) "Create Account" else "Welcome Back",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = if (state.isSignUpMode) "Join the secure identity ecosystem" else "Sign in to your secure wallet",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
+                    // Input fields
                     OutlinedTextField(
-                        value = state.confirmPassword,
-                        onValueChange = { onEvent(Event.OnConfirmPasswordChanged(it)) },
-                        label = { Text(stringResource(id = R.string.confirm_password)) },
-                        visualTransformation = PasswordVisualTransformation(),
+                        value = state.email,
+                        onValueChange = { onEvent(Event.OnEmailChanged(it)) },
+                        label = { Text(stringResource(id = R.string.email)) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
                         singleLine = true,
-                        isError = state.error != null,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
                         )
                     )
-                }
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                // Enhanced primary button with gradient
-                WrapButton(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    buttonConfig = ButtonConfig(
-                        type = ButtonType.PRIMARY,
-                        onClick = {
+
+                    OutlinedTextField(
+                        value = state.password,
+                        onValueChange = { onEvent(Event.OnPasswordChanged(it)) },
+                        label = { Text(stringResource(id = R.string.password)) },
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
+                        )
+                    )
+
+                    if (state.isSignUpMode) {
+                        OutlinedTextField(
+                            value = state.confirmPassword,
+                            onValueChange = { onEvent(Event.OnConfirmPasswordChanged(it)) },
+                            label = { Text(stringResource(id = R.string.confirm_password)) },
+                            visualTransformation = PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            singleLine = true,
+                            isError = state.error != null,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
+                            )
+                        )
+                    }
+
+                    // Primary button
+                    WrapButton(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        buttonConfig = ButtonConfig(
+                            type = ButtonType.PRIMARY,
+                            onClick = {
+                                if (state.isSignUpMode) {
+                                    onEvent(Event.SignUpWithEmailAndPassword)
+                                } else {
+                                    onEvent(Event.SignInWithEmailAndPassword)
+                                }
+                            },
+                        )
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
                             if (state.isSignUpMode) {
-                                onEvent(Event.SignUpWithEmailAndPassword)
-                            } else {
-                                onEvent(Event.SignInWithEmailAndPassword)
+                                Icon(
+                                    painter = painterResource(id = R.drawable.baseline_person_24),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
                             }
-                        },
-                    )
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        if (state.isSignUpMode) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.baseline_person_24),
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp)
+                            Text(
+                                text = stringResource(id = if (state.isSignUpMode) R.string.sign_up else R.string.sign_in),
+                                fontWeight = FontWeight.SemiBold,
+                                style = MaterialTheme.typography.titleMedium
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
                         }
-                        Text(
-                            text = stringResource(id = if (state.isSignUpMode) R.string.sign_up else R.string.sign_in),
-                            fontWeight = FontWeight.SemiBold,
-                            style = MaterialTheme.typography.titleMedium
-                        )
                     }
-                }
-                
-                // Enhanced divider with gradient
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    HorizontalDivider(
-                        modifier = Modifier.weight(1f),
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                    )
-                    Text(
-                        text = "OR",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 20.dp),
-                        fontWeight = FontWeight.Medium
-                    )
-                    HorizontalDivider(
-                        modifier = Modifier.weight(1f),
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                    )
-                }
-                
-                // Enhanced Google Sign-In button
-                WrapButton(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    buttonConfig = ButtonConfig(
-                        type = ButtonType.SECONDARY,
-                        onClick = {
-                            onEvent(
-                                Event.SignInWithOAuth(
-                                    OAuthProvider.GOOGLE,
-                                    context
-                                )
-                            )
-                        },
-                    )
-                ) {
+
+                    // Divider
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.baseline_person_24), // Placeholder for Google icon
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp),
-                            tint = MaterialTheme.colorScheme.primary
+                        HorizontalDivider(
+                            modifier = Modifier.weight(1f),
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = stringResource(id = R.string.login_with_google),
-                            fontWeight = FontWeight.Medium,
-                            style = MaterialTheme.typography.titleMedium
+                            text = "OR",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 20.dp),
+                            fontWeight = FontWeight.Medium
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.weight(1f),
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
                         )
                     }
-                }
-                
-                /* Temporarily disabled OAuth providers - can be easily re-enabled
-                WrapButton(
-                    modifier = Modifier.fillMaxWidth(),
-                    buttonConfig = ButtonConfig(
-                        type = ButtonType.SECONDARY,
-                        onClick = {
-                            onEvent(
-                                Event.SignInWithOAuth(
-                                    OAuthProvider.MICROSOFT,
-                                    context
+
+                    // Google Sign-In button
+                    WrapButton(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        buttonConfig = ButtonConfig(
+                            type = ButtonType.SECONDARY,
+                            onClick = {
+                                onEvent(
+                                    Event.SignInWithOAuth(
+                                        OAuthProvider.GOOGLE,
+                                        context
+                                    )
                                 )
+                            },
+                        )
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_google_logo),
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                                tint = Color.Unspecified
                             )
-                        },
-                    )
-                ) {
-                    Text(text = stringResource(id = R.string.login_with_microsoft))
-                }
-                
-                WrapButton(
-                    modifier = Modifier.fillMaxWidth(),
-                    buttonConfig = ButtonConfig(
-                        type = ButtonType.SECONDARY,
-                        onClick = {
-                            onEvent(
-                                Event.SignInWithOAuth(
-                                    OAuthProvider.META,
-                                    context
-                                )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = stringResource(id = R.string.login_with_google),
+                                fontWeight = FontWeight.Medium,
+                                style = MaterialTheme.typography.titleMedium
                             )
-                        },
-                    )
-                ) {
-                    Text(text = stringResource(id = R.string.login_with_meta))
-                }
-                */
-                
-                // Enhanced toggle button
-                TextButton(
-                    onClick = { onEvent(Event.ToggleMode) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        text = stringResource(
-                            id = if (state.isSignUpMode) R.string.already_have_account else R.string.dont_have_account
-                        ),
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Medium
-                    )
+                        }
+                    }
                 }
             }
+
+            // Toggle button outside the card
+            TextButton(
+                onClick = { onEvent(Event.ToggleMode) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = stringResource(
+                        id = if (state.isSignUpMode) R.string.already_have_account else R.string.dont_have_account
+                    ),
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            Spacer(Modifier.height(32.dp))
         }
     }
 }
@@ -541,7 +501,25 @@ private fun LoginFormContent(
 @ThemeModePreviews
 @Composable
 private fun LoginScreenPreview() {
+    // Create a mock state for preview
+    val mockState = State(
+        email = "",
+        password = "",
+        confirmPassword = "",
+        isSignUpMode = false,
+        isLoading = false,
+        error = null
+    )
     PreviewTheme {
-        LoginScreen(viewModel = koinViewModel(), onNavigateToHome = {}, onNavigateToWalletSetup = {})
+        ContentScreen(
+            isLoading = false,
+            navigatableAction = ScreenNavigateAction.NONE,
+        ) { paddingValues ->
+            LoginFormContent(
+                state = mockState,
+                paddingValues = paddingValues,
+                onEvent = { /* No-op for preview */ }
+            )
+        }
     }
-} 
+}

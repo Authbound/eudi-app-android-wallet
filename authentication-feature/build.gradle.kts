@@ -24,6 +24,18 @@ dependencies {
     implementation(libs.supabase.postgrest.kt)
     implementation(libs.supabase.auth.kt)
     implementation(libs.supabase.realtime.kt)
+
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-graphics")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.animation:animation")
+
+    // Animation dependencies
+    implementation("androidx.compose.animation:animation-core")
+    implementation("androidx.compose.animation:animation-graphics")
+
+    // Foundation for drawing effects
+    implementation("androidx.compose.foundation:foundation")
 }
 
 moduleConfig {
