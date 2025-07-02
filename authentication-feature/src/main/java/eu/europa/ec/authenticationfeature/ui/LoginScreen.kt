@@ -198,16 +198,9 @@ private fun LoginFormContent(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(460.dp)
+                .height(500.dp)
                 .clip(CustomWaveShape())
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.primary,
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-                        )
-                    )
-                )
+                .background(MaterialTheme.colorScheme.primary)
         )
 
         Column(
@@ -310,7 +303,7 @@ private fun LoginFormContent(
             ) {
                 Column(
                     modifier = Modifier.padding(32.dp),
-                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     // Welcome header inside the card
                     Column(
