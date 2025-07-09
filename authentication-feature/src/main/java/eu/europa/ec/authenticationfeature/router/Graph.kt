@@ -20,6 +20,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import eu.europa.ec.authenticationfeature.ui.LoginScreen
+import eu.europa.ec.authenticationfeature.ui.ProfileCompletionScreen
 import eu.europa.ec.authenticationfeature.ui.WalletSetupScreen
 import eu.europa.ec.uilogic.navigation.AuthenticationScreens
 import eu.europa.ec.uilogic.navigation.DashboardScreens
@@ -47,6 +48,24 @@ fun NavGraphBuilder.featureAuthenticationGraph(navController: NavController) {
             },
             onNavigateToWalletSetup = {
                 navController.navigate(AuthenticationScreens.WalletSetup.screenRoute)
+            },
+            onNavigateToProfileCompletion = {
+                navController.navigate(AuthenticationScreens.ProfileCompletion.screenRoute)
+            }
+        )
+    }
+
+    composable(
+        route = AuthenticationScreens.ProfileCompletion.screenRoute,
+    ) {
+        ProfileCompletionScreen(
+            viewModel = koinViewModel(),
+            onNavigateToWalletSetup = {
+                navController.navigate(AuthenticationScreens.WalletSetup.screenRoute) {
+                    popUpTo(AuthenticationScreens.ProfileCompletion.screenRoute) {
+                        inclusive = true
+                    }
+                }
             }
         )
     }

@@ -1,0 +1,726 @@
+---
+description: Android Technical stack guidelines
+alwaysApply: false
+---
+# Android Technical Stack Guidelines
+
+## Core Technology Stack
+
+### Programming Language
+- **Kotlin** - Primary language for all Android development
+- **Java interop** - Only when integrating with existing Java libraries
+- **Target SDK**: Latest stable Android API level
+- **Minimum SDK**: API 26 (Android 8.0) for biometric and security features
+
+### UI Framework
+- **Jetpack Compose** - Modern declarative UI framework (migrating from XML)
+- **Material 3** - Google's latest design system implementation
+- **Navigation Compose** - Type-safe navigation between screens
+- **Accompanist libraries** - Additional Compose utilities when needed
+
+### Architecture Components
+- **ViewModel** - UI-related data management with lifecycle awareness
+- **LiveData/StateFlow** - Reactive data observation
+- **Room Database** - Local data persistence (if applicable)
+- **DataStore** - Preferences and small data storage
+- **WorkManager** - Background task scheduling
+
+## Backend Integration
+
+### Network Layer
+- **Retrofit** - HTTP client for REST API communication
+- **OkHttp** - Underlying HTTP client with interceptors
+- **Moshi/Gson** - JSON serialization/deserialization
+- **Certificate Pinning** - Enhanced security for API communications
+
+### Backend Communication Patterns
+```kotlin
+// Repository pattern for API integration
+interface WalletRepository {
+    suspend fun activateWallet(request: ActivateWalletRequest): Result<ActivationResponse>
+    suspend fun authenticateUser(credentials: UserCredentials): Result<AuthToken>
+    suspend fun issueCredential(request: CredentialRequest): Result<Credential>
+}
+
+// Interactor pattern for feature business logic
+interface DashboardInteractor {
+    fun getQuickActions(): Flow<DashboardQuickActionsPartialState>
+    fun performAuthentication(): Flow<AuthenticationPartialState>
+    fun performDocumentSigning(): Flow<DocumentSigningPartialState>
+}
+
+class DashboardInteractorImpl(
+    private val resourceProvider: ResourceProvider,
+    private val walletCoreDocumentsController: WalletCoreDocumentsController,
+    private val authenticationRepository: WalletRepository
+) : DashboardInteractor {
+    
+    override fun getQuickActions(): Flow<DashboardQuickActionsPartialState> = flow {
+        try {
+            val actions = buildQuickActionsList()
+            emit(DashboardQuickActionsPartialState.Success(actions))
+        } catch (e: Exception) {
+            emit(DashboardQuickActionsPartialState.Failure(e.message ?: "Unknown error"))
+        }
+    }
+}
+
+// Use case pattern for granular domain operations (authentication-logic module)
+interface SignInWithEmailPasswordUseCase {
+    suspend operator fun invoke(email: String, password: String): Result<User>
+}
+
+class SignInWithEmailPasswordUseCaseImpl(
+    private val supabaseAuthRepository: SupabaseAuthRepository
+) : SignInWithEmailPasswordUseCase {
+    
+    override suspend operator fun invoke(email: String, password: String): Result<User> {
+        return supabaseAuthRepository.signInWithEmailPassword(email, password)
+    }
+}
+```
+
+### API Integration Guidelines
+- **Always use Repository pattern** for backend communication
+- **Use Interactor pattern** for feature-level business logic
+- **Use Use Case pattern** for granular domain operations
+- **Implement proper error handling** with sealed classes or Result types
+- **Use coroutines** for asynchronous operations
+- **Add request/response logging** in debug builds only
+- **Implement retry mechanisms** for critical operations
+
+## Dependency Injection
+
+### Koin Setup
+```kotlin
+@Module
+@ComponentScan("eu.europa.ec.networklogic")
+class LogicNetworkModule
+
+@Factory
+fun provideOkHttpClient(
+    httpLoggingInterceptor: HttpLoggingInterceptor,
+    configLogic: ConfigLogic
+): OkHttpClient {
+    val client = OkHttpClient().newBuilder()
+        .readTimeout(configLogic.environmentConfig.readTimeoutSeconds, TimeUnit.SECONDS)
+        .connectTimeout(configLogic.environmentConfig.connectTimeoutSeconds, TimeUnit.SECONDS)
+        .addInterceptor(httpLoggingInterceptor)
+    
+    return client.build()
+}
+
+@Single
+fun provideRetrofit(
+    okHttpClient: OkHttpClient,
+    converterFactory: GsonConverterFactory,
+    configLogic: ConfigLogic
+): Retrofit {
+    return Retrofit.Builder()
+        .baseUrl(configLogic.environmentConfig.getServerHost())
+        .client(okHttpClient)
+        .addConverterFactory(converterFactory)
+        .build()
+}
+
+// Feature module DI
+@Factory
+fun provideDashboardInteractor(
+    resourceProvider: ResourceProvider,
+    walletCoreDocumentsController: WalletCoreDocumentsController,
+    walletCoreConfig: WalletCoreConfig
+): DashboardInteractor = DashboardInteractorImpl(
+    resourceProvider,
+    walletCoreDocumentsController,
+    walletCoreConfig
+)
+
+// Use case DI (authentication-logic module)
+@Factory
+fun provideSignInWithEmailPasswordUseCase(
+    supabaseAuthRepository: SupabaseAuthRepository
+): SignInWithEmailPasswordUseCase = SignInWithEmailPasswordUseCaseImpl(supabaseAuthRepository)
+```
+
+### Koin Annotations
+- **@Module** - Marks a class as a Koin module
+- **@ComponentScan** - Scans package for components
+- **@Single** - Singleton scope (one instance)
+- **@Factory** - New instance each time
+- **@ScopeId** - Scoped instances (e.g., presentation scope)
+
+## Build Configuration
+
+### Gradle Structure
+- **Kotlin DSL** - Use `build.gradle.kts` for all build files
+- **Version Catalogs** - Centralized dependency management in `libs.versions.toml`
+- **Build Variants** - Support for dev/demo/prod configurations
+- **Proguard** - Code obfuscation for release builds
+
+### Build Variants Configuration
+```kotlin
+android {
+    buildTypes {
+        debug {
+            isDebuggable = true
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
+        
+        release {
+            isMinifyEnabled = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+    
+    flavorDimensions += "version"
+    productFlavors {
+        create("dev") {
+            dimension = "version"
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+        }
+        
+        create("demo") {
+            dimension = "version"
+            applicationIdSuffix = ".demo"
+            versionNameSuffix = "-demo"
+        }
+        
+        create("prod") {
+            dimension = "version"
+            // Production configuration
+        }
+    }
+}
+```
+
+## Security Implementation
+
+### Android Security Features
+- **Android Keystore** - Hardware-backed key storage
+- **BiometricPrompt** - Fingerprint, face, and PIN authentication
+- **EncryptedSharedPreferences** - Secure local data storage
+- **Network Security Config** - Certificate pinning and TLS configuration
+
+### Security Best Practices
+```kotlin
+// Biometric authentication implementation
+@Factory
+fun provideBiometricAuthenticationController(
+    cryptoController: CryptoController,
+    biometryStorageController: BiometryStorageController,
+    resourceProvider: ResourceProvider
+): BiometricAuthenticationController = BiometricAuthenticationControllerImpl(
+    resourceProvider,
+    cryptoController,
+    biometryStorageController
+)
+
+class BiometricAuthenticationControllerImpl(
+    private val resourceProvider: ResourceProvider,
+    private val cryptoController: CryptoController,
+    private val biometryStorageController: BiometryStorageController
+) : BiometricAuthenticationController {
+    
+    override fun authenticate(
+        context: Context,
+        notifyOnAuthenticationFailure: Boolean,
+        listener: (BiometricsAuthenticate) -> Unit
+    ) {
+        // Biometric authentication implementation
+    }
+}
+```
+
+## Testing Framework
+
+### Unit Testing
+- **JUnit 5** - Primary testing framework
+- **MockK** - Kotlin-first mocking library
+- **Coroutines Test** - Testing coroutine-based code
+- **Truth** - Fluent assertion library
+
+### UI Testing
+- **Compose Test** - Testing Jetpack Compose UI
+- **Espresso** - Android UI testing (for remaining XML views)
+- **UI Automator** - Cross-app UI testing
+
+### Testing Patterns
+```kotlin
+class DashboardInteractorTest {
+    
+    @MockK
+    private lateinit var resourceProvider: ResourceProvider
+    
+    @MockK
+    private lateinit var walletCoreDocumentsController: WalletCoreDocumentsController
+    
+    private lateinit var interactor: DashboardInteractor
+    
+    @Test
+    fun `when getQuickActions succeeds, should return success state`() = runTest {
+        // Given
+        every { resourceProvider.getString(any()) } returns "Test Action"
+        
+        // When
+        val flow = interactor.getQuickActions()
+        
+        // Then
+        flow.test {
+            val state = awaitItem()
+            assertThat(state).isInstanceOf(DashboardQuickActionsPartialState.Success::class.java)
+        }
+    }
+}
+```
+
+## Performance Optimization
+
+### Compose Performance
+- **Remember and rememberSaveable** - Avoid unnecessary recompositions
+- **Lazy layouts** - Efficient list rendering with LazyColumn/LazyRow
+- **Immutable data classes** - Prevent unnecessary recompositions
+- **Baseline profiles** - Improve app startup time
+
+### Memory Management
+- **Lifecycle awareness** - Proper resource cleanup
+- **Image optimization** - Use Coil for efficient image loading
+- **Background work optimization** - Use WorkManager for deferrable tasks
+
+## Module Structure
+
+### Feature Modules
+- **authentication-feature** - Login, biometric setup, user management
+- **dashboard-feature** - Home screen, quick actions, navigation
+- **issuance-feature** - Credential issuance flows
+- **proximity-feature** - NFC and QR code sharing
+- **presentation-feature** - Credential presentation flows
+
+### Logic Modules
+- **business-logic** - Core wallet business rules and controllers
+- **core-logic** - Shared utilities and base classes
+- **network-logic** - API communication and network utilities
+- **storage-logic** - Local data persistence
+- **ui-logic** - Shared UI components and themes
+- **authentication-logic** - Authentication use cases and repositories
+
+### Business Logic Patterns
+- **Interactors** - Feature-level business logic (in feature modules)
+  - Handle multiple related operations for a specific UI feature
+  - Example: `DashboardInteractor`, `HomeInteractor`, `SettingsInteractor`
+- **Use Cases** - Single-purpose domain operations (in logic modules)
+  - Handle granular business operations
+  - Example: `SignInWithEmailPasswordUseCase`, `IsUserAuthenticatedUseCase`
+- **Controllers** - System-level operations and hardware interaction
+  - Example: `BiometricAuthenticationController`, `CryptoController`
+
+### Dependency Rules
+- **Feature modules** can depend on logic modules
+- **Logic modules** should not depend on feature modules
+- **Core logic** should have minimal dependencies
+- **UI logic** provides shared components for features
+
+## Code Quality Standards
+
+### Static Analysis
+- **Detekt** - Kotlin static analysis
+- **Lint** - Android-specific code analysis
+- **KtLint** - Kotlin code formatting
+- **Baseline profiles** - Performance profiling
+
+### Code Review Requirements
+- **Security review** - All authentication and crypto code
+- **Performance review** - UI and network operations
+- **Accessibility review** - All user-facing features
+- **Architecture review** - New modules and major changes
+
+## Development Workflow
+
+### Local Development
+- **Incremental compilation** - Faster build times
+- **Hot reload** - Instant UI updates with Compose
+- **Debug logging** - Comprehensive logging in debug builds
+- **Network inspection** - Charles Proxy or similar for API debugging
+
+### Integration Points
+- **Backend API** - Separate repository, coordinate through developer
+- **Design system** - Reference Material 3 guidelines
+- **Testing environment** - Use demo backend for development
+- **Production deployment** - Fastlane automation
+
+## Questions for Clarification
+
+When working with backend integration:
+1. **Ask about API endpoints** - Don't assume backend structure
+2. **Request API documentation** - Get OpenAPI specs or similar
+3. **Clarify data models** - Understand request/response formats
+4. **Verify authentication flow** - Understand token management
+5. **Check error handling** - Understand expected error responses
+
+When implementing business logic:
+1. **Use Interactor pattern** for feature-level operations
+2. **Use Use Case pattern** for granular domain operations
+3. **Follow existing naming conventions** (`*Interactor`, `*UseCase`)
+4. **Use Koin DI** with appropriate scopes (`@Single`, `@Factory`)
+# Android Technical Stack Guidelines
+
+## Core Technology Stack
+
+### Programming Language
+- **Kotlin** - Primary language for all Android development
+- **Java interop** - Only when integrating with existing Java libraries
+- **Target SDK**: Latest stable Android API level
+- **Minimum SDK**: API 26 (Android 8.0) for biometric and security features
+
+### UI Framework
+- **Jetpack Compose** - Modern declarative UI framework (migrating from XML)
+- **Material 3** - Google's latest design system implementation
+- **Navigation Compose** - Type-safe navigation between screens
+- **Accompanist libraries** - Additional Compose utilities when needed
+
+### Architecture Components
+- **ViewModel** - UI-related data management with lifecycle awareness
+- **LiveData/StateFlow** - Reactive data observation
+- **Room Database** - Local data persistence (if applicable)
+- **DataStore** - Preferences and small data storage
+- **WorkManager** - Background task scheduling
+
+## Backend Integration
+
+### Network Layer
+- **Retrofit** - HTTP client for REST API communication
+- **OkHttp** - Underlying HTTP client with interceptors
+- **Moshi/Gson** - JSON serialization/deserialization
+- **Certificate Pinning** - Enhanced security for API communications
+
+### Backend Communication Patterns
+```kotlin
+// Repository pattern for API integration
+interface WalletRepository {
+    suspend fun activateWallet(request: ActivateWalletRequest): Result<ActivationResponse>
+    suspend fun authenticateUser(credentials: UserCredentials): Result<AuthToken>
+    suspend fun issueCredential(request: CredentialRequest): Result<Credential>
+}
+
+// Interactor pattern for feature business logic
+interface DashboardInteractor {
+    fun getQuickActions(): Flow<DashboardQuickActionsPartialState>
+    fun performAuthentication(): Flow<AuthenticationPartialState>
+    fun performDocumentSigning(): Flow<DocumentSigningPartialState>
+}
+
+class DashboardInteractorImpl(
+    private val resourceProvider: ResourceProvider,
+    private val walletCoreDocumentsController: WalletCoreDocumentsController,
+    private val authenticationRepository: WalletRepository
+) : DashboardInteractor {
+    
+    override fun getQuickActions(): Flow<DashboardQuickActionsPartialState> = flow {
+        try {
+            val actions = buildQuickActionsList()
+            emit(DashboardQuickActionsPartialState.Success(actions))
+        } catch (e: Exception) {
+            emit(DashboardQuickActionsPartialState.Failure(e.message ?: "Unknown error"))
+        }
+    }
+}
+
+// Use case pattern for granular domain operations (authentication-logic module)
+interface SignInWithEmailPasswordUseCase {
+    suspend operator fun invoke(email: String, password: String): Result<User>
+}
+
+class SignInWithEmailPasswordUseCaseImpl(
+    private val supabaseAuthRepository: SupabaseAuthRepository
+) : SignInWithEmailPasswordUseCase {
+    
+    override suspend operator fun invoke(email: String, password: String): Result<User> {
+        return supabaseAuthRepository.signInWithEmailPassword(email, password)
+    }
+}
+```
+
+### API Integration Guidelines
+- **Always use Repository pattern** for backend communication
+- **Use Interactor pattern** for feature-level business logic
+- **Use Use Case pattern** for granular domain operations
+- **Implement proper error handling** with sealed classes or Result types
+- **Use coroutines** for asynchronous operations
+- **Add request/response logging** in debug builds only
+- **Implement retry mechanisms** for critical operations
+
+## Dependency Injection
+
+### Koin Setup
+```kotlin
+@Module
+@ComponentScan("eu.europa.ec.networklogic")
+class LogicNetworkModule
+
+@Factory
+fun provideOkHttpClient(
+    httpLoggingInterceptor: HttpLoggingInterceptor,
+    configLogic: ConfigLogic
+): OkHttpClient {
+    val client = OkHttpClient().newBuilder()
+        .readTimeout(configLogic.environmentConfig.readTimeoutSeconds, TimeUnit.SECONDS)
+        .connectTimeout(configLogic.environmentConfig.connectTimeoutSeconds, TimeUnit.SECONDS)
+        .addInterceptor(httpLoggingInterceptor)
+    
+    return client.build()
+}
+
+@Single
+fun provideRetrofit(
+    okHttpClient: OkHttpClient,
+    converterFactory: GsonConverterFactory,
+    configLogic: ConfigLogic
+): Retrofit {
+    return Retrofit.Builder()
+        .baseUrl(configLogic.environmentConfig.getServerHost())
+        .client(okHttpClient)
+        .addConverterFactory(converterFactory)
+        .build()
+}
+
+// Feature module DI
+@Factory
+fun provideDashboardInteractor(
+    resourceProvider: ResourceProvider,
+    walletCoreDocumentsController: WalletCoreDocumentsController,
+    walletCoreConfig: WalletCoreConfig
+): DashboardInteractor = DashboardInteractorImpl(
+    resourceProvider,
+    walletCoreDocumentsController,
+    walletCoreConfig
+)
+
+// Use case DI (authentication-logic module)
+@Factory
+fun provideSignInWithEmailPasswordUseCase(
+    supabaseAuthRepository: SupabaseAuthRepository
+): SignInWithEmailPasswordUseCase = SignInWithEmailPasswordUseCaseImpl(supabaseAuthRepository)
+```
+
+### Koin Annotations
+- **@Module** - Marks a class as a Koin module
+- **@ComponentScan** - Scans package for components
+- **@Single** - Singleton scope (one instance)
+- **@Factory** - New instance each time
+- **@ScopeId** - Scoped instances (e.g., presentation scope)
+
+## Build Configuration
+
+### Gradle Structure
+- **Kotlin DSL** - Use `build.gradle.kts` for all build files
+- **Version Catalogs** - Centralized dependency management in `libs.versions.toml`
+- **Build Variants** - Support for dev/demo/prod configurations
+- **Proguard** - Code obfuscation for release builds
+
+### Build Variants Configuration
+```kotlin
+android {
+    buildTypes {
+        debug {
+            isDebuggable = true
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
+        
+        release {
+            isMinifyEnabled = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+    
+    flavorDimensions += "version"
+    productFlavors {
+        create("dev") {
+            dimension = "version"
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+        }
+        
+        create("demo") {
+            dimension = "version"
+            applicationIdSuffix = ".demo"
+            versionNameSuffix = "-demo"
+        }
+        
+        create("prod") {
+            dimension = "version"
+            // Production configuration
+        }
+    }
+}
+```
+
+## Security Implementation
+
+### Android Security Features
+- **Android Keystore** - Hardware-backed key storage
+- **BiometricPrompt** - Fingerprint, face, and PIN authentication
+- **EncryptedSharedPreferences** - Secure local data storage
+- **Network Security Config** - Certificate pinning and TLS configuration
+
+### Security Best Practices
+```kotlin
+// Biometric authentication implementation
+@Factory
+fun provideBiometricAuthenticationController(
+    cryptoController: CryptoController,
+    biometryStorageController: BiometryStorageController,
+    resourceProvider: ResourceProvider
+): BiometricAuthenticationController = BiometricAuthenticationControllerImpl(
+    resourceProvider,
+    cryptoController,
+    biometryStorageController
+)
+
+class BiometricAuthenticationControllerImpl(
+    private val resourceProvider: ResourceProvider,
+    private val cryptoController: CryptoController,
+    private val biometryStorageController: BiometryStorageController
+) : BiometricAuthenticationController {
+    
+    override fun authenticate(
+        context: Context,
+        notifyOnAuthenticationFailure: Boolean,
+        listener: (BiometricsAuthenticate) -> Unit
+    ) {
+        // Biometric authentication implementation
+    }
+}
+```
+
+## Testing Framework
+
+### Unit Testing
+- **JUnit 5** - Primary testing framework
+- **MockK** - Kotlin-first mocking library
+- **Coroutines Test** - Testing coroutine-based code
+- **Truth** - Fluent assertion library
+
+### UI Testing
+- **Compose Test** - Testing Jetpack Compose UI
+- **Espresso** - Android UI testing (for remaining XML views)
+- **UI Automator** - Cross-app UI testing
+
+### Testing Patterns
+```kotlin
+class DashboardInteractorTest {
+    
+    @MockK
+    private lateinit var resourceProvider: ResourceProvider
+    
+    @MockK
+    private lateinit var walletCoreDocumentsController: WalletCoreDocumentsController
+    
+    private lateinit var interactor: DashboardInteractor
+    
+    @Test
+    fun `when getQuickActions succeeds, should return success state`() = runTest {
+        // Given
+        every { resourceProvider.getString(any()) } returns "Test Action"
+        
+        // When
+        val flow = interactor.getQuickActions()
+        
+        // Then
+        flow.test {
+            val state = awaitItem()
+            assertThat(state).isInstanceOf(DashboardQuickActionsPartialState.Success::class.java)
+        }
+    }
+}
+```
+
+## Performance Optimization
+
+### Compose Performance
+- **Remember and rememberSaveable** - Avoid unnecessary recompositions
+- **Lazy layouts** - Efficient list rendering with LazyColumn/LazyRow
+- **Immutable data classes** - Prevent unnecessary recompositions
+- **Baseline profiles** - Improve app startup time
+
+### Memory Management
+- **Lifecycle awareness** - Proper resource cleanup
+- **Image optimization** - Use Coil for efficient image loading
+- **Background work optimization** - Use WorkManager for deferrable tasks
+
+## Module Structure
+
+### Feature Modules
+- **authentication-feature** - Login, biometric setup, user management
+- **dashboard-feature** - Home screen, quick actions, navigation
+- **issuance-feature** - Credential issuance flows
+- **proximity-feature** - NFC and QR code sharing
+- **presentation-feature** - Credential presentation flows
+
+### Logic Modules
+- **business-logic** - Core wallet business rules and controllers
+- **core-logic** - Shared utilities and base classes
+- **network-logic** - API communication and network utilities
+- **storage-logic** - Local data persistence
+- **ui-logic** - Shared UI components and themes
+- **authentication-logic** - Authentication use cases and repositories
+
+### Business Logic Patterns
+- **Interactors** - Feature-level business logic (in feature modules)
+  - Handle multiple related operations for a specific UI feature
+  - Example: `DashboardInteractor`, `HomeInteractor`, `SettingsInteractor`
+- **Use Cases** - Single-purpose domain operations (in logic modules)
+  - Handle granular business operations
+  - Example: `SignInWithEmailPasswordUseCase`, `IsUserAuthenticatedUseCase`
+- **Controllers** - System-level operations and hardware interaction
+  - Example: `BiometricAuthenticationController`, `CryptoController`
+
+### Dependency Rules
+- **Feature modules** can depend on logic modules
+- **Logic modules** should not depend on feature modules
+- **Core logic** should have minimal dependencies
+- **UI logic** provides shared components for features
+
+## Code Quality Standards
+
+### Static Analysis
+- **Detekt** - Kotlin static analysis
+- **Lint** - Android-specific code analysis
+- **KtLint** - Kotlin code formatting
+- **Baseline profiles** - Performance profiling
+
+### Code Review Requirements
+- **Security review** - All authentication and crypto code
+- **Performance review** - UI and network operations
+- **Accessibility review** - All user-facing features
+- **Architecture review** - New modules and major changes
+
+## Development Workflow
+
+### Local Development
+- **Incremental compilation** - Faster build times
+- **Hot reload** - Instant UI updates with Compose
+- **Debug logging** - Comprehensive logging in debug builds
+- **Network inspection** - Charles Proxy or similar for API debugging
+
+### Integration Points
+- **Backend API** - Separate repository, coordinate through developer
+- **Design system** - Reference Material 3 guidelines
+- **Testing environment** - Use demo backend for development
+- **Production deployment** - Fastlane automation
+
+## Questions for Clarification
+
+When working with backend integration:
+1. **Ask about API endpoints** - Don't assume backend structure
+2. **Request API documentation** - Get OpenAPI specs or similar
+3. **Clarify data models** - Understand request/response formats
+4. **Verify authentication flow** - Understand token management
+5. **Check error handling** - Understand expected error responses
+
+When implementing business logic:
+1. **Use Interactor pattern** for feature-level operations
+2. **Use Use Case pattern** for granular domain operations
+3. **Follow existing naming conventions** (`*Interactor`, `*UseCase`)
+4. **Use Koin DI** with appropriate scopes (`@Single`, `@Factory`)

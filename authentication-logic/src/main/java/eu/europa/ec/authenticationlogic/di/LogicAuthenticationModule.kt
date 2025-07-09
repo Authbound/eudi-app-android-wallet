@@ -30,6 +30,9 @@ import eu.europa.ec.authenticationlogic.provider.BiometryStorageProvider
 import eu.europa.ec.authenticationlogic.provider.PinStorageProvider
 import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
 import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepositoryImpl
+import eu.europa.ec.authenticationlogic.repository.ProfileRepository
+import eu.europa.ec.authenticationlogic.repository.ProfileRepositoryImpl
+import eu.europa.ec.networklogic.api.ApiClient
 import eu.europa.ec.authenticationlogic.storage.PrefsBiometryStorageProvider
 import eu.europa.ec.authenticationlogic.storage.PrefsPinStorageProvider
 import eu.europa.ec.authenticationlogic.usecase.IsUserAuthenticatedUseCase
@@ -44,11 +47,21 @@ import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCaseImpl
 import eu.europa.ec.authenticationlogic.usecase.SignUpWithEmailPasswordUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignUpWithEmailPasswordUseCaseImpl
+import eu.europa.ec.authenticationlogic.usecase.CompleteProfileUseCase
+import eu.europa.ec.authenticationlogic.usecase.CompleteProfileUseCaseImpl
+import eu.europa.ec.authenticationlogic.usecase.CheckHandleAvailabilityUseCase
+import eu.europa.ec.authenticationlogic.usecase.CheckHandleAvailabilityUseCaseImpl
+import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
+import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCaseImpl
 import eu.europa.ec.businesslogic.controller.crypto.CryptoController
+import eu.europa.ec.businesslogic.controller.crypto.KeystoreController
+import eu.europa.ec.businesslogic.controller.log.LogController
+import eu.europa.ec.businesslogic.controller.storage.PrefKeys
 import eu.europa.ec.businesslogic.controller.storage.PrefsController
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCaseImpl
+import io.github.jan.supabase.SupabaseClient
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Module
@@ -75,7 +88,7 @@ fun provideBiometricAuthenticationController(
     BiometricAuthenticationControllerImpl(
         resourceProvider,
         cryptoController,
-        biometryStorageController
+        biometryStorageController,
     )
 
 @Factory
@@ -100,8 +113,14 @@ fun provideBiometryStorageController(
 
 @Factory
 fun provideSupabaseAuthRepository(
-    supabaseClient: io.github.jan.supabase.SupabaseClient
+    supabaseClient: SupabaseClient
 ): SupabaseAuthRepository = SupabaseAuthRepositoryImpl(supabaseClient)
+
+@Factory
+fun provideProfileRepository(
+    apiClient: ApiClient,
+    supabaseClient: SupabaseClient
+): ProfileRepository = ProfileRepositoryImpl(apiClient, supabaseClient)
 
 @Factory
 fun provideIsUserAuthenticatedUseCase(
@@ -135,5 +154,30 @@ fun provideSignInWithOAuthUseCase(
 
 @Factory
 fun provideSignOutUseCase(
-    supabaseAuthRepository: SupabaseAuthRepository
-): SignOutUseCase = SignOutUseCaseImpl(supabaseAuthRepository)
+    supabaseAuthRepository: SupabaseAuthRepository,
+    prefsController: PrefsController,
+    keystoreController: KeystoreController,
+    prefKeys: PrefKeys,
+    logController: LogController
+): SignOutUseCase = SignOutUseCaseImpl(
+    supabaseAuthRepository,
+    prefsController,
+    keystoreController,
+    prefKeys,
+    logController
+)
+
+@Factory
+fun provideCompleteProfileUseCase(
+    profileRepository: ProfileRepository
+): CompleteProfileUseCase = CompleteProfileUseCaseImpl(profileRepository)
+
+@Factory
+fun provideCheckHandleAvailabilityUseCase(
+    profileRepository: ProfileRepository
+): CheckHandleAvailabilityUseCase = CheckHandleAvailabilityUseCaseImpl(profileRepository)
+
+@Factory
+fun provideGetMyProfileUseCase(
+    profileRepository: ProfileRepository
+): GetMyProfileUseCase = GetMyProfileUseCaseImpl(profileRepository)

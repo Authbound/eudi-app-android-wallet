@@ -1,5 +1,3 @@
-import project.convention.logic.config.LibraryModule
-
 /*
  * Copyright (c) 2024 European Commission
  *
@@ -15,26 +13,18 @@ import project.convention.logic.config.LibraryModule
  * ANY KIND, either express or implied. See the Licence for the specific language
  * governing permissions and limitations under the Licence.
  */
+package eu.europa.ec.authenticationlogic.usecase
 
-plugins {
-    id("project.android.library")
+import eu.europa.ec.authenticationlogic.repository.ProfileRepository
+
+interface CheckHandleAvailabilityUseCase {
+    suspend operator fun invoke(handle: String): Result<Boolean>
 }
 
-android {
-    namespace = "eu.europa.ec.notificationlogic"
-}
-
-
-moduleConfig {
-    module = LibraryModule.NotificationLogic
-}
-
-
-dependencies {
-    implementation(platform(libs.bom))
-    implementation(libs.supabase.realtime.kt)
-    implementation(platform(libs.firebase.bom))
-    implementation(project(LibraryModule.BusinessLogic.path))
-    implementation(libs.firebase.messaging)
-    implementation(libs.gson)
+class CheckHandleAvailabilityUseCaseImpl(
+    private val profileRepository: ProfileRepository
+) : CheckHandleAvailabilityUseCase {
+    override suspend fun invoke(handle: String): Result<Boolean> {
+        return profileRepository.checkHandle(handle)
+    }
 } 

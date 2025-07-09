@@ -20,6 +20,7 @@ import project.convention.logic.kover.excludeFromKoverReport
 
 plugins {
     id("project.android.library")
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -34,14 +35,23 @@ dependencies {
 
     implementation(project(LibraryModule.ResourcesLogic.path))
     implementation(project(LibraryModule.BusinessLogic.path))
+    implementation(project(LibraryModule.NetworkLogic.path))
 
     implementation(libs.gson)
     api(libs.androidx.biometric)
 
     implementation(platform(libs.bom))
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
     implementation(libs.supabase.postgrest.kt)
     implementation(libs.supabase.auth.kt)
+
     implementation(libs.supabase.realtime.kt)
+
+    // Koin annotations support
+    implementation(libs.koin.annotations)
+    ksp(libs.koin.ksp)
 }
 
 excludeFromKoverReport(

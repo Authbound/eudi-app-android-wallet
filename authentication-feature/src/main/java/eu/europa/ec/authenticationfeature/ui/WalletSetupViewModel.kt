@@ -62,7 +62,17 @@ class WalletSetupViewModel(
     private val logController: LogController
 ) : MviViewModel<WalletSetupEvent, WalletSetupState, WalletSetupEffect>() {
 
-    override fun setInitialState() = WalletSetupState()
+    override fun setInitialState(): WalletSetupState {
+        // EUDI-ARF: Check if wallet is already activated for this user to avoid re-attestation
+        if (prefKeys.isWalletActivated()) {
+            logController.i("WalletSetupViewModel", ) {"Wallet already activated for this user, navigating to home."}
+            // Use a coroutine to navigate after the view is ready
+            viewModelScope.launch {
+                setEffect { WalletSetupEffect.NavigateToHome }
+            }
+        }
+        return WalletSetupState()
+    }
 
     override fun handleEvents(event: WalletSetupEvent) {
         when (event) {
@@ -109,6 +119,12 @@ class WalletSetupViewModel(
             try {
                 logController.d("WalletSetupViewModel", "Signing out user...")
                 setState { copy(isActivating = true) } // Show loading indicator
+                
+                // Clear wallet activation status - EUDI-ARF compliant approach
+                // Wallet is device-bound and should be re-established each session
+                prefKeys.setWalletActivated(false)
+                logController.d("WalletSetupViewModel", "Wallet activation status cleared - EUDI-ARF compliant")
+                
                 signOutUseCase()
                 logController.d("WalletSetupViewModel", "User signed out successfully, navigating to login.")
                 setEffect { WalletSetupEffect.NavigateToLogin }

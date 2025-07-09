@@ -1,0 +1,1428 @@
+---
+description: Security And Compliance
+alwaysApply: false
+---
+# Security & Compliance Guidelines
+
+## EU Digital Identity Wallet Security Standards
+
+### EUDI-ARF Compliance Requirements
+- **Identity Verification** - Strong user authentication with biometric factors
+- **Credential Security** - Hardware-backed key storage and cryptographic operations
+- **Data Protection** - GDPR compliance with data minimization principles
+- **Privacy by Design** - User consent and selective disclosure mechanisms
+- **Interoperability** - Cross-border security standards adherence
+- **Audit Trail** - Comprehensive transaction logging for compliance
+
+### Core Security Principles
+1. **Zero Trust Architecture** - Never trust, always verify
+2. **Defense in Depth** - Multiple layers of security controls
+3. **Least Privilege** - Minimal access rights for users and components
+4. **Secure by Default** - Security controls enabled by default
+5. **Fail Securely** - System fails to a secure state
+
+## Android Security Implementation
+
+### Android Keystore Integration
+```kotlin
+@Singleton
+class CryptographicManager @Inject constructor(
+    private val context: Context
+) {
+    companion object {
+        private const val KEY_ALIAS_PREFIX = "authbound_wallet_"
+        private const val TRANSFORMATION = "AES/GCM/NoPadding"
+    }
+    
+    /**
+     * Generate hardware-backed encryption key
+     */
+    fun generateEncryptionKey(keyAlias: String): SecretKey {
+        val keyGenerator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
+        
+        val keyGenParameterSpec = KeyGenParameterSpec.Builder(
+            "$KEY_ALIAS_PREFIX$keyAlias",
+            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+        )
+            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+            .setKeySize(256)
+            .setUserAuthenticationRequired(true)
+            .setUserAuthenticationParameters(30, KeyProperties.AUTH_BIOMETRIC_STRONG)
+            .setInvalidatedByBiometricEnrollment(true)
+            .build()
+        
+        keyGenerator.init(keyGenParameterSpec)
+        return keyGenerator.generateKey()
+    }
+    
+    /**
+     * Encrypt sensitive data using hardware-backed key
+     */
+    suspend fun encryptData(data: ByteArray, keyAlias: String): EncryptedData {
+        return withContext(Dispatchers.IO) {
+            try {
+                val keyStore = KeyStore.getInstance("AndroidKeyStore")
+                keyStore.load(null)
+                
+                val secretKey = keyStore.getKey("$KEY_ALIAS_PREFIX$keyAlias", null) as SecretKey
+                val cipher = Cipher.getInstance(TRANSFORMATION)
+                cipher.init(Cipher.ENCRYPT_MODE, secretKey)
+                
+                val encryptedData = cipher.doFinal(data)
+                val iv = cipher.iv
+                
+                EncryptedData(
+                    data = encryptedData,
+                    iv = iv,
+                    keyAlias = keyAlias
+                )
+            } catch (e: Exception) {
+                throw SecurityException("Failed to encrypt data", e)
+            }
+        }
+    }
+}
+
+data class EncryptedData(
+    val data: ByteArray,
+    val iv: ByteArray,
+    val keyAlias: String
+)
+```
+
+### Biometric Authentication
+```kotlin
+@Singleton
+class BiometricAuthenticationManager @Inject constructor(
+    private val context: Context
+) {
+    
+    /**
+     * Check biometric capability and prompt for authentication
+     */
+    fun authenticateWithBiometrics(
+        title: String,
+        subtitle: String,
+        onSuccess: (BiometricPrompt.AuthenticationResult) -> Unit,
+        onError: (String) -> Unit,
+        onFailure: () -> Unit
+    ) {
+        val biometricManager = BiometricManager.from(context)
+        
+        when (biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)) {
+            BiometricManager.BIOMETRIC_SUCCESS -> {
+                showBiometricPrompt(title, subtitle, onSuccess, onError, onFailure)
+            }
+            BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> {
+                onError("Biometric hardware not available")
+            }
+            BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE -> {
+                onError("Biometric hardware currently unavailable")
+            }
+            BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> {
+                onError("No biometric credentials enrolled")
+            }
+            else -> {
+                onError("Biometric authentication not available")
+            }
+        }
+    }
+    
+    private fun showBiometricPrompt(
+        title: String,
+        subtitle: String,
+        onSuccess: (BiometricPrompt.AuthenticationResult) -> Unit,
+        onError: (String) -> Unit,
+        onFailure: () -> Unit
+    ) {
+        val fragmentActivity = context as FragmentActivity
+        val executor = ContextCompat.getMainExecutor(context)
+        
+        val biometricPrompt = BiometricPrompt(
+            fragmentActivity,
+            executor,
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    super.onAuthenticationSucceeded(result)
+                    onSuccess(result)
+                }
+                
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    super.onAuthenticationError(errorCode, errString)
+                    onError(errString.toString())
+                }
+                
+                override fun onAuthenticationFailed() {
+                    super.onAuthenticationFailed()
+                    onFailure()
+                }
+            }
+        )
+        
+        val promptInfo = BiometricPrompt.PromptInfo.Builder()
+            .setTitle(title)
+            .setSubtitle(subtitle)
+            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+            .setNegativeButtonText("Cancel")
+            .build()
+        
+        biometricPrompt.authenticate(promptInfo)
+    }
+}
+```
+
+## Secure Data Storage
+
+### Encrypted Preferences
+```kotlin
+@Singleton
+class SecureStorageManager @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
+    companion object {
+        private const val PREFS_NAME = "authbound_secure_prefs"
+        private const val MASTER_KEY_ALIAS = "authbound_master_key"
+    }
+    
+    private val encryptedPreferences: SharedPreferences by lazy {
+        createEncryptedPreferences()
+    }
+    
+    private fun createEncryptedPreferences(): SharedPreferences {
+        val masterKey = MasterKey.Builder(context, MASTER_KEY_ALIAS)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .setUserAuthenticationRequired(false) // For app-level encryption
+            .build()
+        
+        return EncryptedSharedPreferences.create(
+            context,
+            PREFS_NAME,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
+    
+    /**
+     * Store sensitive authentication tokens
+     */
+    fun storeAuthToken(token: String) {
+        encryptedPreferences.edit()
+            .putString("auth_token", token)
+            .apply()
+    }
+    
+    /**
+     * Store encrypted wallet data
+     */
+    fun storeWalletData(key: String, data: String) {
+        encryptedPreferences.edit()
+            .putString("wallet_$key", data)
+            .apply()
+    }
+    
+    /**
+     * Clear all sensitive data
+     */
+    fun clearSecureData() {
+        encryptedPreferences.edit().clear().apply()
+    }
+}
+```
+
+### Secure Database Implementation
+```kotlin
+@Database(
+    entities = [CredentialEntity::class, TransactionLogEntity::class],
+    version = 1,
+    exportSchema = false
+)
+@TypeConverters(EncryptedDataConverters::class)
+abstract class SecureWalletDatabase : RoomDatabase() {
+    
+    abstract fun credentialDao(): CredentialDao
+    abstract fun transactionLogDao(): TransactionLogDao
+    
+    companion object {
+        @Volatile
+        private var INSTANCE: SecureWalletDatabase? = null
+        
+        fun getDatabase(
+            context: Context,
+            cryptographicManager: CryptographicManager
+        ): SecureWalletDatabase {
+            return INSTANCE ?: synchronized(this) {
+                val passphrase = SQLiteDatabase.rawPassphrase(generateDatabaseKey(cryptographicManager))
+                
+                val instance = Room.databaseBuilder(
+                    context.applicationContext,
+                    SecureWalletDatabase::class.java,
+                    "secure_wallet_database"
+                )
+                    .openHelperFactory(SupportFactory(passphrase))
+                    .fallbackToDestructiveMigration()
+                    .build()
+                
+                INSTANCE = instance
+                instance
+            }
+        }
+        
+        private fun generateDatabaseKey(cryptographicManager: CryptographicManager): ByteArray {
+            // Generate or retrieve database encryption key from Android Keystore
+            return cryptographicManager.getDatabaseEncryptionKey()
+        }
+    }
+}
+```
+
+## Network Security
+
+### Certificate Pinning
+```kotlin
+@Module
+@InstallIn(SingletonComponent::class)
+object NetworkSecurityModule {
+    
+    @Provides
+    @Singleton
+    fun provideCertificatePinner(): CertificatePinner {
+        return CertificatePinner.Builder()
+            .add("api.authbound.eu", "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=") // Replace with actual pins
+            .add("*.authbound.eu", "sha256/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=")
+            .build()
+    }
+    
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(
+        certificatePinner: CertificatePinner,
+        @ApplicationContext context: Context
+    ): OkHttpClient {
+        return OkHttpClient.Builder()
+            .certificatePinner(certificatePinner)
+            .addInterceptor(createSecurityInterceptor(context))
+            .addInterceptor(createLoggingInterceptor())
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
+    
+    private fun createSecurityInterceptor(context: Context): Interceptor {
+        return Interceptor { chain ->
+            val originalRequest = chain.request()
+            
+            val secureRequest = originalRequest.newBuilder()
+                .addHeader("X-Client-Version", BuildConfig.VERSION_NAME)
+                .addHeader("X-Platform", "Android")
+                .addHeader("X-Device-ID", getSecureDeviceId(context))
+                .build()
+            
+            chain.proceed(secureRequest)
+        }
+    }
+}
+```
+
+### Network Security Configuration
+```xml
+<!-- res/xml/network_security_config.xml -->
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">authbound.eu</domain>
+        <pin-set expiration="2025-01-01">
+            <pin digest="SHA-256">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>
+            <pin digest="SHA-256">BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=</pin>
+        </pin-set>
+    </domain-config>
+    
+    <!-- Debug configuration -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="user"/>
+            <certificates src="system"/>
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>
+```
+
+## GDPR Compliance Implementation
+
+### Data Protection Manager
+```kotlin
+@Singleton
+class DataProtectionManager @Inject constructor(
+    private val secureStorage: SecureStorageManager,
+    private val auditLogger: AuditLogger
+) {
+    
+    /**
+     * Handle user consent for data processing
+     */
+    suspend fun recordUserConsent(
+        consentType: ConsentType,
+        granted: Boolean,
+        purpose: String
+    ) {
+        val consent = UserConsent(
+            type = consentType,
+            granted = granted,
+            purpose = purpose,
+            timestamp = System.currentTimeMillis(),
+            version = BuildConfig.PRIVACY_POLICY_VERSION
+        )
+        
+        secureStorage.storeUserConsent(consent)
+        auditLogger.logConsentEvent(consent)
+    }
+    
+    /**
+     * Check if user has granted consent for specific data processing
+     */
+    fun hasValidConsent(consentType: ConsentType): Boolean {
+        val consent = secureStorage.getUserConsent(consentType)
+        return consent?.granted == true && !consent.isExpired()
+    }
+    
+    /**
+     * Handle data subject requests (Art. 15-22 GDPR)
+     */
+    suspend fun handleDataSubjectRequest(request: DataSubjectRequest): DataSubjectResponse {
+        auditLogger.logDataSubjectRequest(request)
+        
+        return when (request.type) {
+            DataSubjectRequestType.ACCESS -> handleDataAccess()
+            DataSubjectRequestType.RECTIFICATION -> handleDataRectification(request)
+            DataSubjectRequestType.ERASURE -> handleDataErasure()
+            DataSubjectRequestType.PORTABILITY -> handleDataPortability()
+        }
+    }
+    
+    /**
+     * Implement data minimization principle
+     */
+    private fun minimizeDataCollection(originalData: UserData): UserData {
+        return originalData.copy(
+            // Remove non-essential fields
+            analyticsData = null,
+            deviceFingerprint = originalData.deviceFingerprint?.let { 
+                it.copy(detailedSpecs = null) 
+            }
+        )
+    }
+}
+
+enum class ConsentType {
+    ESSENTIAL_FUNCTIONALITY,
+    ANALYTICS,
+    MARKETING,
+    CREDENTIAL_STORAGE,
+    BIOMETRIC_DATA
+}
+
+data class UserConsent(
+    val type: ConsentType,
+    val granted: Boolean,
+    val purpose: String,
+    val timestamp: Long,
+    val version: String
+) {
+    fun isExpired(): Boolean {
+        val maxAge = when (type) {
+            ConsentType.ESSENTIAL_FUNCTIONALITY -> Long.MAX_VALUE // Never expires
+            ConsentType.ANALYTICS -> TimeUnit.DAYS.toMillis(365) // 1 year
+            ConsentType.MARKETING -> TimeUnit.DAYS.toMillis(365) // 1 year
+            ConsentType.CREDENTIAL_STORAGE -> Long.MAX_VALUE // Never expires
+            ConsentType.BIOMETRIC_DATA -> TimeUnit.DAYS.toMillis(180) // 6 months
+        }
+        return System.currentTimeMillis() - timestamp > maxAge
+    }
+}
+```
+
+## Audit Logging & Compliance
+
+### Security Audit Logger
+```kotlin
+@Singleton
+class AuditLogger @Inject constructor(
+    private val secureStorage: SecureStorageManager,
+    private val cryptographicManager: CryptographicManager
+) {
+    
+    /**
+     * Log security-critical events for compliance
+     */
+    suspend fun logSecurityEvent(event: SecurityEvent) {
+        val auditEntry = AuditEntry(
+            eventId = UUID.randomUUID().toString(),
+            eventType = event.type,
+            timestamp = System.currentTimeMillis(),
+            userId = event.userId,
+            details = event.details,
+            ipAddress = getClientIpAddress(),
+            deviceId = getSecureDeviceId()
+        )
+        
+        // Encrypt audit log before storage
+        val encryptedEntry = cryptographicManager.encryptAuditEntry(auditEntry)
+        secureStorage.storeAuditEntry(encryptedEntry)
+        
+        // Send critical events to backend for centralized monitoring
+        if (event.isCritical()) {
+            sendAuditToBackend(auditEntry)
+        }
+    }
+    
+    /**
+     * Log credential operations
+     */
+    suspend fun logCredentialOperation(
+        operation: CredentialOperation,
+        credentialId: String,
+        success: Boolean,
+        details: String? = null
+    ) {
+        val event = SecurityEvent(
+            type = SecurityEventType.CREDENTIAL_OPERATION,
+            userId = getCurrentUserId(),
+            details = mapOf(
+                "operation" to operation.name,
+                "credentialId" to credentialId,
+                "success" to success.toString(),
+                "details" to (details ?: "")
+            ),
+            critical = operation.isCritical()
+        )
+        
+        logSecurityEvent(event)
+    }
+    
+    /**
+     * Retrieve audit logs for compliance reporting
+     */
+    suspend fun getAuditTrail(
+        startDate: Long,
+        endDate: Long,
+        eventTypes: List<SecurityEventType> = emptyList()
+    ): List<AuditEntry> {
+        return secureStorage.getAuditEntries(startDate, endDate, eventTypes)
+            .map { cryptographicManager.decryptAuditEntry(it) }
+    }
+}
+
+enum class SecurityEventType {
+    USER_AUTHENTICATION,
+    CREDENTIAL_OPERATION,
+    DATA_ACCESS,
+    CONSENT_CHANGE,
+    SECURITY_VIOLATION,
+    SYSTEM_ACCESS,
+    DATA_EXPORT,
+    BIOMETRIC_AUTH
+}
+
+enum class CredentialOperation {
+    ISSUED,
+    PRESENTED,
+    REVOKED,
+    DELETED,
+    MODIFIED;
+    
+    fun isCritical(): Boolean = when (this) {
+        ISSUED, REVOKED, DELETED -> true
+        PRESENTED, MODIFIED -> false
+    }
+}
+```
+
+## Vulnerability Management
+
+### Security Validation
+```kotlin
+@Singleton
+class SecurityValidator @Inject constructor(
+    private val context: Context,
+    private val auditLogger: AuditLogger
+) {
+    
+    /**
+     * Validate device security posture
+     */
+    suspend fun validateDeviceSecurity(): SecurityValidationResult {
+        val checks = listOf(
+            checkRootDetection(),
+            checkDebuggerDetection(),
+            checkTamperingDetection(),
+            checkMalwareDetection(),
+            checkNetworkSecurity()
+        )
+        
+        val failed = checks.filter { !it.passed }
+        
+        if (failed.isNotEmpty()) {
+            auditLogger.logSecurityEvent(
+                SecurityEvent(
+                    type = SecurityEventType.SECURITY_VIOLATION,
+                    userId = getCurrentUserId(),
+                    details = mapOf("failed_checks" to failed.map { it.check }.joinToString()),
+                    critical = true
+                )
+            )
+        }
+        
+        return SecurityValidationResult(
+            passed = failed.isEmpty(),
+            failedChecks = failed,
+            riskLevel = calculateRiskLevel(failed)
+        )
+    }
+    
+    private fun checkRootDetection(): SecurityCheck {
+        // Implement root detection logic
+        val isRooted = RootBeer(context).isRooted
+        return SecurityCheck(
+            check = "ROOT_DETECTION",
+            passed = !isRooted,
+            message = if (isRooted) "Device is rooted" else "Device is not rooted"
+        )
+    }
+    
+    private fun checkDebuggerDetection(): SecurityCheck {
+        val isDebugging = Debug.isDebuggerConnected() || 
+                         (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        
+        return SecurityCheck(
+            check = "DEBUGGER_DETECTION",
+            passed = !isDebugging,
+            message = if (isDebugging) "Debugger detected" else "No debugger detected"
+        )
+    }
+}
+
+data class SecurityValidationResult(
+    val passed: Boolean,
+    val failedChecks: List<SecurityCheck>,
+    val riskLevel: SecurityRiskLevel
+)
+
+data class SecurityCheck(
+    val check: String,
+    val passed: Boolean,
+    val message: String
+)
+
+enum class SecurityRiskLevel {
+    LOW, MEDIUM, HIGH, CRITICAL
+}
+```
+
+## Secure Development Guidelines
+
+### Code Security Standards
+1. **Input Validation** - Validate all user inputs and API responses
+2. **Output Encoding** - Properly encode data before display
+3. **Authentication** - Use strong authentication mechanisms
+4. **Authorization** - Implement proper access controls
+5. **Cryptography** - Use proven cryptographic libraries and standards
+6. **Error Handling** - Don't expose sensitive information in errors
+7. **Logging** - Log security events but not sensitive data
+
+### Security Testing Requirements
+```kotlin
+class SecurityTestSuite {
+    
+    @Test
+    fun `should encrypt sensitive data before storage`() {
+        // Test encryption of PII data
+    }
+    
+    @Test
+    fun `should validate biometric authentication`() {
+        // Test biometric authentication flow
+    }
+    
+    @Test
+    fun `should handle certificate pinning failures`() {
+        // Test network security failures
+    }
+    
+    @Test
+    fun `should log security events for audit`() {
+        // Test audit logging functionality
+    }
+    
+    @Test
+    fun `should comply with GDPR data handling`() {
+        // Test GDPR compliance features
+    }
+}
+```
+
+### Proguard Security Configuration
+```proguard
+# Security obfuscation rules
+-keepclassmembers class eu.europa.ec.**.model.** { *; }
+-keepclassmembers class * implements java.io.Serializable {
+    static final long serialVersionUID;
+    private static final java.io.ObjectStreamField[] serialPersistentFields;
+    !static !transient <fields>;
+    private void writeObject(java.io.ObjectOutputStream);
+    private void readObject(java.io.ObjectInputStream);
+}
+
+# Remove debugging information
+-assumenosideeffects class android.util.Log {
+    public static *** d(...);
+    public static *** v(...);
+}
+
+# Obfuscate sensitive classes
+-keep class eu.europa.ec.**.security.** { *; }
+-keep class eu.europa.ec.**.crypto.** { *; }
+```
+
+## Emergency Response Procedures
+
+### Security Incident Response
+1. **Detection** - Automated monitoring and alerting
+2. **Assessment** - Evaluate incident severity and impact
+3. **Containment** - Isolate affected systems
+4. **Eradication** - Remove security threats
+5. **Recovery** - Restore normal operations
+6. **Lessons Learned** - Post-incident analysis
+
+### Breach Notification Requirements
+- **72-hour notification** to supervisory authority (GDPR Art. 33)
+- **User notification** when high risk to rights and freedoms
+- **Documentation** of all security incidents
+- **Corrective measures** implementation
+
+## Compliance Monitoring
+
+### Regular Security Assessments
+- **Monthly** vulnerability scans
+- **Quarterly** penetration testing
+- **Annual** security audits
+- **Continuous** dependency monitoring
+
+### Compliance Reporting
+- **GDPR compliance** reports
+- **Security metrics** tracking
+- **Incident response** documentation
+- **User consent** management reports
+# Security & Compliance Guidelines
+
+## EU Digital Identity Wallet Security Standards
+
+### EUDI-ARF Compliance Requirements
+- **Identity Verification** - Strong user authentication with biometric factors
+- **Credential Security** - Hardware-backed key storage and cryptographic operations
+- **Data Protection** - GDPR compliance with data minimization principles
+- **Privacy by Design** - User consent and selective disclosure mechanisms
+- **Interoperability** - Cross-border security standards adherence
+- **Audit Trail** - Comprehensive transaction logging for compliance
+
+### Core Security Principles
+1. **Zero Trust Architecture** - Never trust, always verify
+2. **Defense in Depth** - Multiple layers of security controls
+3. **Least Privilege** - Minimal access rights for users and components
+4. **Secure by Default** - Security controls enabled by default
+5. **Fail Securely** - System fails to a secure state
+
+## Android Security Implementation
+
+### Android Keystore Integration
+```kotlin
+@Singleton
+class CryptographicManager @Inject constructor(
+    private val context: Context
+) {
+    companion object {
+        private const val KEY_ALIAS_PREFIX = "authbound_wallet_"
+        private const val TRANSFORMATION = "AES/GCM/NoPadding"
+    }
+    
+    /**
+     * Generate hardware-backed encryption key
+     */
+    fun generateEncryptionKey(keyAlias: String): SecretKey {
+        val keyGenerator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
+        
+        val keyGenParameterSpec = KeyGenParameterSpec.Builder(
+            "$KEY_ALIAS_PREFIX$keyAlias",
+            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+        )
+            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+            .setKeySize(256)
+            .setUserAuthenticationRequired(true)
+            .setUserAuthenticationParameters(30, KeyProperties.AUTH_BIOMETRIC_STRONG)
+            .setInvalidatedByBiometricEnrollment(true)
+            .build()
+        
+        keyGenerator.init(keyGenParameterSpec)
+        return keyGenerator.generateKey()
+    }
+    
+    /**
+     * Encrypt sensitive data using hardware-backed key
+     */
+    suspend fun encryptData(data: ByteArray, keyAlias: String): EncryptedData {
+        return withContext(Dispatchers.IO) {
+            try {
+                val keyStore = KeyStore.getInstance("AndroidKeyStore")
+                keyStore.load(null)
+                
+                val secretKey = keyStore.getKey("$KEY_ALIAS_PREFIX$keyAlias", null) as SecretKey
+                val cipher = Cipher.getInstance(TRANSFORMATION)
+                cipher.init(Cipher.ENCRYPT_MODE, secretKey)
+                
+                val encryptedData = cipher.doFinal(data)
+                val iv = cipher.iv
+                
+                EncryptedData(
+                    data = encryptedData,
+                    iv = iv,
+                    keyAlias = keyAlias
+                )
+            } catch (e: Exception) {
+                throw SecurityException("Failed to encrypt data", e)
+            }
+        }
+    }
+}
+
+data class EncryptedData(
+    val data: ByteArray,
+    val iv: ByteArray,
+    val keyAlias: String
+)
+```
+
+### Biometric Authentication
+```kotlin
+@Singleton
+class BiometricAuthenticationManager @Inject constructor(
+    private val context: Context
+) {
+    
+    /**
+     * Check biometric capability and prompt for authentication
+     */
+    fun authenticateWithBiometrics(
+        title: String,
+        subtitle: String,
+        onSuccess: (BiometricPrompt.AuthenticationResult) -> Unit,
+        onError: (String) -> Unit,
+        onFailure: () -> Unit
+    ) {
+        val biometricManager = BiometricManager.from(context)
+        
+        when (biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)) {
+            BiometricManager.BIOMETRIC_SUCCESS -> {
+                showBiometricPrompt(title, subtitle, onSuccess, onError, onFailure)
+            }
+            BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> {
+                onError("Biometric hardware not available")
+            }
+            BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE -> {
+                onError("Biometric hardware currently unavailable")
+            }
+            BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> {
+                onError("No biometric credentials enrolled")
+            }
+            else -> {
+                onError("Biometric authentication not available")
+            }
+        }
+    }
+    
+    private fun showBiometricPrompt(
+        title: String,
+        subtitle: String,
+        onSuccess: (BiometricPrompt.AuthenticationResult) -> Unit,
+        onError: (String) -> Unit,
+        onFailure: () -> Unit
+    ) {
+        val fragmentActivity = context as FragmentActivity
+        val executor = ContextCompat.getMainExecutor(context)
+        
+        val biometricPrompt = BiometricPrompt(
+            fragmentActivity,
+            executor,
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    super.onAuthenticationSucceeded(result)
+                    onSuccess(result)
+                }
+                
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    super.onAuthenticationError(errorCode, errString)
+                    onError(errString.toString())
+                }
+                
+                override fun onAuthenticationFailed() {
+                    super.onAuthenticationFailed()
+                    onFailure()
+                }
+            }
+        )
+        
+        val promptInfo = BiometricPrompt.PromptInfo.Builder()
+            .setTitle(title)
+            .setSubtitle(subtitle)
+            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+            .setNegativeButtonText("Cancel")
+            .build()
+        
+        biometricPrompt.authenticate(promptInfo)
+    }
+}
+```
+
+## Secure Data Storage
+
+### Encrypted Preferences
+```kotlin
+@Singleton
+class SecureStorageManager @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
+    companion object {
+        private const val PREFS_NAME = "authbound_secure_prefs"
+        private const val MASTER_KEY_ALIAS = "authbound_master_key"
+    }
+    
+    private val encryptedPreferences: SharedPreferences by lazy {
+        createEncryptedPreferences()
+    }
+    
+    private fun createEncryptedPreferences(): SharedPreferences {
+        val masterKey = MasterKey.Builder(context, MASTER_KEY_ALIAS)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .setUserAuthenticationRequired(false) // For app-level encryption
+            .build()
+        
+        return EncryptedSharedPreferences.create(
+            context,
+            PREFS_NAME,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
+    
+    /**
+     * Store sensitive authentication tokens
+     */
+    fun storeAuthToken(token: String) {
+        encryptedPreferences.edit()
+            .putString("auth_token", token)
+            .apply()
+    }
+    
+    /**
+     * Store encrypted wallet data
+     */
+    fun storeWalletData(key: String, data: String) {
+        encryptedPreferences.edit()
+            .putString("wallet_$key", data)
+            .apply()
+    }
+    
+    /**
+     * Clear all sensitive data
+     */
+    fun clearSecureData() {
+        encryptedPreferences.edit().clear().apply()
+    }
+}
+```
+
+### Secure Database Implementation
+```kotlin
+@Database(
+    entities = [CredentialEntity::class, TransactionLogEntity::class],
+    version = 1,
+    exportSchema = false
+)
+@TypeConverters(EncryptedDataConverters::class)
+abstract class SecureWalletDatabase : RoomDatabase() {
+    
+    abstract fun credentialDao(): CredentialDao
+    abstract fun transactionLogDao(): TransactionLogDao
+    
+    companion object {
+        @Volatile
+        private var INSTANCE: SecureWalletDatabase? = null
+        
+        fun getDatabase(
+            context: Context,
+            cryptographicManager: CryptographicManager
+        ): SecureWalletDatabase {
+            return INSTANCE ?: synchronized(this) {
+                val passphrase = SQLiteDatabase.rawPassphrase(generateDatabaseKey(cryptographicManager))
+                
+                val instance = Room.databaseBuilder(
+                    context.applicationContext,
+                    SecureWalletDatabase::class.java,
+                    "secure_wallet_database"
+                )
+                    .openHelperFactory(SupportFactory(passphrase))
+                    .fallbackToDestructiveMigration()
+                    .build()
+                
+                INSTANCE = instance
+                instance
+            }
+        }
+        
+        private fun generateDatabaseKey(cryptographicManager: CryptographicManager): ByteArray {
+            // Generate or retrieve database encryption key from Android Keystore
+            return cryptographicManager.getDatabaseEncryptionKey()
+        }
+    }
+}
+```
+
+## Network Security
+
+### Certificate Pinning
+```kotlin
+@Module
+@InstallIn(SingletonComponent::class)
+object NetworkSecurityModule {
+    
+    @Provides
+    @Singleton
+    fun provideCertificatePinner(): CertificatePinner {
+        return CertificatePinner.Builder()
+            .add("api.authbound.eu", "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=") // Replace with actual pins
+            .add("*.authbound.eu", "sha256/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=")
+            .build()
+    }
+    
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(
+        certificatePinner: CertificatePinner,
+        @ApplicationContext context: Context
+    ): OkHttpClient {
+        return OkHttpClient.Builder()
+            .certificatePinner(certificatePinner)
+            .addInterceptor(createSecurityInterceptor(context))
+            .addInterceptor(createLoggingInterceptor())
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
+    
+    private fun createSecurityInterceptor(context: Context): Interceptor {
+        return Interceptor { chain ->
+            val originalRequest = chain.request()
+            
+            val secureRequest = originalRequest.newBuilder()
+                .addHeader("X-Client-Version", BuildConfig.VERSION_NAME)
+                .addHeader("X-Platform", "Android")
+                .addHeader("X-Device-ID", getSecureDeviceId(context))
+                .build()
+            
+            chain.proceed(secureRequest)
+        }
+    }
+}
+```
+
+### Network Security Configuration
+```xml
+<!-- res/xml/network_security_config.xml -->
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">authbound.eu</domain>
+        <pin-set expiration="2025-01-01">
+            <pin digest="SHA-256">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>
+            <pin digest="SHA-256">BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=</pin>
+        </pin-set>
+    </domain-config>
+    
+    <!-- Debug configuration -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="user"/>
+            <certificates src="system"/>
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>
+```
+
+## GDPR Compliance Implementation
+
+### Data Protection Manager
+```kotlin
+@Singleton
+class DataProtectionManager @Inject constructor(
+    private val secureStorage: SecureStorageManager,
+    private val auditLogger: AuditLogger
+) {
+    
+    /**
+     * Handle user consent for data processing
+     */
+    suspend fun recordUserConsent(
+        consentType: ConsentType,
+        granted: Boolean,
+        purpose: String
+    ) {
+        val consent = UserConsent(
+            type = consentType,
+            granted = granted,
+            purpose = purpose,
+            timestamp = System.currentTimeMillis(),
+            version = BuildConfig.PRIVACY_POLICY_VERSION
+        )
+        
+        secureStorage.storeUserConsent(consent)
+        auditLogger.logConsentEvent(consent)
+    }
+    
+    /**
+     * Check if user has granted consent for specific data processing
+     */
+    fun hasValidConsent(consentType: ConsentType): Boolean {
+        val consent = secureStorage.getUserConsent(consentType)
+        return consent?.granted == true && !consent.isExpired()
+    }
+    
+    /**
+     * Handle data subject requests (Art. 15-22 GDPR)
+     */
+    suspend fun handleDataSubjectRequest(request: DataSubjectRequest): DataSubjectResponse {
+        auditLogger.logDataSubjectRequest(request)
+        
+        return when (request.type) {
+            DataSubjectRequestType.ACCESS -> handleDataAccess()
+            DataSubjectRequestType.RECTIFICATION -> handleDataRectification(request)
+            DataSubjectRequestType.ERASURE -> handleDataErasure()
+            DataSubjectRequestType.PORTABILITY -> handleDataPortability()
+        }
+    }
+    
+    /**
+     * Implement data minimization principle
+     */
+    private fun minimizeDataCollection(originalData: UserData): UserData {
+        return originalData.copy(
+            // Remove non-essential fields
+            analyticsData = null,
+            deviceFingerprint = originalData.deviceFingerprint?.let { 
+                it.copy(detailedSpecs = null) 
+            }
+        )
+    }
+}
+
+enum class ConsentType {
+    ESSENTIAL_FUNCTIONALITY,
+    ANALYTICS,
+    MARKETING,
+    CREDENTIAL_STORAGE,
+    BIOMETRIC_DATA
+}
+
+data class UserConsent(
+    val type: ConsentType,
+    val granted: Boolean,
+    val purpose: String,
+    val timestamp: Long,
+    val version: String
+) {
+    fun isExpired(): Boolean {
+        val maxAge = when (type) {
+            ConsentType.ESSENTIAL_FUNCTIONALITY -> Long.MAX_VALUE // Never expires
+            ConsentType.ANALYTICS -> TimeUnit.DAYS.toMillis(365) // 1 year
+            ConsentType.MARKETING -> TimeUnit.DAYS.toMillis(365) // 1 year
+            ConsentType.CREDENTIAL_STORAGE -> Long.MAX_VALUE // Never expires
+            ConsentType.BIOMETRIC_DATA -> TimeUnit.DAYS.toMillis(180) // 6 months
+        }
+        return System.currentTimeMillis() - timestamp > maxAge
+    }
+}
+```
+
+## Audit Logging & Compliance
+
+### Security Audit Logger
+```kotlin
+@Singleton
+class AuditLogger @Inject constructor(
+    private val secureStorage: SecureStorageManager,
+    private val cryptographicManager: CryptographicManager
+) {
+    
+    /**
+     * Log security-critical events for compliance
+     */
+    suspend fun logSecurityEvent(event: SecurityEvent) {
+        val auditEntry = AuditEntry(
+            eventId = UUID.randomUUID().toString(),
+            eventType = event.type,
+            timestamp = System.currentTimeMillis(),
+            userId = event.userId,
+            details = event.details,
+            ipAddress = getClientIpAddress(),
+            deviceId = getSecureDeviceId()
+        )
+        
+        // Encrypt audit log before storage
+        val encryptedEntry = cryptographicManager.encryptAuditEntry(auditEntry)
+        secureStorage.storeAuditEntry(encryptedEntry)
+        
+        // Send critical events to backend for centralized monitoring
+        if (event.isCritical()) {
+            sendAuditToBackend(auditEntry)
+        }
+    }
+    
+    /**
+     * Log credential operations
+     */
+    suspend fun logCredentialOperation(
+        operation: CredentialOperation,
+        credentialId: String,
+        success: Boolean,
+        details: String? = null
+    ) {
+        val event = SecurityEvent(
+            type = SecurityEventType.CREDENTIAL_OPERATION,
+            userId = getCurrentUserId(),
+            details = mapOf(
+                "operation" to operation.name,
+                "credentialId" to credentialId,
+                "success" to success.toString(),
+                "details" to (details ?: "")
+            ),
+            critical = operation.isCritical()
+        )
+        
+        logSecurityEvent(event)
+    }
+    
+    /**
+     * Retrieve audit logs for compliance reporting
+     */
+    suspend fun getAuditTrail(
+        startDate: Long,
+        endDate: Long,
+        eventTypes: List<SecurityEventType> = emptyList()
+    ): List<AuditEntry> {
+        return secureStorage.getAuditEntries(startDate, endDate, eventTypes)
+            .map { cryptographicManager.decryptAuditEntry(it) }
+    }
+}
+
+enum class SecurityEventType {
+    USER_AUTHENTICATION,
+    CREDENTIAL_OPERATION,
+    DATA_ACCESS,
+    CONSENT_CHANGE,
+    SECURITY_VIOLATION,
+    SYSTEM_ACCESS,
+    DATA_EXPORT,
+    BIOMETRIC_AUTH
+}
+
+enum class CredentialOperation {
+    ISSUED,
+    PRESENTED,
+    REVOKED,
+    DELETED,
+    MODIFIED;
+    
+    fun isCritical(): Boolean = when (this) {
+        ISSUED, REVOKED, DELETED -> true
+        PRESENTED, MODIFIED -> false
+    }
+}
+```
+
+## Vulnerability Management
+
+### Security Validation
+```kotlin
+@Singleton
+class SecurityValidator @Inject constructor(
+    private val context: Context,
+    private val auditLogger: AuditLogger
+) {
+    
+    /**
+     * Validate device security posture
+     */
+    suspend fun validateDeviceSecurity(): SecurityValidationResult {
+        val checks = listOf(
+            checkRootDetection(),
+            checkDebuggerDetection(),
+            checkTamperingDetection(),
+            checkMalwareDetection(),
+            checkNetworkSecurity()
+        )
+        
+        val failed = checks.filter { !it.passed }
+        
+        if (failed.isNotEmpty()) {
+            auditLogger.logSecurityEvent(
+                SecurityEvent(
+                    type = SecurityEventType.SECURITY_VIOLATION,
+                    userId = getCurrentUserId(),
+                    details = mapOf("failed_checks" to failed.map { it.check }.joinToString()),
+                    critical = true
+                )
+            )
+        }
+        
+        return SecurityValidationResult(
+            passed = failed.isEmpty(),
+            failedChecks = failed,
+            riskLevel = calculateRiskLevel(failed)
+        )
+    }
+    
+    private fun checkRootDetection(): SecurityCheck {
+        // Implement root detection logic
+        val isRooted = RootBeer(context).isRooted
+        return SecurityCheck(
+            check = "ROOT_DETECTION",
+            passed = !isRooted,
+            message = if (isRooted) "Device is rooted" else "Device is not rooted"
+        )
+    }
+    
+    private fun checkDebuggerDetection(): SecurityCheck {
+        val isDebugging = Debug.isDebuggerConnected() || 
+                         (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        
+        return SecurityCheck(
+            check = "DEBUGGER_DETECTION",
+            passed = !isDebugging,
+            message = if (isDebugging) "Debugger detected" else "No debugger detected"
+        )
+    }
+}
+
+data class SecurityValidationResult(
+    val passed: Boolean,
+    val failedChecks: List<SecurityCheck>,
+    val riskLevel: SecurityRiskLevel
+)
+
+data class SecurityCheck(
+    val check: String,
+    val passed: Boolean,
+    val message: String
+)
+
+enum class SecurityRiskLevel {
+    LOW, MEDIUM, HIGH, CRITICAL
+}
+```
+
+## Secure Development Guidelines
+
+### Code Security Standards
+1. **Input Validation** - Validate all user inputs and API responses
+2. **Output Encoding** - Properly encode data before display
+3. **Authentication** - Use strong authentication mechanisms
+4. **Authorization** - Implement proper access controls
+5. **Cryptography** - Use proven cryptographic libraries and standards
+6. **Error Handling** - Don't expose sensitive information in errors
+7. **Logging** - Log security events but not sensitive data
+
+### Security Testing Requirements
+```kotlin
+class SecurityTestSuite {
+    
+    @Test
+    fun `should encrypt sensitive data before storage`() {
+        // Test encryption of PII data
+    }
+    
+    @Test
+    fun `should validate biometric authentication`() {
+        // Test biometric authentication flow
+    }
+    
+    @Test
+    fun `should handle certificate pinning failures`() {
+        // Test network security failures
+    }
+    
+    @Test
+    fun `should log security events for audit`() {
+        // Test audit logging functionality
+    }
+    
+    @Test
+    fun `should comply with GDPR data handling`() {
+        // Test GDPR compliance features
+    }
+}
+```
+
+### Proguard Security Configuration
+```proguard
+# Security obfuscation rules
+-keepclassmembers class eu.europa.ec.**.model.** { *; }
+-keepclassmembers class * implements java.io.Serializable {
+    static final long serialVersionUID;
+    private static final java.io.ObjectStreamField[] serialPersistentFields;
+    !static !transient <fields>;
+    private void writeObject(java.io.ObjectOutputStream);
+    private void readObject(java.io.ObjectInputStream);
+}
+
+# Remove debugging information
+-assumenosideeffects class android.util.Log {
+    public static *** d(...);
+    public static *** v(...);
+}
+
+# Obfuscate sensitive classes
+-keep class eu.europa.ec.**.security.** { *; }
+-keep class eu.europa.ec.**.crypto.** { *; }
+```
+
+## Emergency Response Procedures
+
+### Security Incident Response
+1. **Detection** - Automated monitoring and alerting
+2. **Assessment** - Evaluate incident severity and impact
+3. **Containment** - Isolate affected systems
+4. **Eradication** - Remove security threats
+5. **Recovery** - Restore normal operations
+6. **Lessons Learned** - Post-incident analysis
+
+### Breach Notification Requirements
+- **72-hour notification** to supervisory authority (GDPR Art. 33)
+- **User notification** when high risk to rights and freedoms
+- **Documentation** of all security incidents
+- **Corrective measures** implementation
+
+## Compliance Monitoring
+
+### Regular Security Assessments
+- **Monthly** vulnerability scans
+- **Quarterly** penetration testing
+- **Annual** security audits
+- **Continuous** dependency monitoring
+
+### Compliance Reporting
+- **GDPR compliance** reports
+- **Security metrics** tracking
+- **Incident response** documentation
+- **User consent** management reports

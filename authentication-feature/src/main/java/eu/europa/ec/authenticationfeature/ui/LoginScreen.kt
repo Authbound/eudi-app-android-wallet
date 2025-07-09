@@ -91,11 +91,18 @@ import eu.europa.ec.uilogic.component.wrap.ButtonType
 import eu.europa.ec.uilogic.component.wrap.WrapButton
 import kotlinx.coroutines.flow.collectLatest
 
+sealed class NavigationSource {
+    data object FROM_LOGIN : NavigationSource()
+    data object DIRECT : NavigationSource()
+    data object UNKNOWN : NavigationSource()
+}
+
 @Composable
 fun LoginScreen(
     viewModel: AuthenticationViewModel,
     onNavigateToHome: () -> Unit,
     onNavigateToWalletSetup: () -> Unit,
+    onNavigateToProfileCompletion: () -> Unit
 ) {
     val state by viewModel.viewState.collectAsState()
     val context = LocalContext.current
@@ -128,6 +135,7 @@ fun LoginScreen(
                 }
 
                 is Effect.Navigation.NavigateToWalletSetup -> onNavigateToWalletSetup()
+                is Effect.Navigation.NavigateToProfileCompletion -> onNavigateToProfileCompletion()
 
                 is Effect.Navigation.PopBackStack -> {
                     // No-op for LoginScreen - this would only apply if LoginScreen had a back stack
@@ -453,10 +461,10 @@ private fun LoginFormContent(
                             horizontalArrangement = Arrangement.Center
                         ) {
                             Icon(
-                                painter = painterResource(id = R.drawable.ic_google_logo),
+                                painter = painterResource(id = R.drawable.baseline_person_24),
                                 contentDescription = null,
                                 modifier = Modifier.size(24.dp),
-                                tint = Color.Unspecified
+                                tint = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(

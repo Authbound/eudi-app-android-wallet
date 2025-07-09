@@ -1,0 +1,123 @@
+---
+alwaysApply: true
+---
+
+
+# EU Digital Identity Wallet Context
+
+## Authbound Startup Overview
+
+### Company Mission
+**Authbound** is a startup specializing in SaaS solutions around the EU Digital Identity (EUDI) wallet ecosystem. We create our own implementation of the EUDI wallet that complies with European standards while providing enhanced user experience and enterprise-grade features.
+
+### Our EUDI Wallet Implementation
+This Android application is Authbound's native implementation of the EU Digital Identity Wallet, designed to:
+- Provide secure digital identity management for EU citizens
+- Enable seamless authentication across digital services
+- Support document signing with legally binding digital signatures
+- Facilitate proximity sharing of credentials via NFC/QR codes
+- Ensure full compliance with EUDI-ARF (EU Digital Identity Architecture and Reference Framework)
+
+## EU Digital Identity Wallet (EUDI) Context
+
+### What is EUDI?
+The EU Digital Identity Wallet is a secure digital identity solution that allows EU citizens to:
+- **Authenticate** their identity across digital services
+- **Store and manage** digital credentials (PID, mDL, etc.)
+- **Sign documents** with legally binding digital signatures
+- **Share credentials** securely with service providers
+- **Control data privacy** with selective disclosure
+
+### Core Components
+1. **PID (Personal Identification Data)** - Core identity attestation
+2. **mDL (Mobile Driving License)** - Digital driving license
+3. **Attestations** - Various digital certificates and credentials
+4. **Proximity Sharing** - NFC/Bluetooth credential sharing
+5. **Remote Presentations** - Online credential verification
+
+### Key User Flows
+1. **Wallet Setup** - Initial device registration and biometric setup
+2. **Credential Issuance** - Receiving new digital credentials
+3. **Authentication** - Proving identity to service providers
+4. **Document Signing** - Digitally signing legal documents
+5. **Proximity Sharing** - Sharing credentials in-person via NFC/QR
+
+## Compliance Framework
+
+### EUDI-ARF Standards
+Our implementation follows the EU Digital Identity Architecture and Reference Framework:
+- **Security Requirements** - Cryptographic standards and key management
+- **Privacy Requirements** - GDPR compliance and data minimization
+- **Interoperability** - Cross-border credential recognition
+- **User Experience** - Accessibility and usability standards
+
+### Key Documentation References
+- **EUDI-ARF Repository**: `https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework`
+- **PID Rulebook**: Annex 3.01 - Personal identification data requirements
+- **mDL Rulebook**: Annex 3.02 - Mobile driving license specifications
+- **Discussion Topics**: Privacy, security, and implementation considerations
+
+## Project Resources & Guidance
+
+### Internal Documentation
+- **`/wiki/configuration.md`** - Build configuration and environment setup
+- **`/wiki/how_to_build.md`** - Development workflow and build instructions
+- **`/wiki/verifier_proximity.md`** - Proximity feature implementation details
+
+### Demo Videos (Reference Only)
+- **`/wiki/issuance.mp4`** - Credential issuance flow demonstration
+- **`/wiki/presentation.mp4`** - Credential presentation flow
+- **`/wiki/proximity.mp4`** - Proximity sharing demonstration
+
+### When You Need More Information
+
+#### About the Backend
+**Important**: The backend is in a separate repository and managed independently.
+- **What to do**: Ask the developer for specific backend API details, endpoints, or integration patterns
+- **Don't assume**: Backend structure, API contracts, or data models
+- **Do reference**: Network-logic module for existing API integration patterns
+
+#### About Business Logic
+**What to do**: 
+1. Check the `business-logic` module for core wallet functionality
+2. Review existing controller implementations in relevant modules
+3. Ask the developer for clarification on business requirements
+
+#### About UI/UX Decisions
+**What to do**:
+1. Check existing components in `ui-logic` module
+2. Follow Material 3 design principles
+3. Ask the developer for specific design requirements
+
+#### About EUDI Compliance
+**What to do**:
+1. Reference EUDI-ARF documentation links above
+2. Check existing compliance implementations in the codebase
+3. Ask the developer for specific regulatory requirements
+
+## Development Context
+
+### Current Focus Areas
+1. **Authentication via Supabase** - Implementing secure user authentication
+2. **Wallet Unit Attestation Creation** - Core credential management functionality
+3. **Proximity Features** - NFC and QR code credential sharing
+4. **Security Hardening** - Enhanced biometric and cryptographic implementations
+
+### Key Success Metrics
+- **Security**: Zero compromise of user credentials or personal data
+- **Compliance**: Full EUDI-ARF adherence for EU market access
+- **User Experience**: Intuitive, accessible interface for all user demographics
+- **Performance**: Smooth operation across Android device ecosystem
+- **Interoperability**: Seamless integration with EU digital services
+
+## Questions for the Developer
+
+If you need clarification on any aspect of Authbound's implementation, ask about:
+- Specific backend API contracts or integration requirements
+- Business logic requirements for new features
+- UI/UX design decisions or user flow modifications
+- Compliance requirements for specific EUDI-ARF standards
+- Integration with external services or third-party libraries
+
+- Compliance requirements for specific EUDI-ARF standards
+- Integration with external services or third-party libraries

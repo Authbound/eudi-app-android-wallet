@@ -24,11 +24,13 @@ import eu.europa.ec.authenticationlogic.usecase.SignInWithEmailPasswordUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignInWithOAuthUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignUpWithEmailPasswordUseCase
+import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricAuthenticationController
 import eu.europa.ec.businesslogic.controller.device.DeviceController
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.model.DeviceInfo
 import eu.europa.ec.businesslogic.controller.storage.PrefKeys
+import eu.europa.ec.businesslogic.controller.storage.PrefsController
 import eu.europa.ec.notificationlogic.controller.PushNotificationController
 import eu.europa.ec.uilogic.mvi.MviViewModel
 import eu.europa.ec.uilogic.mvi.ViewEvent
@@ -71,6 +73,7 @@ sealed class Effect : ViewSideEffect {
     
     sealed class Navigation : Effect() {
         data object NavigateToWalletSetup : Navigation()
+        data object NavigateToProfileCompletion : Navigation()
         data object PopBackStack : Navigation()
         data class NavigateToLoginAndClearStack(val replaceCurrentScreen: Boolean = true) : Navigation()
         data object SignOutAndNavigateToLogin : Navigation()
@@ -84,7 +87,8 @@ class AuthenticationViewModel(
     private val signInWithOAuthUseCase: SignInWithOAuthUseCase,
     private val signOutUseCase: SignOutUseCase,
     private val observeAuthStateUseCase: ObserveAuthStateUseCase,
-    
+    private val getMyProfileUseCase: GetMyProfileUseCase,
+    private val prefsController: PrefsController,
     private val prefKeys: PrefKeys,
     private val logController: LogController
 ) : MviViewModel<Event, State, Effect>() {
@@ -142,12 +146,32 @@ class AuthenticationViewModel(
     }
 
     private fun signInWithEmailPassword() {
+        val currentState = viewState.value
+        
+        // Validate input fields
+        if (currentState.email.isBlank()) {
+            val message = "Please enter your email address"
+            setState { copy(error = message) }
+            setEffect { Effect.ShowError(message) }
+            return
+        }
+        
+        if (currentState.password.isBlank()) {
+            val message = "Please enter your password"
+            setState { copy(error = message) }
+            setEffect { Effect.ShowError(message) }
+            return
+        }
+        
         viewModelScope.launch {
             try {
                 setState { copy(isLoading = true, error = null) }
-                val request = EmailPasswordRequest(viewState.value.email, viewState.value.password)
+                val request = EmailPasswordRequest(currentState.email, currentState.password)
+                logController.d("AuthViewModel", "Attempting sign in with email: ${request.email}")
                 signInWithEmailPasswordUseCase(request)
+                // Note: Don't set loading to false here - let the auth state observer handle it
             } catch (e: Exception) {
+                logController.e("AuthViewModel", e)
                 setState { copy(isLoading = false, error = e.message) }
                 setEffect { Effect.ShowError(e.message ?: "An unknown error occurred") }
             }
@@ -288,6 +312,9 @@ class AuthenticationViewModel(
                                 return@collect
                             }
 
+                            // Set user context for scoped preferences
+                            prefsController.setCurrentUser(user.id)
+
                             val isEmailOnlyProvider =
                                 user.identities?.size == 1 && user.identities?.first()?.provider == "email"
 
@@ -306,17 +333,28 @@ class AuthenticationViewModel(
                                 }
                             } else {
                                 setState { copy(isLoading = false) }
+                                // EUDI-ARF: Wallet is device-bound, check local activation status
                                 if (prefKeys.isWalletActivated()) {
                                     logController.d("AuthViewModel", "User authenticated with wallet activated - navigating to home")
                                     setEffect { Effect.NavigateToHome }
                                 } else {
-                                    logController.d("AuthViewModel", "User authenticated but wallet not activated - navigating to setup.")
-                                    setEffect { Effect.Navigation.NavigateToWalletSetup }
+                                    // Check if profile is complete
+                                    val profileResult = getMyProfileUseCase()
+                                    if (profileResult.isSuccess && profileResult.getOrNull()?.handle?.isNotBlank() == true) {
+                                        logController.d("AuthViewModel", "User authenticated but wallet not activated - navigating to setup")
+                                        setEffect { Effect.Navigation.NavigateToWalletSetup }
+                                    } else {
+                                        logController.d("AuthViewModel", "User authenticated but profile not complete - navigating to profile completion")
+                                        setEffect { Effect.Navigation.NavigateToProfileCompletion }
+                                    }
                                 }
                             }
                         }
 
                         is SessionStatus.NotAuthenticated -> {
+                            logController.d("AuthViewModel", "Session status: NotAuthenticated")
+                            // Clear user context on logout
+                            prefsController.setCurrentUser(null)
                             setState { 
                                 copy(
                                     isLoading = false,
@@ -326,10 +364,12 @@ class AuthenticationViewModel(
                         }
 
                         is SessionStatus.Initializing -> {
-                            // Keep loading state for these transient states
+                            logController.d("AuthViewModel", "Session status: Initializing")
+                            setState { copy(isLoading = true) }
                         }
 
                         is SessionStatus.RefreshFailure -> {
+                            logController.e("AuthViewModel" ){"Session refresh failed"}
                             setState { copy(isLoading = false) }
                             setEffect { Effect.ShowError("An unknown error occurred while refreshing the session.") }
                         }

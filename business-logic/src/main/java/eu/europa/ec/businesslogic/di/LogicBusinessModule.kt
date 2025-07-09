@@ -56,12 +56,15 @@ fun provideLogController(context: Context, configLogic: ConfigLogic): LogControl
     LogControllerImpl(context, configLogic)
 
 @Single
-fun providePrefsController(resourceProvider: ResourceProvider): PrefsController =
-    PrefsControllerImpl(resourceProvider)
+fun providePrefsController(
+    resourceProvider: ResourceProvider,
+    logController: LogController
+): PrefsController = PrefsControllerImpl(resourceProvider, logController)
 
 @Single
-fun providePrefKeys(prefsController: PrefsController): PrefKeys =
-    PrefKeysImpl(prefsController)
+fun providePrefKeys(
+    prefsController: PrefsController
+): PrefKeys = PrefKeysImpl(prefsController)
 
 @Single
 fun provideKeystoreController(

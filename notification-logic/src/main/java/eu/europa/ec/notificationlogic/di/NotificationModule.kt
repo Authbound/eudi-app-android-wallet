@@ -18,6 +18,9 @@ package eu.europa.ec.notificationlogic.di
 import com.google.firebase.messaging.FirebaseMessaging
 import eu.europa.ec.notificationlogic.controller.PushNotificationController
 import eu.europa.ec.notificationlogic.controller.PushNotificationControllerImpl
+import eu.europa.ec.notificationlogic.controller.UserScopedPushNotificationController
+import eu.europa.ec.notificationlogic.controller.UserScopedPushNotificationControllerImpl
+import eu.europa.ec.businesslogic.controller.log.LogController
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Module
 import org.koin.core.annotation.Single
@@ -36,4 +39,12 @@ fun provideFirebaseMessaging(): FirebaseMessaging {
 @Single
 fun providePushNotificationController(firebaseMessaging: FirebaseMessaging): PushNotificationController {
     return PushNotificationControllerImpl(firebaseMessaging)
+}
+
+@Single
+fun provideUserScopedPushNotificationController(
+    firebaseMessaging: FirebaseMessaging,
+    logController: LogController
+): UserScopedPushNotificationController {
+    return UserScopedPushNotificationControllerImpl(firebaseMessaging, logController)
 }

@@ -1,5 +1,3 @@
-import project.convention.logic.config.LibraryModule
-
 /*
  * Copyright (c) 2024 European Commission
  *
@@ -15,26 +13,19 @@ import project.convention.logic.config.LibraryModule
  * ANY KIND, either express or implied. See the Licence for the specific language
  * governing permissions and limitations under the Licence.
  */
+package eu.europa.ec.authenticationlogic.usecase
 
-plugins {
-    id("project.android.library")
+import eu.europa.ec.networklogic.model.request.CompleteProfileRequest
+import eu.europa.ec.authenticationlogic.repository.ProfileRepository
+
+interface CompleteProfileUseCase {
+    suspend operator fun invoke(request: CompleteProfileRequest): Result<Unit>
 }
 
-android {
-    namespace = "eu.europa.ec.notificationlogic"
-}
-
-
-moduleConfig {
-    module = LibraryModule.NotificationLogic
-}
-
-
-dependencies {
-    implementation(platform(libs.bom))
-    implementation(libs.supabase.realtime.kt)
-    implementation(platform(libs.firebase.bom))
-    implementation(project(LibraryModule.BusinessLogic.path))
-    implementation(libs.firebase.messaging)
-    implementation(libs.gson)
+class CompleteProfileUseCaseImpl(
+    private val profileRepository: ProfileRepository
+) : CompleteProfileUseCase {
+    override suspend fun invoke(request: CompleteProfileRequest): Result<Unit> {
+        return profileRepository.completeProfile(request)
+    }
 } 

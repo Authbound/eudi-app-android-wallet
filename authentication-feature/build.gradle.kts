@@ -4,6 +4,8 @@ import project.convention.logic.kover.excludeFromKoverReport
 
 plugins {
     id("project.android.feature")
+    id("project.android.library.compose")
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -36,6 +38,8 @@ dependencies {
 
     // Foundation for drawing effects
     implementation("androidx.compose.foundation:foundation")
+
+    ksp(libs.koin.ksp)
 }
 
 moduleConfig {

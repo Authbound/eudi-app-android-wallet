@@ -1,0 +1,982 @@
+---
+description: Project Architecture
+alwaysApply: false
+---
+# Project Architecture Guidelines
+
+## Clean Architecture Overview
+
+### Architecture Principles
+- **Separation of Concerns** - Each module has a single responsibility
+- **Dependency Inversion** - Dependencies point inward toward business logic
+- **Testability** - All components are easily testable in isolation
+- **Scalability** - Modular structure supports team scaling
+- **Maintainability** - Clear boundaries between features and logic
+
+### Layer Structure
+```
+┌─────────────────────────────────────┐
+│           Presentation Layer        │
+│     (Feature Modules + UI Logic)    │
+├─────────────────────────────────────┤
+│            Domain Layer             │
+│         (Business Logic)            │
+├─────────────────────────────────────┤
+│             Data Layer              │
+│   (Network, Storage, Core Logic)    │
+└─────────────────────────────────────┘
+```
+
+## Module Classification
+
+### Feature Modules (Presentation Layer)
+**Purpose**: User interface and user interaction logic
+- `authentication-feature` - Login, biometric setup, wallet activation
+- `dashboard-feature` - Home screen, quick actions, main navigation
+- `issuance-feature` - Credential issuance flows and management
+- `proximity-feature` - NFC and QR code sharing functionality
+- `presentation-feature` - Credential presentation to verifiers
+- `startup-feature` - App initialization and onboarding
+- `common-feature` - Shared UI components across features
+
+### Logic Modules (Domain & Data Layers)
+**Purpose**: Business rules, data access, and core functionality
+- `business-logic` - Core wallet business rules and use cases
+- `core-logic` - Shared utilities, base classes, and common functionality
+- `network-logic` - API communication and remote data sources
+- `storage-logic` - Local data persistence and caching
+- `authentication-logic` - Authentication and authorization logic
+- `wallet-activation-logic` - Wallet setup and activation processes
+- `assembly-logic` - Credential assembly and validation
+- `analytics-logic` - Usage tracking and analytics
+- `notification-logic` - Push notifications and messaging
+- `ui-logic` - Shared UI components, themes, and design system
+- `resources-logic` - Shared resources, strings, and assets
+- `test-logic` - Testing utilities and shared test components
+
+## Dependency Rules
+
+### Module Dependencies
+```kotlin
+// ✅ ALLOWED DEPENDENCIES
+authentication-feature → authentication-logic
+authentication-feature → ui-logic
+authentication-feature → resources-logic
+
+dashboard-feature → business-logic
+dashboard-feature → ui-logic
+dashboard-feature → core-logic
+
+business-logic → storage-logic
+business-logic → network-logic
+business-logic → core-logic
+
+// ❌ FORBIDDEN DEPENDENCIES
+core-logic → business-logic        // Core cannot depend on business
+ui-logic → authentication-feature  // Logic cannot depend on features
+storage-logic → network-logic      // Horizontal dependencies between data modules
+```
+
+### Dependency Direction
+- **Features** depend on **Logic modules**
+- **Logic modules** depend on **Core logic**
+- **Core logic** has minimal external dependencies
+- **No circular dependencies** between modules
+
+## MVI Pattern Implementation
+
+### ViewModel Structure
+```kotlin
+class AuthenticationViewModel @Inject constructor(
+    private val authenticateUseCase: AuthenticateUseCase,
+    private val biometricManager: BiometricAuthManager
+) : BaseViewModel<Event, State, Effect>() {
+    
+    // State management
+    override fun setInitialState(): State = State.initial()
+    
+    // Event handling
+    override fun handleEvents(event: Event) {
+        when (event) {
+            is Event.LoginPressed -> handleLogin(event.credentials)
+            is Event.BiometricPressed -> handleBiometricAuth()
+        }
+    }
+    
+    // Side effects
+    private fun handleLogin(credentials: UserCredentials) {
+        setState { copy(isLoading = true) }
+        viewModelScope.launch {
+            authenticateUseCase(credentials)
+                .onSuccess { token ->
+                    setState { copy(isLoading = false, isAuthenticated = true) }
+                    setEffect { Effect.NavigateToDashboard }
+                }
+                .onFailure { error ->
+                    setState { copy(isLoading = false, error = error.message) }
+                    setEffect { Effect.ShowError(error.message) }
+                }
+        }
+    }
+}
+
+// State definition
+data class State(
+    val isLoading: Boolean = false,
+    val isAuthenticated: Boolean = false,
+    val error: String? = null
+) {
+    companion object {
+        fun initial() = State()
+    }
+}
+
+// Events
+sealed class Event {
+    data class LoginPressed(val credentials: UserCredentials) : Event()
+    object BiometricPressed : Event()
+}
+
+// Effects
+sealed class Effect {
+    object NavigateToDashboard : Effect()
+    data class ShowError(val message: String) : Effect()
+}
+```
+
+### Screen Composition
+```kotlin
+@Composable
+fun AuthenticationScreen(
+    viewModel: AuthenticationViewModel = hiltViewModel(),
+    onNavigateToDashboard: () -> Unit
+) {
+    val state by viewModel.uiState.collectAsState()
+    
+    LaunchedEffect(Unit) {
+        viewModel.effect.collect { effect ->
+            when (effect) {
+                is Effect.NavigateToDashboard -> onNavigateToDashboard()
+                is Effect.ShowError -> {
+                    // Show error snackbar or dialog
+                }
+            }
+        }
+    }
+    
+    AuthenticationContent(
+        state = state,
+        onEvent = viewModel::setEvent
+    )
+}
+
+@Composable
+private fun AuthenticationContent(
+    state: State,
+    onEvent: (Event) -> Unit
+) {
+    // UI implementation
+}
+```
+
+## Repository Pattern
+
+### Repository Interface
+```kotlin
+interface AuthenticationRepository {
+    suspend fun authenticateUser(credentials: UserCredentials): Result<AuthToken>
+    suspend fun refreshToken(token: RefreshToken): Result<AuthToken>
+    suspend fun logout(): Result<Unit>
+    fun observeAuthState(): Flow<AuthState>
+}
+```
+
+### Repository Implementation
+```kotlin
+@Singleton
+class AuthenticationRepositoryImpl @Inject constructor(
+    private val networkDataSource: AuthNetworkDataSource,
+    private val localDataSource: AuthLocalDataSource,
+    private val securityManager: SecurityManager
+) : AuthenticationRepository {
+    
+    override suspend fun authenticateUser(credentials: UserCredentials): Result<AuthToken> {
+        return try {
+            val encryptedCredentials = securityManager.encrypt(credentials)
+            val response = networkDataSource.authenticate(encryptedCredentials)
+            localDataSource.saveAuthToken(response.token)
+            Result.success(response.token)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    override fun observeAuthState(): Flow<AuthState> {
+        return localDataSource.observeAuthToken()
+            .map { token ->
+                if (token != null && !token.isExpired()) {
+                    AuthState.Authenticated(token)
+                } else {
+                    AuthState.Unauthenticated
+                }
+            }
+    }
+}
+```
+
+## Use Case Pattern
+
+### Use Case Implementation
+```kotlin
+class AuthenticateUserUseCase @Inject constructor(
+    private val authRepository: AuthenticationRepository,
+    private val deviceController: DeviceController,
+    private val analyticsRepository: AnalyticsRepository
+) {
+    suspend operator fun invoke(credentials: UserCredentials): Result<AuthToken> {
+        // Validate device security
+        if (!deviceController.isDeviceSecure()) {
+            return Result.failure(SecurityException("Device not secure"))
+        }
+        
+        return authRepository.authenticateUser(credentials)
+            .onSuccess { token ->
+                analyticsRepository.trackEvent(AnalyticsEvent.UserAuthenticated)
+            }
+            .onFailure { error ->
+                analyticsRepository.trackEvent(AnalyticsEvent.AuthenticationFailed(error))
+            }
+    }
+}
+```
+
+## Navigation Architecture
+
+### Navigation Graph Structure
+```kotlin
+@Composable
+fun AppNavigation(
+    navController: NavHostController = rememberNavController()
+) {
+    NavHost(
+        navController = navController,
+        startDestination = "startup"
+    ) {
+        // Startup flow
+        composable("startup") {
+            StartupScreen(
+                onNavigateToAuth = { navController.navigate("authentication") },
+                onNavigateToDashboard = { navController.navigate("dashboard") }
+            )
+        }
+        
+        // Authentication flow
+        composable("authentication") {
+            AuthenticationScreen(
+                onNavigateToDashboard = { 
+                    navController.navigate("dashboard") {
+                        popUpTo("authentication") { inclusive = true }
+                    }
+                }
+            )
+        }
+        
+        // Main dashboard with bottom navigation
+        composable("dashboard") {
+            DashboardScreen(
+                onNavigateToIssuance = { navController.navigate("issuance") },
+                onNavigateToPresentation = { navController.navigate("presentation") }
+            )
+        }
+        
+        // Feature-specific navigation graphs
+        issuanceNavGraph(navController)
+        presentationNavGraph(navController)
+        proximityNavGraph(navController)
+    }
+}
+```
+
+## Data Flow Architecture
+
+### State Flow Diagram
+```
+User Input → ViewModel (Event) → Use Case → Repository → Network/Storage
+     ↑                                                           ↓
+UI State ← ViewModel (State) ← Use Case ← Repository ← Response Data
+```
+
+### Cross-Module Communication
+```kotlin
+// Shared events between modules
+sealed class WalletEvent {
+    object CredentialIssued : WalletEvent()
+    object AuthenticationExpired : WalletEvent()
+    data class ProximitySessionStarted(val sessionId: String) : WalletEvent()
+}
+
+// Event bus for cross-module communication
+@Singleton
+class WalletEventBus @Inject constructor() {
+    private val _events = MutableSharedFlow<WalletEvent>()
+    val events: SharedFlow<WalletEvent> = _events.asSharedFlow()
+    
+    suspend fun emit(event: WalletEvent) {
+        _events.emit(event)
+    }
+}
+
+// Usage in ViewModels
+class DashboardViewModel @Inject constructor(
+    private val eventBus: WalletEventBus
+) : BaseViewModel<Event, State, Effect>() {
+    
+    init {
+        viewModelScope.launch {
+            eventBus.events.collect { event ->
+                when (event) {
+                    is WalletEvent.CredentialIssued -> refreshCredentials()
+                    is WalletEvent.AuthenticationExpired -> handleAuthExpired()
+                }
+            }
+        }
+    }
+}
+```
+
+## Configuration Management
+
+### Build Configuration
+```kotlin
+// BuildConfig values based on build variant
+object AppConfig {
+    val apiBaseUrl: String = BuildConfig.API_BASE_URL
+    val isDebugMode: Boolean = BuildConfig.DEBUG
+    val analyticsEnabled: Boolean = BuildConfig.ENABLE_ANALYTICS
+    val logLevel: LogLevel = if (BuildConfig.DEBUG) LogLevel.DEBUG else LogLevel.ERROR
+}
+
+// Environment-specific configurations
+sealed class Environment {
+    object Development : Environment()
+    object Demo : Environment()
+    object Production : Environment()
+    
+    val current: Environment = when (BuildConfig.FLAVOR) {
+        "dev" -> Development
+        "demo" -> Demo
+        "prod" -> Production
+        else -> Development
+    }
+}
+```
+
+### Feature Flags
+```kotlin
+@Singleton
+class FeatureFlags @Inject constructor() {
+    
+    fun isProximityFeatureEnabled(): Boolean = when (Environment.current) {
+        Environment.Development -> true
+        Environment.Demo -> true
+        Environment.Production -> BuildConfig.ENABLE_PROXIMITY
+    }
+    
+    fun isBiometricAuthEnabled(): Boolean {
+        return BiometricManager.from(context).canAuthenticate(BIOMETRIC_WEAK) == BIOMETRIC_SUCCESS
+    }
+}
+```
+
+## Testing Architecture
+
+### Test Doubles Strategy
+```kotlin
+// Repository test double
+class FakeAuthenticationRepository : AuthenticationRepository {
+    private var shouldSucceed = true
+    private var authToken: AuthToken? = null
+    
+    fun setShouldSucceed(shouldSucceed: Boolean) {
+        this.shouldSucceed = shouldSucceed
+    }
+    
+    override suspend fun authenticateUser(credentials: UserCredentials): Result<AuthToken> {
+        return if (shouldSucceed) {
+            val token = AuthToken("fake-token")
+            authToken = token
+            Result.success(token)
+        } else {
+            Result.failure(AuthenticationException("Invalid credentials"))
+        }
+    }
+}
+
+// Test module for dependency injection
+@Module
+@TestInstalls(NetworkModule::class)
+object TestNetworkModule {
+    
+    @Provides
+    @Singleton
+    fun provideAuthRepository(): AuthenticationRepository = FakeAuthenticationRepository()
+}
+```
+
+## Error Handling Strategy
+
+### Error Types
+```kotlin
+sealed class WalletError : Exception() {
+    data class NetworkError(val code: Int, override val message: String) : WalletError()
+    data class SecurityError(override val message: String) : WalletError()
+    data class ValidationError(val field: String, override val message: String) : WalletError()
+    object SessionExpiredError : WalletError()
+    data class UnknownError(override val message: String) : WalletError()
+}
+
+// Error mapping
+class ErrorMapper @Inject constructor() {
+    fun mapToWalletError(throwable: Throwable): WalletError {
+        return when (throwable) {
+            is HttpException -> WalletError.NetworkError(throwable.code(), throwable.message())
+            is SecurityException -> WalletError.SecurityError(throwable.message ?: "Security error")
+            is IllegalArgumentException -> WalletError.ValidationError("unknown", throwable.message ?: "Validation error")
+            else -> WalletError.UnknownError(throwable.message ?: "Unknown error")
+        }
+    }
+}
+```
+
+## Performance Considerations
+
+### Memory Management
+- **ViewModel scope** - Use appropriate lifecycle-aware scopes
+- **State management** - Avoid large objects in UI state
+- **Resource cleanup** - Proper disposal of resources and subscriptions
+- **Image loading** - Use efficient image loading libraries (Coil)
+
+### Background Processing
+```kotlin
+// Use WorkManager for background tasks
+@HiltWorker
+class CredentialSyncWorker @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted workerParams: WorkerParameters,
+    private val credentialRepository: CredentialRepository
+) : CoroutineWorker(context, workerParams) {
+    
+    override suspend fun doWork(): Result {
+        return try {
+            credentialRepository.syncCredentials()
+            Result.success()
+        } catch (e: Exception) {
+            Result.retry()
+        }
+    }
+}
+```
+
+## Documentation Standards
+
+### Code Documentation
+- **Class-level documentation** - Purpose and usage
+- **Public method documentation** - Parameters, return values, exceptions
+- **Complex logic documentation** - Inline comments for business rules
+- **Architecture decisions** - Document significant design choices
+
+### Module Documentation
+Each module should include:
+- `README.md` - Module purpose and public API
+- **Dependencies** - Required and optional dependencies
+- **Testing** - How to test the module
+- **Configuration** - Module-specific configuration options
+# Project Architecture Guidelines
+
+## Clean Architecture Overview
+
+### Architecture Principles
+- **Separation of Concerns** - Each module has a single responsibility
+- **Dependency Inversion** - Dependencies point inward toward business logic
+- **Testability** - All components are easily testable in isolation
+- **Scalability** - Modular structure supports team scaling
+- **Maintainability** - Clear boundaries between features and logic
+
+### Layer Structure
+```
+┌─────────────────────────────────────┐
+│           Presentation Layer        │
+│     (Feature Modules + UI Logic)    │
+├─────────────────────────────────────┤
+│            Domain Layer             │
+│         (Business Logic)            │
+├─────────────────────────────────────┤
+│             Data Layer              │
+│   (Network, Storage, Core Logic)    │
+└─────────────────────────────────────┘
+```
+
+## Module Classification
+
+### Feature Modules (Presentation Layer)
+**Purpose**: User interface and user interaction logic
+- `authentication-feature` - Login, biometric setup, wallet activation
+- `dashboard-feature` - Home screen, quick actions, main navigation
+- `issuance-feature` - Credential issuance flows and management
+- `proximity-feature` - NFC and QR code sharing functionality
+- `presentation-feature` - Credential presentation to verifiers
+- `startup-feature` - App initialization and onboarding
+- `common-feature` - Shared UI components across features
+
+### Logic Modules (Domain & Data Layers)
+**Purpose**: Business rules, data access, and core functionality
+- `business-logic` - Core wallet business rules and use cases
+- `core-logic` - Shared utilities, base classes, and common functionality
+- `network-logic` - API communication and remote data sources
+- `storage-logic` - Local data persistence and caching
+- `authentication-logic` - Authentication and authorization logic
+- `wallet-activation-logic` - Wallet setup and activation processes
+- `assembly-logic` - Credential assembly and validation
+- `analytics-logic` - Usage tracking and analytics
+- `notification-logic` - Push notifications and messaging
+- `ui-logic` - Shared UI components, themes, and design system
+- `resources-logic` - Shared resources, strings, and assets
+- `test-logic` - Testing utilities and shared test components
+
+## Dependency Rules
+
+### Module Dependencies
+```kotlin
+// ✅ ALLOWED DEPENDENCIES
+authentication-feature → authentication-logic
+authentication-feature → ui-logic
+authentication-feature → resources-logic
+
+dashboard-feature → business-logic
+dashboard-feature → ui-logic
+dashboard-feature → core-logic
+
+business-logic → storage-logic
+business-logic → network-logic
+business-logic → core-logic
+
+// ❌ FORBIDDEN DEPENDENCIES
+core-logic → business-logic        // Core cannot depend on business
+ui-logic → authentication-feature  // Logic cannot depend on features
+storage-logic → network-logic      // Horizontal dependencies between data modules
+```
+
+### Dependency Direction
+- **Features** depend on **Logic modules**
+- **Logic modules** depend on **Core logic**
+- **Core logic** has minimal external dependencies
+- **No circular dependencies** between modules
+
+## MVI Pattern Implementation
+
+### ViewModel Structure
+```kotlin
+class AuthenticationViewModel @Inject constructor(
+    private val authenticateUseCase: AuthenticateUseCase,
+    private val biometricManager: BiometricAuthManager
+) : BaseViewModel<Event, State, Effect>() {
+    
+    // State management
+    override fun setInitialState(): State = State.initial()
+    
+    // Event handling
+    override fun handleEvents(event: Event) {
+        when (event) {
+            is Event.LoginPressed -> handleLogin(event.credentials)
+            is Event.BiometricPressed -> handleBiometricAuth()
+        }
+    }
+    
+    // Side effects
+    private fun handleLogin(credentials: UserCredentials) {
+        setState { copy(isLoading = true) }
+        viewModelScope.launch {
+            authenticateUseCase(credentials)
+                .onSuccess { token ->
+                    setState { copy(isLoading = false, isAuthenticated = true) }
+                    setEffect { Effect.NavigateToDashboard }
+                }
+                .onFailure { error ->
+                    setState { copy(isLoading = false, error = error.message) }
+                    setEffect { Effect.ShowError(error.message) }
+                }
+        }
+    }
+}
+
+// State definition
+data class State(
+    val isLoading: Boolean = false,
+    val isAuthenticated: Boolean = false,
+    val error: String? = null
+) {
+    companion object {
+        fun initial() = State()
+    }
+}
+
+// Events
+sealed class Event {
+    data class LoginPressed(val credentials: UserCredentials) : Event()
+    object BiometricPressed : Event()
+}
+
+// Effects
+sealed class Effect {
+    object NavigateToDashboard : Effect()
+    data class ShowError(val message: String) : Effect()
+}
+```
+
+### Screen Composition
+```kotlin
+@Composable
+fun AuthenticationScreen(
+    viewModel: AuthenticationViewModel = hiltViewModel(),
+    onNavigateToDashboard: () -> Unit
+) {
+    val state by viewModel.uiState.collectAsState()
+    
+    LaunchedEffect(Unit) {
+        viewModel.effect.collect { effect ->
+            when (effect) {
+                is Effect.NavigateToDashboard -> onNavigateToDashboard()
+                is Effect.ShowError -> {
+                    // Show error snackbar or dialog
+                }
+            }
+        }
+    }
+    
+    AuthenticationContent(
+        state = state,
+        onEvent = viewModel::setEvent
+    )
+}
+
+@Composable
+private fun AuthenticationContent(
+    state: State,
+    onEvent: (Event) -> Unit
+) {
+    // UI implementation
+}
+```
+
+## Repository Pattern
+
+### Repository Interface
+```kotlin
+interface AuthenticationRepository {
+    suspend fun authenticateUser(credentials: UserCredentials): Result<AuthToken>
+    suspend fun refreshToken(token: RefreshToken): Result<AuthToken>
+    suspend fun logout(): Result<Unit>
+    fun observeAuthState(): Flow<AuthState>
+}
+```
+
+### Repository Implementation
+```kotlin
+@Singleton
+class AuthenticationRepositoryImpl @Inject constructor(
+    private val networkDataSource: AuthNetworkDataSource,
+    private val localDataSource: AuthLocalDataSource,
+    private val securityManager: SecurityManager
+) : AuthenticationRepository {
+    
+    override suspend fun authenticateUser(credentials: UserCredentials): Result<AuthToken> {
+        return try {
+            val encryptedCredentials = securityManager.encrypt(credentials)
+            val response = networkDataSource.authenticate(encryptedCredentials)
+            localDataSource.saveAuthToken(response.token)
+            Result.success(response.token)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    override fun observeAuthState(): Flow<AuthState> {
+        return localDataSource.observeAuthToken()
+            .map { token ->
+                if (token != null && !token.isExpired()) {
+                    AuthState.Authenticated(token)
+                } else {
+                    AuthState.Unauthenticated
+                }
+            }
+    }
+}
+```
+
+## Use Case Pattern
+
+### Use Case Implementation
+```kotlin
+class AuthenticateUserUseCase @Inject constructor(
+    private val authRepository: AuthenticationRepository,
+    private val deviceController: DeviceController,
+    private val analyticsRepository: AnalyticsRepository
+) {
+    suspend operator fun invoke(credentials: UserCredentials): Result<AuthToken> {
+        // Validate device security
+        if (!deviceController.isDeviceSecure()) {
+            return Result.failure(SecurityException("Device not secure"))
+        }
+        
+        return authRepository.authenticateUser(credentials)
+            .onSuccess { token ->
+                analyticsRepository.trackEvent(AnalyticsEvent.UserAuthenticated)
+            }
+            .onFailure { error ->
+                analyticsRepository.trackEvent(AnalyticsEvent.AuthenticationFailed(error))
+            }
+    }
+}
+```
+
+## Navigation Architecture
+
+### Navigation Graph Structure
+```kotlin
+@Composable
+fun AppNavigation(
+    navController: NavHostController = rememberNavController()
+) {
+    NavHost(
+        navController = navController,
+        startDestination = "startup"
+    ) {
+        // Startup flow
+        composable("startup") {
+            StartupScreen(
+                onNavigateToAuth = { navController.navigate("authentication") },
+                onNavigateToDashboard = { navController.navigate("dashboard") }
+            )
+        }
+        
+        // Authentication flow
+        composable("authentication") {
+            AuthenticationScreen(
+                onNavigateToDashboard = { 
+                    navController.navigate("dashboard") {
+                        popUpTo("authentication") { inclusive = true }
+                    }
+                }
+            )
+        }
+        
+        // Main dashboard with bottom navigation
+        composable("dashboard") {
+            DashboardScreen(
+                onNavigateToIssuance = { navController.navigate("issuance") },
+                onNavigateToPresentation = { navController.navigate("presentation") }
+            )
+        }
+        
+        // Feature-specific navigation graphs
+        issuanceNavGraph(navController)
+        presentationNavGraph(navController)
+        proximityNavGraph(navController)
+    }
+}
+```
+
+## Data Flow Architecture
+
+### State Flow Diagram
+```
+User Input → ViewModel (Event) → Use Case → Repository → Network/Storage
+     ↑                                                           ↓
+UI State ← ViewModel (State) ← Use Case ← Repository ← Response Data
+```
+
+### Cross-Module Communication
+```kotlin
+// Shared events between modules
+sealed class WalletEvent {
+    object CredentialIssued : WalletEvent()
+    object AuthenticationExpired : WalletEvent()
+    data class ProximitySessionStarted(val sessionId: String) : WalletEvent()
+}
+
+// Event bus for cross-module communication
+@Singleton
+class WalletEventBus @Inject constructor() {
+    private val _events = MutableSharedFlow<WalletEvent>()
+    val events: SharedFlow<WalletEvent> = _events.asSharedFlow()
+    
+    suspend fun emit(event: WalletEvent) {
+        _events.emit(event)
+    }
+}
+
+// Usage in ViewModels
+class DashboardViewModel @Inject constructor(
+    private val eventBus: WalletEventBus
+) : BaseViewModel<Event, State, Effect>() {
+    
+    init {
+        viewModelScope.launch {
+            eventBus.events.collect { event ->
+                when (event) {
+                    is WalletEvent.CredentialIssued -> refreshCredentials()
+                    is WalletEvent.AuthenticationExpired -> handleAuthExpired()
+                }
+            }
+        }
+    }
+}
+```
+
+## Configuration Management
+
+### Build Configuration
+```kotlin
+// BuildConfig values based on build variant
+object AppConfig {
+    val apiBaseUrl: String = BuildConfig.API_BASE_URL
+    val isDebugMode: Boolean = BuildConfig.DEBUG
+    val analyticsEnabled: Boolean = BuildConfig.ENABLE_ANALYTICS
+    val logLevel: LogLevel = if (BuildConfig.DEBUG) LogLevel.DEBUG else LogLevel.ERROR
+}
+
+// Environment-specific configurations
+sealed class Environment {
+    object Development : Environment()
+    object Demo : Environment()
+    object Production : Environment()
+    
+    val current: Environment = when (BuildConfig.FLAVOR) {
+        "dev" -> Development
+        "demo" -> Demo
+        "prod" -> Production
+        else -> Development
+    }
+}
+```
+
+### Feature Flags
+```kotlin
+@Singleton
+class FeatureFlags @Inject constructor() {
+    
+    fun isProximityFeatureEnabled(): Boolean = when (Environment.current) {
+        Environment.Development -> true
+        Environment.Demo -> true
+        Environment.Production -> BuildConfig.ENABLE_PROXIMITY
+    }
+    
+    fun isBiometricAuthEnabled(): Boolean {
+        return BiometricManager.from(context).canAuthenticate(BIOMETRIC_WEAK) == BIOMETRIC_SUCCESS
+    }
+}
+```
+
+## Testing Architecture
+
+### Test Doubles Strategy
+```kotlin
+// Repository test double
+class FakeAuthenticationRepository : AuthenticationRepository {
+    private var shouldSucceed = true
+    private var authToken: AuthToken? = null
+    
+    fun setShouldSucceed(shouldSucceed: Boolean) {
+        this.shouldSucceed = shouldSucceed
+    }
+    
+    override suspend fun authenticateUser(credentials: UserCredentials): Result<AuthToken> {
+        return if (shouldSucceed) {
+            val token = AuthToken("fake-token")
+            authToken = token
+            Result.success(token)
+        } else {
+            Result.failure(AuthenticationException("Invalid credentials"))
+        }
+    }
+}
+
+// Test module for dependency injection
+@Module
+@TestInstalls(NetworkModule::class)
+object TestNetworkModule {
+    
+    @Provides
+    @Singleton
+    fun provideAuthRepository(): AuthenticationRepository = FakeAuthenticationRepository()
+}
+```
+
+## Error Handling Strategy
+
+### Error Types
+```kotlin
+sealed class WalletError : Exception() {
+    data class NetworkError(val code: Int, override val message: String) : WalletError()
+    data class SecurityError(override val message: String) : WalletError()
+    data class ValidationError(val field: String, override val message: String) : WalletError()
+    object SessionExpiredError : WalletError()
+    data class UnknownError(override val message: String) : WalletError()
+}
+
+// Error mapping
+class ErrorMapper @Inject constructor() {
+    fun mapToWalletError(throwable: Throwable): WalletError {
+        return when (throwable) {
+            is HttpException -> WalletError.NetworkError(throwable.code(), throwable.message())
+            is SecurityException -> WalletError.SecurityError(throwable.message ?: "Security error")
+            is IllegalArgumentException -> WalletError.ValidationError("unknown", throwable.message ?: "Validation error")
+            else -> WalletError.UnknownError(throwable.message ?: "Unknown error")
+        }
+    }
+}
+```
+
+## Performance Considerations
+
+### Memory Management
+- **ViewModel scope** - Use appropriate lifecycle-aware scopes
+- **State management** - Avoid large objects in UI state
+- **Resource cleanup** - Proper disposal of resources and subscriptions
+- **Image loading** - Use efficient image loading libraries (Coil)
+
+### Background Processing
+```kotlin
+// Use WorkManager for background tasks
+@HiltWorker
+class CredentialSyncWorker @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted workerParams: WorkerParameters,
+    private val credentialRepository: CredentialRepository
+) : CoroutineWorker(context, workerParams) {
+    
+    override suspend fun doWork(): Result {
+        return try {
+            credentialRepository.syncCredentials()
+            Result.success()
+        } catch (e: Exception) {
+            Result.retry()
+        }
+    }
+}
+```
+
+## Documentation Standards
+
+### Code Documentation
+- **Class-level documentation** - Purpose and usage
+- **Public method documentation** - Parameters, return values, exceptions
+- **Complex logic documentation** - Inline comments for business rules
+- **Architecture decisions** - Document significant design choices
+
+### Module Documentation
+Each module should include:
+- `README.md` - Module purpose and public API
+- **Dependencies** - Required and optional dependencies
+- **Testing** - How to test the module
+- **Configuration** - Module-specific configuration options

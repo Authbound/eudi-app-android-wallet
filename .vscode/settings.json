@@ -1,0 +1,20 @@
+{
+  // --- THIS IS THE MOST IMPORTANT PART ---
+  // Paste the JDK path you copied from Android Studio here.
+  // Make sure to use forward slashes `/` or double backslashes `\\` on Windows.
+  "java.jdt.ls.java.home": "/Users/lassi/Applications/Android Studio.app/Contents/jbr/Contents/Home",
+
+  // --- Recommended settings for Gradle projects ---
+  "java.import.gradle.wrapper.enabled": true,
+  "java.configuration.updateBuildConfiguration": "automatic",
+
+  // --- Optional: Give the language server more memory ---
+  // This helps with large, multi-module projects.
+  "java.jdt.ls.vmargs": "-noverify -Xmx2G -XX:+UseG1GC -XX:+UseStringDeduplication",
+  "java.compile.nullAnalysis.mode": "automatic"
+  // --- File associations for Android ---
+  // "files.associations": {
+  //   "*.gradle": "groovy",
+  //   "*.gradle.kts": "kotlin"
+  // }
+}

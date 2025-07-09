@@ -18,21 +18,65 @@ package eu.europa.ec.networklogic.model.request
 
 import com.google.gson.annotations.SerializedName
 
-// Simplified DeviceInfo that matches backend schema
-data class SimpleDeviceInfo(
+/**
+ * Enhanced device information for WUA (Wallet Unit Attestation) security assessment.
+ * 
+ * This comprehensive device profile enables proper security evaluation and trust 
+ * establishment as required by EUDI wallet specifications for LoA High compliance.
+ */
+data class EnhancedDeviceInfo(
+    // Basic device identification
+    @SerializedName("deviceModel")
+    val deviceModel: String,
+    
     @SerializedName("osVersion")
     val osVersion: String,
-    @SerializedName("deviceModel") 
-    val deviceModel: String,
+    
+    @SerializedName("deviceOsApiLevel")
+    val deviceOsApiLevel: String,
+    
+    @SerializedName("securityPatchLevel")
+    val securityPatchLevel: String,
+    
+    // Hardware security capabilities - Critical for WUA assessment
+    @SerializedName("hasSecureElement")
+    val hasSecureElement: Boolean,
+    
+    @SerializedName("hasHardwareKeystore")
+    val hasHardwareKeystore: Boolean,
+    
+    @SerializedName("hasStrongBox")
+    val hasStrongBox: Boolean,
+    
+    @SerializedName("attestationSupported")
+    val attestationSupported: Boolean,
+    
+    @SerializedName("hasBiometricHardware")
+    val hasBiometricHardware: Boolean,
+    
+    // Device integrity and verification
+    @SerializedName("deviceVerifiedBoot")
+    val deviceVerifiedBoot: Boolean,
+    
+    @SerializedName("playProtectVerified")
+    val playProtectVerified: Boolean,
+    
+    // Derived security assessment
+    @SerializedName("securityLevel")
+    val securityLevel: String, // "HIGH", "MEDIUM", "LOW"
+    
     @SerializedName("isHardwareBacked")
-    val isHardwareBacked: Boolean
+    val isHardwareBacked: Boolean,
+    
+    @SerializedName("meetsLoAHighRequirements")
+    val meetsLoAHighRequirements: Boolean
 )
 
 data class WalletActivationRequest(
     @SerializedName("wuaPublicKey")
     val wuaPublicKey: String,
     @SerializedName("deviceInfo")
-    val deviceInfo: SimpleDeviceInfo,
+    val deviceInfo: EnhancedDeviceInfo,
     @SerializedName("pushNotificationToken")
     val pushNotificationToken: String?,
     @SerializedName("pushNotificationProvider")

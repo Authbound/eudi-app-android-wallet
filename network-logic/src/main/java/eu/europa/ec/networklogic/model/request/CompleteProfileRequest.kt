@@ -1,5 +1,3 @@
-import project.convention.logic.config.LibraryModule
-
 /*
  * Copyright (c) 2024 European Commission
  *
@@ -16,25 +14,13 @@ import project.convention.logic.config.LibraryModule
  * governing permissions and limitations under the Licence.
  */
 
-plugins {
-    id("project.android.library")
-}
+package eu.europa.ec.networklogic.model.request
 
-android {
-    namespace = "eu.europa.ec.notificationlogic"
-}
+import com.google.gson.annotations.SerializedName
 
-
-moduleConfig {
-    module = LibraryModule.NotificationLogic
-}
-
-
-dependencies {
-    implementation(platform(libs.bom))
-    implementation(libs.supabase.realtime.kt)
-    implementation(platform(libs.firebase.bom))
-    implementation(project(LibraryModule.BusinessLogic.path))
-    implementation(libs.firebase.messaging)
-    implementation(libs.gson)
-} 
+data class CompleteProfileRequest(
+    @SerializedName("handle")
+    val handle: String,
+    @SerializedName("display_name")
+    val displayName: String
+) 

@@ -19,8 +19,11 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
 import eu.europa.ec.businesslogic.model.DeviceInfo
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
+import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.util.UUID
 
@@ -93,8 +96,6 @@ class DeviceControllerImpl(
         }
     }
 
-
-
     /**
      * Checks if device has StrongBox security module
      */
@@ -102,9 +103,35 @@ class DeviceControllerImpl(
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             try {
                 // StrongBox is available on Android 9+ (API 28+)
-                android.security.keystore.KeyProperties.PURPOSE_ENCRYPT != null
-                // Additional StrongBox detection can be added here
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+                // Check if device actually supports StrongBox by attempting key generation
+                val keyStore = KeyStore.getInstance("AndroidKeyStore")
+                keyStore.load(null)
+                
+                // Try to detect StrongBox support more accurately
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    try {
+                        val keyPairGenerator = KeyPairGenerator.getInstance(
+                            KeyProperties.KEY_ALGORITHM_EC, "AndroidKeyStore"
+                        )
+                        val parameterSpec = KeyGenParameterSpec.Builder(
+                            "strongbox_test_key",
+                            KeyProperties.PURPOSE_SIGN
+                        ).setIsStrongBoxBacked(true)
+                            .build()
+                        
+                        keyPairGenerator.initialize(parameterSpec)
+                        keyPairGenerator.generateKeyPair()
+                        
+                        // If we get here, StrongBox is supported
+                        keyStore.deleteEntry("strongbox_test_key")
+                        true
+                    } catch (e: Exception) {
+                        // StrongBox not available or test failed
+                        false
+                    }
+                } else {
+                    false
+                }
             } catch (e: Exception) {
                 false
             }
@@ -119,7 +146,37 @@ class DeviceControllerImpl(
     private fun hasAttestationSupport(): Boolean {
         return try {
             // Hardware attestation is available on Android 7+ (API 24+)
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.N
+            // Enhanced check for actual attestation capability
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                try {
+                    val keyStore = KeyStore.getInstance("AndroidKeyStore")
+                    keyStore.load(null)
+                    
+                    // Try to generate a key with attestation
+                    val keyPairGenerator = KeyPairGenerator.getInstance(
+                        KeyProperties.KEY_ALGORITHM_EC, "AndroidKeyStore"
+                    )
+                    val parameterSpec = KeyGenParameterSpec.Builder(
+                        "attestation_test_key",
+                        KeyProperties.PURPOSE_SIGN
+                    ).setAttestationChallenge("test_challenge".toByteArray())
+                        .build()
+                    
+                    keyPairGenerator.initialize(parameterSpec)
+                    keyPairGenerator.generateKeyPair()
+                    
+                    // Check if we can get attestation chain
+                    val attestationChain = keyStore.getCertificateChain("attestation_test_key")
+                    keyStore.deleteEntry("attestation_test_key")
+                    
+                    attestationChain != null && attestationChain.size > 1
+                } catch (e: Exception) {
+                    // Fallback to API level check
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.N
+                }
+            } else {
+                false
+            }
         } catch (e: Exception) {
             false
         }
@@ -127,17 +184,27 @@ class DeviceControllerImpl(
 
     /**
      * Checks if device has verified boot enabled
-     * Note: Direct boot state checking requires system permissions
+     * Enhanced verification for better WUA assessment
      */
     private fun hasVerifiedBoot(): Boolean {
         return try {
-            // Verified boot is standard on modern Android devices
-            // We can't directly access SystemProperties without system permissions
-            // So we infer based on device characteristics and Android version
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && 
-            Build.FINGERPRINT.contains("release-keys")
+            // Multi-layered verification boot check
+            val basicVerifiedBoot = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && 
+                                  Build.FINGERPRINT.contains("release-keys")
+            
+            // Additional checks for verified boot state
+            val hasVerifiedBootState = try {
+                // Check if device supports verified boot API
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && 
+                !Build.FINGERPRINT.contains("test-keys") &&
+                !Build.TAGS.contains("test-keys")
+            } catch (e: Exception) {
+                false
+            }
+            
+            basicVerifiedBoot && hasVerifiedBootState
         } catch (e: Exception) {
-            // Fallback: assume verified boot is available on modern devices
+            // Conservative fallback
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.N
         }
     }

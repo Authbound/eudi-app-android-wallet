@@ -1,0 +1,189 @@
+---
+description: UI and UX Patterns
+alwaysApply: false
+---
+    onClick: () -> Unit
+) {
+    QuickActionCard(
+        title = title,
+        description = description,
+        icon = AppIcons.Authenticate,
+        onClick = onClick,
+        modifier = Modifier.semantics {
+            role = Role.Button
+            contentDescription = "$title: $description. Double tap to activate."
+            
+            // Custom actions for complex interactions
+            customActions = listOf(
+                CustomAccessibilityAction(
+                    label = "View details",
+                    action = { /* Handle detail view */ true }
+                )
+            )
+        }
+    )
+}
+
+// Focus management for navigation
+@Composable
+fun AccessibleScreen(content: @Composable () -> Unit) {
+    val focusRequester = remember { FocusRequester() }
+    
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+    
+    Column(
+        modifier = Modifier
+            .focusRequester(focusRequester)
+            .focusable()
+    ) {
+        content()
+    }
+}
+
+// High contrast support
+@Composable
+fun isHighContrastEnabled(): Boolean {
+    val context = LocalContext.current
+    val accessibilityManager = remember {
+        context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+    }
+    
+    return accessibilityManager.isHighTextContrastEnabled
+}
+```
+
+## Animation Patterns
+
+### Smooth Transitions
+```kotlin
+@Composable
+fun AnimatedQuickActions(
+    actions: List<QuickActionConfig>,
+    onActionClick: (QuickActionConfig) -> Unit
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        contentPadding = PaddingValues(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        itemsIndexed(actions) { index, action ->
+            val animationDelay = index * 50
+            
+            AnimatedVisibility(
+                visible = true,
+                enter = fadeIn(
+                    animationSpec = tween(
+                        durationMillis = 300,
+                        delayMillis = animationDelay
+                    )
+                ) + slideInVertically(
+                    animationSpec = tween(
+                        durationMillis = 300,
+                        delayMillis = animationDelay
+                    ),
+                    initialOffsetY = { it / 2 }
+                )
+            ) {
+                QuickActionCard(
+                    title = action.title,
+                    description = action.description,
+                    icon = action.icon,
+                    backgroundColor = action.backgroundColor,
+                    onClick = { onActionClick(action) }
+                )
+            }
+        }
+    }
+}
+
+// Haptic feedback
+@Composable
+fun rememberHapticFeedback(): () -> Unit {
+    val context = LocalContext.current
+    val hapticFeedback = LocalHapticFeedback.current
+    
+    return remember {
+        {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+            } else {
+                @Suppress("DEPRECATION")
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+            }
+        }
+    }
+}
+```
+
+## Layout Patterns
+
+### Responsive Grid System
+```kotlin
+@Composable
+fun ResponsiveGrid(
+    content: @Composable () -> Unit
+) {
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp.dp
+    
+    val columns = when {
+        screenWidth < 600.dp -> 2  // Phones
+        screenWidth < 840.dp -> 3  // Large phones / small tablets
+        else -> 4                  // Tablets
+    }
+    
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(columns),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        content()
+    }
+}
+
+// Adaptive layouts for different screen sizes
+@Composable
+fun AdaptiveLayout(
+    compactContent: @Composable () -> Unit,
+    expandedContent: @Composable () -> Unit
+) {
+    val windowSizeClass = calculateWindowSizeClass(LocalContext.current as Activity)
+    
+    when (windowSizeClass.widthSizeClass) {
+        WindowWidthSizeClass.Compact -> compactContent()
+        WindowWidthSizeClass.Medium,
+        WindowWidthSizeClass.Expanded -> expandedContent()
+    }
+}
+```
+
+## Design References
+
+### Current UI Implementation
+- **Quick Actions**: Use 2x2 grid layout pattern for primary actions
+- **Bottom Sheets**: Use enhanced design patterns with proper animations
+- **Material 3**: Ensure all components follow Material 3 design guidelines
+
+### Demo Videos Reference
+- **UI Flows**: Reference `/wiki/presentation.mp4` for credential presentation UX
+- **Proximity Sharing**: Reference `/wiki/proximity.mp4` for NFC/QR interaction patterns
+- **Issuance Flow**: Reference `/wiki/issuance.mp4` for credential issuance UX
+
+### Accessibility Standards
+- **WCAG 2.1 AA** compliance for all interactive elements
+- **Minimum touch target** size of 48dp
+- **Color contrast ratio** of at least 4.5:1
+- **Screen reader** support with proper semantics
+- **Keyboard navigation** support where applicable
+
+### Performance Guidelines
+- **60 FPS** smooth animations and transitions
+- **Lazy loading** for large lists and grids
+- **Image optimization** with proper caching
+- **Memory efficiency** in complex UI hierarchies
+- **Startup performance** optimization for initial screen load

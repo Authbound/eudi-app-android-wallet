@@ -18,12 +18,17 @@ package eu.europa.ec.networklogic.api
 
 import eu.europa.ec.networklogic.model.request.WalletActivationRequest
 import eu.europa.ec.networklogic.model.request.DummyRequest
+import eu.europa.ec.networklogic.model.request.CompleteProfileRequest
 import eu.europa.ec.networklogic.model.response.DummyResponse
 import eu.europa.ec.networklogic.model.response.WalletActivationResponse
+import eu.europa.ec.networklogic.model.response.CheckHandleResponse
+import eu.europa.ec.networklogic.model.response.ProfileResponse
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
+import retrofit2.http.Query
 
 
 interface Api {
@@ -37,6 +42,24 @@ interface Api {
         @Body body: WalletActivationRequest,
         @Header("Authorization") auth: String
     ): Response<WalletActivationResponse>
+
+    // Profile endpoints to replace Supabase functions
+    @POST("api/profiles/complete")
+    suspend fun completeProfile(
+        @Body body: CompleteProfileRequest,
+        @Header("Authorization") auth: String
+    ): Response<Unit>
+
+    @GET("api/profiles/check")
+    suspend fun checkHandleAvailability(
+        @Query("handle") handle: String,
+        @Header("Authorization") auth: String
+    ): Response<CheckHandleResponse>
+
+    @GET("api/profiles/me")
+    suspend fun getMyProfile(
+        @Header("Authorization") auth: String
+    ): Response<ProfileResponse>
 }
 
 interface ApiClient {
@@ -45,6 +68,11 @@ interface ApiClient {
     ): Response<DummyResponse>
 
     suspend fun activateWallet(body: WalletActivationRequest, bearerToken: String): Response<WalletActivationResponse>
+
+    // Profile API methods to replace Supabase functions
+    suspend fun completeProfile(body: CompleteProfileRequest, bearerToken: String): Response<Unit>
+    suspend fun checkHandleAvailability(handle: String, bearerToken: String): Response<CheckHandleResponse>
+    suspend fun getMyProfile(bearerToken: String): Response<ProfileResponse>
 }
 
 class ApiClientImpl(private val apiService: Api) : ApiClient {
@@ -54,5 +82,17 @@ class ApiClientImpl(private val apiService: Api) : ApiClient {
 
     override suspend fun activateWallet(body: WalletActivationRequest, bearerToken: String): Response<WalletActivationResponse> {
         return apiService.activateWallet(body, "Bearer $bearerToken")
+    }
+
+    override suspend fun completeProfile(body: CompleteProfileRequest, bearerToken: String): Response<Unit> {
+        return apiService.completeProfile(body, "Bearer $bearerToken")
+    }
+
+    override suspend fun checkHandleAvailability(handle: String, bearerToken: String): Response<CheckHandleResponse> {
+        return apiService.checkHandleAvailability(handle, "Bearer $bearerToken")
+    }
+
+    override suspend fun getMyProfile(bearerToken: String): Response<ProfileResponse> {
+        return apiService.getMyProfile("Bearer $bearerToken")
     }
 }

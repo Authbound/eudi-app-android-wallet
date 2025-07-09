@@ -17,15 +17,55 @@ package eu.europa.ec.notificationlogic.service
 
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import eu.europa.ec.notificationlogic.controller.UserScopedPushNotificationController
+import eu.europa.ec.businesslogic.controller.log.LogController
+import org.koin.android.ext.android.inject
 
 class PushNotificationService : FirebaseMessagingService() {
 
+    private val userScopedController: UserScopedPushNotificationController by inject()
+    private val logController: LogController by inject()
+
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
-        // Not used for now, but required for the service.
+        try {
+            logController.d("PushNotificationService", "Received message from: ${remoteMessage.from}")
+            
+            // Extract data payload
+            val data = remoteMessage.data
+            
+            if (data.isNotEmpty()) {
+                logController.d("PushNotificationService", "Message data payload: $data")
+                // Route message to user-scoped controller for processing
+                userScopedController.handleIncomingNotification(data)
+            } else {
+                logController.w("PushNotificationService") { "Received message with empty data payload" }
+            }
+            
+            // Handle notification payload if present
+            remoteMessage.notification?.let { notification ->
+                logController.d("PushNotificationService", "Message notification: ${notification.title}")
+                // For display notifications, we could show system notifications here
+                // but for EUDI wallet, we primarily use data messages for security
+            }
+            
+        } catch (e: Exception) {
+            logController.e("PushNotificationService", e)
+        }
     }
 
     override fun onNewToken(token: String) {
-        // This token needs to be sent to the server.
-        // For now, we'll rely on the controller to fetch it on demand.
+        try {
+            logController.d("PushNotificationService", "New FCM token received: ${token.take(16)}...")
+            
+            // Store the new token for future registration
+            // The actual registration with backend happens when user authenticates
+            // and the UserScopedPushNotificationController.registerForPushNotifications is called
+            
+            // TODO: If user is already authenticated, we should update the token on the backend
+            // This would require access to authentication state and backend API
+            
+        } catch (e: Exception) {
+            logController.e("PushNotificationService", e)
+        }
     }
 } 

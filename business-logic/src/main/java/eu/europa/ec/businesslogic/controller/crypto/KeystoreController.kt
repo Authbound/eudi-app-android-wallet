@@ -31,6 +31,7 @@ import javax.crypto.SecretKey
 interface KeystoreController {
     fun retrieveOrGenerateBiometricSecretKey(): SecretKey?
     fun generateWuaKeyPair(): Array<Certificate>?
+    fun deleteBiometricSecretKey(alias: String)
 }
 
 class KeystoreControllerImpl(
@@ -106,6 +107,15 @@ class KeystoreControllerImpl(
                 keyPairGenerator.generateKeyPair()
             }
             it.getCertificateChain(WUA_KEY_ALIAS)
+        }
+    }
+
+    override fun deleteBiometricSecretKey(alias: String) {
+        try {
+            androidKeyStore?.deleteEntry(alias)
+            logController.d(this.javaClass.simpleName, "Biometric key with alias $alias deleted.")
+        } catch (e: Exception) {
+            logController.e(this.javaClass.simpleName, e)
         }
     }
 

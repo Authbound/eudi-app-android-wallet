@@ -33,6 +33,13 @@ import eu.europa.ec.authenticationlogic.usecase.SignInWithEmailPasswordUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignInWithOAuthUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.authenticationfeature.ui.WalletSetupViewModel
+import eu.europa.ec.authenticationfeature.ui.ProfileCompletionViewModel
+import eu.europa.ec.authenticationlogic.usecase.CheckHandleAvailabilityUseCase
+import eu.europa.ec.authenticationlogic.usecase.CompleteProfileUseCase
+import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
+import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
+import eu.europa.ec.businesslogic.controller.storage.PrefsController
+import eu.europa.ec.notificationlogic.controller.UserScopedPushNotificationController
 
 @Module
 @ComponentScan("eu.europa.ec.authenticationfeature")
@@ -45,6 +52,8 @@ fun provideAuthenticationViewModel(
     signInWithOAuthUseCase: SignInWithOAuthUseCase,
     signOutUseCase: SignOutUseCase,
     observeAuthStateUseCase: ObserveAuthStateUseCase,
+    getMyProfileUseCase: GetMyProfileUseCase,
+    prefsController: PrefsController,
     prefKeys: PrefKeys,
     logController: LogController
 ): AuthenticationViewModel = AuthenticationViewModel(
@@ -53,8 +62,10 @@ fun provideAuthenticationViewModel(
     signInWithOAuthUseCase,
     signOutUseCase,
     observeAuthStateUseCase,
+    getMyProfileUseCase,
+    prefsController,
     prefKeys,
-    logController,
+    logController
 )
 
 @Factory
@@ -73,5 +84,24 @@ fun provideWalletSetupViewModel(
     biometricAuthenticationController,
     pushNotificationController,
     prefKeys,
+    logController
+)
+
+@Factory
+fun provideProfileCompletionViewModel(
+    completeProfileUseCase: CompleteProfileUseCase,
+    checkHandleAvailabilityUseCase: CheckHandleAvailabilityUseCase,
+    createWalletAttestationUseCase: CreateWalletAttestationUseCase,
+    getCurrentUserUseCase: GetCurrentUserUseCase,
+    userScopedPushNotificationController: UserScopedPushNotificationController,
+    deviceController: DeviceController,
+    logController: LogController
+): ProfileCompletionViewModel = ProfileCompletionViewModel(
+    completeProfileUseCase,
+    checkHandleAvailabilityUseCase,
+    createWalletAttestationUseCase,
+    getCurrentUserUseCase,
+    userScopedPushNotificationController,
+    deviceController,
     logController
 )
