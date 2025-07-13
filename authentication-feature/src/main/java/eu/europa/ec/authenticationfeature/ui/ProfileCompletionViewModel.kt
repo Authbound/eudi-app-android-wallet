@@ -20,6 +20,7 @@ import eu.europa.ec.networklogic.model.request.CompleteProfileRequest
 import eu.europa.ec.authenticationlogic.usecase.CheckHandleAvailabilityUseCase
 import eu.europa.ec.authenticationlogic.usecase.CompleteProfileUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
+import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.device.DeviceController
 import eu.europa.ec.walletactivationlogic.usecase.CreateWalletAttestationUseCase
@@ -59,10 +60,12 @@ sealed class ProfileCompletionEvent : ViewEvent {
     data class OnDisplayNameChanged(val displayName: String) : ProfileCompletionEvent()
     data object CompleteProfile : ProfileCompletionEvent()
     data object RetryWalletActivation : ProfileCompletionEvent()
+    data object SignOut : ProfileCompletionEvent()
 }
 
 sealed class ProfileCompletionEffect : ViewSideEffect {
     data object NavigateToWalletSetup : ProfileCompletionEffect()
+    data object NavigateToLogin : ProfileCompletionEffect()
     data class ShowError(val message: String) : ProfileCompletionEffect()
 }
 
@@ -74,6 +77,7 @@ class ProfileCompletionViewModel(
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
     private val userScopedPushNotificationController: UserScopedPushNotificationController,
     private val deviceController: DeviceController,
+    private val signOutUseCase: SignOutUseCase,
     private val logController: LogController
 ) : MviViewModel<ProfileCompletionEvent, ProfileCompletionState, ProfileCompletionEffect>() {
 
@@ -99,6 +103,9 @@ class ProfileCompletionViewModel(
             }
             is ProfileCompletionEvent.RetryWalletActivation -> {
                 retryWalletActivation()
+            }
+            is ProfileCompletionEvent.SignOut -> {
+                signOut()
             }
         }
     }
@@ -294,6 +301,23 @@ class ProfileCompletionViewModel(
             setEffect { ProfileCompletionEffect.ShowError("${error.getUserFriendlyMessage()} (Attempt ${currentRetryCount + 1}/${maxRetries + 1})") }
         } else {
             setEffect { ProfileCompletionEffect.ShowError(error.getUserFriendlyMessage()) }
+        }
+    }
+    
+    private fun signOut() {
+        viewModelScope.launch {
+            try {
+                logController.d("ProfileCompletionViewModel", "Signing out user...")
+                setState { copy(isLoading = true) }
+                
+                signOutUseCase()
+                logController.d("ProfileCompletionViewModel", "User signed out successfully, navigating to login.")
+                setEffect { ProfileCompletionEffect.NavigateToLogin }
+            } catch (e: Exception) {
+                logController.e("ProfileCompletionViewModel", e)
+                setState { copy(isLoading = false, error = e.message) }
+                setEffect { ProfileCompletionEffect.ShowError(e.message ?: "Sign out failed") }
+            }
         }
     }
 } 

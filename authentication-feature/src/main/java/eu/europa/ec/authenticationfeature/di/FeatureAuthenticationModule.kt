@@ -20,6 +20,7 @@ import eu.europa.ec.authenticationlogic.usecase.SignUpWithEmailPasswordUseCase
 import eu.europa.ec.businesslogic.controller.device.DeviceController
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeys
+import eu.europa.ec.businesslogic.controller.storage.PrefsController
 import eu.europa.ec.notificationlogic.controller.PushNotificationController
 import eu.europa.ec.walletactivationlogic.usecase.CreateWalletAttestationUseCase
 import org.koin.core.annotation.ComponentScan
@@ -38,14 +39,13 @@ import eu.europa.ec.authenticationlogic.usecase.CheckHandleAvailabilityUseCase
 import eu.europa.ec.authenticationlogic.usecase.CompleteProfileUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
-import eu.europa.ec.businesslogic.controller.storage.PrefsController
 import eu.europa.ec.notificationlogic.controller.UserScopedPushNotificationController
 
 @Module
 @ComponentScan("eu.europa.ec.authenticationfeature")
 class FeatureAuthenticationModule
 
-@Single
+@Factory
 fun provideAuthenticationViewModel(
     signInWithEmailPasswordUseCase: SignInWithEmailPasswordUseCase,
     signUpWithEmailPasswordUseCase: SignUpWithEmailPasswordUseCase,
@@ -76,6 +76,7 @@ fun provideWalletSetupViewModel(
     biometricAuthenticationController: BiometricAuthenticationController,
     pushNotificationController: PushNotificationController,
     prefKeys: PrefKeys,
+    prefsController: PrefsController,
     logController: LogController
 ): WalletSetupViewModel = WalletSetupViewModel(
     createWalletAttestationUseCase,
@@ -84,6 +85,7 @@ fun provideWalletSetupViewModel(
     biometricAuthenticationController,
     pushNotificationController,
     prefKeys,
+    prefsController,
     logController
 )
 
@@ -95,6 +97,7 @@ fun provideProfileCompletionViewModel(
     getCurrentUserUseCase: GetCurrentUserUseCase,
     userScopedPushNotificationController: UserScopedPushNotificationController,
     deviceController: DeviceController,
+    signOutUseCase: SignOutUseCase,
     logController: LogController
 ): ProfileCompletionViewModel = ProfileCompletionViewModel(
     completeProfileUseCase,
@@ -103,5 +106,6 @@ fun provideProfileCompletionViewModel(
     getCurrentUserUseCase,
     userScopedPushNotificationController,
     deviceController,
+    signOutUseCase,
     logController
 )

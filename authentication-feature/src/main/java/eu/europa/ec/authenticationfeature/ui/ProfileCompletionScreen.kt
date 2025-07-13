@@ -35,7 +35,8 @@ import kotlinx.coroutines.flow.collectLatest
 @Composable
 fun ProfileCompletionScreen(
     viewModel: ProfileCompletionViewModel,
-    onNavigateToWalletSetup: () -> Unit
+    onNavigateToWalletSetup: () -> Unit,
+    onNavigateToLogin: () -> Unit = {}
 ) {
     val state by viewModel.viewState.collectAsState()
     val context = LocalContext.current
@@ -44,6 +45,9 @@ fun ProfileCompletionScreen(
         viewModel.effect.collectLatest { effect ->
             when (effect) {
                 is ProfileCompletionEffect.NavigateToWalletSetup -> onNavigateToWalletSetup()
+                is ProfileCompletionEffect.NavigateToLogin -> {
+                    onNavigateToLogin()
+                }
                 is ProfileCompletionEffect.ShowError -> {
                     Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
                 }
@@ -53,7 +57,16 @@ fun ProfileCompletionScreen(
 
     ContentScreen(
         isLoading = state.isLoading,
-        navigatableAction = ScreenNavigateAction.NONE,
+        navigatableAction = if (state.lastError != null) {
+            ScreenNavigateAction.BACKABLE
+        } else {
+            ScreenNavigateAction.NONE
+        },
+        onBack = if (state.lastError != null) {
+            { viewModel.setEvent(ProfileCompletionEvent.SignOut) }
+        } else {
+            null
+        },
     ) { paddingValues ->
         ProfileCompletionContent(
             state = state,
@@ -149,29 +162,20 @@ private fun ProfileCompletionContent(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // Show retry button if there's a retryable error
-        if (state.canRetry && state.lastError != null) {
-            Button(
-                onClick = { onEvent(ProfileCompletionEvent.RetryWalletActivation) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                enabled = !state.isLoading,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondary
-                )
-            ) {
-                Text("Retry Wallet Activation")
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-        }
 
+        // Main action button - handles both initial activation and retry
         Button(
-            onClick = { onEvent(ProfileCompletionEvent.CompleteProfile) },
+            onClick = { 
+                if (state.lastError != null && state.canRetry) {
+                    onEvent(ProfileCompletionEvent.RetryWalletActivation)
+                } else {
+                    onEvent(ProfileCompletionEvent.CompleteProfile)
+                }
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
-            enabled = state.isHandleAvailable == true && state.displayName.isNotBlank() && !state.isLoading && state.lastError == null
+            enabled = (state.isHandleAvailable == true && state.displayName.isNotBlank() && !state.isLoading) || (state.canRetry && state.lastError != null && !state.isLoading)
         ) {
             if (state.isLoading) {
                 CircularProgressIndicator(
@@ -180,7 +184,30 @@ private fun ProfileCompletionContent(
                     strokeWidth = 2.dp
                 )
             } else {
-                Text("Activate Wallet")
+                Text(
+                    if (state.lastError != null && state.canRetry) {
+                        "Try Again"
+                    } else {
+                        "Activate Wallet"
+                    }
+                )
+            }
+        }
+        
+        // Show sign out button when there's an error
+        if (state.lastError != null) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = { onEvent(ProfileCompletionEvent.SignOut) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                enabled = !state.isLoading,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondary
+                )
+            ) {
+                Text("Sign Out")
             }
         }
     }

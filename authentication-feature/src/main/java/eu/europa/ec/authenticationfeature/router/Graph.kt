@@ -66,6 +66,12 @@ fun NavGraphBuilder.featureAuthenticationGraph(navController: NavController) {
                         inclusive = true
                     }
                 }
+            },
+            onNavigateToLogin = {
+                navController.navigate(AuthenticationScreens.Login.screenRoute) {
+                    popUpTo(0) { inclusive = true }
+                    launchSingleTop = true
+                }
             }
         )
     }

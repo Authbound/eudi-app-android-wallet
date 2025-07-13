@@ -17,6 +17,8 @@
 package eu.europa.ec.startupfeature.interactor
 
 import eu.europa.ec.authenticationlogic.usecase.IsUserAuthenticatedUseCase
+import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
+import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeys
 import eu.europa.ec.commonfeature.config.BiometricMode
 import eu.europa.ec.commonfeature.config.BiometricUiConfig
@@ -47,28 +49,60 @@ class SplashInteractorImpl(
     private val resourceProvider: ResourceProvider,
     private val walletCoreDocumentsController: WalletCoreDocumentsController,
     private val isUserAuthenticatedUseCase: IsUserAuthenticatedUseCase,
+    private val signOutUseCase: SignOutUseCase,
     private val prefKeys: PrefKeys,
+    private val logController: LogController,
 ) : SplashInteractor {
 
     private val hasDocuments: Boolean
         get() = walletCoreDocumentsController.getAllDocuments().isNotEmpty()
 
-    override suspend fun getAfterSplashRoute(): String =
-        when {
-            isUserAuthenticatedUseCase() && prefKeys.isWalletActivated() -> {
-                if (walletCoreDocumentsController.getAllDocuments().isNotEmpty()) {
-                    getBiometricsConfig()
-                } else {
-                    getQuickPinConfig()
+    override suspend fun getAfterSplashRoute(): String {
+        return try {
+            val isAuthenticated = isUserAuthenticatedUseCase()
+            
+            when {
+                isAuthenticated && prefKeys.isWalletActivatedSafe() -> {
+                    if (walletCoreDocumentsController.getAllDocuments().isNotEmpty()) {
+                        getBiometricsConfig()
+                    } else {
+                        getQuickPinConfig()
+                    }
                 }
-            }
 
-            isUserAuthenticatedUseCase() && !prefKeys.isWalletActivated() -> {
-                AuthenticationScreens.WalletSetup.screenRoute
-            }
+                isAuthenticated && !prefKeys.isWalletActivatedSafe() -> {
+                    AuthenticationScreens.WalletSetup.screenRoute
+                }
 
-            else -> AuthenticationScreens.Login.screenRoute
+                else -> AuthenticationScreens.Login.screenRoute
+            }
+        } catch (e: SecurityException) {
+            logController.w("SplashInteractor") { 
+                "Security error during splash navigation: ${e.message}. Clearing session and redirecting to login." 
+            }
+            
+            // Clear any inconsistent authentication state
+            try {
+                signOutUseCase()
+            } catch (signOutException: Exception) {
+                logController.e("SplashInteractor", signOutException)
+            }
+            
+            // Always redirect to login for security
+            AuthenticationScreens.Login.screenRoute
+        } catch (e: Exception) {
+            logController.e("SplashInteractor", e)
+            
+            // For any other error, also clear session and redirect to login
+            try {
+                signOutUseCase()
+            } catch (signOutException: Exception) {
+                logController.e("SplashInteractor", signOutException)
+            }
+            
+            AuthenticationScreens.Login.screenRoute
         }
+    }
 
     private fun getQuickPinConfig(): String {
         return generateComposableNavigationLink(

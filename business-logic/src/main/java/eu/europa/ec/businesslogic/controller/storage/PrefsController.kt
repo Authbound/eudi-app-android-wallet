@@ -44,6 +44,11 @@ interface PrefsController {
     fun contains(key: String): Boolean
     fun clear(key: String)
     fun clearAll() // Clears all data for the current user
+
+    // Safe methods that don't throw exceptions when no user context is set
+    fun safeBool(key: String, defaultValue: Boolean): Boolean
+    fun safeString(key: String, defaultValue: String): String
+    fun hasCurrentUser(): Boolean
 }
 
 class PrefsControllerImpl(
@@ -130,6 +135,38 @@ class PrefsControllerImpl(
     override fun clearAll() {
         clearCurrentUserData()
     }
+
+    override fun safeBool(key: String, defaultValue: Boolean): Boolean {
+        return if (currentUserId != null) {
+            try {
+                getCurrentUserPrefs().getBoolean(key, defaultValue)
+            } catch (e: SecurityException) {
+                logController.w("PrefsController") { "Failed to access preferences safely: ${e.message}" }
+                defaultValue
+            }
+        } else {
+            logController.d("PrefsController",  "No user context for safe access to key: $key, returning default: $defaultValue")
+            defaultValue
+        }
+    }
+
+    override fun safeString(key: String, defaultValue: String): String {
+        return if (currentUserId != null) {
+            try {
+                getCurrentUserPrefs().getString(key, defaultValue) ?: defaultValue
+            } catch (e: SecurityException) {
+                logController.w("PrefsController") { "Failed to access string preference safely: ${e.message}" }
+                defaultValue
+            }
+        } else {
+            logController.d("PrefsController", "No user context for safe string access: $key, returning default: $defaultValue")
+            defaultValue
+        }
+    }
+
+    override fun hasCurrentUser(): Boolean {
+        return currentUserId != null
+    }
 }
 
 interface PrefKeys {
@@ -141,6 +178,10 @@ interface PrefKeys {
 
     fun isWalletActivated(): Boolean
     fun setWalletActivated(isActivated: Boolean)
+
+    // Safe methods that don't throw when no user context is set
+    fun isWalletActivatedSafe(): Boolean
+    fun getBiometricAliasSafe(): String
 }
 
 class PrefKeysImpl(
@@ -187,4 +228,8 @@ class PrefKeysImpl(
     override fun setWalletActivated(isActivated: Boolean) {
         prefsController.setBool("is_wallet_activated", isActivated)
     }
+
+    override fun isWalletActivatedSafe(): Boolean = prefsController.safeBool("is_wallet_activated", false)
+
+    override fun getBiometricAliasSafe(): String = prefsController.safeString("BiometricAlias", "")
 }

@@ -16,11 +16,14 @@
 package eu.europa.ec.authenticationfeature.ui
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -36,6 +39,7 @@ import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.uilogic.component.content.ContentScreen
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
+import eu.europa.ec.uilogic.component.content.ToolbarConfig
 import eu.europa.ec.uilogic.component.wrap.ButtonConfig
 import eu.europa.ec.uilogic.component.wrap.ButtonType
 import eu.europa.ec.uilogic.component.wrap.WrapButton
@@ -71,9 +75,42 @@ fun WalletSetupScreen(
         }
     }
 
+    // Hardware back button handling
+    BackHandler(enabled = state.canNavigateBack) {
+        logController.d("WalletSetupScreen", "Hardware back button pressed")
+        if (state.activationError != null) {
+            viewModel.setEvent(WalletSetupEvent.BackToLogin)
+        } else {
+            viewModel.setEvent(WalletSetupEvent.CancelSetup)
+        }
+    }
+
+    // Determine screen navigation action and toolbar config
+    val (navigatableAction, toolbarConfig, onBack) = when {
+        !state.canNavigateBack -> Triple(ScreenNavigateAction.NONE, null, null)
+        state.activationError != null -> Triple(
+            ScreenNavigateAction.CANCELABLE,
+            ToolbarConfig(title = "Wallet Setup Failed"),
+            { 
+                logController.d("WalletSetupScreen", "Toolbar back button pressed (error state)")
+                viewModel.setEvent(WalletSetupEvent.BackToLogin) 
+            }
+        )
+        else -> Triple(
+            ScreenNavigateAction.CANCELABLE,
+            ToolbarConfig(title = "Setting up Wallet"),
+            { 
+                logController.d("WalletSetupScreen", "Toolbar back button pressed (loading state)")
+                viewModel.setEvent(WalletSetupEvent.CancelSetup) 
+            }
+        )
+    }
+
     ContentScreen(
         isLoading = state.isActivating,
-        navigatableAction = ScreenNavigateAction.NONE, // No back action, user must sign out
+        navigatableAction = navigatableAction,
+        toolBarConfig = toolbarConfig,
+        onBack = onBack
     ) { padding ->
         Column(
             modifier = Modifier
@@ -152,6 +189,43 @@ fun WalletSetupScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        }
+
+        // Confirmation dialog for canceling setup during activation
+        if (state.showConfirmationDialog) {
+            AlertDialog(
+                onDismissRequest = { 
+                    logController.d("WalletSetupScreen", "Confirmation dialog dismissed")
+                    viewModel.setEvent(WalletSetupEvent.DismissConfirmationDialog) 
+                },
+                title = { Text("Cancel Wallet Setup?") },
+                text = {
+                    Text(
+                        "Your wallet setup is in progress. Canceling will sign you out and you'll need to start over.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            logController.d("WalletSetupScreen", "Confirmation dialog - Yes, Cancel pressed")
+                            viewModel.setEvent(WalletSetupEvent.ConfirmCancelSetup)
+                        }
+                    ) {
+                        Text("Yes, Cancel", color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            logController.d("WalletSetupScreen", "Confirmation dialog - Continue Setup pressed")
+                            viewModel.setEvent(WalletSetupEvent.DismissConfirmationDialog)
+                        }
+                    ) {
+                        Text("Continue Setup")
+                    }
+                }
+            )
         }
     }
 } 

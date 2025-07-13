@@ -17,6 +17,8 @@
 package eu.europa.ec.startupfeature.di
 
 import eu.europa.ec.authenticationlogic.usecase.IsUserAuthenticatedUseCase
+import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
+import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeys
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractor
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
@@ -39,12 +41,16 @@ fun provideSplashInteractor(
     resourceProvider: ResourceProvider,
     walletCoreDocumentsController: WalletCoreDocumentsController,
     isUserAuthenticatedUseCase: IsUserAuthenticatedUseCase,
-    prefKeys: PrefKeys
+    signOutUseCase: SignOutUseCase,
+    prefKeys: PrefKeys,
+    logController: LogController
 ): SplashInteractor = SplashInteractorImpl(
     quickPinInteractor,
     uiSerializer,
     resourceProvider,
     walletCoreDocumentsController,
     isUserAuthenticatedUseCase,
-    prefKeys
+    signOutUseCase,
+    prefKeys,
+    logController
 )

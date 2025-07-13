@@ -46,20 +46,45 @@ class SignOutUseCaseImpl(
         try {
             logController.d("SignOutUseCase", "Starting secure sign out process...")
 
-            // 1. Get current user's biometric key alias before clearing session
-            val biometricAlias = prefKeys.getBiometricAlias()
+            // 1. Safely get current user's biometric key alias before clearing session
+            val biometricAlias = try {
+                if (prefsController.hasCurrentUser()) {
+                    prefKeys.getBiometricAliasSafe()
+                } else {
+                    logController.d("SignOutUseCase", "No user context for biometric alias retrieval")
+                    ""
+                }
+            } catch (e: SecurityException) {
+                logController.w("SignOutUseCase") { "Failed to get biometric alias: ${e.message}" }
+                ""
+            }
 
             // 2. Clear Supabase authentication session
             supabaseAuthRepository.signOut()
             logController.d("SignOutUseCase", "Supabase session cleared")
 
-            // 3. Clear all preferences for the current user
-            prefsController.clearCurrentUserData()
-            logController.d("SignOutUseCase", "User-scoped preferences cleared")
+            // 3. Clear all preferences for the current user (if user context exists)
+            try {
+                if (prefsController.hasCurrentUser()) {
+                    prefsController.clearCurrentUserData()
+                    logController.d("SignOutUseCase", "User-scoped preferences cleared")
+                } else {
+                    logController.d("SignOutUseCase", "No user context for preference clearing")
+                }
+            } catch (e: Exception) {
+                logController.w("SignOutUseCase") { "Failed to clear user preferences: ${e.message}" }
+            }
 
             // 4. Clear biometric key from AndroidKeyStore
             if (biometricAlias.isNotEmpty()) {
-                keystoreController.deleteBiometricSecretKey(biometricAlias)
+                try {
+                    keystoreController.deleteBiometricSecretKey(biometricAlias)
+                    logController.d("SignOutUseCase", "Biometric key cleared from keystore")
+                } catch (e: Exception) {
+                    logController.w("SignOutUseCase") { "Failed to clear biometric key: ${e.message}" }
+                }
+            } else {
+                logController.d("SignOutUseCase", "No biometric alias to clear")
             }
 
             // 5. Reset user context in the preferences controller

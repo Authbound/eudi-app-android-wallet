@@ -64,6 +64,7 @@ sealed class Event : ViewEvent {
     data object NavigateBack : Event()
     data object Initialize : Event()
     data object SignOut : Event()
+    data object ResetViewModel : Event()
 }
 
 sealed class Effect : ViewSideEffect {
@@ -142,17 +143,21 @@ class AuthenticationViewModel(
                 }
             }
             is Event.SignOut -> signOut()
+            is Event.ResetViewModel -> resetViewModel()
         }
     }
 
     private fun signInWithEmailPassword() {
         val currentState = viewState.value
         
+        logController.d("AuthViewModel", "Sign in requested - Email: ${currentState.email}, ViewModel State: navigationSource=$navigationSource, isInitialized=$isInitialized, backNavigationInProgress=$backNavigationInProgress")
+        
         // Validate input fields
         if (currentState.email.isBlank()) {
             val message = "Please enter your email address"
             setState { copy(error = message) }
             setEffect { Effect.ShowError(message) }
+            logController.w("AuthViewModel", ){"Sign in failed: Email is blank"}
             return
         }
         
@@ -160,6 +165,7 @@ class AuthenticationViewModel(
             val message = "Please enter your password"
             setState { copy(error = message) }
             setEffect { Effect.ShowError(message) }
+            logController.w("AuthViewModel", ){"Sign in failed: Password is blank"}
             return
         }
         
@@ -167,11 +173,12 @@ class AuthenticationViewModel(
             try {
                 setState { copy(isLoading = true, error = null) }
                 val request = EmailPasswordRequest(currentState.email, currentState.password)
-                logController.d("AuthViewModel", "Attempting sign in with email: ${request.email}")
+                logController.d("AuthViewModel", "Attempting sign in with email: ${request.email} (Instance: ${this@AuthenticationViewModel.hashCode()})")
                 signInWithEmailPasswordUseCase(request)
+                logController.d("AuthViewModel", "Sign in use case completed, waiting for auth state observer...")
                 // Note: Don't set loading to false here - let the auth state observer handle it
             } catch (e: Exception) {
-                logController.e("AuthViewModel", e)
+                logController.e("AuthViewModel", ) {"Sign in failed with exception: ${e.message}"}
                 setState { copy(isLoading = false, error = e.message) }
                 setEffect { Effect.ShowError(e.message ?: "An unknown error occurred") }
             }
@@ -265,6 +272,7 @@ class AuthenticationViewModel(
                 logController.d("AuthViewModel", "Signing out user...")
                 setState { copy(isLoading = true, error = null) }
                 signOutUseCase()
+                resetViewModel() // Reset ViewModel state after successful sign out
                 setState { copy(isLoading = false) }
                 logController.d("AuthViewModel", "User signed out successfully")
                 // Don't emit navigation effect here - let the auth state observer handle it
@@ -282,6 +290,7 @@ class AuthenticationViewModel(
                 logController.d("AuthViewModel", "Signing out user and navigating to login...")
                 setState { copy(isLoading = true, error = null) }
                 signOutUseCase()
+                resetViewModel() // Reset ViewModel state after successful sign out
                 setState { copy(isLoading = false) }
                 logController.d("AuthViewModel", "User signed out successfully, emitting navigation effect")
                 setEffect { Effect.Navigation.SignOutAndNavigateToLogin }
@@ -302,18 +311,29 @@ class AuthenticationViewModel(
                     setEffect { Effect.ShowError(it.message ?: "An unknown error occurred") }
                 }
                 .collect { status ->
+                    logController.d("AuthViewModel", "Auth state changed: ${status::class.simpleName} (Instance: ${this@AuthenticationViewModel.hashCode()})")
                     when (status) {
                         is SessionStatus.Authenticated -> {
                             val user = status.session.user
+                            logController.d("AuthViewModel", "User authenticated: ${user?.id?.take(8)}...")
 
                             if (user === null) {
+                                logController.e("AuthViewModel" ){"Authenticated but user is null"}
                                 setState { copy(isLoading = false) }
                                 setEffect { Effect.ShowError("User is null") }
                                 return@collect
                             }
 
-                            // Set user context for scoped preferences
-                            prefsController.setCurrentUser(user.id)
+                            // Set user context for scoped preferences - CRITICAL for security
+                            try {
+                                prefsController.setCurrentUser(user.id)
+                                logController.d("AuthViewModel", "User context successfully set for: ${user.id.take(8)}...")
+                            } catch (e: Exception) {
+                                logController.e("AuthViewModel", e)
+                                setState { copy(isLoading = false) }
+                                setEffect { Effect.ShowError("Failed to set user context. Please try again.") }
+                                return@collect
+                            }
 
                             val isEmailOnlyProvider =
                                 user.identities?.size == 1 && user.identities?.first()?.provider == "email"
@@ -334,25 +354,35 @@ class AuthenticationViewModel(
                             } else {
                                 setState { copy(isLoading = false) }
                                 // EUDI-ARF: Wallet is device-bound, check local activation status
-                                if (prefKeys.isWalletActivated()) {
-                                    logController.d("AuthViewModel", "User authenticated with wallet activated - navigating to home")
-                                    setEffect { Effect.NavigateToHome }
-                                } else {
-                                    // Check if profile is complete
-                                    val profileResult = getMyProfileUseCase()
-                                    if (profileResult.isSuccess && profileResult.getOrNull()?.handle?.isNotBlank() == true) {
-                                        logController.d("AuthViewModel", "User authenticated but wallet not activated - navigating to setup")
-                                        setEffect { Effect.Navigation.NavigateToWalletSetup }
+                                try {
+                                    if (prefKeys.isWalletActivatedSafe()) {
+                                        logController.d("AuthViewModel", "User authenticated with wallet activated - navigating to home")
+                                        setEffect { Effect.NavigateToHome }
                                     } else {
-                                        logController.d("AuthViewModel", "User authenticated but profile not complete - navigating to profile completion")
-                                        setEffect { Effect.Navigation.NavigateToProfileCompletion }
+                                        // Check if profile is complete
+                                        val profileResult = getMyProfileUseCase()
+                                        if (profileResult.isSuccess && profileResult.getOrNull()?.handle?.isNotBlank() == true) {
+                                            logController.d("AuthViewModel", "User authenticated but wallet not activated - navigating to setup")
+                                            setEffect { Effect.Navigation.NavigateToWalletSetup }
+                                        } else {
+                                            logController.d("AuthViewModel", "User authenticated but profile not complete - navigating to profile completion")
+                                            setEffect { Effect.Navigation.NavigateToProfileCompletion }
+                                        }
                                     }
+                                } catch (e: SecurityException) {
+                                    logController.w("AuthViewModel") {
+                                        "Security error checking wallet activation: ${e.message}. Navigating to wallet setup." 
+                                    }
+                                    setEffect { Effect.Navigation.NavigateToWalletSetup }
+                                } catch (e: Exception) {
+                                    logController.e("AuthViewModel", e)
+                                    setEffect { Effect.ShowError("Navigation error. Please restart the app.") }
                                 }
                             }
                         }
 
                         is SessionStatus.NotAuthenticated -> {
-                            logController.d("AuthViewModel", "Session status: NotAuthenticated")
+                            logController.d("AuthViewModel", "Session status: NotAuthenticated (Instance: ${this@AuthenticationViewModel.hashCode()})")
                             // Clear user context on logout
                             prefsController.setCurrentUser(null)
                             setState { 
@@ -361,10 +391,11 @@ class AuthenticationViewModel(
                                     error = null
                                 ) 
                             }
+                            logController.d("AuthViewModel", "User context cleared, state updated to NotAuthenticated")
                         }
 
                         is SessionStatus.Initializing -> {
-                            logController.d("AuthViewModel", "Session status: Initializing")
+                            logController.d("AuthViewModel", "Session status: Initializing (Instance: ${this@AuthenticationViewModel.hashCode()})")
                             setState { copy(isLoading = true) }
                         }
 
@@ -376,6 +407,24 @@ class AuthenticationViewModel(
                     }
                 }
         }
+    }
+    
+    private fun resetViewModel() {
+        logController.d("AuthViewModel", "Resetting ViewModel state (Instance: ${this.hashCode()})")
+        navigationSource = NavigationSource.UNKNOWN
+        isInitialized = false
+        backNavigationInProgress = false
+        setState {
+            copy(
+                email = "",
+                password = "",
+                confirmPassword = "",
+                isSignUpMode = false,
+                isLoading = false,
+                error = null
+            )
+        }
+        logController.d("AuthViewModel", "ViewModel state reset completed")
     }
     
     private enum class NavigationSource {
