@@ -20,9 +20,12 @@ import eu.europa.ec.walletactivationlogic.repository.WalletActivationRepository
 import eu.europa.ec.walletactivationlogic.repository.WalletActivationRepositoryImpl
 import eu.europa.ec.walletactivationlogic.usecase.CreateWalletAttestationUseCase
 import eu.europa.ec.walletactivationlogic.usecase.CreateWalletAttestationUseCaseImpl
+import eu.europa.ec.walletactivationlogic.usecase.DeleteWalletActivationUseCase
+import eu.europa.ec.walletactivationlogic.usecase.DeleteWalletActivationUseCaseImpl
 import io.github.jan.supabase.SupabaseClient
 
 import eu.europa.ec.businesslogic.controller.log.LogController
+import eu.europa.ec.businesslogic.controller.storage.PrefKeys
 
 import eu.europa.ec.networklogic.api.ApiClient
 import org.koin.core.annotation.ComponentScan
@@ -47,4 +50,15 @@ fun provideCreateWalletAttestationUseCase(
 ): CreateWalletAttestationUseCase = CreateWalletAttestationUseCaseImpl(
     cryptoController,
     walletActivationRepository
+)
+
+@Factory
+fun provideDeleteWalletActivationUseCase(
+    walletActivationRepository: WalletActivationRepository,
+    prefKeys: PrefKeys,
+    logController: LogController
+): DeleteWalletActivationUseCase = DeleteWalletActivationUseCaseImpl(
+    walletActivationRepository,
+    prefKeys,
+    logController
 ) 

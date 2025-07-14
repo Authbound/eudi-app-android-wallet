@@ -17,6 +17,7 @@
 package eu.europa.ec.dashboardfeature.interactor
 
 import android.net.Uri
+import eu.europa.ec.businesslogic.config.AppBuildType
 import eu.europa.ec.businesslogic.config.ConfigLogic
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeys
@@ -112,6 +113,27 @@ class SettingsInteractorImpl(
                             ),
                             leadingContentData = ListItemLeadingContentDataUi.Icon(
                                 iconData = AppIcons.OpenInBrowser
+                            ),
+                            trailingContentData = ListItemTrailingContentDataUi.Icon(
+                                iconData = AppIcons.KeyboardArrowRight
+                            )
+                        )
+                    )
+                )
+            }
+
+            // Add delete wallet activation option for development/debugging
+            if (configLogic.appBuildType == AppBuildType.DEBUG) {
+                add(
+                    SettingsItemUi(
+                        type = SettingsMenuItemType.DELETE_WALLET_ACTIVATION,
+                        data = ListItemDataUi(
+                            itemId = "delete_wallet_activation",
+                            mainContentData = ListItemMainContentDataUi.Text(
+                                text = "Delete Wallet Activation"
+                            ),
+                            leadingContentData = ListItemLeadingContentDataUi.Icon(
+                                iconData = AppIcons.Delete
                             ),
                             trailingContentData = ListItemTrailingContentDataUi.Icon(
                                 iconData = AppIcons.KeyboardArrowRight

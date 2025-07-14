@@ -57,13 +57,14 @@ fun WalletSetupScreen(
     val context = LocalContext.current
 
     // This screen's purpose is to activate the wallet, so trigger it on launch.
-    LaunchedEffect(Unit) {
+    // Combined LaunchedEffect to prevent duplicate triggers from recomposition
+    LaunchedEffect(viewModel) {
         logController.d("WalletSetupScreen", "Screen launched, triggering wallet activation.")
         viewModel.setEvent(WalletSetupEvent.ActivateWallet)
     }
 
     // Handle navigation and error effects from the ViewModel
-    LaunchedEffect(Unit) {
+    LaunchedEffect(viewModel) {
         viewModel.effect.collectLatest { effect ->
             when (effect) {
                 is WalletSetupEffect.NavigateToHome -> onNavigateToHome()
@@ -168,6 +169,20 @@ fun WalletSetupScreen(
                 ) {
                     Text(text = "Sign Out")
                 }
+                Spacer(modifier = Modifier.height(16.dp))
+                WrapButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    buttonConfig = ButtonConfig(
+                        type = ButtonType.SECONDARY,
+                        onClick = {
+                            logController.d("WalletSetupScreen", "Delete Wallet button pressed")
+                            viewModel.setEvent(WalletSetupEvent.DeleteWallet)
+                        },
+                        enabled = !state.isDeleting
+                    )
+                ) {
+                    Text(text = if (state.isDeleting) "Deleting..." else "Delete Wallet")
+                }
             } else {
                 // Loading state - wallet activation in progress
                 CircularProgressIndicator(
@@ -223,6 +238,43 @@ fun WalletSetupScreen(
                         }
                     ) {
                         Text("Continue Setup")
+                    }
+                }
+            )
+        }
+
+        // Delete confirmation dialog
+        if (state.showDeleteConfirmationDialog) {
+            AlertDialog(
+                onDismissRequest = { 
+                    logController.d("WalletSetupScreen", "Delete confirmation dialog dismissed")
+                    viewModel.setEvent(WalletSetupEvent.DismissDeleteConfirmationDialog) 
+                },
+                title = { Text("Delete Wallet Activation?") },
+                text = {
+                    Text(
+                        "This will permanently delete your wallet activation from the server. You'll need to set up your wallet again. This action cannot be undone.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            logController.d("WalletSetupScreen", "Delete confirmation dialog - Yes, Delete pressed")
+                            viewModel.setEvent(WalletSetupEvent.ConfirmDeleteWallet)
+                        }
+                    ) {
+                        Text("Yes, Delete", color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            logController.d("WalletSetupScreen", "Delete confirmation dialog - Cancel pressed")
+                            viewModel.setEvent(WalletSetupEvent.DismissDeleteConfirmationDialog)
+                        }
+                    ) {
+                        Text("Cancel")
                     }
                 }
             )

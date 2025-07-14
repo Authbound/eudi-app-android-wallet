@@ -40,6 +40,8 @@ interface WalletActivationRepository {
         deviceInfo: DeviceInfo,
         pushToken: String,
     ): Result<WalletActivationResponse>
+    
+    suspend fun deleteWalletActivation(): Result<Unit>
 }
 
 class WalletActivationRepositoryImpl(
@@ -188,6 +190,28 @@ class WalletActivationRepositoryImpl(
         } catch (e: Exception) {
             logController.w("WalletActivation",) { "Could not parse security patch level: $securityPatchLevel"}
             false
+        }
+    }
+
+    override suspend fun deleteWalletActivation(): Result<Unit> {
+        return try {
+            val token = supabaseClient.auth.currentSessionOrNull()?.accessToken
+                ?: return Result.failure(Exception("User not authenticated"))
+
+            logController.d("WalletActivation", "Deleting wallet activation...")
+            val response = api.deleteWalletActivation(token)
+            
+            if (response.isSuccessful) {
+                logController.d("WalletActivation", "Wallet activation deleted successfully")
+                Result.success(Unit)
+            } else {
+                val errorMsg = "HTTP ${response.code()}: ${response.message()}"
+                logController.e("WalletActivation", Exception("Delete failed: $errorMsg"))
+                Result.failure(Exception("Failed to delete wallet activation: $errorMsg"))
+            }
+        } catch (e: Exception) {
+            logController.e("WalletActivation", e)
+            Result.failure(e)
         }
     }
 } 

@@ -23,6 +23,7 @@ import eu.europa.ec.businesslogic.controller.storage.PrefKeys
 import eu.europa.ec.businesslogic.controller.storage.PrefsController
 import eu.europa.ec.notificationlogic.controller.PushNotificationController
 import eu.europa.ec.walletactivationlogic.usecase.CreateWalletAttestationUseCase
+import eu.europa.ec.walletactivationlogic.usecase.DeleteWalletActivationUseCase
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Module
@@ -71,6 +72,7 @@ fun provideAuthenticationViewModel(
 @Factory
 fun provideWalletSetupViewModel(
     createWalletAttestationUseCase: CreateWalletAttestationUseCase,
+    deleteWalletActivationUseCase: DeleteWalletActivationUseCase,
     signOutUseCase: SignOutUseCase,
     deviceController: DeviceController,
     biometricAuthenticationController: BiometricAuthenticationController,
@@ -80,6 +82,7 @@ fun provideWalletSetupViewModel(
     logController: LogController
 ): WalletSetupViewModel = WalletSetupViewModel(
     createWalletAttestationUseCase,
+    deleteWalletActivationUseCase,
     signOutUseCase,
     deviceController,
     biometricAuthenticationController,

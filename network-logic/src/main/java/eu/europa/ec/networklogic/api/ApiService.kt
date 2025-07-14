@@ -25,6 +25,7 @@ import eu.europa.ec.networklogic.model.response.CheckHandleResponse
 import eu.europa.ec.networklogic.model.response.ProfileResponse
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
@@ -42,6 +43,11 @@ interface Api {
         @Body body: WalletActivationRequest,
         @Header("Authorization") auth: String
     ): Response<WalletActivationResponse>
+
+    @DELETE("api/mobile/wallet-activation")
+    suspend fun deleteWalletActivation(
+        @Header("Authorization") auth: String
+    ): Response<Unit>
 
     // Profile endpoints to replace Supabase functions
     @POST("api/profiles/complete")
@@ -68,6 +74,7 @@ interface ApiClient {
     ): Response<DummyResponse>
 
     suspend fun activateWallet(body: WalletActivationRequest, bearerToken: String): Response<WalletActivationResponse>
+    suspend fun deleteWalletActivation(bearerToken: String): Response<Unit>
 
     // Profile API methods to replace Supabase functions
     suspend fun completeProfile(body: CompleteProfileRequest, bearerToken: String): Response<Unit>
@@ -82,6 +89,10 @@ class ApiClientImpl(private val apiService: Api) : ApiClient {
 
     override suspend fun activateWallet(body: WalletActivationRequest, bearerToken: String): Response<WalletActivationResponse> {
         return apiService.activateWallet(body, "Bearer $bearerToken")
+    }
+
+    override suspend fun deleteWalletActivation(bearerToken: String): Response<Unit> {
+        return apiService.deleteWalletActivation("Bearer $bearerToken")
     }
 
     override suspend fun completeProfile(body: CompleteProfileRequest, bearerToken: String): Response<Unit> {

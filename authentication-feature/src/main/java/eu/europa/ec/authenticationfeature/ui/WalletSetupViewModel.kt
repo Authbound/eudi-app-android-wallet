@@ -29,6 +29,7 @@ import eu.europa.ec.uilogic.mvi.ViewEvent
 import eu.europa.ec.uilogic.mvi.ViewSideEffect
 import eu.europa.ec.uilogic.mvi.ViewState
 import eu.europa.ec.walletactivationlogic.usecase.CreateWalletAttestationUseCase
+import eu.europa.ec.walletactivationlogic.usecase.DeleteWalletActivationUseCase
 import kotlinx.coroutines.launch
 import org.koin.android.annotation.KoinViewModel
 
@@ -39,6 +40,8 @@ data class WalletSetupState(
     val canNavigateBack: Boolean = true,
     val backButtonText: String = "Cancel Setup",
     val showConfirmationDialog: Boolean = false,
+    val isDeleting: Boolean = false,
+    val showDeleteConfirmationDialog: Boolean = false,
 ) : ViewState
 
 // Events: Actions the user can take on this screen
@@ -50,6 +53,9 @@ sealed class WalletSetupEvent : ViewEvent {
     data object BackToLogin : WalletSetupEvent() // For back button during error
     data object ConfirmCancelSetup : WalletSetupEvent() // Confirm cancellation
     data object DismissConfirmationDialog : WalletSetupEvent() // Dismiss confirmation
+    data object DeleteWallet : WalletSetupEvent() // Delete wallet activation
+    data object ConfirmDeleteWallet : WalletSetupEvent() // Confirm wallet deletion
+    data object DismissDeleteConfirmationDialog : WalletSetupEvent() // Dismiss delete confirmation
 }
 
 // Effects: Navigation or one-off actions
@@ -62,6 +68,7 @@ sealed class WalletSetupEffect : ViewSideEffect {
 @KoinViewModel
 class WalletSetupViewModel(
     private val createWalletAttestationUseCase: CreateWalletAttestationUseCase,
+    private val deleteWalletActivationUseCase: DeleteWalletActivationUseCase,
     private val signOutUseCase: SignOutUseCase,
     private val deviceController: DeviceController,
     private val biometricAuthenticationController: BiometricAuthenticationController,
@@ -102,6 +109,9 @@ class WalletSetupViewModel(
             is WalletSetupEvent.BackToLogin -> handleBackToLogin()
             is WalletSetupEvent.ConfirmCancelSetup -> confirmCancelSetup()
             is WalletSetupEvent.DismissConfirmationDialog -> dismissConfirmationDialog()
+            is WalletSetupEvent.DeleteWallet -> handleDeleteWallet()
+            is WalletSetupEvent.ConfirmDeleteWallet -> confirmDeleteWallet()
+            is WalletSetupEvent.DismissDeleteConfirmationDialog -> dismissDeleteConfirmationDialog()
         }
     }
 
@@ -228,6 +238,60 @@ class WalletSetupViewModel(
     private fun dismissConfirmationDialog() {
         logController.d("WalletSetupViewModel", "Confirmation dialog dismissed")
         setState { copy(showConfirmationDialog = false) }
+    }
+
+    private fun handleDeleteWallet() {
+        logController.d("WalletSetupViewModel", "Delete wallet requested")
+        setState { copy(showDeleteConfirmationDialog = true) }
+    }
+
+    private fun confirmDeleteWallet() {
+        logController.d("WalletSetupViewModel", "Delete wallet confirmed")
+        setState { copy(showDeleteConfirmationDialog = false) }
+        deleteWalletActivation()
+    }
+
+    private fun dismissDeleteConfirmationDialog() {
+        logController.d("WalletSetupViewModel", "Delete confirmation dialog dismissed")
+        setState { copy(showDeleteConfirmationDialog = false) }
+    }
+
+    private fun deleteWalletActivation() {
+        viewModelScope.launch {
+            setState { 
+                copy(
+                    isDeleting = true, 
+                    canNavigateBack = false
+                ) 
+            }
+            try {
+                logController.d("WalletSetupViewModel", "Deleting wallet activation...")
+                
+                deleteWalletActivationUseCase().getOrThrow()
+                
+                logController.d("WalletSetupViewModel", "Wallet activation deleted successfully")
+                setState { 
+                    copy(
+                        isDeleting = false,
+                        activationError = null,
+                        canNavigateBack = true
+                    ) 
+                }
+                setEffect { WalletSetupEffect.NavigateToLogin }
+                
+            } catch (e: Exception) {
+                logController.e("WalletSetupViewModel", e)
+                val errorMessage = e.message ?: "Failed to delete wallet activation"
+                setState { 
+                    copy(
+                        isDeleting = false, 
+                        activationError = errorMessage,
+                        canNavigateBack = true
+                    ) 
+                }
+                setEffect { WalletSetupEffect.ShowError(errorMessage) }
+            }
+        }
     }
 
     private fun performSecureSignOut() {

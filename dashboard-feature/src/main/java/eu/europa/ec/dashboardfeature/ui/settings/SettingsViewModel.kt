@@ -21,6 +21,7 @@ import android.net.Uri
 import androidx.lifecycle.viewModelScope
 import eu.europa.ec.businesslogic.extension.toUri
 import eu.europa.ec.dashboardfeature.interactor.SettingsInteractor
+import eu.europa.ec.walletactivationlogic.usecase.DeleteWalletActivationUseCase
 import eu.europa.ec.dashboardfeature.ui.settings.model.SettingsItemUi
 import eu.europa.ec.dashboardfeature.ui.settings.model.SettingsMenuItemType
 import eu.europa.ec.resourceslogic.R
@@ -41,13 +42,17 @@ data class State(
 
     val appVersion: String = "",
     val changelogUrl: String?,
-    val userEmail: String? = null
+    val userEmail: String? = null,
+    val showDeleteWalletConfirmation: Boolean = false,
+    val isDeleting: Boolean = false
 ) : ViewState
 
 sealed class Event : ViewEvent {
     data object Pop : Event()
     data class ItemClicked(val itemType: SettingsMenuItemType) : Event()
     data object Logout : Event()
+    data object ConfirmDeleteWallet : Event()
+    data object DismissDeleteConfirmation : Event()
 }
 
 sealed class Effect : ViewSideEffect {
@@ -69,6 +74,7 @@ sealed class Effect : ViewSideEffect {
 @KoinViewModel
 class SettingsViewModel(
     private val settingsInteractor: SettingsInteractor,
+    private val deleteWalletActivationUseCase: DeleteWalletActivationUseCase,
     private val resourceProvider: ResourceProvider,
 ) : MviViewModel<Event, State, Effect>() {
     override fun setInitialState(): State {
@@ -90,6 +96,8 @@ class SettingsViewModel(
             is Event.ItemClicked -> handleSettingsMenuItemClicked(event.itemType)
 
             is Event.Logout -> logout()
+            is Event.ConfirmDeleteWallet -> deleteWalletActivation()
+            is Event.DismissDeleteConfirmation -> dismissDeleteConfirmation()
         }
     }
 
@@ -152,6 +160,33 @@ class SettingsViewModel(
                     }
                 }
             }
+
+            SettingsMenuItemType.DELETE_WALLET_ACTIVATION -> {
+                setState { copy(showDeleteWalletConfirmation = true) }
+            }
         }
+    }
+
+    private fun deleteWalletActivation() {
+        viewModelScope.launch {
+            setState { copy(showDeleteWalletConfirmation = false, isDeleting = true) }
+            try {
+                deleteWalletActivationUseCase()
+                setEffect {
+                    Effect.Navigation.SwitchScreen(
+                        screenRoute = StartupScreens.Splash.screenRoute,
+                        popUpToScreenRoute = DashboardScreens.Dashboard.screenRoute,
+                        inclusive = true
+                    )
+                }
+            } catch (e: Exception) {
+                setState { copy(isDeleting = false) }
+                setEffect { Effect.Navigation.Pop }
+            }
+        }
+    }
+
+    private fun dismissDeleteConfirmation() {
+        setState { copy(showDeleteWalletConfirmation = false) }
     }
 }

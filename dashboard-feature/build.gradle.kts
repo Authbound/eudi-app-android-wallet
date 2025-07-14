@@ -34,6 +34,7 @@ moduleConfig {
 dependencies {
 
     implementation(platform(libs.bom))
+    implementation(project(":wallet-activation-logic"))
     implementation(libs.supabase.postgrest.kt)
     implementation(libs.supabase.auth.kt)
     implementation(libs.supabase.realtime.kt)
