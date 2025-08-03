@@ -15,6 +15,7 @@
  */
 package eu.europa.ec.walletactivationlogic.usecase
 
+import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeys
 import eu.europa.ec.walletactivationlogic.repository.WalletActivationRepository
@@ -26,6 +27,7 @@ interface DeleteWalletActivationUseCase {
 class DeleteWalletActivationUseCaseImpl(
     private val walletActivationRepository: WalletActivationRepository,
     private val prefKeys: PrefKeys,
+    private val signOutUseCase: SignOutUseCase,
     private val logController: LogController
 ) : DeleteWalletActivationUseCase {
     
@@ -46,6 +48,17 @@ class DeleteWalletActivationUseCaseImpl(
                         "Failed to clear local wallet activation flag due to security error: ${e.message}" 
                     }
                     // Continue - backend deletion succeeded even if local flag couldn't be cleared
+                }
+                
+                // Sign out user after successful wallet deletion
+                try {
+                    signOutUseCase()
+                    logController.d("DeleteWalletActivation", "User signed out after wallet deletion")
+                } catch (e: Exception) {
+                    logController.w("DeleteWalletActivation") { 
+                        "Failed to sign out user after wallet deletion: ${e.message}" 
+                    }
+                    // Continue - wallet deletion succeeded even if sign out failed
                 }
                 
                 logController.d("DeleteWalletActivation", "Wallet activation deleted successfully")

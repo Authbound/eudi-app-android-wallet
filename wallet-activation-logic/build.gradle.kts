@@ -29,6 +29,7 @@ moduleConfig {
 }
 
 dependencies {
+    implementation(project(LibraryModule.AuthenticationLogic.path))
     implementation(project(LibraryModule.BusinessLogic.path))
     implementation(project(LibraryModule.NetworkLogic.path))
     implementation(platform(libs.bom))

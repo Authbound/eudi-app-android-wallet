@@ -42,6 +42,7 @@ data class WalletSetupState(
     val showConfirmationDialog: Boolean = false,
     val isDeleting: Boolean = false,
     val showDeleteConfirmationDialog: Boolean = false,
+    val isWalletAlreadyActivated: Boolean = false,
 ) : ViewState
 
 // Events: Actions the user can take on this screen
@@ -87,6 +88,7 @@ class WalletSetupViewModel(
                 viewModelScope.launch {
                     setEffect { WalletSetupEffect.NavigateToHome }
                 }
+                return WalletSetupState(isWalletAlreadyActivated = true)
             }
         } catch (e: SecurityException) {
             logController.w("WalletSetupViewModel") { 
@@ -97,7 +99,7 @@ class WalletSetupViewModel(
             logController.e("WalletSetupViewModel", e)
             // Continue with normal setup flow for any other error
         }
-        return WalletSetupState()
+        return WalletSetupState(isWalletAlreadyActivated = false)
     }
 
     override fun handleEvents(event: WalletSetupEvent) {
@@ -116,10 +118,24 @@ class WalletSetupViewModel(
     }
 
     private fun activateWallet() {
-        // Prevent duplicate activations if already in progress
-        if (viewState.value.isActivating) {
+        // Prevent duplicate activations if already in progress or already activated
+        val currentState = viewState.value
+        if (currentState.isActivating) {
             logController.w("WalletSetupViewModel") { "Activation already in progress, ignoring." }
             return
+        }
+        
+        // Double-check wallet activation status before proceeding
+        try {
+            if (prefKeys.isWalletActivatedSafe()) {
+                logController.i("WalletSetupViewModel") { "Wallet already activated, navigating to home instead." }
+                viewModelScope.launch {
+                    setEffect { WalletSetupEffect.NavigateToHome }
+                }
+                return
+            }
+        } catch (e: Exception) {
+            logController.w("WalletSetupViewModel") { "Failed to check wallet status: ${e.message}. Proceeding with activation." }
         }
 
         viewModelScope.launch {
@@ -161,15 +177,33 @@ class WalletSetupViewModel(
             } catch (e: Exception) {
                 logController.e("WalletSetupViewModel", e)
                 val errorMessage = e.message ?: "Wallet activation failed"
-                setState { 
-                    copy(
-                        isActivating = false, 
-                        activationError = errorMessage,
-                        backButtonText = "Back to Login",
-                        canNavigateBack = true
-                    ) 
+                
+                // Check if this is a "wallet already exists" error from backend
+                val isAlreadyExistsError = errorMessage.contains("already exists", ignoreCase = true) ||
+                        errorMessage.contains("already activated", ignoreCase = true) ||
+                        errorMessage.contains("duplicate", ignoreCase = true) ||
+                        errorMessage.contains("409", ignoreCase = true)
+                
+                if (isAlreadyExistsError) {
+                    logController.i("WalletSetupViewModel") { "Wallet already exists on backend, marking as activated and navigating to home." }
+                    try {
+                        prefKeys.setWalletActivated(true)
+                    } catch (securityException: SecurityException) {
+                        logController.w("WalletSetupViewModel") { "Failed to save wallet activation status: ${securityException.message}" }
+                    }
+                    setState { copy(isActivating = false, canNavigateBack = false) }
+                    setEffect { WalletSetupEffect.NavigateToHome }
+                } else {
+                    setState { 
+                        copy(
+                            isActivating = false, 
+                            activationError = errorMessage,
+                            backButtonText = "Back to Login",
+                            canNavigateBack = true
+                        ) 
+                    }
+                    setEffect { WalletSetupEffect.ShowError(errorMessage) }
                 }
-                setEffect { WalletSetupEffect.ShowError(errorMessage) }
             }
         }
     }
@@ -270,6 +304,8 @@ class WalletSetupViewModel(
                 deleteWalletActivationUseCase().getOrThrow()
                 
                 logController.d("WalletSetupViewModel", "Wallet activation deleted successfully")
+                // Don't navigate manually - let the authentication state observer handle navigation
+                // after the user is signed out by the DeleteWalletActivationUseCase
                 setState { 
                     copy(
                         isDeleting = false,
@@ -277,7 +313,8 @@ class WalletSetupViewModel(
                         canNavigateBack = true
                     ) 
                 }
-                setEffect { WalletSetupEffect.NavigateToLogin }
+                // Note: Navigation will be handled by AuthenticationViewModel.observeAuthState() 
+                // when it detects SessionStatus.NotAuthenticated after SignOutUseCase completes
                 
             } catch (e: Exception) {
                 logController.e("WalletSetupViewModel", e)

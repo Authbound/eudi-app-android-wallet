@@ -271,6 +271,26 @@ class ProfileCompletionViewModel(
     private fun handleWalletActivationError(error: WalletActivationError, step: String) {
         val currentRetryCount = viewState.value.retryCount
         
+        // Check if this is a "wallet already exists" error from backend
+        val errorMessage = error.message ?: ""
+        val isAlreadyExistsError = errorMessage.contains("already exists", ignoreCase = true) ||
+                errorMessage.contains("already activated", ignoreCase = true) ||
+                errorMessage.contains("duplicate", ignoreCase = true) ||
+                (error is WalletActivationError.ServerRejection && error.httpCode == 409)
+        
+        if (isAlreadyExistsError) {
+            logController.i("ProfileCompletion") { "Wallet already exists on backend, treating as successful activation." }
+            setState { 
+                copy(
+                    isLoading = false, 
+                    isCreatingWUA = false, 
+                    wuaCreationStep = "Wallet already activated!"
+                ) 
+            }
+            setEffect { ProfileCompletionEffect.NavigateToWalletSetup }
+            return
+        }
+        
         // Different retry limits for different error types
         val maxRetries = when (error) {
             is WalletActivationError.NetworkFailure -> 3

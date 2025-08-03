@@ -44,7 +44,7 @@ interface Api {
         @Header("Authorization") auth: String
     ): Response<WalletActivationResponse>
 
-    @DELETE("api/mobile/wallet-activation")
+    @DELETE("api/mobile/profile")
     suspend fun deleteWalletActivation(
         @Header("Authorization") auth: String
     ): Response<Unit>

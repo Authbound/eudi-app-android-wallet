@@ -15,6 +15,7 @@
  */
 package eu.europa.ec.walletactivationlogic.di
 
+import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.businesslogic.controller.crypto.CryptoController
 import eu.europa.ec.walletactivationlogic.repository.WalletActivationRepository
 import eu.europa.ec.walletactivationlogic.repository.WalletActivationRepositoryImpl
@@ -56,9 +57,11 @@ fun provideCreateWalletAttestationUseCase(
 fun provideDeleteWalletActivationUseCase(
     walletActivationRepository: WalletActivationRepository,
     prefKeys: PrefKeys,
+    signOutUseCase: SignOutUseCase,
     logController: LogController
 ): DeleteWalletActivationUseCase = DeleteWalletActivationUseCaseImpl(
     walletActivationRepository,
     prefKeys,
+    signOutUseCase,
     logController
 ) 

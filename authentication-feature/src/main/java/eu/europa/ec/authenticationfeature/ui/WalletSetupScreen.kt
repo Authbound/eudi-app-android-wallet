@@ -56,11 +56,15 @@ fun WalletSetupScreen(
     val state by viewModel.viewState.collectAsState()
     val context = LocalContext.current
 
-    // This screen's purpose is to activate the wallet, so trigger it on launch.
-    // Combined LaunchedEffect to prevent duplicate triggers from recomposition
-    LaunchedEffect(viewModel) {
-        logController.d("WalletSetupScreen", "Screen launched, triggering wallet activation.")
-        viewModel.setEvent(WalletSetupEvent.ActivateWallet)
+    // Only trigger wallet activation if wallet is not already activated on device
+    // This prevents unnecessary activation attempts and error screens
+    LaunchedEffect(viewModel, state.isWalletAlreadyActivated, state.isActivating) {
+        if (!state.isWalletAlreadyActivated && !state.isActivating && state.activationError == null) {
+            logController.d("WalletSetupScreen", "Wallet not activated on device, triggering activation.")
+            viewModel.setEvent(WalletSetupEvent.ActivateWallet)
+        } else {
+            logController.d("WalletSetupScreen", "Skipping activation - Already activated: ${state.isWalletAlreadyActivated}, In progress: ${state.isActivating}, Has error: ${state.activationError != null}")
+        }
     }
 
     // Handle navigation and error effects from the ViewModel
@@ -121,7 +125,29 @@ fun WalletSetupScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (state.activationError != null) {
+            if (state.isWalletAlreadyActivated) {
+                // Wallet already activated - show success message
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_success),
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = "Wallet Already Activated",
+                    style = MaterialTheme.typography.headlineLarge,
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Your wallet is already set up and ready to use.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else if (state.activationError != null) {
                 // Error state
                 Icon(
                     painter = painterResource(id = R.drawable.ic_error),

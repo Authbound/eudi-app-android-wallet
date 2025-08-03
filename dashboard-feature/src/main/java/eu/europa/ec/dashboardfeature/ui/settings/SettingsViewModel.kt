@@ -171,7 +171,10 @@ class SettingsViewModel(
         viewModelScope.launch {
             setState { copy(showDeleteWalletConfirmation = false, isDeleting = true) }
             try {
-                deleteWalletActivationUseCase()
+                deleteWalletActivationUseCase().getOrThrow()
+                // Navigate to login after successful wallet deletion and logout
+                // The deleteWalletActivationUseCase handles both backend deletion and user logout
+                setState { copy(isDeleting = false) }
                 setEffect {
                     Effect.Navigation.SwitchScreen(
                         screenRoute = StartupScreens.Splash.screenRoute,

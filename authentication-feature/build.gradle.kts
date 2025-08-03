@@ -39,6 +39,7 @@ dependencies {
     // Foundation for drawing effects
     implementation("androidx.compose.foundation:foundation")
 
+    implementation(libs.koin.annotations)
     ksp(libs.koin.ksp)
 }
 
