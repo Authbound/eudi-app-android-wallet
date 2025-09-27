@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 European Commission
+ * Copyright (c) 2025 European Commission
  *
  * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
  * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
@@ -170,6 +170,9 @@ class PrefsControllerImpl(
 }
 
 interface PrefKeys {
+    fun getCryptoAlias(): String
+    fun setCryptoAlias(value: String)
+
     fun getBiometricAlias(): String
     fun setBiometricAlias(value: String)
 
@@ -188,39 +191,44 @@ class PrefKeysImpl(
     private val prefsController: PrefsController
 ) : PrefKeys {
 
+
     /**
-     * Returns the biometric alias in order to find the biometric secret key in android keystore.
+     * Retrieves the alias used for cryptographic operations from SharedPreferences.
+     * This alias is typically used to identify a specific key or set of keys
+     * stored in the Android Keystore system.
+     *
+     * @return The crypto alias string. Returns an empty string if the alias is not found
+     *         or has not been set.
      */
+    override fun getCryptoAlias(): String {
+        return prefsController.getString("CryptoAlias", "")
+    }
+
+
+    /**
+     * Stores the crypto alias used for the secret key in android keystore.
+     * This is used for cryptographic operations not related to biometrics.
+     *
+     * @param value the crypto alias value.
+     */
+    override fun setCryptoAlias(value: String) {
+        prefsController.setString("CryptoAlias", value)
+    }
+
     override fun getBiometricAlias(): String {
         return prefsController.getString("BiometricAlias", "")
     }
 
-    /**
-     * Stores the biometric alias used for the secret key in android keystore.
-     *
-     * @param value the biometric alias value.
-     */
     override fun setBiometricAlias(value: String) {
         prefsController.setString("BiometricAlias", value)
     }
 
-    /**
-     * Retrieves the preference for showing the batch issuance counter.
-     *
-     * @return `true` if the batch issuance counter should be shown, `false` otherwise.
-     *         Defaults to `false` if the preference is not set.
-     */
     override fun getShowBatchIssuanceCounter(): Boolean {
-        return prefsController.getBool("ShowBatchIssuanceCounter", false)
+        return prefsController.getBool("show_batch_issuance_counter", false)
     }
 
-    /**
-     * Sets the preference for showing the batch issuance counter.
-     *
-     * @param value `true` to show the counter, `false` to hide it.
-     */
     override fun setShowBatchIssuanceCounter(value: Boolean) {
-        prefsController.setBool("ShowBatchIssuanceCounter", value)
+        prefsController.setBool("show_batch_issuance_counter", value)
     }
 
     override fun isWalletActivated(): Boolean = prefsController.getBool("is_wallet_activated", false)

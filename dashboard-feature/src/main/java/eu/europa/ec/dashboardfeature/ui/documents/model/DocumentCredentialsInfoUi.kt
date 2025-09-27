@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 European Commission
+ * Copyright (c) 2025 European Commission
  *
  * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
  * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
@@ -22,6 +22,7 @@ data class DocumentCredentialsInfoUi(
     val title: String,
     val collapsedInfo: CollapsedInfo? = null,
     val expandedInfo: ExpandedInfo? = null,
+    val isExpanded: Boolean,
 ) {
     data class CollapsedInfo(
         val moreInfoText: String,

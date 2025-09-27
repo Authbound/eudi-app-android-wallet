@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 European Commission
+ * Copyright (c) 2025 European Commission
  *
  * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
  * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
@@ -124,16 +124,6 @@ class SettingsViewModel(
 
     private fun handleSettingsMenuItemClicked(itemType: SettingsMenuItemType) {
         when (itemType) {
-            SettingsMenuItemType.SHOW_BATCH_ISSUANCE_COUNTER -> {
-                settingsInteractor.toggleShowBatchIssuanceCounter()
-
-                setState {
-                    copy(
-                        settingsItems = settingsInteractor.getSettingsItemsUi(changelogUrl = viewState.value.changelogUrl)
-                    )
-                }
-            }
-
             SettingsMenuItemType.RETRIEVE_LOGS -> {
                 val logs = settingsInteractor.retrieveLogFileUris()
                 if (logs.isNotEmpty()) {
@@ -164,6 +154,7 @@ class SettingsViewModel(
             SettingsMenuItemType.DELETE_WALLET_ACTIVATION -> {
                 setState { copy(showDeleteWalletConfirmation = true) }
             }
+
         }
     }
 

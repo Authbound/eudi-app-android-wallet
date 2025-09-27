@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 European Commission
+ * Copyright (c) 2025 European Commission
  *
  * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
  * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
@@ -16,6 +16,7 @@
 
 package eu.europa.ec.businesslogic.controller.crypto
 
+import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import eu.europa.ec.businesslogic.controller.log.LogController
@@ -29,7 +30,7 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 
 interface KeystoreController {
-    fun retrieveOrGenerateBiometricSecretKey(): SecretKey?
+    fun retrieveOrGenerateSecretKey(userAuthenticationRequired: Boolean): SecretKey?
     fun generateWuaKeyPair(): Array<Certificate>?
     fun deleteBiometricSecretKey(alias: String)
 }
@@ -51,9 +52,6 @@ class KeystoreControllerImpl(
         loadKeyStore()
     }
 
-    /**
-     * Load/Init KeyStore
-     */
     private fun loadKeyStore() {
         try {
             androidKeyStore = KeyStore.getInstance(STORE_TYPE)
@@ -64,19 +62,32 @@ class KeystoreControllerImpl(
     }
 
     /**
-     * Retrieves the existing biometric secret key if exists or generates a new one if it is the
-     * first time.
+     * Retrieves an existing secret key or generates a new one.
+     *
+     * If an alias for a secret key is found in preferences, this function attempts to retrieve the key
+     * associated with that alias from the Android KeyStore.
+     *
+     * If no alias is found or if the key retrieval fails, a new secret key is generated.
+     * The new key is then stored in the Android KeyStore under a newly generated alias,
+     * and this new alias is saved in preferences for future use.
+     *
+     * The generation of the new key can be configured to require user authentication.
+     *
+     * @param userAuthenticationRequired A boolean indicating whether the newly generated key
+     *                                   should require user authentication for its use.
+     * @return The retrieved or newly generated [SecretKey], or `null` if the Android KeyStore
+     *         is unavailable or if any other error occurs during the process.
      */
-    override fun retrieveOrGenerateBiometricSecretKey(): SecretKey? {
+    override fun retrieveOrGenerateSecretKey(userAuthenticationRequired: Boolean): SecretKey? {
         return androidKeyStore?.let {
-            val alias = prefKeys.getBiometricAlias()
+            val alias = prefKeys.getCryptoAlias()
             if (alias.isEmpty()) {
                 val newAlias = createPublicKey()
-                generateBiometricSecretKey(newAlias)
-                prefKeys.setBiometricAlias(newAlias)
-                getBiometricSecretKey(it, newAlias)
+                generateSecretKey(newAlias, userAuthenticationRequired)
+                prefKeys.setCryptoAlias(newAlias)
+                getSecretKey(it, newAlias)
             } else {
-                getBiometricSecretKey(it, alias)
+                getSecretKey(it, alias)
             }
         }
     }
@@ -120,27 +131,38 @@ class KeystoreControllerImpl(
     }
 
     @Suppress("DEPRECATION")
-    private fun generateBiometricSecretKey(alias: String) {
+    private fun generateSecretKey(alias: String, userAuthenticationRequired: Boolean) {
         val keyGenerator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, STORE_TYPE)
+
+        val builder = KeyGenParameterSpec.Builder(
+            alias,
+            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+        ).apply {
+            setKeySize(256)
+            setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+            setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+            if (userAuthenticationRequired) {
+                setUserAuthenticationRequired(true)
+                setInvalidatedByBiometricEnrollment(true)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    setUserAuthenticationParameters(
+                        0,
+                        KeyProperties.AUTH_DEVICE_CREDENTIAL or KeyProperties.AUTH_BIOMETRIC_STRONG
+                    )
+                } else {
+                    setUserAuthenticationValidityDurationSeconds(-1)
+                }
+            }
+        }
+
         keyGenerator.init(
-            KeyGenParameterSpec.Builder(
-                alias,
-                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
-            )
-                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                .setUserAuthenticationRequired(true)
-                .setInvalidatedByBiometricEnrollment(true)
-                .setUserAuthenticationParameters(
-                    0,
-                    KeyProperties.AUTH_DEVICE_CREDENTIAL or KeyProperties.AUTH_BIOMETRIC_STRONG
-                )
-                .build()
+            builder.build()
         )
+
         keyGenerator.generateKey()
     }
 
-    private fun getBiometricSecretKey(keyStore: KeyStore, alias: String): SecretKey {
+    private fun getSecretKey(keyStore: KeyStore, alias: String): SecretKey {
         keyStore.load(null)
         return keyStore.getKey(alias, null) as SecretKey
     }

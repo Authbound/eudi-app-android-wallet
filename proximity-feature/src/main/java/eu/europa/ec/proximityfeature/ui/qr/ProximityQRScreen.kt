@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 European Commission
+ * Copyright (c) 2025 European Commission
  *
  * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
  * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
@@ -18,6 +18,7 @@ package eu.europa.ec.proximityfeature.ui.qr
 
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,7 +33,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
@@ -53,7 +53,9 @@ import eu.europa.ec.uilogic.component.utils.LifecycleEffect
 import eu.europa.ec.uilogic.component.utils.OneTimeLaunchedEffect
 import eu.europa.ec.uilogic.component.utils.SPACING_MEDIUM
 import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
+import eu.europa.ec.uilogic.component.utils.screenWidthInDp
 import eu.europa.ec.uilogic.component.wrap.WrapImage
+import eu.europa.ec.uilogic.extension.paddingFrom
 import eu.europa.ec.uilogic.navigation.ProximityScreens
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -133,15 +135,15 @@ private fun Content(
     onNavigationRequested: (navigationEffect: Effect.Navigation) -> Unit,
     paddingValues: PaddingValues,
 ) {
-    val configuration = LocalConfiguration.current
-    val qrSize = (configuration.screenWidthDp / 1.5).dp
+
+    val qrSize = screenWidthInDp(true) / 1.4f
 
     Column(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .padding(paddingValues)
+                .paddingFrom(paddingValues, bottom = false)
         ) {
             ContentTitle(
                 modifier = Modifier.fillMaxWidth(),
@@ -149,10 +151,9 @@ private fun Content(
                 subtitle = stringResource(id = R.string.proximity_qr_subtitle)
             )
 
-            Column(
+            Box(
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
+                contentAlignment = Alignment.Center
             ) {
                 QRCode(
                     qrCode = state.qrCode,
@@ -163,7 +164,7 @@ private fun Content(
 
         Column {
             HorizontalDivider()
-            NFCSection()
+            NFCSection(paddingValues)
         }
     }
 
@@ -177,12 +178,17 @@ private fun Content(
 }
 
 @Composable
-private fun NFCSection() {
+private fun NFCSection(paddingValues: PaddingValues) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .wrapContentHeight()
-            .padding(all = SPACING_MEDIUM.dp),
+            .padding(
+                start = SPACING_MEDIUM.dp,
+                end = SPACING_MEDIUM.dp,
+                top = SPACING_MEDIUM.dp,
+                bottom = paddingValues.calculateBottomPadding()
+            ),
         verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {

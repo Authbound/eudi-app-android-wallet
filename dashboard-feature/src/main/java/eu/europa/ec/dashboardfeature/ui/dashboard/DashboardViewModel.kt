@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 European Commission
+ * Copyright (c) 2025 European Commission
  *
  * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
  * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
@@ -18,7 +18,6 @@ package eu.europa.ec.dashboardfeature.ui.dashboard
 
 import android.content.Intent
 import android.net.Uri
-import eu.europa.ec.commonfeature.config.IssuanceFlowUiConfig
 import eu.europa.ec.commonfeature.config.OfferUiConfig
 import eu.europa.ec.commonfeature.config.PresentationMode
 import eu.europa.ec.commonfeature.config.RequestUriConfig
@@ -192,7 +191,6 @@ class DashboardViewModel(
                     screen = DashboardScreens.DocumentDetails,
                     arguments = generateComposableArguments(
                         mapOf(
-                            "detailsType" to IssuanceFlowUiConfig.EXTRA_DOCUMENT,
                             "documentId" to docId
                         )
                     )

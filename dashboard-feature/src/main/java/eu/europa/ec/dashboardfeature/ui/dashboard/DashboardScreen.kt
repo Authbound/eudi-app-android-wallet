@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 European Commission
+ * Copyright (c) 2025 European Commission
  *
  * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
  * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
@@ -91,7 +91,7 @@ internal fun DashboardScreen(
 
     val scope = rememberCoroutineScope()
     val bottomSheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = false
+        skipPartiallyExpanded = true
     )
 
     Scaffold(
@@ -100,7 +100,7 @@ internal fun DashboardScreen(
         NavHost(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
+                .padding(bottom = padding.calculateBottomPadding()),
             navController = bottomNavigationController,
             startDestination = BottomNavigationItem.Home.route
         ) {

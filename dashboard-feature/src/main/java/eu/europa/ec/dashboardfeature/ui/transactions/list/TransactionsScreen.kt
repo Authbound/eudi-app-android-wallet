@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 European Commission
+ * Copyright (c) 2025 European Commission
  *
  * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
  * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
@@ -26,8 +26,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -61,7 +59,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -82,6 +79,7 @@ import eu.europa.ec.uilogic.component.DualSelectorButtonDataUi
 import eu.europa.ec.uilogic.component.DualSelectorButtons
 import eu.europa.ec.uilogic.component.FiltersDatePickerDialog
 import eu.europa.ec.uilogic.component.FiltersSearchBar
+import eu.europa.ec.uilogic.component.InlineSnackbar
 import eu.europa.ec.uilogic.component.ListItemDataUi
 import eu.europa.ec.uilogic.component.ListItemMainContentDataUi
 import eu.europa.ec.uilogic.component.SectionTitle
@@ -91,6 +89,7 @@ import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
 import eu.europa.ec.uilogic.component.utils.HSpacer
 import eu.europa.ec.uilogic.component.utils.LifecycleEffect
 import eu.europa.ec.uilogic.component.utils.OneTimeLaunchedEffect
+import eu.europa.ec.uilogic.component.utils.SPACING_EXTRA_SMALL
 import eu.europa.ec.uilogic.component.utils.SPACING_LARGE
 import eu.europa.ec.uilogic.component.utils.SPACING_MEDIUM
 import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
@@ -108,6 +107,7 @@ import eu.europa.ec.uilogic.component.wrap.WrapListItem
 import eu.europa.ec.uilogic.component.wrap.WrapListItems
 import eu.europa.ec.uilogic.component.wrap.WrapModalBottomSheet
 import eu.europa.ec.uilogic.extension.finish
+import eu.europa.ec.uilogic.extension.paddingFrom
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
@@ -136,7 +136,7 @@ fun TransactionsScreen(
 
     ContentScreen(
         isLoading = state.isLoading,
-        contentErrorConfig = state.error,
+        contentErrorConfig = null,
         navigatableAction = ScreenNavigateAction.NONE,
         onBack = { context.finish() },
         topBar = {
@@ -228,50 +228,56 @@ private fun Content(
     coroutineScope: CoroutineScope,
     modalBottomSheetState: SheetState,
 ) {
-    LazyColumn(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(
-                paddingValues = PaddingValues(
-                    top = paddingValues.calculateTopPadding(),
-                    bottom = 0.dp,
-                    start = paddingValues.calculateStartPadding(LayoutDirection.Ltr),
-                    end = paddingValues.calculateEndPadding(LayoutDirection.Ltr)
-                )
-            ),
-        contentPadding = PaddingValues(bottom = paddingValues.calculateBottomPadding()),
+            .paddingFrom(paddingValues, bottom = false)
     ) {
-        item {
-            val searchItemUi =
-                SearchItemUi(searchLabel = stringResource(R.string.transactions_screen_search_label))
-            FiltersSearchBar(
-                placeholder = searchItemUi.searchLabel,
-                onValueChange = { onEventSend(Event.OnSearchQueryChanged(it)) },
-                onFilterClick = { onEventSend(Event.FiltersPressed) },
-                onClearClick = { onEventSend(Event.OnSearchQueryChanged("")) },
-                isFilteringActive = state.isFilteringActive,
-                text = state.searchText
-            )
-            VSpacer.Large()
-        }
-
-        if (state.showNoResultsFound) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = SPACING_MEDIUM.dp),
+        ) {
             item {
-                NoResults(modifier = Modifier.fillMaxWidth())
-            }
-        } else {
-            itemsIndexed(items = state.transactionsUi) { index, (documentCategory, documents) ->
-                TransactionCategory(
-                    modifier = Modifier.fillMaxWidth(),
-                    category = documentCategory,
-                    transactions = documents,
-                    onEventSend = onEventSend
+                val searchItemUi =
+                    SearchItemUi(searchLabel = stringResource(R.string.transactions_screen_search_label))
+                FiltersSearchBar(
+                    placeholder = searchItemUi.searchLabel,
+                    onValueChange = { onEventSend(Event.OnSearchQueryChanged(it)) },
+                    onFilterClick = { onEventSend(Event.FiltersPressed) },
+                    onClearClick = { onEventSend(Event.OnSearchQueryChanged("")) },
+                    isFilteringActive = state.isFilteringActive,
+                    text = state.searchText
                 )
+                VSpacer.Large()
+            }
 
-                if (index != state.transactionsUi.lastIndex) {
-                    VSpacer.ExtraLarge()
+            if (state.showNoResultsFound) {
+                item {
+                    NoResults(modifier = Modifier.fillMaxWidth())
+                }
+            } else {
+                itemsIndexed(items = state.transactionsUi) { index, (documentCategory, documents) ->
+                    TransactionCategory(
+                        modifier = Modifier.fillMaxWidth(),
+                        category = documentCategory,
+                        transactions = documents,
+                        onEventSend = onEventSend
+                    )
+
+                    if (index != state.transactionsUi.lastIndex) {
+                        VSpacer.ExtraLarge()
+                    }
                 }
             }
+        }
+
+        if (state.error != null) {
+            InlineSnackbar(
+                error = state.error,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = SPACING_EXTRA_SMALL.dp)
+            )
         }
     }
 
@@ -411,8 +417,7 @@ private fun TopBar(
         modifier = Modifier
             .fillMaxWidth()
             .padding(
-                horizontal = SPACING_SMALL.dp,
-                vertical = SPACING_MEDIUM.dp
+                all = SPACING_SMALL.dp
             )
     ) {
         WrapIconButton(

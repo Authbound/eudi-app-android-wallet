@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 European Commission
+ * Copyright (c) 2025 European Commission
  *
  * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
  * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
@@ -22,7 +22,8 @@ import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeys
 import eu.europa.ec.commonfeature.config.BiometricMode
 import eu.europa.ec.commonfeature.config.BiometricUiConfig
-import eu.europa.ec.commonfeature.config.IssuanceFlowUiConfig
+import eu.europa.ec.commonfeature.config.IssuanceFlowType
+import eu.europa.ec.commonfeature.config.IssuanceUiConfig
 import eu.europa.ec.commonfeature.config.OnBackNavigationConfig
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractor
 import eu.europa.ec.commonfeature.model.PinFlow
@@ -133,7 +134,14 @@ class SplashInteractorImpl(
                                         IssuanceScreens.AddDocument
                                     },
                                     arguments = if (!hasDocuments) {
-                                        mapOf("flowType" to IssuanceFlowUiConfig.NO_DOCUMENT.name)
+                                        mapOf(
+                                            IssuanceUiConfig.serializedKeyName to uiSerializer.toBase64(
+                                                model = IssuanceUiConfig(
+                                                    flowType = IssuanceFlowType.NoDocument
+                                                ),
+                                                parser = IssuanceUiConfig.Parser
+                                            )
+                                        )
                                     } else {
                                         emptyMap()
                                     }

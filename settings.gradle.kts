@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 European Commission
+ * Copyright (c) 2025 European Commission
  *
  * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
  * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
@@ -15,6 +15,10 @@
  */
 
 pluginManagement {
+    val toolChainResolverVersion: String by extra
+    plugins {
+        id("org.gradle.toolchains.foojay-resolver-convention") version toolChainResolverVersion
+    }
     includeBuild("build-logic")
     repositories {
         google()
@@ -22,6 +26,7 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
@@ -37,6 +42,11 @@ dependencyResolutionManagement {
         mavenLocal()
     }
 }
+
+plugins {
+    id("org.gradle.toolchains.foojay-resolver-convention")
+}
+
 
 rootProject.name = "Authbound Wallet"
 include(":app")

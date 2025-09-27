@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 European Commission
+ * Copyright (c) 2025 European Commission
  *
  * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
  * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
@@ -15,17 +15,14 @@
  */
 package eu.europa.ec.resourceslogic.theme
 
-import android.app.Activity
+import android.os.Build
+import androidx.annotation.ChecksSdkIntAtLeast
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
-import androidx.core.view.WindowCompat
 import eu.europa.ec.resourceslogic.theme.sets.ThemeSet
 import eu.europa.ec.resourceslogic.theme.templates.ThemeColorsTemplate
 import eu.europa.ec.resourceslogic.theme.templates.ThemeColorsTemplate.Companion.toColorScheme
@@ -45,18 +42,23 @@ class ThemeManager {
     lateinit var set: ThemeSet
         private set
 
+    /**
+     * Defines if dynamic theming is supported. Notice that Dynamic color is available on Android 12+.
+     */
+    @ChecksSdkIntAtLeast(api = Build.VERSION_CODES.S)
+    val dynamicThemeSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+
     @Composable
     fun Theme(
         darkTheme: Boolean = isSystemInDarkTheme(),
         disableDynamicTheming: Boolean = true,
-        styleStatusBar: Boolean = true,
         content: @Composable () -> Unit
     ) {
         val lightColorScheme = set.lightColors
         val darkColorScheme = set.darkColors
 
         val colorScheme = when {
-            !disableDynamicTheming -> {
+            !disableDynamicTheming && dynamicThemeSupported -> {
                 when {
                     darkTheme -> dynamicDarkColorScheme(LocalContext.current)
                     else -> dynamicLightColorScheme(LocalContext.current)
@@ -65,18 +67,6 @@ class ThemeManager {
 
             darkTheme -> darkColorScheme
             else -> lightColorScheme
-        }
-
-        if (styleStatusBar) {
-            val view = LocalView.current
-            if (!LocalView.current.isInEditMode) {
-                SideEffect {
-                    val window = (view.context as Activity).window
-                    window.statusBarColor = colorScheme.secondary.toArgb()
-                    WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars =
-                        darkTheme
-                }
-            }
         }
 
         set = set.copy(isInDarkMode = darkTheme)

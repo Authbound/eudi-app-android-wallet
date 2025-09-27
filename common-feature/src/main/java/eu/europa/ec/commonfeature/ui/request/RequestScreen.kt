@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 European Commission
+ * Copyright (c) 2025 European Commission
  *
  * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
  * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
@@ -92,7 +92,7 @@ fun RequestScreen(
     val isBottomSheetOpen = state.isBottomSheetOpen
     val scope = rememberCoroutineScope()
     val bottomSheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = false
+        skipPartiallyExpanded = true
     )
 
     ContentScreen(
@@ -101,7 +101,7 @@ fun RequestScreen(
         onBack = { viewModel.setEvent(Event.Pop) },
         stickyBottom = { paddingValues ->
             WrapStickyBottomContent(
-                stickyBottomModifier = Modifier
+                modifier = Modifier
                     .fillMaxWidth()
                     .padding(paddingValues),
                 stickyBottomConfig = StickyBottomConfig(
@@ -202,7 +202,7 @@ private fun Content(
         DisplayRequestItems(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = SPACING_SMALL.dp),
+                .padding(vertical = SPACING_SMALL.dp),
             requestDocuments = state.items,
             noData = state.noItems,
             onEventSend = onEventSend,

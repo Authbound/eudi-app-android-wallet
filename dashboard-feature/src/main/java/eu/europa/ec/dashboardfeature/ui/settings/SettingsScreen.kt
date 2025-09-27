@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 European Commission
+ * Copyright (c) 2025 European Commission
  *
  * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
  * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
@@ -268,21 +268,7 @@ private fun SettingsScreenPreview() {
         val context = LocalContext.current
 
         val settingsItems = listOf(
-            SettingsItemUi(
-                type = SettingsMenuItemType.SHOW_BATCH_ISSUANCE_COUNTER,
-                data = ListItemDataUi(
-                    itemId = "show_batch_issuance_counter",
-                    mainContentData = ListItemMainContentDataUi.Text(
-                        text = stringResource(R.string.settings_screen_option_show_batch_issuance_counter)
-                    ),
-                    trailingContentData = ListItemTrailingContentDataUi.Switch(
-                        switchData = SwitchDataUi(
-                            isChecked = true,
-                            enabled = true,
-                        )
-                    )
-                )
-            ),
+
             SettingsItemUi(
                 type = SettingsMenuItemType.RETRIEVE_LOGS,
                 data = ListItemDataUi(

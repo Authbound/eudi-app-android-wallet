@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 European Commission
+ * Copyright (c) 2025 European Commission
  *
  * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
  * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
@@ -34,7 +34,7 @@ class PrefsBiometryStorageProvider(
                 prefsController.getString("BiometricAuthentication", ""),
                 BiometricAuthentication::class.java
             )
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 European Commission
+ * Copyright (c) 2025 European Commission
  *
  * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
  * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
@@ -20,7 +20,6 @@ import android.net.Uri
 import eu.europa.ec.businesslogic.config.AppBuildType
 import eu.europa.ec.businesslogic.config.ConfigLogic
 import eu.europa.ec.businesslogic.controller.log.LogController
-import eu.europa.ec.businesslogic.controller.storage.PrefKeys
 import eu.europa.ec.dashboardfeature.ui.settings.model.SettingsItemUi
 import eu.europa.ec.dashboardfeature.ui.settings.model.SettingsMenuItemType
 import eu.europa.ec.resourceslogic.R
@@ -35,6 +34,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
+import eu.europa.ec.businesslogic.controller.storage.PrefKeys
 
 interface SettingsInteractor {
     fun getAppVersion(): String
@@ -65,25 +65,7 @@ class SettingsInteractorImpl(
     }
 
     override fun getSettingsItemsUi(changelogUrl: String?): List<SettingsItemUi> {
-        return buildList<SettingsItemUi> {
-            add(
-                SettingsItemUi(
-                    type = SettingsMenuItemType.SHOW_BATCH_ISSUANCE_COUNTER,
-                    data = ListItemDataUi(
-                        itemId = resourceProvider.getString(R.string.settings_screen_option_show_batch_issuance_counter_id),
-                        mainContentData = ListItemMainContentDataUi.Text(
-                            text = resourceProvider.getString(R.string.settings_screen_option_show_batch_issuance_counter)
-                        ),
-                        trailingContentData = ListItemTrailingContentDataUi.Switch(
-                            switchData = SwitchDataUi(
-                                isChecked = getCurrentShowBatchIssuanceCounter(),
-                                enabled = true,
-                            )
-                        )
-                    )
-                )
-            )
-
+        return buildList {
             add(
                 SettingsItemUi(
                     type = SettingsMenuItemType.RETRIEVE_LOGS,

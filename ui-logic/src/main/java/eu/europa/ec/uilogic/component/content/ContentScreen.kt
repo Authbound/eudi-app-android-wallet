@@ -24,6 +24,11 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FabPosition
@@ -77,6 +82,10 @@ enum class ScreenNavigateAction {
     BACKABLE, CANCELABLE, NONE
 }
 
+enum class ImePaddingConfig {
+    NO_PADDING, WITH_BOTTOM_BAR, ONLY_CONTENT
+}
+
 data class BroadcastAction(val intentFilters: List<String>, val callback: (Intent?) -> Unit)
 
 @Composable
@@ -93,6 +102,7 @@ fun ContentScreen(
     snackbarHost: @Composable () -> Unit = {},
     contentErrorConfig: ContentErrorConfig? = null,
     broadcastAction: BroadcastAction? = null,
+    imePaddingConfig: ImePaddingConfig = ImePaddingConfig.NO_PADDING,
     bodyContent: @Composable (PaddingValues) -> Unit
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -105,8 +115,15 @@ fun ContentScreen(
 
     Scaffold(
         topBar = {
-            if (topBar != null && contentErrorConfig == null) topBar.invoke()
-            else if (hasToolBar) {
+            if (topBar != null && contentErrorConfig == null) {
+                Box(
+                    modifier = Modifier
+                        .wrapContentSize()
+                        .statusBarsPadding()
+                ) {
+                    topBar()
+                }
+            } else if (hasToolBar) {
                 DefaultToolBar(
                     navigatableAction = contentErrorConfig?.let {
                         ScreenNavigateAction.CANCELABLE
@@ -117,11 +134,34 @@ fun ContentScreen(
                 )
             }
         },
-        bottomBar = bottomBar ?: {},
+        bottomBar = {
+            bottomBar?.let {
+                Box(
+                    modifier = Modifier
+                        .wrapContentSize()
+                        .then(
+                            if (imePaddingConfig == ImePaddingConfig.WITH_BOTTOM_BAR) {
+                                Modifier.imePadding()
+                            } else {
+                                Modifier
+                            }
+                        )
+                ) {
+                    bottomBar()
+                }
+            }
+        },
         floatingActionButton = fab,
         floatingActionButtonPosition = fabPosition,
         snackbarHost = snackbarHost,
     ) { padding ->
+
+        val screenPaddingsIgnoringSticky = remember(padding) {
+            screenPaddings(
+                hasStickyBottom = false,
+                append = padding
+            )
+        }
 
         Box(
             modifier = Modifier.fillMaxSize()
@@ -130,25 +170,44 @@ fun ContentScreen(
             if (contentErrorConfig != null) {
                 ContentError(
                     config = contentErrorConfig,
-                    paddingValues = screenPaddings(padding)
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(screenPaddingsIgnoringSticky)
                 )
             } else {
-                Column(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(
+                            if (imePaddingConfig == ImePaddingConfig.ONLY_CONTENT) {
+                                Modifier.imePadding()
+                            } else {
+                                Modifier
+                            }
+                        )
+                ) {
 
                     Box(modifier = Modifier.weight(1f)) {
-                        bodyContent(screenPaddings(padding, topSpacing))
+                        bodyContent(
+                            screenPaddings(
+                                hasStickyBottom = stickyBottom != null,
+                                append = padding,
+                                topSpacing = topSpacing
+                            )
+                        )
                     }
 
                     stickyBottom?.let { stickyBottomContent ->
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .navigationBarsPadding()
                                 .zIndex(Z_STICKY),
                             contentAlignment = Alignment.Center
                         ) {
                             stickyBottomContent(
                                 stickyBottomPaddings(
-                                    contentScreenPaddings = screenPaddings(padding),
+                                    contentScreenPaddings = screenPaddingsIgnoringSticky,
                                     layoutDirection = LocalLayoutDirection.current
                                 )
                             )

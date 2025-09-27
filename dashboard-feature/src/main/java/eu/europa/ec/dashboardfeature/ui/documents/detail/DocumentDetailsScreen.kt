@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 European Commission
+ * Copyright (c) 2025 European Commission
  *
  * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
  * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
@@ -28,9 +28,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
@@ -51,7 +51,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -98,6 +97,7 @@ import eu.europa.ec.uilogic.component.wrap.WrapListItems
 import eu.europa.ec.uilogic.component.wrap.WrapModalBottomSheet
 import eu.europa.ec.uilogic.component.wrap.WrapText
 import eu.europa.ec.uilogic.extension.clickableNoRipple
+import eu.europa.ec.uilogic.extension.paddingFrom
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -118,7 +118,7 @@ fun DocumentDetailsScreen(
     val isBottomSheetOpen = state.isBottomSheetOpen
     val scope = rememberCoroutineScope()
     val bottomSheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = false
+        skipPartiallyExpanded = true
     )
 
     val toolbarConfig = ToolbarConfig(
@@ -210,8 +210,10 @@ private fun handleNavigationEffect(
     when (navigationEffect) {
         is Effect.Navigation.SwitchScreen -> {
             navController.navigate(navigationEffect.screenRoute) {
-                popUpTo(navigationEffect.popUpToScreenRoute) {
-                    inclusive = navigationEffect.inclusive
+                navigationEffect.popUpToScreenRoute?.let { safePopUpToScreenRoute ->
+                    popUpTo(safePopUpToScreenRoute) {
+                        inclusive = navigationEffect.inclusive == true
+                    }
                 }
             }
         }
@@ -233,14 +235,8 @@ private fun Content(
 ) {
     state.documentDetailsUi?.let { safeDocumentDetailsUi ->
         Column(
-            modifier = Modifier.padding(
-                PaddingValues(
-                    top = paddingValues.calculateTopPadding(),
-                    bottom = 0.dp,
-                    start = paddingValues.calculateStartPadding(LayoutDirection.Ltr),
-                    end = paddingValues.calculateStartPadding(LayoutDirection.Ltr)
-                )
-            )
+            modifier = Modifier
+                .paddingFrom(paddingValues, bottom = false)
         ) {
 
             // Screen title
@@ -292,9 +288,11 @@ private fun Content(
                             .fillMaxWidth()
                             .padding(vertical = SPACING_SMALL.dp),
                         documentCredentialsInfoUi = safeDocumentCredentialsInfo,
-                        isExpanded = state.documentCredentialsInfoIsExpanded,
                         onExpandedStateChanged = {
                             onEventSend(Event.ToggleExpansionStateOfDocumentCredentialsSection)
+                        },
+                        onPrimaryButtonClicked = {
+                            onEventSend(Event.DocumentCredentialsSectionPrimaryButtonPressed)
                         }
                     )
                     VSpacer.ExtraLarge()
@@ -440,12 +438,12 @@ private fun IssuerDetails(
 private fun ExpandableDocumentCredentialsSection(
     modifier: Modifier = Modifier,
     documentCredentialsInfoUi: DocumentCredentialsInfoUi,
-    isExpanded: Boolean,
     onExpandedStateChanged: () -> Unit,
+    onPrimaryButtonClicked: () -> Unit,
 ) {
     SharedTransitionLayout {
         AnimatedContent(
-            targetState = isExpanded,
+            targetState = documentCredentialsInfoUi.isExpanded,
             modifier = modifier,
         ) { providedIsExpanded: Boolean ->
             if (providedIsExpanded) {
@@ -455,6 +453,7 @@ private fun ExpandableDocumentCredentialsSection(
                         title = documentCredentialsInfoUi.title,
                         expandedInfo = safeExpandedInfo,
                         onHideClicked = onExpandedStateChanged,
+                        onUpdateClicked = onPrimaryButtonClicked,
                         animatedVisibilityScope = this@AnimatedContent,
                         sharedTransitionScope = this@SharedTransitionLayout,
                     )
@@ -482,6 +481,7 @@ private fun ExpandedDocumentCredentials(
     title: String,
     expandedInfo: DocumentCredentialsInfoUi.ExpandedInfo,
     onHideClicked: () -> Unit,
+    onUpdateClicked: () -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
 ) {
@@ -494,7 +494,7 @@ private fun ExpandedDocumentCredentials(
                     enter = fadeIn(),
                     exit = fadeOut(),
                     resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
-                ),
+                )
         ) {
             Column(
                 modifier = Modifier
@@ -537,6 +537,21 @@ private fun ExpandedDocumentCredentials(
                             text = expandedInfo.hideButtonText,
                             style = MaterialTheme.typography.labelLarge
                         )
+                    }
+
+                    expandedInfo.updateNowButtonText?.let { safeUpdateNowButtonText ->
+                        WrapButton(
+                            modifier = Modifier.wrapContentWidth(),
+                            buttonConfig = ButtonConfig(
+                                type = ButtonType.PRIMARY,
+                                onClick = onUpdateClicked,
+                            )
+                        ) {
+                            Text(
+                                text = safeUpdateNowButtonText,
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
                     }
                 }
             }
@@ -631,6 +646,7 @@ private fun ButtonsSection(onEventSend: (Event) -> Unit) {
             .padding(
                 vertical = SPACING_MEDIUM.dp
             )
+            .navigationBarsPadding()
     ) {
         WrapButton(
             modifier = Modifier.fillMaxWidth(),
@@ -671,11 +687,11 @@ private fun DocumentDetailsScreenPreview() {
                 ),
                 expandedInfo = DocumentCredentialsInfoUi.ExpandedInfo(
                     subtitle = stringResource(R.string.document_details_document_credentials_info_expanded_text_subtitle),
-                    updateNowButtonText = null,
+                    updateNowButtonText = stringResource(R.string.document_details_document_credentials_info_expanded_button_update_now_text),
                     hideButtonText = stringResource(R.string.document_details_document_credentials_info_expanded_button_hide_text),
                 ),
+                isExpanded = false,
             ),
-            documentCredentialsInfoIsExpanded = false,
             documentDetailsSectionTitle = stringResource(R.string.document_details_main_section_text),
             documentIssuerSectionTitle = stringResource(R.string.document_details_issuer_section_text),
             documentDetailsUi = DocumentDetailsUi(
@@ -753,9 +769,10 @@ private fun ExpandableDocumentCredentialsSectionPreview() {
             ),
             expandedInfo = DocumentCredentialsInfoUi.ExpandedInfo(
                 subtitle = stringResource(R.string.document_details_document_credentials_info_expanded_text_subtitle),
-                updateNowButtonText = null,
+                updateNowButtonText = stringResource(R.string.document_details_document_credentials_info_expanded_button_update_now_text),
                 hideButtonText = stringResource(R.string.document_details_document_credentials_info_expanded_button_hide_text),
             ),
+            isExpanded = false,
         )
 
         Column(
@@ -767,15 +784,31 @@ private fun ExpandableDocumentCredentialsSectionPreview() {
             ExpandableDocumentCredentialsSection(
                 modifier = Modifier.fillMaxWidth(),
                 documentCredentialsInfoUi = documentCredentialsInfoUi,
-                isExpanded = false,
                 onExpandedStateChanged = {},
+                onPrimaryButtonClicked = {},
             )
 
             ExpandableDocumentCredentialsSection(
                 modifier = Modifier.fillMaxWidth(),
-                documentCredentialsInfoUi = documentCredentialsInfoUi,
-                isExpanded = true,
+                documentCredentialsInfoUi = documentCredentialsInfoUi
+                    .copy(
+                        isExpanded = true,
+                    ),
                 onExpandedStateChanged = {},
+                onPrimaryButtonClicked = {},
+            )
+
+            ExpandableDocumentCredentialsSection(
+                modifier = Modifier.fillMaxWidth(),
+                documentCredentialsInfoUi = documentCredentialsInfoUi
+                    .copy(
+                        isExpanded = true,
+                        expandedInfo = documentCredentialsInfoUi.expandedInfo?.copy(
+                            updateNowButtonText = null
+                        )
+                    ),
+                onExpandedStateChanged = {},
+                onPrimaryButtonClicked = {},
             )
         }
     }

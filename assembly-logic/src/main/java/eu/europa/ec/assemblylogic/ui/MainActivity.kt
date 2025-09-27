@@ -18,6 +18,7 @@ package eu.europa.ec.assemblylogic.ui
 
 import android.os.Bundle
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import eu.europa.ec.authenticationfeature.router.featureAuthenticationGraph
 
 import eu.europa.ec.commonfeature.router.featureCommonGraph
@@ -31,6 +32,7 @@ import eu.europa.ec.uilogic.container.EudiComponentActivity
 class MainActivity : EudiComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         setContent {
             Content(intent) {
                 featureStartupGraph(it)

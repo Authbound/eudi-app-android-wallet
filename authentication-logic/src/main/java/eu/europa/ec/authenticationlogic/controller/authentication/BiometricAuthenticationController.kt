@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 European Commission
+ * Copyright (c) 2025 European Commission
  *
  * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
  * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
@@ -19,6 +19,7 @@ package eu.europa.ec.authenticationlogic.controller.authentication
 import android.content.Context
 import android.content.Intent
 import android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+import android.os.Build
 import android.provider.Settings
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
@@ -143,11 +144,15 @@ class BiometricAuthenticationControllerImpl(
     }
 
     override fun launchBiometricSystemScreen() {
-        val enrollIntent = Intent(Settings.ACTION_BIOMETRIC_ENROLL).apply {
-            putExtra(
-                Settings.EXTRA_BIOMETRIC_AUTHENTICATORS_ALLOWED,
-                BIOMETRIC_WEAK
-            )
+        val enrollIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Intent(Settings.ACTION_BIOMETRIC_ENROLL).apply {
+                putExtra(
+                    Settings.EXTRA_BIOMETRIC_AUTHENTICATORS_ALLOWED,
+                    BIOMETRIC_WEAK
+                )
+            }
+        } else {
+            Intent(Settings.ACTION_SECURITY_SETTINGS)
         }
         enrollIntent.addFlags(FLAG_ACTIVITY_NEW_TASK)
         resourceProvider.provideContext().startActivity(enrollIntent)
@@ -208,7 +213,7 @@ class BiometricAuthenticationControllerImpl(
     private suspend fun retrieveCrypto(): Pair<BiometricAuthentication?, Cipher?> =
         withContext(dispatcher) {
             val biometricData = biometryStorageController.getBiometricAuthentication()
-            val cipher = cryptoController.getBiometricCipher(
+            val cipher = cryptoController.getCipher(
                 encrypt = biometricData == null,
                 ivBytes = biometricData?.ivString?.decodeFromPemBase64String() ?: ByteArray(0)
             )
@@ -226,7 +231,7 @@ class BiometricAuthenticationControllerImpl(
                 biometryStorageController.setBiometricAuthentication(
                     BiometricAuthentication(
                         randomString = randomString,
-                        encryptedString = cryptoController.encryptDecryptBiometric(
+                        encryptedString = cryptoController.encryptDecrypt(
                             cipher = it,
                             byteArray = randomString.toByteArray(StandardCharsets.UTF_8)
                         ).encodeToPemBase64String().orEmpty(),
@@ -238,7 +243,7 @@ class BiometricAuthenticationControllerImpl(
                 if (biometricAuthentication.randomString
                         .toByteArray(StandardCharsets.UTF_8)
                         .contentEquals(
-                            cryptoController.encryptDecryptBiometric(
+                            cryptoController.encryptDecrypt(
                                 cipher = it,
                                 byteArray = biometricAuthentication.encryptedString
                                     .decodeFromPemBase64String() ?: ByteArray(0)

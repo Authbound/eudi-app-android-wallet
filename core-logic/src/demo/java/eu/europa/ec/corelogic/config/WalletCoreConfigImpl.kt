@@ -21,8 +21,6 @@ import eu.europa.ec.corelogic.BuildConfig
 import eu.europa.ec.eudi.wallet.EudiWalletConfig
 import eu.europa.ec.eudi.wallet.issue.openid4vci.OpenId4VciManager
 import eu.europa.ec.eudi.wallet.transfer.openId4vp.ClientIdScheme
-import eu.europa.ec.eudi.wallet.transfer.openId4vp.EncryptionAlgorithm
-import eu.europa.ec.eudi.wallet.transfer.openId4vp.EncryptionMethod
 import eu.europa.ec.eudi.wallet.transfer.openId4vp.Format
 import eu.europa.ec.eudi.wallet.transfer.openId4vp.PreregisteredVerifier
 import eu.europa.ec.resourceslogic.R
@@ -58,27 +56,23 @@ internal class WalletCoreConfigImpl(
                     )
 
                     configureOpenId4Vp {
-                        withEncryptionAlgorithms(listOf(EncryptionAlgorithm.ECDH_ES))
-                        withEncryptionMethods(
-                            listOf(
-                                EncryptionMethod.A128CBC_HS256,
-                                EncryptionMethod.A256GCM
-                            )
-                        )
-
                         withClientIdSchemes(
-                            listOf(ClientIdScheme.X509SanDns, ClientIdScheme.Preregistered(listOf(
-                                PreregisteredVerifier(
-                                    clientId = OPENID4VP_VERIFIER_CLIENT_ID,
-                                    verifierApi = OPENID4VP_VERIFIER_API_URI,
-                                    legalName = OPENID4VP_VERIFIER_LEGAL_NAME
-                                ),
+                            listOf(
+                                ClientIdScheme.X509SanDns,
+                                ClientIdScheme.X509Hash,
+                                ClientIdScheme.Preregistered(listOf(
+                                    PreregisteredVerifier(
+                                        clientId = OPENID4VP_VERIFIER_CLIENT_ID,
+                                        verifierApi = OPENID4VP_VERIFIER_API_URI,
+                                        legalName = OPENID4VP_VERIFIER_LEGAL_NAME
+                                    ),
 //                                PreregisteredVerifier(
 //                                    clientId = OPENID4VP_VERIFIER_CLIENT_ID,
 //                                    verifierApi = OPENID4VP_LOCAL_VERIFIER_API_URI,
 //                                    legalName = OPENID4VP_VERIFIER_LEGAL_NAME
 //                                )
-                            )))
+                                ))
+                            )
                         )
                         withSchemes(
                             listOf(
@@ -88,7 +82,7 @@ internal class WalletCoreConfigImpl(
                             )
                         )
                         withFormats(
-                            Format.MsoMdoc, Format.SdJwtVc.ES256
+                            Format.MsoMdoc.ES256, Format.SdJwtVc.ES256
                         )
                     }
 
@@ -108,7 +102,8 @@ internal class WalletCoreConfigImpl(
                         R.raw.pidissuerca02_lu,
                         R.raw.pidissuerca02_nl,
                         R.raw.pidissuerca02_pt,
-                        R.raw.pidissuerca02_ut
+                        R.raw.pidissuerca02_ut,
+                        R.raw.dc4eu
                     )
                 }
             }

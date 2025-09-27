@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 European Commission
+ * Copyright (c) 2025 European Commission
  *
  * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
  * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
@@ -23,8 +23,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
-import eu.europa.ec.commonfeature.config.IssuanceFlowUiConfig
 import eu.europa.ec.commonfeature.config.IssuanceSuccessUiConfig
+import eu.europa.ec.commonfeature.config.IssuanceUiConfig
 import eu.europa.ec.commonfeature.config.OfferCodeUiConfig
 import eu.europa.ec.commonfeature.config.OfferUiConfig
 import eu.europa.ec.issuancefeature.BuildConfig
@@ -52,9 +52,9 @@ fun NavGraphBuilder.featureIssuanceGraph(navController: NavController) {
                 }
             ),
             arguments = listOf(
-                navArgument("flowType") {
+                navArgument(IssuanceUiConfig.serializedKeyName) {
                     type = NavType.StringType
-                },
+                }
             )
         ) {
             AddDocumentScreen(
@@ -62,9 +62,7 @@ fun NavGraphBuilder.featureIssuanceGraph(navController: NavController) {
                 koinViewModel(
                     parameters = {
                         parametersOf(
-                            IssuanceFlowUiConfig.fromString(
-                                it.arguments?.getString("flowType").orEmpty()
-                            ),
+                            it.arguments?.getString(IssuanceUiConfig.serializedKeyName).orEmpty()
                         )
                     }
                 )

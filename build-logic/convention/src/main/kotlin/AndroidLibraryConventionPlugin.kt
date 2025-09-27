@@ -84,7 +84,7 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
 
                     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-                    targetSdk = 34
+                    targetSdk = 36
 
                     addConfigField("SUPABASE_URL", project.getProperty("SUPABASE_URL") ?: "")
                     addConfigField("SUPABASE_ANON_KEY", project.getProperty("SUPABASE_ANON_KEY") ?: "")

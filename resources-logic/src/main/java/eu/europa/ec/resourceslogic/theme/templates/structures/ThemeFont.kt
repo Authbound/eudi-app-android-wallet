@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 European Commission
+ * Copyright (c) 2025 European Commission
  *
  * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
  * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
@@ -22,7 +22,7 @@ import eu.europa.ec.resourceslogic.theme.templates.structures.ThemeFontStyle.Com
 import eu.europa.ec.resourceslogic.theme.templates.structures.ThemeFontWeight.Companion.toFontWeight
 
 data class ThemeFont(
-    @FontRes val res: Int,
+    @param:FontRes val res: Int,
     val weight: ThemeFontWeight,
     val style: ThemeFontStyle
 ) {
