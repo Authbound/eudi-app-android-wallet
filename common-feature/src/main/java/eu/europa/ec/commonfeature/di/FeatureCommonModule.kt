@@ -20,6 +20,7 @@ import eu.europa.ec.authenticationlogic.controller.authentication.BiometricAuthe
 import eu.europa.ec.authenticationlogic.controller.authentication.DeviceAuthenticationController
 import eu.europa.ec.authenticationlogic.controller.storage.BiometryStorageController
 import eu.europa.ec.authenticationlogic.controller.storage.PinStorageController
+import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import eu.europa.ec.businesslogic.validator.FormValidator
 import eu.europa.ec.commonfeature.interactor.BiometricInteractor
 import eu.europa.ec.commonfeature.interactor.BiometricInteractorImpl
@@ -30,33 +31,52 @@ import eu.europa.ec.commonfeature.interactor.QrScanInteractorImpl
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractor
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractorImpl
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Module
+import org.koin.core.annotation.Single
 
 @Module
 @ComponentScan("eu.europa.ec.commonfeature")
 class FeatureCommonModule
 
+@Single
+fun provideApplicationScope(): CoroutineScope {
+    return CoroutineScope(SupervisorJob() + Dispatchers.Default)
+}
+
 @Factory
 fun provideQuickPinInteractor(
     formValidator: FormValidator,
     pinStorageController: PinStorageController,
-    resourceProvider: ResourceProvider
+    resourceProvider: ResourceProvider,
+    localUnlockTracker: LocalUnlockTracker
 ): QuickPinInteractor {
-    return QuickPinInteractorImpl(formValidator, pinStorageController, resourceProvider)
+    return QuickPinInteractorImpl(
+        formValidator,
+        pinStorageController,
+        resourceProvider,
+        localUnlockTracker
+    )
 }
 
 @Factory
 fun provideBiometricInteractor(
     biometryStorageController: BiometryStorageController,
     biometricAuthenticationController: BiometricAuthenticationController,
-    quickPinInteractor: QuickPinInteractor
+    quickPinInteractor: QuickPinInteractor,
+    localUnlockTracker: LocalUnlockTracker,
+    coroutineScope: CoroutineScope
 ): BiometricInteractor {
     return BiometricInteractorImpl(
         biometryStorageController,
         biometricAuthenticationController,
-        quickPinInteractor
+        quickPinInteractor,
+        localUnlockTracker,
+        coroutineScope
     )
 }
 

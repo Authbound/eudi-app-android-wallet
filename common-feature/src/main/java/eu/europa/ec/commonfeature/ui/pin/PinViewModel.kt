@@ -350,21 +350,15 @@ class PinViewModel(
 
     private fun getNextScreenRoute(): String {
 
+        // After PIN creation → Push to Dashboard (Dashboard not in nav stack yet)
         val navigationAfterCreate = ConfigNavigation(
             navigationType = NavigationType.PushScreen(
-                screen = IssuanceScreens.AddDocument,
-                arguments = mapOf(
-                    IssuanceUiConfig.serializedKeyName to uiSerializer.toBase64(
-                        model = IssuanceUiConfig(
-                            flowType = IssuanceFlowType.NoDocument
-                        ),
-                        parser = IssuanceUiConfig.Parser
-                    )
-                ),
-                popUpToScreen = CommonScreens.QuickPin
+                screen = DashboardScreens.Dashboard,
+                popUpToScreen = CommonScreens.QuickPin // Clear PIN screen from stack
             ),
         )
 
+        // After PIN update (change) → Pop back to Dashboard (already in nav stack)
         val navigationAfterUpdate = ConfigNavigation(
             navigationType = NavigationType.PopTo(DashboardScreens.Dashboard),
         )

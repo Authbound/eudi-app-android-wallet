@@ -17,6 +17,7 @@
 package eu.europa.ec.commonfeature.interactor
 
 import eu.europa.ec.authenticationlogic.controller.storage.PinStorageController
+import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import eu.europa.ec.businesslogic.extension.safeAsync
 import eu.europa.ec.businesslogic.validator.FormValidator
 import eu.europa.ec.resourceslogic.R
@@ -43,6 +44,7 @@ class QuickPinInteractorImpl(
     private val formValidator: FormValidator,
     private val pinStorageController: PinStorageController,
     private val resourceProvider: ResourceProvider,
+    private val localUnlockTracker: LocalUnlockTracker,
 ) : FormValidator by formValidator, QuickPinInteractor {
 
     private val genericErrorMsg
@@ -67,6 +69,8 @@ class QuickPinInteractorImpl(
 
                     is QuickPinInteractorPinValidPartialState.Success -> {
                         pinStorageController.setPin(newPin)
+                        // Mark as unlocked after successful PIN creation
+                        localUnlockTracker.markUnlocked()
                         emit(QuickPinInteractorSetPinPartialState.Success)
                     }
                 }
@@ -82,6 +86,8 @@ class QuickPinInteractorImpl(
     ): Flow<QuickPinInteractorSetPinPartialState> =
         flow {
             pinStorageController.setPin(newPin)
+            // Mark as unlocked after successful PIN change
+            localUnlockTracker.markUnlocked()
             emit(QuickPinInteractorSetPinPartialState.Success)
         }.safeAsync {
             QuickPinInteractorSetPinPartialState.Failed(
@@ -92,6 +98,8 @@ class QuickPinInteractorImpl(
     override fun isCurrentPinValid(pin: String): Flow<QuickPinInteractorPinValidPartialState> =
         flow {
             if (pinStorageController.isPinValid(pin)) {
+                // Mark as unlocked after successful PIN validation
+                localUnlockTracker.markUnlocked()
                 emit(QuickPinInteractorPinValidPartialState.Success)
             } else {
                 emit(

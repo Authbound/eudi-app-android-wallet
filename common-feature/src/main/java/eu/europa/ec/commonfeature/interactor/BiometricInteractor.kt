@@ -21,7 +21,11 @@ import eu.europa.ec.authenticationlogic.controller.authentication.BiometricAuthe
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricsAuthenticate
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricsAvailability
 import eu.europa.ec.authenticationlogic.controller.storage.BiometryStorageController
+import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 
 interface BiometricInteractor {
     fun getBiometricsAvailability(listener: (BiometricsAvailability) -> Unit)
@@ -41,6 +45,8 @@ class BiometricInteractorImpl(
     private val biometryStorageController: BiometryStorageController,
     private val biometricAuthenticationController: BiometricAuthenticationController,
     private val quickPinInteractor: QuickPinInteractor,
+    private val localUnlockTracker: LocalUnlockTracker,
+    private val coroutineScope: CoroutineScope,
 ) : BiometricInteractor {
 
     override fun isPinValid(pin: String): Flow<QuickPinInteractorPinValidPartialState> =
@@ -65,9 +71,17 @@ class BiometricInteractorImpl(
     ) {
         biometricAuthenticationController.authenticate(
             context,
-            notifyOnAuthenticationFailure,
-            listener
-        )
+            notifyOnAuthenticationFailure
+        ) { result ->
+            // Mark as unlocked on successful biometric authentication
+            if (result is BiometricsAuthenticate.Success) {
+                coroutineScope.launch(Dispatchers.IO) {
+                    localUnlockTracker.markUnlocked()
+                }
+            }
+            // Forward result to caller
+            listener(result)
+        }
     }
 
     override fun launchBiometricSystemScreen() {
