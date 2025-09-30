@@ -18,6 +18,7 @@ package eu.europa.ec.startupfeature.interactor
 
 import eu.europa.ec.authenticationlogic.policy.LocalAuthPolicy
 import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
+import eu.europa.ec.authenticationlogic.usecase.IsProfileCompletedUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsWalletActivatedUseCase
 import eu.europa.ec.authenticationlogic.usecase.WalletActivationStatus
 import eu.europa.ec.businesslogic.controller.log.LogController
@@ -25,6 +26,7 @@ import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
 import eu.europa.ec.commonfeature.config.BiometricMode
 import eu.europa.ec.commonfeature.config.BiometricUiConfig
 import eu.europa.ec.commonfeature.config.OnBackNavigationConfig
+import eu.europa.ec.commonfeature.model.PinFlow
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.uilogic.config.ConfigNavigation
@@ -64,7 +66,8 @@ class SplashInteractorV2Impl(
     private val prefKeys: PrefKeysV2,
     private val logController: LogController,
     private val localAuthPolicy: LocalAuthPolicy,
-    private val isWalletActivatedUseCase: IsWalletActivatedUseCase
+    private val isWalletActivatedUseCase: IsWalletActivatedUseCase,
+    private val isProfileCompletedUseCase: IsProfileCompletedUseCase
 ) : SplashInteractorV2 {
 
     override suspend fun getAfterSplashRoute(): String {
@@ -90,7 +93,8 @@ class SplashInteractorV2Impl(
             // PrefsControllerV2 automatically uses the authenticated user's context
 
             // 1. Profile completed? (handle + displayName set)
-            val profileCompleted = prefKeys.isProfileCompletedSafe()
+            // Use the use case which verifies from backend AND caches the result
+            val profileCompleted = isProfileCompletedUseCase()
             logController.i("SplashInteractorV2") { "Profile completed: $profileCompleted" }
             if (!profileCompleted) {
                 logController.i("SplashInteractorV2") { "Profile incomplete → ProfileCompletion" }
@@ -126,22 +130,26 @@ class SplashInteractorV2Impl(
                 return AuthenticationScreens.WalletSetup.screenRoute
             }
 
-            // 3. Local unlock policy (PIN/Biometrics required?)
+            // 3. Local unlock policy - Check if PIN is set first
+            val isPinSet = localAuthPolicy.isPinSet()
+            logController.i("SplashInteractorV2") { "PIN set: $isPinSet" }
+            
+            if (!isPinSet) {
+                // PIN not created yet → User must create PIN first
+                logController.i("SplashInteractorV2") { "PIN not set → PIN creation required" }
+                return pinCreateConfig()
+            }
+            
+            // PIN exists - now check if unlock is needed
             val needsUnlock = localAuthPolicy.needsLocalUnlock()
             logController.i("SplashInteractorV2") { "Needs local unlock: $needsUnlock" }
 
             if (needsUnlock) {
-                val useBiometric =
-                    localAuthPolicy.isBiometricsEnabledByUser() &&
-                            localAuthPolicy.isBiometricHardwareAvailable()
-
-                logController.i("SplashInteractorV2") { "Local unlock required - Use biometric: $useBiometric" }
-
-                return if (useBiometric) {
-                    biometricUnlockConfig(onSuccess = DashboardScreens.Dashboard.screenRoute)
-                } else {
-                    pinUnlockConfig(onSuccess = DashboardScreens.Dashboard.screenRoute)
-                }
+                // CRITICAL: Always use Biometric screen for unlock
+                // It handles both biometric AND PIN fallback
+                // Do NOT use QuickPin screen for unlock (it's for CREATE/CHANGE only)
+                logController.i("SplashInteractorV2") { "Local unlock required → Biometric screen (with PIN fallback)" }
+                return biometricUnlockConfig(onSuccess = DashboardScreens.Dashboard.screenRoute)
             } else {
                 // Everything checks out - go to dashboard
                 logController.i("SplashInteractorV2") { "All checks passed → Dashboard" }
@@ -182,12 +190,12 @@ class SplashInteractorV2Impl(
         }
     }
 
-    private fun pinUnlockConfig(onSuccess: String): String {
+    private fun pinCreateConfig(): String {
         return generateComposableNavigationLink(
             screen = CommonScreens.QuickPin,
             arguments = generateComposableArguments(
                 mapOf(
-                    "onSuccessRoute" to onSuccess
+                    "pinFlow" to PinFlow.CREATE
                 )
             )
         )

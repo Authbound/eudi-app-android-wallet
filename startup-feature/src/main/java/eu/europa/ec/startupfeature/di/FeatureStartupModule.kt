@@ -18,6 +18,7 @@ package eu.europa.ec.startupfeature.di
 
 import eu.europa.ec.authenticationlogic.policy.LocalAuthPolicy
 import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
+import eu.europa.ec.authenticationlogic.usecase.IsProfileCompletedUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsWalletActivatedUseCase
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
@@ -41,7 +42,8 @@ fun provideSplashInteractor(
     prefKeys: PrefKeysV2,
     logController: LogController,
     localAuthPolicy: LocalAuthPolicy,
-    isWalletActivatedUseCase: IsWalletActivatedUseCase
+    isWalletActivatedUseCase: IsWalletActivatedUseCase,
+    isProfileCompletedUseCase: IsProfileCompletedUseCase
 ): SplashInteractorV2 = SplashInteractorV2Impl(
     supabaseAuthRepository,
     uiSerializer,
@@ -49,5 +51,6 @@ fun provideSplashInteractor(
     prefKeys,
     logController,
     localAuthPolicy,
-    isWalletActivatedUseCase
+    isWalletActivatedUseCase,
+    isProfileCompletedUseCase
 )
