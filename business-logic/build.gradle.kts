@@ -38,6 +38,12 @@ dependencies {
     implementation(libs.google.phonenumber)
     implementation(libs.timber)
     implementation(libs.treessence)
+    implementation(platform(libs.bom))
+
+    implementation(libs.supabase.postgrest.kt)
+    implementation(libs.supabase.auth.kt)
+    implementation(libs.supabase.realtime.kt)
+
 
     testImplementation(project(LibraryModule.TestLogic.path))
     androidTestImplementation(project(LibraryModule.TestLogic.path))

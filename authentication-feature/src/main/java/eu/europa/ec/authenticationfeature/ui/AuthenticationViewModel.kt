@@ -31,6 +31,8 @@ import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.model.DeviceInfo
 import eu.europa.ec.businesslogic.controller.storage.PrefKeys
 import eu.europa.ec.businesslogic.controller.storage.PrefsController
+import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
+import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
 import eu.europa.ec.notificationlogic.controller.PushNotificationController
 import eu.europa.ec.uilogic.mvi.MviViewModel
 import eu.europa.ec.uilogic.mvi.ViewEvent
@@ -89,8 +91,8 @@ class AuthenticationViewModel(
     private val signOutUseCase: SignOutUseCase,
     private val observeAuthStateUseCase: ObserveAuthStateUseCase,
     private val getMyProfileUseCase: GetMyProfileUseCase,
-    private val prefsController: PrefsController,
-    private val prefKeys: PrefKeys,
+    private val prefsController: PrefsControllerV2,
+    private val prefKeys: PrefKeysV2,
     private val logController: LogController
 ) : MviViewModel<Event, State, Effect>() {
     
@@ -324,16 +326,8 @@ class AuthenticationViewModel(
                                 return@collect
                             }
 
-                            // Set user context for scoped preferences - CRITICAL for security
-                            try {
-                                prefsController.setCurrentUser(user.id)
-                                logController.d("AuthViewModel", "User context successfully set for: ${user.id.take(8)}...")
-                            } catch (e: Exception) {
-                                logController.e("AuthViewModel", e)
-                                setState { copy(isLoading = false) }
-                                setEffect { Effect.ShowError("Failed to set user context. Please try again.") }
-                                return@collect
-                            }
+                            // V2: User context is automatically derived from Supabase session
+                            logController.d("AuthViewModel", "User authenticated: ${user.id.take(8)}... (context auto-managed)")
 
                             val isEmailOnlyProvider =
                                 user.identities?.size == 1 && user.identities?.first()?.provider == "email"
@@ -383,15 +377,14 @@ class AuthenticationViewModel(
 
                         is SessionStatus.NotAuthenticated -> {
                             logController.d("AuthViewModel", "Session status: NotAuthenticated (Instance: ${this@AuthenticationViewModel.hashCode()})")
-                            // Clear user context on logout
-                            prefsController.setCurrentUser(null)
+                            // V2: User context is automatically cleared when session ends
                             setState { 
                                 copy(
                                     isLoading = false,
                                     error = null
                                 ) 
                             }
-                            logController.d("AuthViewModel", "User context cleared, state updated to NotAuthenticated")
+                            logController.d("AuthViewModel", "State updated to NotAuthenticated (context auto-cleared)")
                         }
 
                         is SessionStatus.Initializing -> {

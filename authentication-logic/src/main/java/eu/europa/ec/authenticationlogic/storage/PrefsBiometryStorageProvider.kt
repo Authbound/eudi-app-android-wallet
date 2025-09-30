@@ -19,16 +19,16 @@ package eu.europa.ec.authenticationlogic.storage
 import com.google.gson.Gson
 import eu.europa.ec.authenticationlogic.model.BiometricAuthentication
 import eu.europa.ec.authenticationlogic.provider.BiometryStorageProvider
-import eu.europa.ec.businesslogic.controller.storage.PrefsController
+import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
 
 class PrefsBiometryStorageProvider(
-    private val prefsController: PrefsController
+    private val prefsController: PrefsControllerV2
 ) : BiometryStorageProvider {
 
     /**
      * Returns the biometric data in order to validate that biometric is not tampered in any way.
      */
-    override fun getBiometricAuthentication(): BiometricAuthentication? {
+    override suspend fun getBiometricAuthentication(): BiometricAuthentication? {
         return try {
             Gson().fromJson(
                 prefsController.getString("BiometricAuthentication", ""),
@@ -44,9 +44,9 @@ class PrefsBiometryStorageProvider(
      *
      * @param value the biometric data.
      */
-    override fun setBiometricAuthentication(value: BiometricAuthentication?) {
+    override suspend fun setBiometricAuthentication(value: BiometricAuthentication?) {
         if (value == null) prefsController.clear("BiometricAuthentication")
-        prefsController.setString("BiometricAuthentication", Gson().toJson(value))
+        else prefsController.setString("BiometricAuthentication", Gson().toJson(value))
     }
 
     /**
@@ -54,7 +54,7 @@ class PrefsBiometryStorageProvider(
      *
      * Setting an empty value will clear the entry from shared prefs.
      */
-    override fun setUseBiometricsAuth(value: Boolean) {
+    override suspend fun setUseBiometricsAuth(value: Boolean) {
         prefsController.setBool("UseBiometricsAuth", value)
     }
 
@@ -63,7 +63,7 @@ class PrefsBiometryStorageProvider(
      *
      * Setting an empty value will clear the entry from shared prefs.
      */
-    override fun getUseBiometricsAuth(): Boolean {
+    override suspend fun getUseBiometricsAuth(): Boolean {
         return prefsController.getBool("UseBiometricsAuth", false)
     }
 }

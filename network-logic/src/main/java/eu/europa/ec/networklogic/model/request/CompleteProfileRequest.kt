@@ -23,4 +23,5 @@ data class CompleteProfileRequest(
     val handle: String,
     @SerializedName("display_name")
     val displayName: String
+
 ) 

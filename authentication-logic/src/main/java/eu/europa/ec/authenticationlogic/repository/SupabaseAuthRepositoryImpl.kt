@@ -37,17 +37,13 @@ class SupabaseAuthRepositoryImpl(
 ) : SupabaseAuthRepository {
 
     override suspend fun isUserAuthenticated(): Boolean {
-        val sessionStatus = supabaseClient.auth.sessionStatus.first()
-        return sessionStatus is SessionStatus.Authenticated
+        val sessionStatus = supabaseClient.auth.sessionStatus.first { it !is SessionStatus.Initializing}
+        return supabaseClient.auth.currentSessionOrNull() != null
     }
 
     override suspend fun getCurrentUser(): UserInfo? {
-        val sessionStatus = supabaseClient.auth.sessionStatus.first()
-        return if (sessionStatus is SessionStatus.Authenticated) {
-            sessionStatus.session.user
-        } else {
-            null
-        }
+        return supabaseClient.auth.currentSessionOrNull()?.user
+
     }
 
     override fun observeAuthState(): Flow<SessionStatus> = supabaseClient.auth.sessionStatus
@@ -74,7 +70,7 @@ class SupabaseAuthRepositoryImpl(
         }
         supabaseClient.auth.signInWith(
             provider = supabaseProvider,
-            redirectUrl = "${BuildConfig.SUPABASE_URL}://login-callback"
+            redirectUrl = "${BuildConfig.DEEPLINK}://login-callback"
         )
     }
 

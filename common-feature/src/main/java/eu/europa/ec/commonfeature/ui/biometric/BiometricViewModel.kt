@@ -38,6 +38,7 @@ import eu.europa.ec.uilogic.navigation.helper.generateComposableArguments
 import eu.europa.ec.uilogic.navigation.helper.generateComposableNavigationLink
 import eu.europa.ec.uilogic.serializer.UiSerializer
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.koin.android.annotation.KoinViewModel
 
 sealed class Event : ViewEvent {
@@ -109,7 +110,7 @@ class BiometricViewModel(
         ) ?: throw RuntimeException("BiometricUiConfig:: is Missing or invalid")
         return State(
             config = config,
-            userBiometricsAreEnabled = biometricInteractor.getBiometricUserSelection(),
+            userBiometricsAreEnabled = runBlocking { biometricInteractor.getBiometricUserSelection() },
             isBackable = config.onBackNavigationConfig.isBackable
         )
     }

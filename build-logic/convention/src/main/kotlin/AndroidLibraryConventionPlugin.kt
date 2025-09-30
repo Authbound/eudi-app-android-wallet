@@ -41,7 +41,7 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
             val config =
                 extensions.create<LibraryPluginConfig>("moduleConfig", LibraryModule.Unspecified)
 
-            val walletScheme = "eudi-wallet"
+            val walletScheme = "authbound-wallet"
             val walletHost = "*"
 
             val eudiOpenId4VpScheme = "eudi-openid4vp"

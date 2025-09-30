@@ -16,6 +16,8 @@
 
 package eu.europa.ec.startupfeature.interactor
 
+import eu.europa.ec.authenticationlogic.policy.LocalAuthPolicy
+import eu.europa.ec.authenticationlogic.usecase.IsProfileCompletedUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsUserAuthenticatedUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.businesslogic.controller.log.LogController
@@ -36,6 +38,7 @@ import eu.europa.ec.uilogic.navigation.AuthenticationScreens
 import eu.europa.ec.uilogic.navigation.CommonScreens
 import eu.europa.ec.uilogic.navigation.DashboardScreens
 import eu.europa.ec.uilogic.navigation.IssuanceScreens
+import eu.europa.ec.uilogic.navigation.Screen
 import eu.europa.ec.uilogic.navigation.helper.generateComposableArguments
 import eu.europa.ec.uilogic.navigation.helper.generateComposableNavigationLink
 import eu.europa.ec.uilogic.serializer.UiSerializer
@@ -43,6 +46,7 @@ import eu.europa.ec.uilogic.serializer.UiSerializer
 interface SplashInteractor {
     suspend fun getAfterSplashRoute(): String
 }
+
 
 class SplashInteractorImpl(
     private val quickPinInteractor: QuickPinInteractor,
@@ -53,6 +57,8 @@ class SplashInteractorImpl(
     private val signOutUseCase: SignOutUseCase,
     private val prefKeys: PrefKeys,
     private val logController: LogController,
+    private val localAuthPolicy: LocalAuthPolicy,
+    private val isProfileCompletedUseCase: IsProfileCompletedUseCase
 ) : SplashInteractor {
 
     private val hasDocuments: Boolean
@@ -60,59 +66,68 @@ class SplashInteractorImpl(
 
     override suspend fun getAfterSplashRoute(): String {
         return try {
-            val isAuthenticated = isUserAuthenticatedUseCase()
-            
-            when {
-                isAuthenticated && prefKeys.isWalletActivatedSafe() -> {
-                    if (walletCoreDocumentsController.getAllDocuments().isNotEmpty()) {
-                        getBiometricsConfig()
-                    } else {
-                        getQuickPinConfig()
-                    }
-                }
+            // 1) Remote session (Supabase)
+            val authed = isUserAuthenticatedUseCase()
+            logController.i { "Authed: $authed" }
+            if (!authed) return AuthenticationScreens.Login.screenRoute
 
-                isAuthenticated && !prefKeys.isWalletActivatedSafe() -> {
-                    AuthenticationScreens.WalletSetup.screenRoute
-                }
+            // 2) Profile completed? (handle + displayName)
+            val profileCompleted = isProfileCompletedUseCase()   // see snippet below
+            logController.i { "Profile completed: $profileCompleted" }
+            if (!profileCompleted) return AuthenticationScreens.ProfileCompletion.screenRoute
 
-                else -> AuthenticationScreens.Login.screenRoute
+            // 3) Wallet activation (WUA) completed?
+            val walletActivated = prefKeys.isWalletActivatedSafe()
+            logController.i { "Wallet activated: $walletActivated" }
+            if (!walletActivated) return AuthenticationScreens.WalletSetup.screenRoute
+
+            // 4) Local unlock policy (PIN/Biometrics). On success -> always Dashboard.
+            val needsUnlock = localAuthPolicy.needsLocalUnlock()
+            if (needsUnlock) {
+                val useBiometric =
+                    localAuthPolicy.isBiometricsEnabledByUser() &&
+                            localAuthPolicy.isBiometricHardwareAvailable()
+
+                if (useBiometric) {
+                    biometricUnlockConfig(onSuccess = DashboardScreens.Dashboard.screenRoute)
+                } else {
+                    // Optional: if somehow PIN isn't set but walletActivated is true,
+                    // you can route to WalletSetup (or a QuickPin CREATE) instead.
+                    pinUnlockConfig(onSuccess = DashboardScreens.Dashboard.screenRoute)
+                }
+            } else {
+                DashboardScreens.Dashboard.screenRoute
             }
-        } catch (e: SecurityException) {
-            logController.w("SplashInteractor") { 
-                "Security error during splash navigation: ${e.message}. Clearing session and redirecting to login." 
-            }
-            
-            // Clear any inconsistent authentication state
+        } catch (_: SecurityException) {
             try {
                 signOutUseCase()
-            } catch (signOutException: Exception) {
-                logController.e("SplashInteractor", signOutException)
+            } catch (_: Exception) {
             }
-            
-            // Always redirect to login for security
             AuthenticationScreens.Login.screenRoute
-        } catch (e: Exception) {
-            logController.e("SplashInteractor", e)
-            
-            // For any other error, also clear session and redirect to login
+        } catch (_: Exception) {
             try {
                 signOutUseCase()
-            } catch (signOutException: Exception) {
-                logController.e("SplashInteractor", signOutException)
+            } catch (_: Exception) {
             }
-            
             AuthenticationScreens.Login.screenRoute
         }
     }
 
-    private fun getQuickPinConfig(): String {
+
+    private fun pinUnlockConfig(onSuccess: String): String {
         return generateComposableNavigationLink(
             screen = CommonScreens.QuickPin,
-            arguments = generateComposableArguments(mapOf("pinFlow" to PinFlow.CREATE))
+            arguments = generateComposableArguments(
+                mapOf(
+                    "pinFlow" to PinFlow.UPDATE,
+                    "onSuccessRoute" to onSuccess
+                )
+            )
         )
     }
 
-    private fun getBiometricsConfig(): String {
+
+    private fun biometricUnlockConfig(onSuccess: String): String {
         return generateComposableNavigationLink(
             screen = CommonScreens.Biometric,
             arguments = generateComposableArguments(
@@ -121,41 +136,28 @@ class SplashInteractorImpl(
                         BiometricUiConfig(
                             mode = BiometricMode.Login(
                                 title = resourceProvider.getString(R.string.biometric_login_title),
-                                subTitleWhenBiometricsEnabled = resourceProvider.getString(R.string.biometric_login_biometrics_enabled_subtitle),
-                                subTitleWhenBiometricsNotEnabled = resourceProvider.getString(R.string.biometric_login_biometrics_not_enabled_subtitle),
+                                subTitleWhenBiometricsEnabled = resourceProvider.getString(
+                                    R.string.biometric_login_biometrics_enabled_subtitle
+                                ),
+                                subTitleWhenBiometricsNotEnabled = resourceProvider.getString(
+                                    R.string.biometric_login_biometrics_not_enabled_subtitle
+                                ),
                             ),
                             isPreAuthorization = true,
                             shouldInitializeBiometricAuthOnCreate = true,
                             onSuccessNavigation = ConfigNavigation(
                                 navigationType = NavigationType.PushScreen(
-                                    screen = if (hasDocuments) {
-                                        DashboardScreens.Dashboard
-                                    } else {
-                                        IssuanceScreens.AddDocument
-                                    },
-                                    arguments = if (!hasDocuments) {
-                                        mapOf(
-                                            IssuanceUiConfig.serializedKeyName to uiSerializer.toBase64(
-                                                model = IssuanceUiConfig(
-                                                    flowType = IssuanceFlowType.NoDocument
-                                                ),
-                                                parser = IssuanceUiConfig.Parser
-                                            )
-                                        )
-                                    } else {
-                                        emptyMap()
-                                    }
+                                    screen = DashboardScreens.Dashboard
                                 )
                             ),
                             onBackNavigationConfig = OnBackNavigationConfig(
-                                onBackNavigation = ConfigNavigation(
-                                    navigationType = NavigationType.Finish
-                                ),
+                                onBackNavigation = ConfigNavigation(NavigationType.Finish),
                                 hasToolbarBackIcon = false
                             )
                         ),
                         BiometricUiConfig.Parser
-                    ).orEmpty()
+                    ).orEmpty(),
+                    "onSuccessRoute" to onSuccess
                 )
             )
         )

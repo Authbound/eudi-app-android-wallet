@@ -43,6 +43,8 @@ import org.koin.ksp.generated.module
 
 private val assembledModules = listOf(
 
+    supabaseModule,
+
     // Logic Modules
     LogicNetworkModule().module,
     LogicUiModule().module,
@@ -53,9 +55,6 @@ private val assembledModules = listOf(
     LogicCoreModule().module,
     LogicStorageModule().module,
     LogicNotificationModule().module,
-
-    // Supabase
-    supabaseModule,
 
 
     // Feature Modules

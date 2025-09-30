@@ -80,59 +80,62 @@ class TestQuickPinInteractor {
     // Case 1:
     // prefKeys.getDevicePin() returns empty String.
     @Test
-    fun `Given Case 1, When hasPin is called, Then it returns false`() {
-        // Given
-        whenever(pinStorageController.retrievePin())
-            .thenReturn(mockedEmptyPin)
+    fun `Given Case 1, When hasPin is called, Then it returns false`() =
+        coroutineRule.runTest {
+            // Given
+            whenever(pinStorageController.retrievePin())
+                .thenReturn(mockedEmptyPin)
 
-        // When
-        val actual = interactor.hasPin()
+            // When
+            val actual = interactor.hasPin()
 
-        // Then
-        val expected = false
+            // Then
+            val expected = false
 
-        assertEquals(expected, actual)
-        verify(pinStorageController, times(1))
-            .retrievePin()
-    }
+            assertEquals(expected, actual)
+            verify(pinStorageController, times(1))
+                .retrievePin()
+        }
 
     // Case 2:
     // pinStorageController.retrievePin() returns blank String.
     @Test
-    fun `Given Case 2, When hasPin is called, Then it returns false`() {
-        // Given
-        whenever(pinStorageController.retrievePin())
-            .thenReturn(mockedBlankPin)
+    fun `Given Case 2, When hasPin is called, Then it returns false`() =
+        coroutineRule.runTest {
+            // Given
+            whenever(pinStorageController.retrievePin())
+                .thenReturn(mockedBlankPin)
 
-        // When
-        val actual = interactor.hasPin()
+            // When
+            val actual = interactor.hasPin()
 
-        // Then
-        val expected = false
+            // Then
+            val expected = false
 
-        assertEquals(expected, actual)
-        verify(pinStorageController, times(1))
-            .retrievePin()
-    }
+            assertEquals(expected, actual)
+            verify(pinStorageController, times(1))
+                .retrievePin()
+        }
 
     // Case 3:
     // pinStorageController.retrievePin() returns a valid String.
     @Test
-    fun `Given Case 3, When hasPin is called, Then it returns true`() {
-        // Given
-        whenever(pinStorageController.retrievePin())
-            .thenReturn(mockedPin)
+    fun `Given Case 3, When hasPin is called, Then it returns true`() =
+        coroutineRule.runTest {
+            // Given
+            whenever(pinStorageController.retrievePin())
+                .thenReturn(mockedPin)
 
-        // When
-        val actual = interactor.hasPin()
+            // When
+            val actual = interactor.hasPin()
 
-        // Then
-        val expected = true
+            // Then
+            val expected = true
 
-        assertEquals(expected, actual)
-        verify(pinStorageController, times(1))
-            .retrievePin()
-    }
+            assertEquals(expected, actual)
+            verify(pinStorageController, times(1))
+                .retrievePin()
+        }
     //endregion
 
     //region setPin

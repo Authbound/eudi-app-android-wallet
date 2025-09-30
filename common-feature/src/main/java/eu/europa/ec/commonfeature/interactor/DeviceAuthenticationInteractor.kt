@@ -20,6 +20,7 @@ import android.content.Context
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricsAvailability
 import eu.europa.ec.authenticationlogic.controller.authentication.DeviceAuthenticationController
 import eu.europa.ec.authenticationlogic.controller.authentication.DeviceAuthenticationResult
+import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import eu.europa.ec.authenticationlogic.model.BiometricCrypto
 
 interface DeviceAuthenticationInteractor {
@@ -28,8 +29,9 @@ interface DeviceAuthenticationInteractor {
         context: Context,
         crypto: BiometricCrypto,
         notifyOnAuthenticationFailure: Boolean,
-        resultHandler: DeviceAuthenticationResult
-    )
+        resultHandler: DeviceAuthenticationResult,
+
+        )
 
     fun launchBiometricSystemScreen()
 }
@@ -50,13 +52,15 @@ class DeviceAuthenticationInteractorImpl(
         context: Context,
         crypto: BiometricCrypto,
         notifyOnAuthenticationFailure: Boolean,
-        resultHandler: DeviceAuthenticationResult
-    ) {
+        resultHandler: DeviceAuthenticationResult,
+
+        ) {
         deviceAuthenticationController.authenticate(
             context,
             crypto,
             notifyOnAuthenticationFailure,
-            resultHandler
-        )
+            resultHandler,
+
+            )
     }
 }

@@ -30,7 +30,13 @@ dependencies {
     implementation(project(LibraryModule.AuthenticationLogic.path))
     implementation(libs.coil.kt)
     implementation(libs.coil.kt.compose)
-//    implementation(libs.coil.kt.gif)
+    implementation(platform(libs.bom))
+
+    implementation(libs.supabase.postgrest.kt)
+    implementation(libs.supabase.auth.kt)
+    implementation(libs.supabase.realtime.kt)
+
+
 }
 
 moduleConfig {

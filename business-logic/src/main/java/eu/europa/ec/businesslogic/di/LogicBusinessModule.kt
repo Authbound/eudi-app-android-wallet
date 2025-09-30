@@ -29,6 +29,10 @@ import eu.europa.ec.businesslogic.controller.storage.PrefKeys
 import eu.europa.ec.businesslogic.controller.storage.PrefKeysImpl
 import eu.europa.ec.businesslogic.controller.storage.PrefsController
 import eu.europa.ec.businesslogic.controller.storage.PrefsControllerImpl
+import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
+import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2Impl
+import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
+import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2Impl
 import eu.europa.ec.businesslogic.controller.device.DeviceController
 import eu.europa.ec.businesslogic.controller.device.DeviceControllerImpl
 import eu.europa.ec.businesslogic.provider.UuidProvider
@@ -38,6 +42,7 @@ import eu.europa.ec.businesslogic.validator.FilterValidatorImpl
 import eu.europa.ec.businesslogic.validator.FormValidator
 import eu.europa.ec.businesslogic.validator.FormValidatorImpl
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
+import io.github.jan.supabase.SupabaseClient
 
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Factory
@@ -55,6 +60,9 @@ fun provideConfigLogic(context: Context): ConfigLogic = ConfigLogicImpl(context)
 fun provideLogController(context: Context, configLogic: ConfigLogic): LogController =
     LogControllerImpl(context, configLogic)
 
+// ============================================================
+// V1 Controllers (Keep for backwards compatibility during migration)
+// ============================================================
 @Single
 fun providePrefsController(
     resourceProvider: ResourceProvider,
@@ -66,9 +74,27 @@ fun providePrefKeys(
     prefsController: PrefsController
 ): PrefKeys = PrefKeysImpl(prefsController)
 
+// ============================================================
+// V2 Controllers (New - Race condition free)
+// ============================================================
+@Single
+fun providePrefsControllerV2(
+    resourceProvider: ResourceProvider,
+    logController: LogController,
+    supabaseClient: SupabaseClient
+): PrefsControllerV2 = PrefsControllerV2Impl(resourceProvider, logController, supabaseClient)
+
+@Single
+fun providePrefKeysV2(
+    prefsController: PrefsControllerV2
+): PrefKeysV2 = PrefKeysV2Impl(prefsController)
+
+// ============================================================
+// Keystore Controller (Updated to use V2)
+// ============================================================
 @Single
 fun provideKeystoreController(
-    prefKeys: PrefKeys,
+    prefKeys: PrefKeysV2,
     logController: LogController,
     uuidProvider: UuidProvider
 ): KeystoreController =

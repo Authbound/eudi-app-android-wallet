@@ -55,6 +55,8 @@ fun provideOkHttpClient(
         .connectTimeout(configLogic.environmentConfig.connectTimeoutSeconds, TimeUnit.SECONDS)
         .addInterceptor(httpLoggingInterceptor)
 
+    
+
     return client.build()
 }
 
@@ -73,6 +75,9 @@ fun provideRetrofit(
     converterFactory: GsonConverterFactory,
     configLogic: ConfigLogic
 ): Retrofit {
+
+
+
     return Retrofit.Builder().baseUrl(configLogic.environmentConfig.getServerHost())
         .client(okHttpClient)
         .addConverterFactory(converterFactory).build()

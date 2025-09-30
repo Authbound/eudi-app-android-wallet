@@ -22,6 +22,8 @@ import eu.europa.ec.businesslogic.controller.device.DeviceController
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeys
 import eu.europa.ec.businesslogic.controller.storage.PrefsController
+import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
+import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
 import eu.europa.ec.businesslogic.model.DeviceInfo
 import eu.europa.ec.notificationlogic.controller.PushNotificationController
 import eu.europa.ec.uilogic.mvi.MviViewModel
@@ -74,8 +76,8 @@ class WalletSetupViewModel(
     private val deviceController: DeviceController,
     private val biometricAuthenticationController: BiometricAuthenticationController,
     private val pushNotificationController: PushNotificationController,
-    private val prefKeys: PrefKeys,
-    private val prefsController: PrefsController,
+    private val prefKeys: PrefKeysV2,
+    private val prefsController: PrefsControllerV2,
     private val logController: LogController
 ) : MviViewModel<WalletSetupEvent, WalletSetupState, WalletSetupEffect>() {
 
@@ -337,17 +339,15 @@ class WalletSetupViewModel(
                 logController.d("WalletSetupViewModel", "Performing secure sign out...")
                 setState { copy(isActivating = true, canNavigateBack = false) } // Prevent double-tap
                 
-                // Clear any partial wallet state - using safe method
+                // Clear any partial wallet state
+                // In V2: PrefsControllerV2 auto-derives user context from Supabase session
+                // If no session exists, this will throw SecurityException (caught below)
                 try {
-                    if (prefsController.hasCurrentUser()) {
-                        prefKeys.setWalletActivated(false)
-                        logController.d("WalletSetupViewModel", "Wallet activation status cleared")
-                    } else {
-                        logController.d("WalletSetupViewModel", "No user context for clearing wallet activation status")
-                    }
+                    prefKeys.setWalletActivated(false)
+                    logController.d("WalletSetupViewModel", "Wallet activation status cleared")
                 } catch (e: SecurityException) {
                     logController.w("WalletSetupViewModel") { 
-                        "Failed to clear wallet activation status due to security error: ${e.message}. Proceeding with sign out." 
+                        "No authenticated session to clear wallet activation status: ${e.message}. Proceeding with sign out." 
                     }
                     // Continue with sign out even if we can't clear the preference
                 }

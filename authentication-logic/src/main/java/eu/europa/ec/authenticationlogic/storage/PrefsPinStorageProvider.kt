@@ -18,12 +18,12 @@ package eu.europa.ec.authenticationlogic.storage
 
 import eu.europa.ec.authenticationlogic.provider.PinStorageProvider
 import eu.europa.ec.businesslogic.controller.crypto.CryptoController
-import eu.europa.ec.businesslogic.controller.storage.PrefsController
+import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
 import eu.europa.ec.businesslogic.extension.decodeFromBase64
 import eu.europa.ec.businesslogic.extension.encodeToBase64String
 
 class PrefsPinStorageProvider(
-    private val prefsController: PrefsController,
+    private val prefsController: PrefsControllerV2,
     private val cryptoController: CryptoController
 ) : PinStorageProvider {
 
@@ -32,7 +32,7 @@ class PrefsPinStorageProvider(
      *
      * @return The decrypted PIN as a String. Returns an empty string if no PIN is stored or if decryption fails.
      */
-    override fun retrievePin(): String = decryptedAndLoad()
+    override suspend fun retrievePin(): String = decryptedAndLoad()
 
     /**
      * Stores the given PIN in an encrypted format.
@@ -42,7 +42,7 @@ class PrefsPinStorageProvider(
      *
      * @param pin The PIN to be stored.
      */
-    override fun setPin(pin: String) {
+    override suspend fun setPin(pin: String) {
         encryptAndStore(pin)
     }
 
@@ -52,9 +52,9 @@ class PrefsPinStorageProvider(
      * @param pin The PIN to validate.
      * @return True if the provided PIN matches the stored PIN, false otherwise.
      */
-    override fun isPinValid(pin: String): Boolean = retrievePin() == pin
+    override suspend fun isPinValid(pin: String): Boolean = retrievePin() == pin
 
-    private fun encryptAndStore(pin: String) {
+    private suspend fun encryptAndStore(pin: String) {
 
         val cipher = cryptoController.getCipher(
             encrypt = true,
@@ -72,7 +72,7 @@ class PrefsPinStorageProvider(
         prefsController.setString("PinIv", ivBytes.encodeToBase64String())
     }
 
-    private fun decryptedAndLoad(): String {
+    private suspend fun decryptedAndLoad(): String {
 
         val encryptedBase64 = prefsController.getString(
             "PinEnc", ""

@@ -19,8 +19,8 @@ package eu.europa.ec.authenticationfeature.di
 import eu.europa.ec.authenticationlogic.usecase.SignUpWithEmailPasswordUseCase
 import eu.europa.ec.businesslogic.controller.device.DeviceController
 import eu.europa.ec.businesslogic.controller.log.LogController
-import eu.europa.ec.businesslogic.controller.storage.PrefKeys
-import eu.europa.ec.businesslogic.controller.storage.PrefsController
+import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
+import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
 import eu.europa.ec.notificationlogic.controller.PushNotificationController
 import eu.europa.ec.walletactivationlogic.usecase.CreateWalletAttestationUseCase
 import eu.europa.ec.walletactivationlogic.usecase.DeleteWalletActivationUseCase
@@ -54,8 +54,8 @@ fun provideAuthenticationViewModel(
     signOutUseCase: SignOutUseCase,
     observeAuthStateUseCase: ObserveAuthStateUseCase,
     getMyProfileUseCase: GetMyProfileUseCase,
-    prefsController: PrefsController,
-    prefKeys: PrefKeys,
+    prefsController: PrefsControllerV2,
+    prefKeys: PrefKeysV2,
     logController: LogController
 ): AuthenticationViewModel = AuthenticationViewModel(
     signInWithEmailPasswordUseCase,
@@ -77,8 +77,8 @@ fun provideWalletSetupViewModel(
     deviceController: DeviceController,
     biometricAuthenticationController: BiometricAuthenticationController,
     pushNotificationController: PushNotificationController,
-    prefKeys: PrefKeys,
-    prefsController: PrefsController,
+    prefKeys: PrefKeysV2,
+    prefsController: PrefsControllerV2,
     logController: LogController
 ): WalletSetupViewModel = WalletSetupViewModel(
     createWalletAttestationUseCase,

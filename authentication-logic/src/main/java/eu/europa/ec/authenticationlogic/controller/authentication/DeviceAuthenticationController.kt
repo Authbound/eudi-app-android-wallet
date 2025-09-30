@@ -21,6 +21,7 @@ import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
+import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import eu.europa.ec.authenticationlogic.model.BiometricCrypto
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
@@ -32,27 +33,40 @@ interface DeviceAuthenticationController {
         context: Context,
         biometryCrypto: BiometricCrypto,
         notifyOnAuthenticationFailure: Boolean,
-        result: DeviceAuthenticationResult
-    )
+        result: DeviceAuthenticationResult,
+
+        )
 
     fun launchBiometricSystemScreen()
+
+    suspend fun canAuthenticateNow(): Boolean
 }
 
 class DeviceAuthenticationControllerImpl(
     private val resourceProvider: ResourceProvider,
-    private val biometricAuthenticationController: BiometricAuthenticationController
+    private val biometricAuthenticationController: BiometricAuthenticationController,
+    private val localUnlockTracker: LocalUnlockTracker
 ) : DeviceAuthenticationController {
 
     override fun deviceSupportsBiometrics(listener: (BiometricsAvailability) -> Unit) {
         biometricAuthenticationController.deviceSupportsBiometrics(listener)
     }
 
+    override suspend fun canAuthenticateNow(): Boolean =
+        kotlinx.coroutines.suspendCancellableCoroutine { cont ->
+            deviceSupportsBiometrics { availability ->
+                val can = availability is BiometricsAvailability.CanAuthenticate
+                if (cont.isActive) cont.resume(can) { cause, _, _ -> }
+            }
+        }
+
     override fun authenticate(
         context: Context,
         biometryCrypto: BiometricCrypto,
         notifyOnAuthenticationFailure: Boolean,
-        result: DeviceAuthenticationResult
-    ) {
+        result: DeviceAuthenticationResult,
+
+        ) {
         (context as? FragmentActivity)?.let { activity ->
 
             activity.lifecycleScope.launch {
@@ -69,6 +83,7 @@ class DeviceAuthenticationControllerImpl(
                 )
 
                 if (data.authenticationResult != null) {
+                    localUnlockTracker.markUnlocked()
                     result.onAuthenticationSuccess()
                 } else if (data.hasError) {
                     result.onAuthenticationError()

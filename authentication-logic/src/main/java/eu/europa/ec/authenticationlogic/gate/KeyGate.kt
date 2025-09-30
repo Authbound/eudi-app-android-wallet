@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 European Commission
+ * Copyright (c) 2025 European Commission
  *
  * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
  * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
@@ -14,29 +14,6 @@
  * governing permissions and limitations under the Licence.
  */
 
-import project.convention.logic.config.LibraryModule
-import project.convention.logic.kover.KoverExclusionRules
-import project.convention.logic.kover.excludeFromKoverReport
+package eu.europa.ec.authenticationlogic.gate
 
-plugins {
-    id("project.android.library")
-    id("project.androidx.room")
-}
-
-android {
-    namespace = "eu.europa.ec.storagelogic"
-}
-
-moduleConfig {
-    module = LibraryModule.StorageLogic
-}
-
-dependencies {
-    implementation(project(LibraryModule.BusinessLogic.path))
-
-}
-
-excludeFromKoverReport(
-    excludedClasses = KoverExclusionRules.StorageLogic.classes,
-    excludedPackages = KoverExclusionRules.StorageLogic.packages,
-)
+interface KeyGate { suspend fun isKeyLocked(): Boolean }

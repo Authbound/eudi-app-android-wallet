@@ -26,8 +26,13 @@ import eu.europa.ec.authenticationlogic.controller.storage.BiometryStorageContro
 import eu.europa.ec.authenticationlogic.controller.storage.BiometryStorageControllerImpl
 import eu.europa.ec.authenticationlogic.controller.storage.PinStorageController
 import eu.europa.ec.authenticationlogic.controller.storage.PinStorageControllerImpl
-import eu.europa.ec.authenticationlogic.provider.BiometryStorageProvider
-import eu.europa.ec.authenticationlogic.provider.PinStorageProvider
+import eu.europa.ec.authenticationlogic.gate.KeyGate
+
+import eu.europa.ec.authenticationlogic.gate.KeyGateV2Impl
+import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
+import eu.europa.ec.authenticationlogic.policy.DefaultLocalAuthPolicy
+import eu.europa.ec.authenticationlogic.policy.LocalAuthPolicy
+
 import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
 import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepositoryImpl
 import eu.europa.ec.authenticationlogic.repository.ProfileRepository
@@ -35,50 +40,50 @@ import eu.europa.ec.authenticationlogic.repository.ProfileRepositoryImpl
 import eu.europa.ec.networklogic.api.ApiClient
 import eu.europa.ec.authenticationlogic.storage.PrefsBiometryStorageProvider
 import eu.europa.ec.authenticationlogic.storage.PrefsPinStorageProvider
-import eu.europa.ec.authenticationlogic.usecase.IsUserAuthenticatedUseCase
-import eu.europa.ec.authenticationlogic.usecase.IsUserAuthenticatedUseCaseImpl
-import eu.europa.ec.authenticationlogic.usecase.ObserveAuthStateUseCase
-import eu.europa.ec.authenticationlogic.usecase.ObserveAuthStateUseCaseImpl
-import eu.europa.ec.authenticationlogic.usecase.SignInWithEmailPasswordUseCase
-import eu.europa.ec.authenticationlogic.usecase.SignInWithEmailPasswordUseCaseImpl
-import eu.europa.ec.authenticationlogic.usecase.SignInWithOAuthUseCase
-import eu.europa.ec.authenticationlogic.usecase.SignInWithOAuthUseCaseImpl
-import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
-import eu.europa.ec.authenticationlogic.usecase.SignOutUseCaseImpl
-import eu.europa.ec.authenticationlogic.usecase.SignUpWithEmailPasswordUseCase
-import eu.europa.ec.authenticationlogic.usecase.SignUpWithEmailPasswordUseCaseImpl
-import eu.europa.ec.authenticationlogic.usecase.CompleteProfileUseCase
-import eu.europa.ec.authenticationlogic.usecase.CompleteProfileUseCaseImpl
-import eu.europa.ec.authenticationlogic.usecase.CheckHandleAvailabilityUseCase
-import eu.europa.ec.authenticationlogic.usecase.CheckHandleAvailabilityUseCaseImpl
-import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
-import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCaseImpl
+import eu.europa.ec.authenticationlogic.usecase.*
+import eu.europa.ec.authenticationlogic.usecase.SignOutUseCaseV2Impl
+import eu.europa.ec.authenticationlogic.usecase.IsProfileCompletedUseCaseV2Impl
+import eu.europa.ec.authenticationlogic.usecase.IsWalletActivatedUseCaseImpl
 import eu.europa.ec.businesslogic.controller.crypto.CryptoController
 import eu.europa.ec.businesslogic.controller.crypto.KeystoreController
 import eu.europa.ec.businesslogic.controller.log.LogController
-import eu.europa.ec.businesslogic.controller.storage.PrefKeys
-import eu.europa.ec.businesslogic.controller.storage.PrefsController
+import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
+import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
-import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
-import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCaseImpl
 import io.github.jan.supabase.SupabaseClient
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Module
 import org.koin.core.annotation.Single
 
+/**
+ * V2 DI Module with fixed dependency injection and race condition prevention.
+ *
+ * Key Fixes:
+ * 1. KeyGate and LocalUnlockTracker share same singleton instance
+ * 2. Uses PrefsControllerV2 for automatic user context
+ * 3. Proper scoping for all dependencies
+ */
 @Module
 @ComponentScan("eu.europa.ec.authenticationlogic")
 class LogicAuthenticationModule
 
+// ============================================================
+// Storage Configuration
+// ============================================================
+
 @Single
 fun provideStorageConfig(
-    prefsController: PrefsController,
+    prefsController: PrefsControllerV2,
     cryptoController: CryptoController
 ): StorageConfig = StorageConfigImpl(
     pinImpl = PrefsPinStorageProvider(prefsController, cryptoController),
     biometryImpl = PrefsBiometryStorageProvider(prefsController)
 )
+
+// ============================================================
+// Authentication Controllers
+// ============================================================
 
 @Factory
 fun provideBiometricAuthenticationController(
@@ -95,11 +100,13 @@ fun provideBiometricAuthenticationController(
 @Factory
 fun provideDeviceAuthenticationController(
     resourceProvider: ResourceProvider,
-    biometricAuthenticationController: BiometricAuthenticationController
+    biometricAuthenticationController: BiometricAuthenticationController,
+    localUnlockTracker: LocalUnlockTracker
 ): DeviceAuthenticationController =
     DeviceAuthenticationControllerImpl(
         resourceProvider,
-        biometricAuthenticationController
+        biometricAuthenticationController,
+        localUnlockTracker
     )
 
 @Factory
@@ -112,6 +119,10 @@ fun provideBiometryStorageController(
     storageConfig: StorageConfig
 ): BiometryStorageController = BiometryStorageControllerImpl(storageConfig)
 
+// ============================================================
+// Repositories
+// ============================================================
+
 @Factory
 fun provideSupabaseAuthRepository(
     supabaseClient: SupabaseClient
@@ -122,6 +133,10 @@ fun provideProfileRepository(
     apiClient: ApiClient,
     supabaseClient: SupabaseClient
 ): ProfileRepository = ProfileRepositoryImpl(apiClient, supabaseClient)
+
+// ============================================================
+// Use Cases
+// ============================================================
 
 @Factory
 fun provideIsUserAuthenticatedUseCase(
@@ -156,15 +171,17 @@ fun provideSignInWithOAuthUseCase(
 @Factory
 fun provideSignOutUseCase(
     supabaseAuthRepository: SupabaseAuthRepository,
-    prefsController: PrefsController,
+    prefsController: PrefsControllerV2,
     keystoreController: KeystoreController,
-    prefKeys: PrefKeys,
+    prefKeys: PrefKeysV2,
+    localUnlockTracker: LocalUnlockTracker,
     logController: LogController
-): SignOutUseCase = SignOutUseCaseImpl(
+): SignOutUseCase = SignOutUseCaseV2Impl(
     supabaseAuthRepository,
     prefsController,
     keystoreController,
     prefKeys,
+    localUnlockTracker,
     logController
 )
 
@@ -182,3 +199,50 @@ fun provideCheckHandleAvailabilityUseCase(
 fun provideGetMyProfileUseCase(
     profileRepository: ProfileRepository
 ): GetMyProfileUseCase = GetMyProfileUseCaseImpl(profileRepository)
+
+@Factory
+fun provideIsProfileCompletedUseCase(
+    prefKeys: PrefKeysV2,
+    profileRepository: ProfileRepository
+): IsProfileCompletedUseCase =
+    IsProfileCompletedUseCaseV2Impl(prefKeys, profileRepository)
+
+@Factory
+fun provideIsWalletActivatedUseCase(
+    prefKeys: PrefKeysV2,
+    keystoreController: KeystoreController,
+    logController: LogController
+): IsWalletActivatedUseCase =
+    IsWalletActivatedUseCaseImpl(prefKeys, keystoreController, logController)
+
+// ============================================================
+// Policy & Gate (Fixed DI Bug)
+// ============================================================
+
+@Factory
+fun provideLocalAuthenticationPolicy(
+    deviceAuth: DeviceAuthenticationController,
+    biometryStorage: BiometryStorageController,
+    pinStorage: PinStorageController,
+    keyGate: KeyGate
+): LocalAuthPolicy =
+    DefaultLocalAuthPolicy(deviceAuth, biometryStorage, pinStorage, keyGate)
+
+/**
+ * CRITICAL FIX: KeyGate and LocalUnlockTracker MUST be the same instance.
+ * 
+ * Before: Both were @Factory → different instances → inconsistent state
+ * After: Single @Single instance shared via delegation
+ */
+@Single
+fun provideKeyGateImpl(
+    prefs: PrefsControllerV2,
+    prefKeys: PrefKeysV2,
+    pinStorage: PinStorageController
+): KeyGateV2Impl = KeyGateV2Impl(prefs, prefKeys, pinStorage)
+
+@Factory
+fun provideKeyGate(impl: KeyGateV2Impl): KeyGate = impl
+
+@Factory
+fun provideLocalUnlockTracker(impl: KeyGateV2Impl): LocalUnlockTracker = impl

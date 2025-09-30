@@ -20,8 +20,9 @@ import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import eu.europa.ec.businesslogic.controller.log.LogController
-import eu.europa.ec.businesslogic.controller.storage.PrefKeys
+import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
 import eu.europa.ec.businesslogic.provider.UuidProvider
+import kotlinx.coroutines.runBlocking
 import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.security.cert.Certificate
@@ -36,7 +37,7 @@ interface KeystoreController {
 }
 
 class KeystoreControllerImpl(
-    private val prefKeys: PrefKeys,
+    private val prefKeys: PrefKeysV2,
     private val logController: LogController,
     private val uuidProvider: UuidProvider
 ) : KeystoreController {
@@ -80,11 +81,11 @@ class KeystoreControllerImpl(
      */
     override fun retrieveOrGenerateSecretKey(userAuthenticationRequired: Boolean): SecretKey? {
         return androidKeyStore?.let {
-            val alias = prefKeys.getCryptoAlias()
+            val alias = runBlocking { prefKeys.getCryptoAlias() }
             if (alias.isEmpty()) {
                 val newAlias = createPublicKey()
                 generateSecretKey(newAlias, userAuthenticationRequired)
-                prefKeys.setCryptoAlias(newAlias)
+                runBlocking { prefKeys.setCryptoAlias(newAlias) }
                 getSecretKey(it, newAlias)
             } else {
                 getSecretKey(it, alias)

@@ -16,15 +16,14 @@
 
 package eu.europa.ec.startupfeature.di
 
-import eu.europa.ec.authenticationlogic.usecase.IsUserAuthenticatedUseCase
-import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
+import eu.europa.ec.authenticationlogic.policy.LocalAuthPolicy
+import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
+import eu.europa.ec.authenticationlogic.usecase.IsWalletActivatedUseCase
 import eu.europa.ec.businesslogic.controller.log.LogController
-import eu.europa.ec.businesslogic.controller.storage.PrefKeys
-import eu.europa.ec.commonfeature.interactor.QuickPinInteractor
-import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
+import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
-import eu.europa.ec.startupfeature.interactor.SplashInteractor
-import eu.europa.ec.startupfeature.interactor.SplashInteractorImpl
+import eu.europa.ec.startupfeature.interactor.SplashInteractorV2
+import eu.europa.ec.startupfeature.interactor.SplashInteractorV2Impl
 import eu.europa.ec.uilogic.serializer.UiSerializer
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Factory
@@ -36,21 +35,19 @@ class FeatureStartupModule
 
 @Factory
 fun provideSplashInteractor(
-    quickPinInteractor: QuickPinInteractor,
+    supabaseAuthRepository: SupabaseAuthRepository,
     uiSerializer: UiSerializer,
     resourceProvider: ResourceProvider,
-    walletCoreDocumentsController: WalletCoreDocumentsController,
-    isUserAuthenticatedUseCase: IsUserAuthenticatedUseCase,
-    signOutUseCase: SignOutUseCase,
-    prefKeys: PrefKeys,
-    logController: LogController
-): SplashInteractor = SplashInteractorImpl(
-    quickPinInteractor,
+    prefKeys: PrefKeysV2,
+    logController: LogController,
+    localAuthPolicy: LocalAuthPolicy,
+    isWalletActivatedUseCase: IsWalletActivatedUseCase
+): SplashInteractorV2 = SplashInteractorV2Impl(
+    supabaseAuthRepository,
     uiSerializer,
     resourceProvider,
-    walletCoreDocumentsController,
-    isUserAuthenticatedUseCase,
-    signOutUseCase,
     prefKeys,
-    logController
+    logController,
+    localAuthPolicy,
+    isWalletActivatedUseCase
 )

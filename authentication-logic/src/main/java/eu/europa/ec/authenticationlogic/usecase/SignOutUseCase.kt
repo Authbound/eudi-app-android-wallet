@@ -15,6 +15,7 @@
  */
 package eu.europa.ec.authenticationlogic.usecase
 
+import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
 import eu.europa.ec.businesslogic.controller.crypto.KeystoreController
 import eu.europa.ec.businesslogic.controller.log.LogController
@@ -39,6 +40,7 @@ class SignOutUseCaseImpl(
     private val prefsController: PrefsController,
     private val keystoreController: KeystoreController,
     private val prefKeys: PrefKeys,
+    localUnlockTracker: LocalUnlockTracker,
     private val logController: LogController
 ) : SignOutUseCase {
 

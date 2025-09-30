@@ -17,7 +17,7 @@
 package eu.europa.ec.startupfeature.ui.splash
 
 import androidx.lifecycle.viewModelScope
-import eu.europa.ec.startupfeature.interactor.SplashInteractor
+import eu.europa.ec.startupfeature.interactor.SplashInteractorV2
 import eu.europa.ec.uilogic.mvi.MviViewModel
 import eu.europa.ec.uilogic.mvi.ViewEvent
 import eu.europa.ec.uilogic.mvi.ViewSideEffect
@@ -45,23 +45,28 @@ sealed class Effect : ViewSideEffect {
 
 @KoinViewModel
 class SplashViewModel(
-    private val interactor: SplashInteractor,
+    private val interactor: SplashInteractorV2,
 ) : MviViewModel<Event, State, Effect>() {
+    private var hasNavigated = false
+
     override fun setInitialState(): State = State()
 
     override fun handleEvents(event: Event) {
-        when (event) {
-            Event.Initialize -> enterApplication()
-        }
+        if (event is Event.Initialize) enterApplication()
+
+    }
+
+    private fun navigateOnce(effect: Effect.Navigation) {
+        if (hasNavigated) return
+        hasNavigated = true
+        setEffect { effect }
     }
 
     private fun enterApplication() {
         viewModelScope.launch {
             delay((viewState.value.logoAnimationDuration + 500).toLong())
             val screenRoute = interactor.getAfterSplashRoute()
-            setEffect {
-                Effect.Navigation.SwitchScreen(screenRoute)
-            }
+            navigateOnce((Effect.Navigation.SwitchScreen(screenRoute)))
         }
     }
 }

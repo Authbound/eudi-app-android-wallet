@@ -59,7 +59,7 @@ class PrefsControllerImpl(
     private var currentUserId: String? = null
 
     companion object {
-        private const val USER_PREFS_PREFIX = "eudi-wallet-user-"
+        private const val USER_PREFS_PREFIX = "authbound-wallet-user-"
     }
 
     override fun setCurrentUser(userId: String?) {
@@ -185,6 +185,9 @@ interface PrefKeys {
     // Safe methods that don't throw when no user context is set
     fun isWalletActivatedSafe(): Boolean
     fun getBiometricAliasSafe(): String
+
+    fun getIsProfileCompletedSafe(): Boolean
+    fun setProfileCompleted(value: Boolean)
 }
 
 class PrefKeysImpl(
@@ -240,4 +243,12 @@ class PrefKeysImpl(
     override fun isWalletActivatedSafe(): Boolean = prefsController.safeBool("is_wallet_activated", false)
 
     override fun getBiometricAliasSafe(): String = prefsController.safeString("BiometricAlias", "")
+
+    override fun getIsProfileCompletedSafe(): Boolean {
+        return prefsController.safeBool("profile_completed", false)
+    }
+
+    override fun setProfileCompleted(value: Boolean) {
+        prefsController.setBool("profile_completed", value)
+    }
 }
