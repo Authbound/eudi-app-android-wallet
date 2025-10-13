@@ -15,7 +15,8 @@
  */
 
 package eu.europa.ec.dashboardfeature.ui.settings
-
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
 import android.content.Context
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -33,8 +34,19 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -63,12 +75,16 @@ import eu.europa.ec.uilogic.component.wrap.ButtonType
 import eu.europa.ec.uilogic.component.wrap.SwitchDataUi
 import eu.europa.ec.uilogic.component.wrap.WrapButton
 import eu.europa.ec.uilogic.component.wrap.WrapListItem
+import eu.europa.ec.uilogic.component.wrap.WrapCard
 import eu.europa.ec.uilogic.extension.openIntentChooser
 import eu.europa.ec.uilogic.extension.openUrl
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.onEach
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import eu.europa.ec.authenticationlogic.model.Profile
 
 @Composable
 fun SettingsScreen(
@@ -138,21 +154,20 @@ private fun Content(
                 title = state.screenTitle,
             )
 
-            state.userEmail?.let { email ->
-                VSpacer.Medium()
-                Text(
-                    modifier = Modifier.fillMaxWidth(),
-                    text = email,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center
-                )
-                VSpacer.Medium()
-            }
+            VSpacer.Large()
 
-            SettingsItems(
+            ProfileHeader(email = state.userEmail, profile = state.authInfo.profile)
+
+            VSpacer.Large()
+
+            AuthInfoSection(authInfo = state.authInfo)
+
+            VSpacer.Large()
+
+            SettingsItemsSection(
                 modifier = Modifier
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .padding(horizontal = SPACING_MEDIUM.dp),
                 items = state.settingsItems,
                 onEventSent = onEventSend,
             )
@@ -227,14 +242,126 @@ private fun Content(
 }
 
 @Composable
-private fun SettingsItems(
+private fun ProfileHeader(email: String?, profile: Profile?) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = SPACING_LARGE.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
+    ) {
+        Surface(
+            modifier = Modifier
+                .size(64.dp)
+                .clip(CircleShape),
+            color = MaterialTheme.colorScheme.secondaryContainer
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Filled.Person,
+                    contentDescription = "Profile picture",
+                    modifier = Modifier.size(40.dp),
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+        }
+        Column {
+            Text(
+                text = profile?.displayName?.takeIf { it.isNotBlank() } ?: "User Profile",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = profile?.handle?.let { "@$it" } ?: email ?: "Email not available",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun AuthInfoSection(authInfo: AuthInfoUi) {
+    WrapCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = SPACING_MEDIUM.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(SPACING_LARGE.dp)
+        ) {
+            Text(
+                text = "Authentication Details",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            VSpacer.Medium()
+
+            val status = if (authInfo.isAuthenticated) "Authenticated" else "Not Authenticated"
+            Text(
+                text = "Status: $status",
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (authInfo.isAuthenticated) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+            )
+
+            authInfo.userInfo?.let { user ->
+                VSpacer.Medium()
+                InfoRow(label = "User ID", value = user.id)
+                VSpacer.Small()
+                InfoRow(label = "Phone", value = user.phone.takeIf { !it.isNullOrBlank() } ?: "N/A")
+                VSpacer.Small()
+                user.createdAt?.let {
+                    InfoRow(
+                        label = "Member since",
+                        value = it.toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
+                    )
+                }
+                VSpacer.Small()
+                user.lastSignInAt?.let {
+                    InfoRow(
+                        label = "Last sign-in",
+                        value = it.toLocalDateTime(TimeZone.currentSystemDefault()).toString().replace("T", " ")
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InfoRow(label: String, value: String) {
+    Row {
+        Text(
+            text = "$label: ",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    }
+}
+
+@Composable
+private fun SettingsItemsSection(
     modifier: Modifier = Modifier,
     items: List<SettingsItemUi>,
     onEventSent: (Event) -> Unit,
 ) {
-    Column(
-        modifier = modifier
-    ) {
+    WrapCard(modifier = modifier) {
+        SettingsItems(items = items, onEventSent = onEventSent)
+    }
+}
+
+@Composable
+private fun SettingsItems(
+    items: List<SettingsItemUi>,
+    onEventSent: (Event) -> Unit,
+) {
+    Column {
         items.forEachIndexed { index, settingsItemUi ->
             WrapListItem(
                 modifier = Modifier.fillMaxWidth(),
@@ -249,12 +376,11 @@ private fun SettingsItems(
                 mainContentVerticalPadding = SPACING_MEDIUM.dp,
             )
 
-
             if (index != items.lastIndex) {
                 HorizontalDivider(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = SPACING_SMALL.dp)
+                        .padding(horizontal = SPACING_MEDIUM.dp)
                 )
             }
         }

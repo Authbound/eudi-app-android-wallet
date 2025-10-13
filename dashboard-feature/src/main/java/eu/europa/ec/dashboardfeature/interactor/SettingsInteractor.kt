@@ -33,8 +33,12 @@ import eu.europa.ec.uilogic.component.wrap.SwitchDataUi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
+import eu.europa.ec.authenticationlogic.usecase.IsUserAuthenticatedUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.businesslogic.controller.storage.PrefKeys
+import io.github.jan.supabase.auth.user.UserInfo
+import eu.europa.ec.authenticationlogic.model.Profile
+import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
 
 interface SettingsInteractor {
     fun getAppVersion(): String
@@ -45,6 +49,9 @@ interface SettingsInteractor {
     fun toggleShowBatchIssuanceCounter()
     fun getUserEmail(): Flow<String?>
     suspend fun logout()
+    suspend fun isUserAuthenticated(): Boolean
+    suspend fun getCurrentUser(): UserInfo?
+    suspend fun getMyProfile(): Result<Profile>
 }
 
 class SettingsInteractorImpl(
@@ -53,7 +60,9 @@ class SettingsInteractorImpl(
     private val resourceProvider: ResourceProvider,
     private val prefKeys: PrefKeys,
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
-    private val signOutUseCase: SignOutUseCase
+    private val signOutUseCase: SignOutUseCase,
+    private val isUserAuthenticatedUseCase: IsUserAuthenticatedUseCase,
+    private val getMyProfileUseCase: GetMyProfileUseCase,
 ) : SettingsInteractor {
 
     override fun getAppVersion(): String = configLogic.appVersion
@@ -148,5 +157,17 @@ class SettingsInteractorImpl(
 
     override suspend fun logout() {
         signOutUseCase()
+    }
+
+    override suspend fun isUserAuthenticated(): Boolean {
+        return isUserAuthenticatedUseCase()
+    }
+
+    override suspend fun getCurrentUser(): UserInfo? {
+        return getCurrentUserUseCase()
+    }
+
+    override suspend fun getMyProfile(): Result<Profile> {
+        return getMyProfileUseCase()
     }
 }

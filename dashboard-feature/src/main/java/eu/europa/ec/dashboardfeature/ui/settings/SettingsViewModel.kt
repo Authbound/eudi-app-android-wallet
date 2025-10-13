@@ -34,17 +34,24 @@ import eu.europa.ec.uilogic.navigation.DashboardScreens
 import eu.europa.ec.uilogic.navigation.StartupScreens
 import org.koin.android.annotation.KoinViewModel
 import kotlinx.coroutines.launch
+import io.github.jan.supabase.auth.user.UserInfo
+import eu.europa.ec.authenticationlogic.model.Profile
+
+data class AuthInfoUi(
+    val isAuthenticated: Boolean = false,
+    val userInfo: UserInfo? = null,
+    val profile: Profile? = null,
+)
 
 data class State(
     val screenTitle: String,
-
     val settingsItems: List<SettingsItemUi> = emptyList(),
-
     val appVersion: String = "",
     val changelogUrl: String?,
     val userEmail: String? = null,
     val showDeleteWalletConfirmation: Boolean = false,
-    val isDeleting: Boolean = false
+    val isDeleting: Boolean = false,
+    val authInfo: AuthInfoUi = AuthInfoUi(),
 ) : ViewState
 
 sealed class Event : ViewEvent {
@@ -77,16 +84,44 @@ class SettingsViewModel(
     private val deleteWalletActivationUseCase: DeleteWalletActivationUseCase,
     private val resourceProvider: ResourceProvider,
 ) : MviViewModel<Event, State, Effect>() {
-    override fun setInitialState(): State {
-        val changelogUrl = settingsInteractor.getChangelogUrl()
-        loadUserSettings()
-        return State(
-            screenTitle = resourceProvider.getString(R.string.settings_screen_title),
-            settingsItems = settingsInteractor.getSettingsItemsUi(changelogUrl = changelogUrl),
 
-            appVersion = settingsInteractor.getAppVersion(),
-            changelogUrl = changelogUrl,
-        )
+    init {
+        loadInitialState()
+    }
+
+    override fun setInitialState(): State = State(
+        screenTitle = resourceProvider.getString(R.string.settings_screen_title),
+        changelogUrl = null
+    )
+
+    private fun loadInitialState() {
+        viewModelScope.launch {
+            try {
+                val changelogUrl = settingsInteractor.getChangelogUrl()
+                val isAuthenticated = settingsInteractor.isUserAuthenticated()
+                val user = settingsInteractor.getCurrentUser()
+                val profile = settingsInteractor.getMyProfile().getOrNull()
+                val settingsItems = settingsInteractor.getSettingsItemsUi(changelogUrl)
+                val appVersion = settingsInteractor.getAppVersion()
+
+                setState {
+                    copy(
+                        changelogUrl = changelogUrl,
+                        settingsItems = settingsItems,
+                        appVersion = appVersion,
+                        userEmail = user?.email,
+                        authInfo = AuthInfoUi(
+                            isAuthenticated = isAuthenticated,
+                            userInfo = user,
+                            profile = profile
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                // Handle error, e.g., show an error message
+                e.printStackTrace()
+            }
+        }
     }
 
     override fun handleEvents(event: Event) {
@@ -105,6 +140,26 @@ class SettingsViewModel(
         viewModelScope.launch {
             settingsInteractor.getUserEmail().collect { email ->
                 setState { copy(userEmail = email) }
+            }
+        }
+    }
+
+    private fun loadAuthInfo() {
+        viewModelScope.launch {
+            try {
+                val isAuthenticated = settingsInteractor.isUserAuthenticated()
+                val user = settingsInteractor.getCurrentUser()
+                setState {
+                    copy(
+                        authInfo = AuthInfoUi(
+                            isAuthenticated = isAuthenticated,
+                            userInfo = user,
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                // Log error or handle it, for now we just prevent a crash
+                e.printStackTrace()
             }
         }
     }
