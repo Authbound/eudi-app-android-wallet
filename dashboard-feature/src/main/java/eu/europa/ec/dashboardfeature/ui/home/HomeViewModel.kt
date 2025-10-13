@@ -393,7 +393,7 @@ class HomeViewModel(
             }
 
             is Event.ViewAllCredentialsPressed -> {
-//                navigateToDocumentsTab()
+                navigateToDocumentsTab()
             }
 
             is Event.AddCredentialPressed -> {
@@ -452,12 +452,21 @@ class HomeViewModel(
     private fun navigateToDocumentDetails(docId: DocumentId) {
         setEffect {
             Effect.Navigation.SwitchScreen(
-                screenRoute = DashboardScreens.DocumentSign.screenRoute
+                screenRoute = generateComposableNavigationLink(
+                    screen = DashboardScreens.DocumentDetails,
+                    arguments = generateComposableArguments(
+                        mapOf("documentId" to docId)
+                    )
+                )
             )
+
         }
     }
 
+    private fun navigateToDocumentsTab() {
+        setEffect { Effect.Navigation.SwitchTab(BottomNavigationItem.Documents.route) }
 
+    }
 
     private fun startProximityFlow() {
         setState { copy(bleAvailability = BleAvailability.AVAILABLE) }

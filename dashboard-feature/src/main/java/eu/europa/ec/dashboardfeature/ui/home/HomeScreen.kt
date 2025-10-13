@@ -354,28 +354,20 @@ private fun handleNavigationEffect(
             }
 
             is Effect.Navigation.SwitchTab -> {
-                // Ensure the route exists in the bottom navigation graph before navigating
-                bottomController.graph.findNode(navigationEffect.tabRoute)?.let {
-                    bottomController.navigate(navigationEffect.tabRoute) {
-                        popUpTo(bottomController.graph.findStartDestination().id) {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                } ?: run {
-                    // Log error for debugging and fallback to switching screens
-                    android.util.Log.e("HomeScreen", "Route '${navigationEffect.tabRoute}' not found in bottom navigation graph")
-                    // Fallback: navigate to the tab using the main nav controller
-                    // This ensures we don't crash even if there's a configuration issue
-                    navController.navigate(navigationEffect.tabRoute) {
-                        popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
+                val target = navigationEffect.tabRoute
+                if (bottomController.graph.findNode(target) == null) {
+                    android.util.Log.e("HomeScreen", "Route '${target}' not found in bottom navigation graph")
+                    return
                 }
+
+                bottomController.navigate(target) {
+                    popUpTo(bottomController.graph.findStartDestination().id){
+                        saveState = true
+                    }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+
             }
 
             is Effect.Navigation.OnAppSettings -> context.openAppSettings()
