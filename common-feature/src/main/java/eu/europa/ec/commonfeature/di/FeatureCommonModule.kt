@@ -71,6 +71,7 @@ fun provideBiometricInteractor(
     localUnlockTracker: LocalUnlockTracker,
     coroutineScope: CoroutineScope
 ): BiometricInteractor {
+
     return BiometricInteractorImpl(
         biometryStorageController,
         biometricAuthenticationController,

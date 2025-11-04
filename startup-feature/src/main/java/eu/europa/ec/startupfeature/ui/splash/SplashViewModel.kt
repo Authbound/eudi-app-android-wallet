@@ -17,17 +17,17 @@
 package eu.europa.ec.startupfeature.ui.splash
 
 import androidx.lifecycle.viewModelScope
-import eu.europa.ec.startupfeature.interactor.SplashInteractorV2
+import eu.europa.ec.startupfeature.interactor.SplashInteractor
 import eu.europa.ec.uilogic.mvi.MviViewModel
 import eu.europa.ec.uilogic.mvi.ViewEvent
 import eu.europa.ec.uilogic.mvi.ViewSideEffect
 import eu.europa.ec.uilogic.mvi.ViewState
 import eu.europa.ec.uilogic.navigation.ModuleRoute
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.android.annotation.KoinViewModel
 
 data class State(
+    val isLoading: Boolean = true,
     val logoAnimationDuration: Int = 1500
 ) : ViewState
 
@@ -45,28 +45,29 @@ sealed class Effect : ViewSideEffect {
 
 @KoinViewModel
 class SplashViewModel(
-    private val interactor: SplashInteractorV2,
+    private val interactor: SplashInteractor,
 ) : MviViewModel<Event, State, Effect>() {
-    private var hasNavigated = false
+
 
     override fun setInitialState(): State = State()
 
     override fun handleEvents(event: Event) {
-        if (event is Event.Initialize) enterApplication()
+        if (event is Event.Initialize) {
+            if (viewState.value.isLoading) {
+                determineInitialRoute()
+            }
+        }
 
     }
 
-    private fun navigateOnce(effect: Effect.Navigation) {
-        if (hasNavigated) return
-        hasNavigated = true
-        setEffect { effect }
-    }
 
-    private fun enterApplication() {
+    private fun determineInitialRoute() {
         viewModelScope.launch {
-            delay((viewState.value.logoAnimationDuration + 500).toLong())
             val screenRoute = interactor.getAfterSplashRoute()
-            navigateOnce((Effect.Navigation.SwitchScreen(screenRoute)))
+
+            setState { copy(isLoading = false) }
+            setEffect { Effect.Navigation.SwitchScreen(screenRoute) }
         }
     }
+
 }

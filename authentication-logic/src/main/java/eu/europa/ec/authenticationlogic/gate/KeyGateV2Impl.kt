@@ -26,7 +26,7 @@ private const val PREF_LAST_UNLOCK_AT = "authbound.last_local_unlock_at_ms"
 
 /**
  * V2 implementation with automatic user context handling.
- * 
+ *
  * Works with PrefsControllerV2 which automatically derives user context
  * from Supabase session. No more race conditions or manual context management.
  */
@@ -37,19 +37,34 @@ class KeyGateV2Impl(
 ) : KeyGate, LocalUnlockTracker {
 
     override suspend fun isKeyLocked(): Boolean = withContext(Dispatchers.IO) {
-        // Use safe accessors that don't throw when no session exists
+        // CRITICAL: Check wallet activation first (must be activated for unlock to make sense)
         val walletActivated = safe { prefKeys.isWalletActivatedSafe() } ?: false
-        if (!walletActivated) return@withContext true
+        if (!walletActivated) {
+            // Wallet not activated - key is considered locked
+            return@withContext true
+        }
 
-        val hasPin = safe { pinStorage.isPinCreated() } ?: false
-        if (!hasPin) return@withContext true
+        // CRITICAL: Check if PIN exists (must exist for unlock to make sense)
+        val hasPin = safe { pinStorage.retrievePin().isNotBlank() } ?: false
+        if (!hasPin) {
+            // PIN not set - key is considered locked until PIN is created
+            return@withContext true
+        }
 
-        // Use safe accessor for timestamp
+        // Both wallet and PIN exist - check unlock timestamp
+        // Use safe accessor for timestamp (won't throw, returns default if unavailable)
         val last = prefs.safeLong(PREF_LAST_UNLOCK_AT, 0L)
-        if (last == 0L) return@withContext true
+        if (last == 0L) {
+            // Never unlocked before - key is locked
+            return@withContext true
+        }
 
+        // Check if unlock TTL has expired
         val ttl = LocalUnlockTracker.DEFAULT_TTL_MS
-        (System.currentTimeMillis() - last) > ttl
+        val timeSinceUnlock = System.currentTimeMillis() - last
+        val isLocked = timeSinceUnlock > ttl
+
+        return@withContext isLocked
     }
 
     override suspend fun markUnlocked(ttlMillis: Long): Unit = withContext(Dispatchers.IO) {

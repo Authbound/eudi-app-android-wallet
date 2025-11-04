@@ -21,9 +21,6 @@ interface LocalAuthPolicy {
     /** Whether the wallet requires a local unlock right now (TTL expired / key locked). */
     suspend fun needsLocalUnlock(): Boolean
 
-    /** Whether user has set a PIN (should be true after activation). */
-    suspend fun isPinSet(): Boolean
-
     /** Whether user opted into biometrics. */
     suspend fun isBiometricsEnabledByUser(): Boolean
 

@@ -17,26 +17,21 @@
 package eu.europa.ec.authenticationlogic.policy
 
 
-
 import eu.europa.ec.authenticationlogic.controller.authentication.DeviceAuthenticationController
 import eu.europa.ec.authenticationlogic.controller.storage.BiometryStorageController
-import eu.europa.ec.authenticationlogic.controller.storage.PinStorageController
+
 import eu.europa.ec.authenticationlogic.gate.KeyGate
+
 
 
 class DefaultLocalAuthPolicy(
     private val deviceAuth: DeviceAuthenticationController,
     private val biometryStorage: BiometryStorageController,
-    private val pinStorage: PinStorageController,
     private val keyGate: KeyGate
 ) : LocalAuthPolicy {
 
     override suspend fun needsLocalUnlock(): Boolean {
         return keyGate.isKeyLocked()
-    }
-
-    override suspend fun isPinSet(): Boolean {
-        return pinStorage.isPinCreated()
     }
 
     override suspend fun isBiometricsEnabledByUser(): Boolean {

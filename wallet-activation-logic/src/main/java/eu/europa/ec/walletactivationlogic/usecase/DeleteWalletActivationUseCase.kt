@@ -15,6 +15,7 @@
  */
 package eu.europa.ec.walletactivationlogic.usecase
 
+import eu.europa.ec.authenticationlogic.usecase.SignOutMode
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeys
@@ -30,37 +31,43 @@ class DeleteWalletActivationUseCaseImpl(
     private val signOutUseCase: SignOutUseCase,
     private val logController: LogController
 ) : DeleteWalletActivationUseCase {
-    
+
     override suspend fun invoke(): Result<Unit> {
         return try {
             logController.d("DeleteWalletActivation", "Starting wallet activation deletion...")
-            
+
             // Delete from backend
             val deleteResult = walletActivationRepository.deleteWalletActivation()
-            
+
             if (deleteResult.isSuccess) {
                 // Clear local wallet activation flag
                 try {
                     prefKeys.setWalletActivated(false)
-                    logController.d("DeleteWalletActivation", "Local wallet activation flag cleared")
+                    logController.d(
+                        "DeleteWalletActivation",
+                        "Local wallet activation flag cleared"
+                    )
                 } catch (e: SecurityException) {
-                    logController.w("DeleteWalletActivation") { 
-                        "Failed to clear local wallet activation flag due to security error: ${e.message}" 
+                    logController.w("DeleteWalletActivation") {
+                        "Failed to clear local wallet activation flag due to security error: ${e.message}"
                     }
                     // Continue - backend deletion succeeded even if local flag couldn't be cleared
                 }
-                
+
                 // Sign out user after successful wallet deletion
                 try {
-                    signOutUseCase()
-                    logController.d("DeleteWalletActivation", "User signed out after wallet deletion")
+                    signOutUseCase(SignOutMode.Hard)
+                    logController.d(
+                        "DeleteWalletActivation",
+                        "User signed out after wallet deletion"
+                    )
                 } catch (e: Exception) {
-                    logController.w("DeleteWalletActivation") { 
-                        "Failed to sign out user after wallet deletion: ${e.message}" 
+                    logController.w("DeleteWalletActivation") {
+                        "Failed to sign out user after wallet deletion: ${e.message}"
                     }
                     // Continue - wallet deletion succeeded even if sign out failed
                 }
-                
+
                 logController.d("DeleteWalletActivation", "Wallet activation deleted successfully")
                 Result.success(Unit)
             } else {

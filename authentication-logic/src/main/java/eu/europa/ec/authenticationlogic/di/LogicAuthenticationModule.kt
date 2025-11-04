@@ -41,7 +41,7 @@ import eu.europa.ec.networklogic.api.ApiClient
 import eu.europa.ec.authenticationlogic.storage.PrefsBiometryStorageProvider
 import eu.europa.ec.authenticationlogic.storage.PrefsPinStorageProvider
 import eu.europa.ec.authenticationlogic.usecase.*
-import eu.europa.ec.authenticationlogic.usecase.SignOutUseCaseV2Impl
+import eu.europa.ec.authenticationlogic.usecase.SignOutUseCaseImpl
 import eu.europa.ec.authenticationlogic.usecase.IsProfileCompletedUseCaseV2Impl
 import eu.europa.ec.authenticationlogic.usecase.IsWalletActivatedUseCaseImpl
 import eu.europa.ec.businesslogic.controller.crypto.CryptoController
@@ -176,7 +176,7 @@ fun provideSignOutUseCase(
     prefKeys: PrefKeysV2,
     localUnlockTracker: LocalUnlockTracker,
     logController: LogController
-): SignOutUseCase = SignOutUseCaseV2Impl(
+): SignOutUseCase = SignOutUseCaseImpl(
     supabaseAuthRepository,
     prefsController,
     keystoreController,
@@ -223,17 +223,11 @@ fun provideIsWalletActivatedUseCase(
 fun provideLocalAuthenticationPolicy(
     deviceAuth: DeviceAuthenticationController,
     biometryStorage: BiometryStorageController,
-    pinStorage: PinStorageController,
     keyGate: KeyGate
 ): LocalAuthPolicy =
-    DefaultLocalAuthPolicy(deviceAuth, biometryStorage, pinStorage, keyGate)
+    DefaultLocalAuthPolicy(deviceAuth, biometryStorage, keyGate)
 
-/**
- * CRITICAL FIX: KeyGate and LocalUnlockTracker MUST be the same instance.
- * 
- * Before: Both were @Factory → different instances → inconsistent state
- * After: Single @Single instance shared via delegation
- */
+
 @Single
 fun provideKeyGateImpl(
     prefs: PrefsControllerV2,

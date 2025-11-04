@@ -22,7 +22,7 @@ interface PinStorageController {
     suspend fun retrievePin(): String
     suspend fun setPin(pin: String)
     suspend fun isPinValid(pin: String): Boolean
-    suspend fun isPinCreated() : Boolean
+
 }
 
 class PinStorageControllerImpl(private val storageConfig: StorageConfig) : PinStorageController {
@@ -32,10 +32,6 @@ class PinStorageControllerImpl(private val storageConfig: StorageConfig) : PinSt
         storageConfig.pinStorageProvider.setPin(pin)
     }
 
-    override suspend fun isPinValid(pin: String): Boolean = storageConfig.pinStorageProvider.isPinValid(pin)
-
-    override suspend fun isPinCreated(): Boolean {
-        return storageConfig.pinStorageProvider.retrievePin().isNotEmpty()
-    }
-
+    override suspend fun isPinValid(pin: String): Boolean =
+        storageConfig.pinStorageProvider.isPinValid(pin)
 }

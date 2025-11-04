@@ -55,16 +55,16 @@ fun SplashScreen(
     Content(
         state = state,
         effectFlow = viewModel.effect,
-        onNavigationRequested = {
-            when (it) {
+        onNavigationRequested = { effect ->
+            when (effect) {
                 is Effect.Navigation.SwitchModule -> {
-                    navController.navigate(it.moduleRoute.route) {
+                    navController.navigate(effect.moduleRoute.route) {
                         popUpTo(ModuleRoute.StartupModule.route) { inclusive = true }
                     }
                 }
 
                 is Effect.Navigation.SwitchScreen -> {
-                    navController.navigate(it.route) {
+                    navController.navigate(effect.route) {
                         popUpTo(StartupScreens.Splash.screenRoute) { inclusive = true }
                     }
                 }
@@ -88,7 +88,7 @@ private fun Content(
             targetState = true
         }
     }
-    
+
     Scaffold { paddingValues ->
         Box(
             Modifier

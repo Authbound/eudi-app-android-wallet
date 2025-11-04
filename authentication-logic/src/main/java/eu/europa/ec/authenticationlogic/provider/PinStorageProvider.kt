@@ -20,4 +20,5 @@ interface PinStorageProvider {
     suspend fun retrievePin(): String
     suspend fun setPin(pin: String)
     suspend fun isPinValid(pin: String): Boolean
+
 }

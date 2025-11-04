@@ -29,6 +29,7 @@ import eu.europa.ec.authenticationfeature.model.WalletActivationError
 import eu.europa.ec.authenticationfeature.model.toWalletActivationError
 import eu.europa.ec.authenticationfeature.model.getUserFriendlyMessage
 import eu.europa.ec.authenticationfeature.model.isRetryable
+import eu.europa.ec.authenticationlogic.usecase.SignOutMode
 import eu.europa.ec.uilogic.mvi.MviViewModel
 import eu.europa.ec.uilogic.mvi.ViewEvent
 import eu.europa.ec.uilogic.mvi.ViewSideEffect
@@ -330,7 +331,7 @@ class ProfileCompletionViewModel(
                 logController.d("ProfileCompletionViewModel", "Signing out user...")
                 setState { copy(isLoading = true) }
                 
-                signOutUseCase()
+                signOutUseCase(SignOutMode.Soft)
                 logController.d("ProfileCompletionViewModel", "User signed out successfully, navigating to login.")
                 setEffect { ProfileCompletionEffect.NavigateToLogin }
             } catch (e: Exception) {

@@ -54,6 +54,7 @@ class PrefsPinStorageProvider(
      */
     override suspend fun isPinValid(pin: String): Boolean = retrievePin() == pin
 
+
     private suspend fun encryptAndStore(pin: String) {
 
         val cipher = cryptoController.getCipher(
@@ -78,9 +79,14 @@ class PrefsPinStorageProvider(
             "PinEnc", ""
         ).ifEmpty { return "" }
 
+
+        println("encryptedBase64: $encryptedBase64")
+
         val ivBase64 = prefsController.getString(
             "PinIv", ""
         ).ifEmpty { return "" }
+
+        println("ivBase64: $ivBase64")
 
         val cipher = cryptoController.getCipher(
             encrypt = false,
