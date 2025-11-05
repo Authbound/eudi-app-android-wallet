@@ -23,16 +23,11 @@ import eu.europa.ec.eudi.wallet.issue.openid4vci.OpenId4VciManager
 import eu.europa.ec.eudi.wallet.transfer.openId4vp.ClientIdScheme
 import eu.europa.ec.eudi.wallet.transfer.openId4vp.Format
 import eu.europa.ec.resourceslogic.R
+import kotlin.time.Duration.Companion.seconds
 
 internal class WalletCoreConfigImpl(
     private val context: Context
 ) : WalletCoreConfig {
-
-    private companion object {
-        const val VCI_ISSUER_URL = "https://issuer.eudiw.dev"
-        const val VCI_CLIENT_ID = "wallet-dev"
-        const val AUTHENTICATION_REQUIRED = false
-    }
 
     private var _config: EudiWalletConfig? = null
 
@@ -41,8 +36,8 @@ internal class WalletCoreConfigImpl(
             if (_config == null) {
                 _config = EudiWalletConfig {
                     configureDocumentKeyCreation(
-                        userAuthenticationRequired = AUTHENTICATION_REQUIRED,
-                        userAuthenticationTimeout = 30_000L,
+                        userAuthenticationRequired = false,
+                        userAuthenticationTimeout = 30.seconds,
                         useStrongBoxForKeys = true
                     )
                     configureOpenId4Vp {
@@ -64,14 +59,6 @@ internal class WalletCoreConfigImpl(
                         )
                     }
 
-                    configureOpenId4Vci {
-                        withIssuerUrl(issuerUrl = VCI_ISSUER_URL)
-                        withClientId(clientId = VCI_CLIENT_ID)
-                        withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
-                        withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
-                        withUseDPoPIfSupported(true)
-                    }
-
                     configureReaderTrustStore(
                         context,
                         R.raw.pidissuerca02_cz,
@@ -87,4 +74,22 @@ internal class WalletCoreConfigImpl(
             }
             return _config!!
         }
+
+    override val vciConfig: List<OpenId4VciManager.Config>
+        get() = listOf(
+            OpenId4VciManager.Config.Builder()
+                .withIssuerUrl(issuerUrl = "https://ec.dev.issuer.eudiw.dev")
+                .withClientId(clientId = "wallet-dev")
+                .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
+                .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
+                .withDPoPUsage(OpenId4VciManager.Config.DPoPUsage.IfSupported())
+                .build(),
+            OpenId4VciManager.Config.Builder()
+                .withIssuerUrl(issuerUrl = "https://dev.issuer-backend.eudiw.dev")
+                .withClientId(clientId = "wallet-dev")
+                .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
+                .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
+                .withDPoPUsage(OpenId4VciManager.Config.DPoPUsage.IfSupported())
+                .build()
+        )
 }

@@ -85,6 +85,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import eu.europa.ec.authenticationlogic.model.Profile
+import kotlin.time.ExperimentalTime
 
 @Composable
 fun SettingsScreen(
@@ -280,6 +281,7 @@ private fun ProfileHeader(email: String?, profile: Profile?) {
     }
 }
 
+@OptIn(ExperimentalTime::class)
 @Composable
 private fun AuthInfoSection(authInfo: AuthInfoUi) {
     WrapCard(

@@ -45,6 +45,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import org.koin.android.annotation.KoinViewModel
+import kotlin.time.ExperimentalTime
 
 data class State(
     val email: String = "",
@@ -305,6 +306,7 @@ class AuthenticationViewModel(
         }
     }
 
+    @OptIn(ExperimentalTime::class)
     private fun observeAuthState() {
         viewModelScope.launch {
             observeAuthStateUseCase()
