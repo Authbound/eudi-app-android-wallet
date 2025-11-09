@@ -172,31 +172,32 @@ private fun Content(
                 items = state.settingsItems,
                 onEventSent = onEventSend,
             )
-        }
 
-        WrapButton(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(SPACING_MEDIUM.dp)
-                .padding(bottom = paddingValues.calculateBottomPadding()),
-            buttonConfig = ButtonConfig(
-                type = ButtonType.SECONDARY,
-                onClick = { onEventSend(Event.Logout) }
+            VSpacer.Large()
+
+            WrapButton(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(SPACING_MEDIUM.dp),
+                buttonConfig = ButtonConfig(
+                    type = ButtonType.SECONDARY,
+                    onClick = { onEventSend(Event.Logout) }
+                )
+            ) {
+                Text(text = "Logout")
+            }
+
+            Text(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = SPACING_MEDIUM.dp),
+                text = state.appVersion,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
             )
-        ) {
-            Text(text = "Logout")
         }
 
-        Text(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = SPACING_MEDIUM.dp)
-                .padding(bottom = paddingValues.calculateBottomPadding()),
-            text = state.appVersion,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center
-        )
     }
 
     LaunchedEffect(Unit) {
