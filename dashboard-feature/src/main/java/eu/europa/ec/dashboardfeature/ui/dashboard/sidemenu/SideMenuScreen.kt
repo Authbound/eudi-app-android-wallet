@@ -43,6 +43,8 @@ import eu.europa.ec.uilogic.component.ListItemTrailingContentDataUi
 import eu.europa.ec.uilogic.component.content.ContentScreen
 import eu.europa.ec.uilogic.component.content.ContentTitle
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
+import eu.europa.ec.uilogic.component.content.ToolbarActionUi
+import eu.europa.ec.uilogic.component.content.ToolbarConfig
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
 import eu.europa.ec.uilogic.component.utils.SPACING_MEDIUM
@@ -55,7 +57,20 @@ internal fun SideMenuScreen(
     onEventSent: (Event) -> Unit,
 ) {
     ContentScreen(
-        navigatableAction = ScreenNavigateAction.BACKABLE,
+        navigatableAction = ScreenNavigateAction.NONE,
+        toolBarConfig = ToolbarConfig(
+            title = state.sideMenuTitle,
+            actions = listOf(
+                ToolbarActionUi(
+                    icon = AppIcons.Close,
+                    onClick = {
+                        onEventSent(
+                            Event.SideMenu.Close
+                        )
+                    }
+                )
+            )
+        ),
         isLoading = false,
         onBack = {
             onEventSent(
@@ -83,11 +98,6 @@ private fun Content(
             .padding(paddingValues)
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            ContentTitle(
-                modifier = Modifier.fillMaxWidth(),
-                title = state.sideMenuTitle,
-            )
-
             SideMenuOptions(
                 sideMenuOptions = state.sideMenuOptions,
                 onEventSent = onEventSent,
