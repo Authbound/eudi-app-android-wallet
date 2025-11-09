@@ -42,6 +42,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.Box
@@ -79,6 +80,7 @@ import eu.europa.ec.uilogic.component.wrap.WrapButton
 import eu.europa.ec.uilogic.component.wrap.WrapListItem
 import eu.europa.ec.uilogic.component.wrap.WrapCard
 import eu.europa.ec.uilogic.component.wrap.WrapImage
+import eu.europa.ec.uilogic.component.wrap.WrapAsyncImage
 import eu.europa.ec.uilogic.extension.openIntentChooser
 import eu.europa.ec.uilogic.extension.openUrl
 import kotlinx.coroutines.flow.Flow
@@ -160,16 +162,31 @@ private fun Content(
                     .background(Color(0xFFB3D4FF))
             )
 
-            ProfileHeader(email = state.userEmail, profile = state.authInfo.profile)
+            ProfileHeader(
+                email = state.userEmail,
+                phone = state.authInfo.userInfo?.phone,
+                profile = state.authInfo.profile
+            )
 
-            VSpacer.Large()
+            VSpacer.Small()
 
+            // Section separator (slightly inset at the top)
+            HorizontalDivider(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = SPACING_LARGE.dp)
+            )
             SettingsItemsSection(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = SPACING_MEDIUM.dp),
                 items = state.settingsItems,
                 onEventSent = onEventSend,
+            )
+            HorizontalDivider(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = SPACING_LARGE.dp)
             )
 
             VSpacer.Large()
@@ -245,17 +262,18 @@ private fun Content(
 }
 
 @Composable
-private fun ProfileHeader(email: String?, profile: Profile?) {
+private fun ProfileHeader(email: String?, phone: String?, profile: Profile?) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .offset(y = (-96).dp),
+            .offset(y = (-84).dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Outer white ring to appear outside the avatar circle
+        // Outer white ring to appear outside the avatar circle (with shadow)
         Box(
             modifier = Modifier
                 .size(148.dp)
+                .shadow(elevation = 12.dp, shape = CircleShape, clip = false)
                 .clip(CircleShape)
                 .background(Color.White),
             contentAlignment = Alignment.Center
@@ -266,13 +284,15 @@ private fun ProfileHeader(email: String?, profile: Profile?) {
                     .clip(CircleShape),
                 color = MaterialTheme.colorScheme.secondaryContainer,
             ) {
-                // Modern placeholder fills the circle
-                WrapImage(
-                    iconData = AppIcons.UserIcon,
+                // Realistic placeholder avatar via network; falls back to icon
+                WrapAsyncImage(
+                    source = "https://avatar.iran.liara.run/public/15",
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(CircleShape),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
+                    placeholder = AppIcons.User,
+                    error = AppIcons.User
                 )
             }
         }
@@ -280,13 +300,54 @@ private fun ProfileHeader(email: String?, profile: Profile?) {
         Text(
             text = profile?.displayName?.takeIf { it.isNotBlank() } ?: "User Profile",
             style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.Black,
         )
         Text(
             text = profile?.handle?.let { "@$it" } ?: email ?: "Email not available",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        VSpacer.Small()
+        // Contact info rows below name
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = SPACING_LARGE.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Phone",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = phone?.takeIf { it.isNotBlank() } ?: "Phone not set",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        VSpacer.Small()
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = SPACING_LARGE.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Mail",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = email ?: "N/A",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
         VSpacer.Medium()
     }
 }
@@ -307,9 +368,15 @@ private fun SettingsItems(
 ) {
     Column {
         items.forEachIndexed { index, settingsItemUi ->
+            // Enlarge leading icons and main text
+            val adjustedData: ListItemDataUi = when (val lead = settingsItemUi.data.leadingContentData) {
+                is ListItemLeadingContentDataUi.Icon ->
+                    settingsItemUi.data.copy(leadingContentData = lead.copy(size = 36))
+                else -> settingsItemUi.data
+            }
             WrapListItem(
                 modifier = Modifier.fillMaxWidth(),
-                item = settingsItemUi.data,
+                item = adjustedData,
                 onItemClick = {
                     onEventSent(
                         Event.ItemClicked(itemType = settingsItemUi.type)
@@ -318,9 +385,16 @@ private fun SettingsItems(
                 throttleClicks = false,
                 colors = CardDefaults.cardColors(containerColor = Color.Transparent),
                 mainContentVerticalPadding = SPACING_LARGE.dp,
+                mainContentTextStyle = MaterialTheme.typography.titleMedium,
             )
 
-            if (index != items.lastIndex) VSpacer.Medium()
+            if (index != items.lastIndex) {
+                HorizontalDivider(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = SPACING_LARGE.dp)
+                )
+            }
         }
     }
 }

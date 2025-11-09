@@ -85,7 +85,7 @@ class SettingsInteractorImpl(
                             text = "Account details"
                         ),
                         leadingContentData = ListItemLeadingContentDataUi.Icon(
-                            iconData = AppIcons.User
+                            iconData = AppIcons.UserIcon
                         ),
                         trailingContentData = ListItemTrailingContentDataUi.Icon(
                             iconData = AppIcons.KeyboardArrowRight
