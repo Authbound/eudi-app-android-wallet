@@ -96,7 +96,7 @@ fun SettingsScreen(
     val context = LocalContext.current
 
     ContentScreen(
-        navigatableAction = ScreenNavigateAction.BACKABLE,
+        navigatableAction = ScreenNavigateAction.NONE,
         isLoading = false,
         onBack = { viewModel.setEvent(Event.Pop) }
     ) { paddingValues ->
