@@ -17,6 +17,7 @@ package eu.europa.ec.authenticationfeature.ui
 
 import androidx.lifecycle.viewModelScope
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricAuthenticationController
+import eu.europa.ec.authenticationlogic.usecase.SignOutMode
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.businesslogic.controller.device.DeviceController
 import eu.europa.ec.businesslogic.controller.log.LogController
@@ -228,7 +229,7 @@ class WalletSetupViewModel(
                     // Continue with sign out even if we can't clear the preference
                 }
                 
-                signOutUseCase()
+                signOutUseCase(SignOutMode.Soft)
                 logController.d("WalletSetupViewModel", "User signed out successfully, navigating to login.")
                 setEffect { WalletSetupEffect.NavigateToLogin }
             } catch (e: Exception) {
@@ -353,7 +354,7 @@ class WalletSetupViewModel(
                 }
                 
                 // Secure sign out with complete session cleanup
-                signOutUseCase()
+                signOutUseCase(SignOutMode.Soft)
                 logController.d("WalletSetupViewModel", "Secure sign out completed, navigating to login.")
                 setEffect { WalletSetupEffect.NavigateToLogin }
                 

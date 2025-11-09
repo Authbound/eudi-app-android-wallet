@@ -22,6 +22,7 @@ import eu.europa.ec.authenticationlogic.usecase.CheckHandleAvailabilityUseCase
 import eu.europa.ec.authenticationlogic.usecase.CompleteOnboardingUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
+import eu.europa.ec.authenticationlogic.usecase.SignOutMode
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.businesslogic.controller.device.DeviceController
 import eu.europa.ec.businesslogic.controller.log.LogController
@@ -273,7 +274,7 @@ class ProfileCompletionViewModelV2(
                 logController.d("ProfileCompletionV2", "Signing out user...")
                 setState { copy(isLoading = true, error = null) }
                 
-                signOutUseCase()
+                signOutUseCase(SignOutMode.Soft)
                 logController.d("ProfileCompletionV2", "User signed out successfully")
                 setEffect { ProfileCompletionEffectV2.NavigateToLogin }
             } catch (e: Exception) {

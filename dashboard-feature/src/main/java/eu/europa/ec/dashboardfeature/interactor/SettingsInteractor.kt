@@ -39,6 +39,7 @@ import eu.europa.ec.businesslogic.controller.storage.PrefKeys
 import io.github.jan.supabase.auth.user.UserInfo
 import eu.europa.ec.authenticationlogic.model.Profile
 import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
+import eu.europa.ec.authenticationlogic.usecase.SignOutMode
 
 interface SettingsInteractor {
     fun getAppVersion(): String
@@ -156,7 +157,7 @@ class SettingsInteractorImpl(
     }
 
     override suspend fun logout() {
-        signOutUseCase()
+        signOutUseCase(SignOutMode.Soft)
     }
 
     override suspend fun isUserAuthenticated(): Boolean {

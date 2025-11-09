@@ -21,10 +21,12 @@ import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
 import eu.europa.ec.authenticationlogic.usecase.IsProfileCompletedUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsWalletActivatedUseCase
 import eu.europa.ec.businesslogic.controller.log.LogController
+import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
 import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
+import eu.europa.ec.commonfeature.interactor.QuickPinInteractor
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
-import eu.europa.ec.startupfeature.interactor.SplashInteractorV2
-import eu.europa.ec.startupfeature.interactor.SplashInteractorV2Impl
+import eu.europa.ec.startupfeature.interactor.SplashInteractor
+import eu.europa.ec.startupfeature.interactor.SplashInteractorImpl
 import eu.europa.ec.uilogic.serializer.UiSerializer
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Factory
@@ -39,18 +41,22 @@ fun provideSplashInteractor(
     supabaseAuthRepository: SupabaseAuthRepository,
     uiSerializer: UiSerializer,
     resourceProvider: ResourceProvider,
+    prefsController: PrefsControllerV2,
     prefKeys: PrefKeysV2,
     logController: LogController,
     localAuthPolicy: LocalAuthPolicy,
     isWalletActivatedUseCase: IsWalletActivatedUseCase,
-    isProfileCompletedUseCase: IsProfileCompletedUseCase
-): SplashInteractorV2 = SplashInteractorV2Impl(
+    isProfileCompletedUseCase: IsProfileCompletedUseCase,
+    quickPinInteractor: QuickPinInteractor
+): SplashInteractor = SplashInteractorImpl(
     supabaseAuthRepository,
     uiSerializer,
     resourceProvider,
+    prefsController,
     prefKeys,
     logController,
     localAuthPolicy,
     isWalletActivatedUseCase,
-    isProfileCompletedUseCase
+    isProfileCompletedUseCase,
+    quickPinInteractor
 )

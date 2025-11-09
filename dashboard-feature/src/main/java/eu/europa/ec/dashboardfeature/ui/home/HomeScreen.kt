@@ -71,6 +71,7 @@ import eu.europa.ec.corelogic.model.DocumentCategory
 import eu.europa.ec.corelogic.model.DocumentIdentifier
 import eu.europa.ec.dashboardfeature.ui.documents.detail.model.DocumentIssuanceStateUi
 import eu.europa.ec.dashboardfeature.ui.documents.list.model.DocumentUi
+import eu.europa.ec.eudi.wallet.document.DocumentId
 
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.theme.values.warning
@@ -675,7 +676,7 @@ private fun CredentialsSection(
     isLoading: Boolean,
     credentials: List<Pair<DocumentCategory, List<DocumentUi>>>,
     showEmptyMessage: Boolean,
-    onCredentialClick: (String) -> Unit,
+    onCredentialClick: (DocumentId) -> Unit,
     onViewAllClick: () -> Unit,
     onAddCredentialClick: () -> Unit
 ) {

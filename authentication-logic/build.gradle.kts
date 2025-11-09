@@ -52,6 +52,8 @@ dependencies {
     // Koin annotations support
     implementation(libs.koin.annotations)
     ksp(libs.koin.ksp)
+
+    implementation(libs.kotlinx.datetime)
 }
 
 excludeFromKoverReport(

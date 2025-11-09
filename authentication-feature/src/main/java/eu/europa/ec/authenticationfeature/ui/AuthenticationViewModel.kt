@@ -26,6 +26,7 @@ import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignUpWithEmailPasswordUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricAuthenticationController
+import eu.europa.ec.authenticationlogic.usecase.SignOutMode
 import eu.europa.ec.businesslogic.controller.device.DeviceController
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.model.DeviceInfo
@@ -44,6 +45,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import org.koin.android.annotation.KoinViewModel
+import kotlin.time.ExperimentalTime
 
 data class State(
     val email: String = "",
@@ -273,7 +275,7 @@ class AuthenticationViewModel(
             try {
                 logController.d("AuthViewModel", "Signing out user...")
                 setState { copy(isLoading = true, error = null) }
-                signOutUseCase()
+                signOutUseCase(SignOutMode.Soft)
                 resetViewModel() // Reset ViewModel state after successful sign out
                 setState { copy(isLoading = false) }
                 logController.d("AuthViewModel", "User signed out successfully")
@@ -291,7 +293,7 @@ class AuthenticationViewModel(
             try {
                 logController.d("AuthViewModel", "Signing out user and navigating to login...")
                 setState { copy(isLoading = true, error = null) }
-                signOutUseCase()
+                signOutUseCase(SignOutMode.Soft)
                 resetViewModel() // Reset ViewModel state after successful sign out
                 setState { copy(isLoading = false) }
                 logController.d("AuthViewModel", "User signed out successfully, emitting navigation effect")
@@ -304,6 +306,7 @@ class AuthenticationViewModel(
         }
     }
 
+    @OptIn(ExperimentalTime::class)
     private fun observeAuthState() {
         viewModelScope.launch {
             observeAuthStateUseCase()

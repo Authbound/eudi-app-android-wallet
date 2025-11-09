@@ -39,7 +39,7 @@ The app consumes the SDK called EUDIW Wallet core [Wallet core](https://github.c
  
 - ISO18013-5 (proximity presentation),
  
-- OpenID4VCI draft 15 (issuing)
+- OpenID4VCI v1 (issuing)
  
 - Issuer functionality, to support development and testing, one can access an OID4VCI test/demo service for issuing at: 
 
@@ -58,8 +58,8 @@ To support development and testing, one can access a test/demo service for remot
   - [Web verifier source](https://github.com/eu-digital-identity-wallet/eudi-web-verifier)
 
   - [Verifier restful backend service source](https://github.com/eu-digital-identity-wallet/eudi-srv-web-verifier-endpoint-23220-4-kt)
- 
-To support proximity, an Android Proximity Verifier is available as an app that can request PID and mDL with reader authentication available [here](wiki/verifier_proximity.md)
+
+To support proximity, the EUDI Verifier App is available [here](https://github.com/eu-digital-identity-wallet/eudi-app-multiplatform-verifier-ui) and can request PID and mDL, with reader authentication enabled.
 
 The issuer, verifier service, and verifier app authentication are based on the EUDIW development [IACA](https://github.com/niscy-eudiw/eudi-app-android-wallet-ui/tree/main/resources-logic/src/main/res/raw)
 
@@ -69,7 +69,7 @@ The main purpose of the reference implementation is to showcase the ecosystem an
 
 If you're planning to use this application in production, we recommend reviewing the following steps:
 - Configure the application properly by following the guide [here](wiki/configuration.md)
-- The Pin storage configuration matches your security requirements or provide your own by following this guide [Pin Storage Configuration](wiki/configuration.md#pin-storage-configuration)
+- The Pin storage configuration matches your security requirements, or provide your own by following this guide [Pin Storage Configuration](wiki/configuration.md#pin-storage-configuration)
 - The application meets the OWASP MASVS industry standard. Please refer to the following links for further information on the controls you must implement to ensure maximum compliance:
     - [OWASP MASVS](https://mas.owasp.org/MASVS/)
 
@@ -81,9 +81,9 @@ If you're planning to use this application in production, we recommend reviewing
 
 ### Prerequisites
 
-You can download the application (apk file) through GitHub releases [here](https://github.com/eu-digital-identity-wallet/eudi-app-android-wallet-ui/releases)
+You can download the application (APK file) through GitHub releases [here](https://github.com/eu-digital-identity-wallet/eudi-app-android-wallet-ui/releases)
 
-You will also need to download the Android Verifier app. More information can be found [here](wiki/verifier_proximity.md)
+You will also need to download the EUDI Verifier app. More information can be found [here](https://github.com/eu-digital-identity-wallet/eudi-app-multiplatform-verifier-ui)
 
 ### App launch
 
@@ -99,7 +99,7 @@ You will also need to download the Android Verifier app. More information can be
 5. After submission, a success screen will appear. Tap "Close".
 6. You will be redirected to the "Dashboard" screen. If this was your first document added to the Wallet, you will land on the "Home" tab; otherwise, you will be on the "Documents" tab. The flow is now complete.
 
-### Issuance flow (Credential Offer - Issuer initiated)
+### Issuance flow (Credential Offer - Issuer-initiated)
 
 1. Go to the "Dashboard" screen, navigate to the "Documents" tab, and tap the "+" icon (top-right of the screen). Select "Scan QR".
 2. Scan the QR code from the issuer's website [EUDI Issuer](https://issuer.eudiw.dev/credential_offer_choice)
@@ -155,7 +155,7 @@ You can find instructions on how to configure the application [here](wiki/config
 
 *assembly-logic*: App dependencies.
 
-*build-logic*: Application gradle plugins.
+*build-logic*: Application Gradle plugins.
 
 *resources-logic*: All app resources reside here (images, etc.)
 
