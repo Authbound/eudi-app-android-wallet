@@ -658,10 +658,41 @@ private fun QuickActionsSection(
                 horizontalArrangement = Arrangement.spacedBy(SPACING_LARGE.dp)
             ) {
                 quickActions.drop(2).take(2).forEach { action ->
-                    QuickActionCard(
-                        config = action,
-                        onClick = { onQuickActionClick(action.id) }
-                    )
+                    if (action.id == "sign") {
+                        val context = LocalContext.current
+                        Box {
+                            QuickActionCard(
+                                config = action,
+                                onClick = {
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        context.getString(R.string.feature_coming_soon),
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            )
+                            Surface(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(6.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                shadowElevation = 2.dp
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.coming_soon_badge),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    } else {
+                        QuickActionCard(
+                            config = action,
+                            onClick = { onQuickActionClick(action.id) }
+                        )
+                    }
                 }
             }
         }

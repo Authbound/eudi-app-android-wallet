@@ -19,6 +19,8 @@ package eu.europa.ec.dashboardfeature.ui.home
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.viewModelScope
 
+import eu.europa.ec.commonfeature.config.IssuanceFlowType
+import eu.europa.ec.commonfeature.config.IssuanceUiConfig
 import eu.europa.ec.commonfeature.config.PresentationMode
 import eu.europa.ec.commonfeature.config.QrScanFlow
 import eu.europa.ec.commonfeature.config.QrScanUiConfig
@@ -323,12 +325,12 @@ class HomeViewModel(
 
             is Event.BottomSheet.AddDocument.FromList -> {
                 hideBottomSheet()
-//                navigateToAddDocument()
+                navigateToAddDocument()
             }
 
             is Event.BottomSheet.AddDocument.ScanQr -> {
                 hideBottomSheet()
-//                navigateToQrScanForDocument()
+                navigateToQrScanForDocument()
             }
 
             is Event.BottomSheet.Verification.UseTemplate -> {
@@ -449,6 +451,29 @@ class HomeViewModel(
         }
     }
 
+    private fun navigateToAddDocument() {
+        val addDocumentScreenRoute = generateComposableNavigationLink(
+            screen = IssuanceScreens.AddDocument,
+            arguments = generateComposableArguments(
+                mapOf(
+                    IssuanceUiConfig.serializedKeyName to uiSerializer.toBase64(
+                        model = IssuanceUiConfig(
+                            flowType = IssuanceFlowType.ExtraDocument(
+                                formatType = null
+                            )
+                        ),
+                        parser = IssuanceUiConfig.Parser
+                    )
+                )
+            )
+        )
+        setEffect {
+            Effect.Navigation.SwitchScreen(
+                screenRoute = addDocumentScreenRoute
+            )
+        }
+    }
+
     private fun navigateToDocumentDetails(docId: DocumentId) {
         setEffect {
             Effect.Navigation.SwitchScreen(
@@ -532,6 +557,32 @@ class HomeViewModel(
         )
         setEffect {
             navigationEffect
+        }
+    }
+
+    private fun navigateToQrScanForDocument() {
+        setEffect {
+            Effect.Navigation.SwitchScreen(
+                screenRoute = generateComposableNavigationLink(
+                    screen = CommonScreens.QrScan,
+                    arguments = generateComposableArguments(
+                        mapOf(
+                            QrScanUiConfig.serializedKeyName to uiSerializer.toBase64(
+                                QrScanUiConfig(
+                                    title = resourceProvider.getString(R.string.issuance_qr_scan_title),
+                                    subTitle = resourceProvider.getString(R.string.issuance_qr_scan_subtitle),
+                                    qrScanFlow = QrScanFlow.Issuance(
+                                        issuanceFlowType = IssuanceFlowType.ExtraDocument(
+                                            formatType = null
+                                        )
+                                    )
+                                ),
+                                QrScanUiConfig.Parser
+                            )
+                        )
+                    )
+                )
+            )
         }
     }
 
