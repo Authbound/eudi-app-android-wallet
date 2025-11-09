@@ -224,7 +224,7 @@
     <string name="dashboard_home_screen_no_credentials">You don\'t have any credentials yet.\nAdd your first one to get started.</string>
 
     <!-- Dashboard Side Menu -->
-    <string name="dashboard_side_menu_title">My EU Wallet</string>
+    <string name="dashboard_side_menu_title">Menu</string>
     <string name="dashboard_side_menu_option_change_pin">Change PIN</string>
     <string name="dashboard_side_menu_option_change_pin_id">changePinId</string>
     <string name="dashboard_side_menu_option_settings">Settings</string>

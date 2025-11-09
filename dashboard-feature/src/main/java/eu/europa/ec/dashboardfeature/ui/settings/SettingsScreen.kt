@@ -62,7 +62,6 @@ import eu.europa.ec.uilogic.component.ListItemLeadingContentDataUi
 import eu.europa.ec.uilogic.component.ListItemMainContentDataUi
 import eu.europa.ec.uilogic.component.ListItemTrailingContentDataUi
 import eu.europa.ec.uilogic.component.content.ContentScreen
-import eu.europa.ec.uilogic.component.content.ContentTitle
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
@@ -152,11 +151,6 @@ private fun Content(
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
         ) {
-            ContentTitle(
-                modifier = Modifier.fillMaxWidth(),
-                title = state.screenTitle,
-            )
-
             VSpacer.Large()
 
             ProfileHeader(email = state.userEmail, profile = state.authInfo.profile)
