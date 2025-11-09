@@ -94,7 +94,7 @@ class SettingsInteractorImpl(
                 )
             )
 
-            if (changelogUrl != null) {
+            /* if (changelogUrl != null) {
                 add(
                     SettingsItemUi(
                         type = SettingsMenuItemType.CHANGELOG,
@@ -112,7 +112,7 @@ class SettingsInteractorImpl(
                         )
                     )
                 )
-            }
+            } */
 
             // Add delete wallet activation option for development/debugging
             if (configLogic.appBuildType == AppBuildType.DEBUG) {
