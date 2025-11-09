@@ -36,6 +36,10 @@ import org.koin.android.annotation.KoinViewModel
 import kotlinx.coroutines.launch
 import io.github.jan.supabase.auth.user.UserInfo
 import eu.europa.ec.authenticationlogic.model.Profile
+import eu.europa.ec.commonfeature.model.PinFlow
+import eu.europa.ec.uilogic.navigation.CommonScreens
+import eu.europa.ec.uilogic.navigation.helper.generateComposableArguments
+import eu.europa.ec.uilogic.navigation.helper.generateComposableNavigationLink
 
 data class AuthInfoUi(
     val isAuthenticated: Boolean = false,
@@ -68,8 +72,8 @@ sealed class Effect : ViewSideEffect {
 
         data class SwitchScreen(
             val screenRoute: String,
-            val popUpToScreenRoute: String,
-            val inclusive: Boolean
+            val popUpToScreenRoute: String? = null,
+            val inclusive: Boolean = false,
         ) : Navigation()
 
         data class OpenUrlExternally(val url: Uri) : Navigation()
@@ -179,6 +183,16 @@ class SettingsViewModel(
 
     private fun handleSettingsMenuItemClicked(itemType: SettingsMenuItemType) {
         when (itemType) {
+            SettingsMenuItemType.CHANGE_PIN -> {
+                val nextScreenRoute = generateComposableNavigationLink(
+                    screen = CommonScreens.QuickPin,
+                    arguments = generateComposableArguments(
+                        mapOf("pinFlow" to PinFlow.UPDATE)
+                    )
+                )
+                setEffect { Effect.Navigation.SwitchScreen(screenRoute = nextScreenRoute) }
+            }
+
             SettingsMenuItemType.RETRIEVE_LOGS -> {
                 val logs = settingsInteractor.retrieveLogFileUris()
                 if (logs.isNotEmpty()) {

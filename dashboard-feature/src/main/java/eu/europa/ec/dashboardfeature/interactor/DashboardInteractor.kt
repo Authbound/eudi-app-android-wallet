@@ -38,24 +38,6 @@ class DashboardInteractorImpl(
         return buildList {
             add(
                 SideMenuItemUi(
-                    type = SideMenuTypeUi.CHANGE_PIN,
-                    data = ListItemDataUi(
-                        itemId = resourceProvider.getString(R.string.dashboard_side_menu_option_change_pin_id),
-                        mainContentData = ListItemMainContentDataUi.Text(
-                            text = resourceProvider.getString(R.string.dashboard_side_menu_option_change_pin)
-                        ),
-                        leadingContentData = ListItemLeadingContentDataUi.Icon(
-                            iconData = AppIcons.ChangePin
-                        ),
-                        trailingContentData = ListItemTrailingContentDataUi.Icon(
-                            iconData = AppIcons.KeyboardArrowRight
-                        )
-                    )
-                )
-            )
-
-            add(
-                SideMenuItemUi(
                     type = SideMenuTypeUi.SETTINGS,
                     data = ListItemDataUi(
                         itemId = resourceProvider.getString(R.string.dashboard_side_menu_option_settings_id),

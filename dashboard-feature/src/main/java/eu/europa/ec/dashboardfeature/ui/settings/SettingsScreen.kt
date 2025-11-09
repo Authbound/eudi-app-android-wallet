@@ -123,8 +123,10 @@ private fun handleNavigationEffect(
         is Effect.Navigation.OpenUrlExternally -> context.openUrl(uri = navigationEffect.url)
         is Effect.Navigation.SwitchScreen -> {
             navController.navigate(navigationEffect.screenRoute) {
-                popUpTo(navigationEffect.popUpToScreenRoute) {
-                    inclusive = navigationEffect.inclusive
+                navigationEffect.popUpToScreenRoute?.let {
+                    popUpTo(it) {
+                        inclusive = navigationEffect.inclusive
+                    }
                 }
             }
         }

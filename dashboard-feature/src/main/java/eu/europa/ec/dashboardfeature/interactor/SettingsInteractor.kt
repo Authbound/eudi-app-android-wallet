@@ -78,6 +78,24 @@ class SettingsInteractorImpl(
         return buildList {
             add(
                 SettingsItemUi(
+                    type = SettingsMenuItemType.CHANGE_PIN,
+                    data = ListItemDataUi(
+                        itemId = resourceProvider.getString(R.string.dashboard_side_menu_option_change_pin_id),
+                        mainContentData = ListItemMainContentDataUi.Text(
+                            text = resourceProvider.getString(R.string.dashboard_side_menu_option_change_pin)
+                        ),
+                        leadingContentData = ListItemLeadingContentDataUi.Icon(
+                            iconData = AppIcons.ChangePin
+                        ),
+                        trailingContentData = ListItemTrailingContentDataUi.Icon(
+                            iconData = AppIcons.KeyboardArrowRight
+                        )
+                    )
+                )
+            )
+
+            add(
+                SettingsItemUi(
                     type = SettingsMenuItemType.RETRIEVE_LOGS,
                     data = ListItemDataUi(
                         itemId = resourceProvider.getString(R.string.settings_screen_option_retrieve_logs_id),
