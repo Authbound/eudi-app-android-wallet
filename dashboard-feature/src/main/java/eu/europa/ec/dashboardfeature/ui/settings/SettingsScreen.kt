@@ -80,10 +80,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.onEach
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import eu.europa.ec.authenticationlogic.model.Profile
-import kotlin.time.ExperimentalTime
 
 @Composable
 fun SettingsScreen(
@@ -158,10 +155,6 @@ private fun Content(
             )
 
             ProfileHeader(email = state.userEmail, profile = state.authInfo.profile)
-
-            VSpacer.Large()
-
-            AuthInfoSection(authInfo = state.authInfo)
 
             VSpacer.Large()
 
@@ -280,72 +273,6 @@ private fun ProfileHeader(email: String?, profile: Profile?) {
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         VSpacer.Large()
-    }
-}
-
-@OptIn(ExperimentalTime::class)
-@Composable
-private fun AuthInfoSection(authInfo: AuthInfoUi) {
-    WrapCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = SPACING_MEDIUM.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(SPACING_LARGE.dp)
-        ) {
-            Text(
-                text = "Authentication Details",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-            VSpacer.Medium()
-
-            val status = if (authInfo.isAuthenticated) "Authenticated" else "Not Authenticated"
-            Text(
-                text = "Status: $status",
-                style = MaterialTheme.typography.bodyLarge,
-                color = if (authInfo.isAuthenticated) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-            )
-
-            authInfo.userInfo?.let { user ->
-                VSpacer.Medium()
-                InfoRow(label = "User ID", value = user.id)
-                VSpacer.Small()
-                InfoRow(label = "Phone", value = user.phone.takeIf { !it.isNullOrBlank() } ?: "N/A")
-                VSpacer.Small()
-                user.createdAt?.let {
-                    InfoRow(
-                        label = "Member since",
-                        value = it.toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
-                    )
-                }
-                VSpacer.Small()
-                user.lastSignInAt?.let {
-                    InfoRow(
-                        label = "Last sign-in",
-                        value = it.toLocalDateTime(TimeZone.currentSystemDefault()).toString().replace("T", " ")
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun InfoRow(label: String, value: String) {
-    Row {
-        Text(
-            text = "$label: ",
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-        )
     }
 }
 

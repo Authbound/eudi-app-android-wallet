@@ -78,6 +78,24 @@ class SettingsInteractorImpl(
         return buildList {
             add(
                 SettingsItemUi(
+                    type = SettingsMenuItemType.ACCOUNT_DETAILS,
+                    data = ListItemDataUi(
+                        itemId = "account_details",
+                        mainContentData = ListItemMainContentDataUi.Text(
+                            text = "Account details"
+                        ),
+                        leadingContentData = ListItemLeadingContentDataUi.Icon(
+                            iconData = AppIcons.User
+                        ),
+                        trailingContentData = ListItemTrailingContentDataUi.Icon(
+                            iconData = AppIcons.KeyboardArrowRight
+                        )
+                    )
+                )
+            )
+
+            add(
+                SettingsItemUi(
                     type = SettingsMenuItemType.CHANGE_PIN,
                     data = ListItemDataUi(
                         itemId = resourceProvider.getString(R.string.dashboard_side_menu_option_change_pin_id),

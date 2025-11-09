@@ -183,6 +183,14 @@ class SettingsViewModel(
 
     private fun handleSettingsMenuItemClicked(itemType: SettingsMenuItemType) {
         when (itemType) {
+            SettingsMenuItemType.ACCOUNT_DETAILS -> {
+                setEffect {
+                    Effect.Navigation.SwitchScreen(
+                        screenRoute = DashboardScreens.AccountDetails.screenRoute
+                    )
+                }
+            }
+
             SettingsMenuItemType.CHANGE_PIN -> {
                 val nextScreenRoute = generateComposableNavigationLink(
                     screen = CommonScreens.QuickPin,

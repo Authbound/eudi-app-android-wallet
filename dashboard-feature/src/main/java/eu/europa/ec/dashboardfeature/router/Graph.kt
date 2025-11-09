@@ -28,6 +28,7 @@ import eu.europa.ec.dashboardfeature.ui.dashboard.DashboardScreen
 import eu.europa.ec.dashboardfeature.ui.document_sign.DocumentSignScreen
 import eu.europa.ec.dashboardfeature.ui.documents.detail.DocumentDetailsScreen
 import eu.europa.ec.dashboardfeature.ui.settings.SettingsScreen
+import eu.europa.ec.dashboardfeature.ui.settings.AccountDetailsScreen
 import eu.europa.ec.dashboardfeature.ui.transactions.detail.TransactionDetailsScreen
 import eu.europa.ec.uilogic.navigation.DashboardScreens
 import eu.europa.ec.uilogic.navigation.ModuleRoute
@@ -68,6 +69,21 @@ fun NavGraphBuilder.featureDashboardGraph(navController: NavController) {
             ),
         ) {
             SettingsScreen(
+                navController = navController,
+                viewModel = koinViewModel()
+            )
+        }
+
+        composable(
+            route = DashboardScreens.AccountDetails.screenRoute,
+            deepLinks = listOf(
+                navDeepLink {
+                    uriPattern =
+                        BuildConfig.DEEPLINK + DashboardScreens.AccountDetails.screenRoute
+                }
+            ),
+        ) {
+            AccountDetailsScreen(
                 navController = navController,
                 viewModel = koinViewModel()
             )
