@@ -25,9 +25,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -46,11 +48,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -74,6 +78,7 @@ import eu.europa.ec.uilogic.component.wrap.ButtonType
 import eu.europa.ec.uilogic.component.wrap.WrapButton
 import eu.europa.ec.uilogic.component.wrap.WrapListItem
 import eu.europa.ec.uilogic.component.wrap.WrapCard
+import eu.europa.ec.uilogic.component.wrap.WrapImage
 import eu.europa.ec.uilogic.extension.openIntentChooser
 import eu.europa.ec.uilogic.extension.openUrl
 import kotlinx.coroutines.flow.Flow
@@ -145,13 +150,14 @@ private fun Content(
             modifier = Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
+                .padding(bottom = paddingValues.calculateBottomPadding())
         ) {
-            // Scrollable top band background
+            // Scrollable top band background - lighter blue and taller
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(160.dp)
-                    .background(Color(0xFF1E40AF))
+                    .height(232.dp)
+                    .background(Color(0xFFB3D4FF))
             )
 
             ProfileHeader(email = state.userEmail, profile = state.authInfo.profile)
@@ -243,28 +249,37 @@ private fun ProfileHeader(email: String?, profile: Profile?) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .offset(y = (-48).dp),
+            .offset(y = (-96).dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Surface(
+        // Outer white ring to appear outside the avatar circle
+        Box(
             modifier = Modifier
-                .size(96.dp)
-                .clip(CircleShape),
-            color = MaterialTheme.colorScheme.secondaryContainer
+                .size(148.dp)
+                .clip(CircleShape)
+                .background(Color.White),
+            contentAlignment = Alignment.Center
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.Filled.Person,
-                    contentDescription = "Profile picture",
-                    modifier = Modifier.size(56.dp),
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+            Surface(
+                modifier = Modifier
+                    .size(138.dp)
+                    .clip(CircleShape),
+                color = MaterialTheme.colorScheme.secondaryContainer,
+            ) {
+                // Modern placeholder fills the circle
+                WrapImage(
+                    iconData = AppIcons.UserIcon,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
                 )
             }
         }
         VSpacer.Medium()
         Text(
             text = profile?.displayName?.takeIf { it.isNotBlank() } ?: "User Profile",
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
         )
         Text(
@@ -272,7 +287,7 @@ private fun ProfileHeader(email: String?, profile: Profile?) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        VSpacer.Large()
+        VSpacer.Medium()
     }
 }
 
@@ -282,9 +297,7 @@ private fun SettingsItemsSection(
     items: List<SettingsItemUi>,
     onEventSent: (Event) -> Unit,
 ) {
-    WrapCard(modifier = modifier) {
-        SettingsItems(items = items, onEventSent = onEventSent)
-    }
+    SettingsItems(items = items, onEventSent = onEventSent)
 }
 
 @Composable
@@ -304,16 +317,10 @@ private fun SettingsItems(
                 },
                 throttleClicks = false,
                 colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                mainContentVerticalPadding = SPACING_MEDIUM.dp,
+                mainContentVerticalPadding = SPACING_LARGE.dp,
             )
 
-            if (index != items.lastIndex) {
-                HorizontalDivider(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = SPACING_MEDIUM.dp)
-                )
-            }
+            if (index != items.lastIndex) VSpacer.Medium()
         }
     }
 }

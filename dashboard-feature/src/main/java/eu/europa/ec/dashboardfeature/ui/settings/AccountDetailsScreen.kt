@@ -94,49 +94,39 @@ private fun AccountDetailsContent(
 @OptIn(ExperimentalTime::class)
 @Composable
 private fun AuthInfoSection(authInfo: AuthInfoUi) {
-    WrapCard(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = SPACING_MEDIUM.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(SPACING_LARGE.dp)
-        ) {
-            Text(
-                text = "Account details",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
+        Text(
+            text = "Account details",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold
+        )
+        VSpacer.Medium()
+
+        val status = if (authInfo.isAuthenticated) "Authenticated" else "Not Authenticated"
+        InfoRow(label = "Status", value = status)
+
+        authInfo.userInfo?.let { user ->
             VSpacer.Medium()
-
-            val status = if (authInfo.isAuthenticated) "Authenticated" else "Not Authenticated"
-            Text(
-                text = "Status: $status",
-                style = MaterialTheme.typography.bodyLarge,
-                color = if (authInfo.isAuthenticated) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-            )
-
-            authInfo.userInfo?.let { user ->
-                VSpacer.Medium()
-                InfoRow(label = "User ID", value = user.id)
-                VSpacer.Small()
-                InfoRow(label = "Phone", value = user.phone.takeIf { !it.isNullOrBlank() } ?: "N/A")
-                VSpacer.Small()
-                user.createdAt?.let {
-                    InfoRow(
-                        label = "Member since",
-                        value = it.toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
-                    )
-                }
-                VSpacer.Small()
-                user.lastSignInAt?.let {
-                    InfoRow(
-                        label = "Last sign-in",
-                        value = it.toLocalDateTime(TimeZone.currentSystemDefault()).toString().replace("T", " ")
-                    )
-                }
+            InfoRow(label = "User ID", value = user.id)
+            VSpacer.Small()
+            InfoRow(label = "Phone", value = user.phone.takeIf { !it.isNullOrBlank() } ?: "N/A")
+            VSpacer.Small()
+            user.createdAt?.let {
+                InfoRow(
+                    label = "Member since",
+                    value = it.toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
+                )
+            }
+            VSpacer.Small()
+            user.lastSignInAt?.let {
+                InfoRow(
+                    label = "Last sign-in",
+                    value = it.toLocalDateTime(TimeZone.currentSystemDefault()).toString().replace("T", " ")
+                )
             }
         }
     }
@@ -144,15 +134,16 @@ private fun AuthInfoSection(authInfo: AuthInfoUi) {
 
 @Composable
 private fun InfoRow(label: String, value: String) {
-    Row {
+    Column {
         Text(
-            text = "$label: ",
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Medium
         )
     }
 }
