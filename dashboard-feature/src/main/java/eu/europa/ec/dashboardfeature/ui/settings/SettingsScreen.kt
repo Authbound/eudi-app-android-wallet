@@ -73,6 +73,7 @@ import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
 import eu.europa.ec.uilogic.component.utils.SPACING_LARGE
 import eu.europa.ec.uilogic.component.utils.SPACING_MEDIUM
+import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
 import eu.europa.ec.uilogic.component.utils.VSpacer
 import eu.europa.ec.uilogic.component.wrap.ButtonConfig
 import eu.europa.ec.uilogic.component.wrap.ButtonType
@@ -168,25 +169,27 @@ private fun Content(
                 profile = state.authInfo.profile
             )
 
-            VSpacer.Small()
-
-            // Section separator (slightly inset at the top)
+            // Section separator (top, full width to minimize visual gap)
             HorizontalDivider(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = SPACING_LARGE.dp)
+                    .fillMaxWidth(0.92f)
+                    .align(Alignment.CenterHorizontally),
+                thickness = 0.5.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
             )
             SettingsItemsSection(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = SPACING_MEDIUM.dp),
+                    .padding(horizontal = SPACING_LARGE.dp),
                 items = state.settingsItems,
                 onEventSent = onEventSend,
             )
             HorizontalDivider(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = SPACING_LARGE.dp)
+                    .fillMaxWidth(0.85f)
+                    .align(Alignment.CenterHorizontally),
+                thickness = 0.5.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
             )
 
             VSpacer.Large()
@@ -307,6 +310,7 @@ private fun ProfileHeader(email: String?, phone: String?, profile: Profile?) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        // Small top padding before contact info rows
         VSpacer.Small()
         // Contact info rows below name
         Row(
@@ -348,7 +352,6 @@ private fun ProfileHeader(email: String?, phone: String?, profile: Profile?) {
                 color = MaterialTheme.colorScheme.onSurface
             )
         }
-        VSpacer.Medium()
     }
 }
 
@@ -375,7 +378,9 @@ private fun SettingsItems(
                 else -> settingsItemUi.data
             }
             WrapListItem(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = SPACING_MEDIUM.dp, end = SPACING_SMALL.dp),
                 item = adjustedData,
                 onItemClick = {
                     onEventSent(
@@ -391,8 +396,10 @@ private fun SettingsItems(
             if (index != items.lastIndex) {
                 HorizontalDivider(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = SPACING_LARGE.dp)
+                        .fillMaxWidth(0.85f)
+                        .align(Alignment.CenterHorizontally),
+                    thickness = 0.5.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
                 )
             }
         }
