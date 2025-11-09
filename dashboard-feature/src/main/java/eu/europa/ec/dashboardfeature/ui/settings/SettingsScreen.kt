@@ -22,9 +22,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.background
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -38,9 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
@@ -67,11 +68,9 @@ import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
 import eu.europa.ec.uilogic.component.utils.SPACING_LARGE
 import eu.europa.ec.uilogic.component.utils.SPACING_MEDIUM
-import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
 import eu.europa.ec.uilogic.component.utils.VSpacer
 import eu.europa.ec.uilogic.component.wrap.ButtonConfig
 import eu.europa.ec.uilogic.component.wrap.ButtonType
-import eu.europa.ec.uilogic.component.wrap.SwitchDataUi
 import eu.europa.ec.uilogic.component.wrap.WrapButton
 import eu.europa.ec.uilogic.component.wrap.WrapListItem
 import eu.europa.ec.uilogic.component.wrap.WrapCard
@@ -144,14 +143,19 @@ private fun Content(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(paddingValues)
     ) {
         Column(
             modifier = Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
         ) {
-            VSpacer.Large()
+            // Scrollable top band background
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(160.dp)
+                    .background(Color(0xFF1E40AF))
+            )
 
             ProfileHeader(email = state.userEmail, profile = state.authInfo.profile)
 
@@ -173,7 +177,8 @@ private fun Content(
         WrapButton(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(SPACING_MEDIUM.dp),
+                .padding(SPACING_MEDIUM.dp)
+                .padding(bottom = paddingValues.calculateBottomPadding()),
             buttonConfig = ButtonConfig(
                 type = ButtonType.SECONDARY,
                 onClick = { onEventSend(Event.Logout) }
@@ -185,7 +190,8 @@ private fun Content(
         Text(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = SPACING_MEDIUM.dp),
+                .padding(top = SPACING_MEDIUM.dp)
+                .padding(bottom = paddingValues.calculateBottomPadding()),
             text = state.appVersion,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
@@ -240,16 +246,15 @@ private fun Content(
 
 @Composable
 private fun ProfileHeader(email: String?, profile: Profile?) {
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = SPACING_LARGE.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
+            .offset(y = (-48).dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Surface(
             modifier = Modifier
-                .size(64.dp)
+                .size(96.dp)
                 .clip(CircleShape),
             color = MaterialTheme.colorScheme.secondaryContainer
         ) {
@@ -257,23 +262,23 @@ private fun ProfileHeader(email: String?, profile: Profile?) {
                 Icon(
                     imageVector = Icons.Filled.Person,
                     contentDescription = "Profile picture",
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.size(56.dp),
                     tint = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             }
         }
-        Column {
-            Text(
-                text = profile?.displayName?.takeIf { it.isNotBlank() } ?: "User Profile",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text = profile?.handle?.let { "@$it" } ?: email ?: "Email not available",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        VSpacer.Medium()
+        Text(
+            text = profile?.displayName?.takeIf { it.isNotBlank() } ?: "User Profile",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = profile?.handle?.let { "@$it" } ?: email ?: "Email not available",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        VSpacer.Large()
     }
 }
 
