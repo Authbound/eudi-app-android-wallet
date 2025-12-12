@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
@@ -43,6 +44,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -350,12 +353,22 @@ fun <T : ViewEvent> BottomSheetWithTwoBigIcons(
                             item.leadingIcon?.let { safeLeadingIcon ->
                                 WrapImage(
                                     modifier = Modifier
-                                        .size(DEFAULT_BIG_ICON_SIZE.dp)
+                                        .height(DEFAULT_BIG_ICON_SIZE.dp)
+                                        .let { modifier ->
+                                            if (safeLeadingIcon == AppIcons.Edit) {
+                                                modifier
+                                                    .width(DEFAULT_BIG_ICON_SIZE.dp)
+                                                    .padding(24.dp)
+                                            } else {
+                                                modifier
+                                            }
+                                        }
                                         .alpha(
                                             alpha = ALPHA_ENABLED.takeIf { item.enabled }
                                                 ?: ALPHA_DISABLED
                                         ),
                                     iconData = safeLeadingIcon,
+                                    contentScale = ContentScale.Fit,
                                 )
                             }
                             WrapButton(

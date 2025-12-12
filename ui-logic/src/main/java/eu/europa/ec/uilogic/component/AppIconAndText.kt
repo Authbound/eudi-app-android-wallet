@@ -36,7 +36,8 @@ data class AppIconAndTextData(
 @Composable
 fun AppIconAndText(
     modifier: Modifier = Modifier,
-    appIconAndTextData: AppIconAndTextData
+    appIconAndTextData: AppIconAndTextData,
+    iconModifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier,
@@ -46,7 +47,10 @@ fun AppIconAndText(
         ),
         verticalAlignment = Alignment.Top
     ) {
-        WrapImage(iconData = appIconAndTextData.appIcon)
+        WrapImage(
+            iconData = appIconAndTextData.appIcon,
+            modifier = iconModifier
+        )
         //WrapImage(iconData = appIconAndTextData.appText)
     }
 }

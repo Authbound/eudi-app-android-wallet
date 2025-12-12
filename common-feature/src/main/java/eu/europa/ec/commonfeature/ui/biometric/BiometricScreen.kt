@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -31,11 +32,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -58,6 +63,7 @@ import eu.europa.ec.uilogic.component.utils.SIZE_MEDIUM
 import eu.europa.ec.uilogic.component.utils.SPACING_LARGE
 import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
 import eu.europa.ec.uilogic.component.wrap.WrapIconButton
+import eu.europa.ec.uilogic.component.wrap.WrapPinKeypad
 import eu.europa.ec.uilogic.component.wrap.WrapPinTextField
 import eu.europa.ec.uilogic.config.ConfigNavigation
 import eu.europa.ec.uilogic.config.FlowCompletion
@@ -182,6 +188,8 @@ private fun Body(
 
     // Get application context.
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     Column(
         Modifier
@@ -197,6 +205,46 @@ private fun Body(
             MainContent(
                 state = state,
                 onEventSent = onEventSent,
+            )
+        }
+
+        if (state.config.mode is BiometricMode.Login) {
+            // This screen uses an in-app keypad. Ensure the system keyboard stays hidden.
+            OneTimeLaunchedEffect {
+                focusManager.clearFocus(force = true)
+                keyboardController?.hide()
+            }
+
+            WrapPinKeypad(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(bottom = SPACING_SMALL.dp),
+                leadingIconData = if (state.userBiometricsAreEnabled) AppIcons.TouchId else null,
+                onLeadingPressed = if (state.userBiometricsAreEnabled) {
+                    {
+                        onEventSent(
+                            Event.OnBiometricsClicked(
+                                context = context,
+                                shouldThrowErrorIfNotAvailable = true
+                            )
+                        )
+                    }
+                } else null,
+                onDigitPressed = { digit ->
+                    val current = state.quickPin
+                    val next = if (!state.quickPinError.isNullOrEmpty()) {
+                        digit.toString()
+                    } else {
+                        (current + digit.toString())
+                    }.take(state.quickPinSize)
+                    onEventSent(Event.OnQuickPinEntered(next))
+                },
+                onBackspacePressed = {
+                    val current = state.quickPin
+                    val next = if (current.isNotEmpty()) current.dropLast(1) else current
+                    onEventSent(Event.OnQuickPinEntered(next))
+                }
             )
         }
 
@@ -289,21 +337,27 @@ private fun MainContent(
             AppIconAndText(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(top = SPACING_LARGE.dp)
                     .padding(bottom = SPACING_LARGE.dp),
                 appIconAndTextData = AppIconAndTextData(),
+                iconModifier = Modifier.scale(1.8f)
             )
 
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = SPACING_LARGE.dp),
-                verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp, Alignment.Top)
+                verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp, Alignment.Top),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
+                    modifier = Modifier.fillMaxWidth(),
                     text = mode.title,
-                    style = MaterialTheme.typography.headlineMedium.copy(
+                    style = MaterialTheme.typography.headlineLarge.copy(
                         color = MaterialTheme.colorScheme.onSurface
-                    )
+                    ),
+                    textAlign = TextAlign.Center
                 )
 
                 val subtitle = if (state.userBiometricsAreEnabled) {
@@ -312,10 +366,12 @@ private fun MainContent(
                     mode.subTitleWhenBiometricsNotEnabled
                 }
                 Text(
+                    modifier = Modifier.fillMaxWidth(),
                     text = subtitle,
                     style = MaterialTheme.typography.bodyLarge.copy(
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    textAlign = TextAlign.Center
                 )
             }
 
@@ -340,13 +396,16 @@ private fun PinFieldLayout(
 ) {
     WrapPinTextField(
         modifier = modifier,
+        controlledCode = state.quickPin,
         onPinUpdate = onPinInput,
         length = state.quickPinSize,
         hasError = !state.quickPinError.isNullOrEmpty(),
         errorMessage = state.quickPinError,
         visualTransformation = PasswordVisualTransformation(),
         pinWidth = 42.dp,
-        focusOnCreate = !state.userBiometricsAreEnabled
+        focusOnCreate = false,
+        enabled = false,
+        shouldHideKeyboardOnCompletion = true
     )
 }
 

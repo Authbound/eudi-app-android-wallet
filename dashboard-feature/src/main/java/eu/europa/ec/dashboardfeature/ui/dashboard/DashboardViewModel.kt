@@ -25,6 +25,7 @@ import eu.europa.ec.commonfeature.model.PinFlow
 import eu.europa.ec.corelogic.di.getOrCreatePresentationScope
 import eu.europa.ec.corelogic.model.RevokedDocumentDataDomain
 import eu.europa.ec.dashboardfeature.interactor.DashboardInteractor
+import eu.europa.ec.dashboardfeature.ui.component.BottomNavigationItem
 import eu.europa.ec.dashboardfeature.ui.dashboard.model.SideMenuItemUi
 import eu.europa.ec.dashboardfeature.ui.dashboard.model.SideMenuTypeUi
 import eu.europa.ec.eudi.wallet.document.DocumentId
@@ -105,10 +106,15 @@ sealed class Effect : ViewSideEffect {
         data class OpenUrlExternally(val url: Uri) : Navigation()
     }
 
+    data class SwitchBottomTab(val route: String) : Effect()
+
     data class ShareLogFile(val intent: Intent, val chooserTitle: String) : Effect()
 
     data object ShowBottomSheet : Effect()
     data object CloseBottomSheet : Effect()
+
+    data class TriggerQuickAction(val actionId: String) : Effect()
+    data object ShowComingSoon : Effect()
 }
 
 sealed class DashboardBottomSheetContent {
@@ -129,7 +135,7 @@ class DashboardViewModel(
 ) : MviViewModel<Event, State, Effect>() {
     override fun setInitialState(): State {
         return State(
-            sideMenuTitle = resourceProvider.getString(R.string.dashboard_side_menu_title),
+            sideMenuTitle = "",
             sideMenuOptions = dashboardInteractor.getSideMenuOptions(),
         )
     }
@@ -239,6 +245,30 @@ class DashboardViewModel(
 
     private fun handleSideMenuItemClicked(itemType: SideMenuTypeUi) {
         when (itemType) {
+            SideMenuTypeUi.AUTHENTICATE -> {
+                hideSideMenu()
+                setEffect { Effect.TriggerQuickAction("authenticate") }
+            }
+
+            SideMenuTypeUi.ADD_DOCUMENT -> {
+                hideSideMenu()
+                setEffect { Effect.TriggerQuickAction("add_credentials") }
+            }
+
+            SideMenuTypeUi.VERIFY -> {
+                hideSideMenu()
+                setEffect { Effect.TriggerQuickAction("verify") }
+            }
+
+            SideMenuTypeUi.SIGN_DOCUMENT -> {
+                setEffect { Effect.ShowComingSoon }
+            }
+
+            SideMenuTypeUi.PROFILE -> {
+                hideSideMenu()
+                setEffect { Effect.SwitchBottomTab(BottomNavigationItem.Settings.route) }
+            }
+
             SideMenuTypeUi.CHANGE_PIN -> {
                 val nextScreenRoute = generateComposableNavigationLink(
                     screen = CommonScreens.QuickPin,

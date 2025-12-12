@@ -24,18 +24,40 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
+
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -51,13 +73,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -116,6 +135,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 typealias DashboardEvent = eu.europa.ec.dashboardfeature.ui.dashboard.Event
 typealias OpenSideMenuEvent = eu.europa.ec.dashboardfeature.ui.dashboard.Event.SideMenu.Open
@@ -192,7 +212,8 @@ private fun TopBar(
         modifier = Modifier
             .fillMaxWidth()
             .padding(
-                all = SPACING_SMALL.dp
+                horizontal = SPACING_SMALL.dp,
+                vertical = 4.dp
             )
     ) {
         // home menu icon
@@ -207,7 +228,7 @@ private fun TopBar(
         // wallet logo
         AppIconAndText(
             modifier = Modifier.align(Alignment.Center),
-            appIconAndTextData = AppIconAndTextData()
+            appIconAndTextData = AppIconAndTextData(),
         )
 
 //        WrapIconButton(
@@ -234,7 +255,7 @@ private fun Content(
             .fillMaxSize()
             .paddingFrom(paddingValues, bottom = false)
             .verticalScroll(scrollState)
-            .padding(horizontal = SPACING_MEDIUM.dp, vertical = SPACING_MEDIUM.dp),
+            .padding(vertical = SPACING_MEDIUM.dp),
         verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
     ) {
         // Welcome message
@@ -253,6 +274,9 @@ private fun Content(
                 onEventSent(Event.QuickActionPressed(actionId))
             }
         )
+
+        // EUDI guide section (privacy and how it works)
+        EudiWalletGuide()
 
         // Credentials section
         CredentialsSection(
@@ -337,6 +361,203 @@ private fun Content(
         }.collect()
     }
 }
+
+
+/**
+ * "Annatar Forge" inspired Hero Guide.
+ * Large visual card with vertical navigation rail.
+ */
+@Composable
+private fun EudiWalletGuide() {
+    var selectedIndex by remember { mutableStateOf(0) }
+    var delayDuration by remember { mutableStateOf(5000L) }
+
+    // Define topics with "Insane" visual style colors
+    val topics = remember {
+        listOf(
+            GuideTopic(
+                id = "01",
+                tabTitle = "Control",
+                title = "Selective\nSharing",
+                description = "Share only what is needed. You are in control.",
+                icon = AppIcons.Visibility,
+                color = Color(0xFF172554) // Red 700 - Distinct from Quick Actions
+            ),
+            GuideTopic(
+                id = "02",
+                tabTitle = "Privacy",
+                title = "Private\nby Design",
+                description = "Your data stays on your device. Encrypted & Secure.",
+                icon = AppIcons.TouchId,
+                color = Color(0xFF965b20) // Dark Blue (Darker than Slate, slight blue tint)
+            ),
+            GuideTopic(
+                id = "03",
+                tabTitle = "Access",
+                title = "EU-Wide\nAccess",
+                description = "Accepted everywhere in the EU. All in one place.",
+                icon = AppIcons.Certified, // Reverted icon
+                color = Color(0xFF21758a) // Blue 600 (Close to original 1565C0 but brighter)
+            )
+        )
+    }
+
+    // Auto-advance logic
+    LaunchedEffect(selectedIndex) {
+        delay(delayDuration)
+        if (delayDuration > 5000L) {
+            delayDuration = 5000L
+        }
+        selectedIndex = (selectedIndex + 1) % topics.size
+    }
+
+    val currentTopic = topics[selectedIndex]
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = SPACING_SMALL.dp)
+    ) {
+        // Section Header
+        Text(
+            text = "Guide",
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = SPACING_SMALL.dp, vertical = 8.dp)
+        )
+
+        // Hero Card
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(260.dp) // Smaller hero card
+                .padding(horizontal = SPACING_SMALL.dp),
+            shape = RoundedCornerShape(32.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                // Background & Content Transition
+                Crossfade(targetState = currentTopic, label = "hero_bg") { topic ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(topic.color)
+                    ) {
+                        // Background Decoration (Giant Icon)
+                        WrapIcon(
+                            iconData = topic.icon,
+                            customTint = Color.White.copy(alpha = 0.05f),
+                            modifier = Modifier
+                                .size(350.dp)
+                                .align(Alignment.TopEnd)
+                                .offset(x = 100.dp, y = -80.dp) // Moved significantly higher
+                                .rotate(-15f)
+                        )
+
+                        // Main Content
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(24.dp)
+                                .padding(end = 60.dp), // Space for nav rail
+                            verticalArrangement = Arrangement.Top,
+                            horizontalAlignment = Alignment.Start
+                        ) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            
+                            // Pill Tag
+                            Surface(
+                                color = Color.White.copy(alpha = 0.2f),
+                                shape = RoundedCornerShape(50),
+                                modifier = Modifier.padding(bottom = 16.dp)
+                            ) {
+                                Text(
+                                    text = topic.tabTitle.uppercase(),
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = Color.White,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                )
+                            }
+
+                            // Big Title
+                            Text(
+                                text = topic.title,
+                                style = MaterialTheme.typography.displaySmall.copy(
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 32.sp
+                                ),
+                                color = Color.White,
+                                lineHeight = 36.sp
+                            )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // Description
+                            Text(
+                                text = topic.description,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = Color.White.copy(alpha = 0.8f)
+                            )
+                        }
+                    }
+                }
+
+                // Vertical Navigation Rail (Right Side)
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    topics.forEachIndexed { index, topic ->
+                        NavCircle(
+                            text = topic.id,
+                            isSelected = index == selectedIndex,
+                            onClick = { 
+                                selectedIndex = index
+                                delayDuration = 10000L // Increase delay on manual interaction
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NavCircle(text: String, isSelected: Boolean, onClick: () -> Unit) {
+    val height = if (isSelected) 60.dp else 40.dp
+    val width = 40.dp
+    val fontSize = if (isSelected) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium
+    
+    Box(
+        modifier = Modifier
+            .width(width)
+            .height(height)
+            .clip(RoundedCornerShape(20.dp)) // Capsule shape
+            .background(Color.White.copy(alpha = if (isSelected) 1f else 0.2f))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            style = fontSize.copy(fontWeight = FontWeight.Bold),
+            color = if (isSelected) Color.Black else Color.White,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+private data class GuideTopic(
+    val id: String,
+    val tabTitle: String,
+    val title: String,
+    val description: String,
+    val icon: IconDataUi,
+    val color: Color
+)
 
 private fun handleNavigationEffect(
     navigationEffect: Effect.Navigation,
@@ -628,23 +849,30 @@ private fun QuickActionsSection(
 ) {
     Column(
         modifier = Modifier
-            .fillMaxWidth(),
+            .fillMaxWidth()
+            .padding(vertical = SPACING_SMALL.dp),
         verticalArrangement = Arrangement.spacedBy(SPACING_LARGE.dp)
     ) {
         // Section title
-        Text(
+        /* Text(
             text = stringResource(R.string.home_screen_quick_actions),
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface
-        )
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = SPACING_SMALL.dp)
+        ) */
 
         // First row - first two actions
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(SPACING_LARGE.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = SPACING_SMALL.dp),
+            horizontalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
         ) {
             quickActions.take(2).forEach { action ->
                 QuickActionCard(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(140.dp),
                     config = action,
                     onClick = { onQuickActionClick(action.id) }
                 )
@@ -654,14 +882,19 @@ private fun QuickActionsSection(
         // Second row - next two actions (if available)
         if (quickActions.size > 2) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(SPACING_LARGE.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = SPACING_SMALL.dp),
+                horizontalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
             ) {
                 quickActions.drop(2).take(2).forEach { action ->
                     if (action.id == "sign") {
                         val context = LocalContext.current
-                        Box {
+                        Box(modifier = Modifier.weight(1f)) {
                             QuickActionCard(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(140.dp),
                                 config = action,
                                 onClick = {
                                     android.widget.Toast.makeText(
@@ -689,6 +922,9 @@ private fun QuickActionsSection(
                         }
                     } else {
                         QuickActionCard(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(140.dp),
                             config = action,
                             onClick = { onQuickActionClick(action.id) }
                         )
@@ -713,7 +949,8 @@ private fun CredentialsSection(
 ) {
     Column(
         modifier = Modifier
-            .fillMaxWidth(),
+            .fillMaxWidth()
+            .padding(horizontal = SPACING_SMALL.dp),
         verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
     ) {
         // Section header with title and View All button
@@ -724,7 +961,7 @@ private fun CredentialsSection(
         ) {
             Text(
                 text = stringResource(R.string.dashboard_home_screen_credential_section),
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onSurface
             )
 

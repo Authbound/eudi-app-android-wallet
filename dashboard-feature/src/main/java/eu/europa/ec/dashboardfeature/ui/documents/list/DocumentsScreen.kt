@@ -209,7 +209,8 @@ private fun TopBar(
         modifier = Modifier
             .fillMaxWidth()
             .padding(
-                all = SPACING_SMALL.dp
+                horizontal = SPACING_SMALL.dp,
+                vertical = 4.dp
             )
     ) {
         WrapIconButton(

@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -40,8 +41,8 @@ import eu.europa.ec.uilogic.component.ListItemDataUi
 import eu.europa.ec.uilogic.component.ListItemLeadingContentDataUi
 import eu.europa.ec.uilogic.component.ListItemMainContentDataUi
 import eu.europa.ec.uilogic.component.ListItemTrailingContentDataUi
+import eu.europa.ec.uilogic.component.SectionTitle
 import eu.europa.ec.uilogic.component.content.ContentScreen
-import eu.europa.ec.uilogic.component.content.ContentTitle
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
 import eu.europa.ec.uilogic.component.content.ToolbarActionUi
 import eu.europa.ec.uilogic.component.content.ToolbarConfig
@@ -49,6 +50,7 @@ import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
 import eu.europa.ec.uilogic.component.utils.SPACING_MEDIUM
 import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
+import eu.europa.ec.uilogic.component.wrap.TextConfig
 import eu.europa.ec.uilogic.component.wrap.WrapListItem
 
 @Composable
@@ -114,25 +116,42 @@ private fun SideMenuOptions(
     LazyColumn(
         modifier = Modifier.fillMaxSize()
     ) {
-        itemsIndexed(sideMenuOptions) { index, menuOption ->
-            WrapListItem(
-                modifier = Modifier.fillMaxWidth(),
-                mainContentVerticalPadding = SPACING_MEDIUM.dp,
-                item = menuOption.data,
-                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                onItemClick = {
-                    onEventSent(
-                        Event.SideMenu.ItemClicked(itemType = menuOption.type)
+        itemsIndexed(sideMenuOptions) { index, item ->
+            when (item) {
+                is SideMenuItemUi.Header -> {
+                    SectionTitle(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = SPACING_SMALL.dp, vertical = SPACING_SMALL.dp),
+                        text = item.title,
+                        textConfig = TextConfig(
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     )
                 }
-            )
 
-            if (index != sideMenuOptions.lastIndex) {
-                HorizontalDivider(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = SPACING_SMALL.dp)
-                )
+                is SideMenuItemUi.ActionItem -> {
+                    WrapListItem(
+                        modifier = Modifier.fillMaxWidth(),
+                        mainContentVerticalPadding = SPACING_MEDIUM.dp,
+                        item = item.data,
+                        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                        onItemClick = {
+                            onEventSent(
+                                Event.SideMenu.ItemClicked(itemType = item.type)
+                            )
+                        }
+                    )
+
+                    if (index != sideMenuOptions.lastIndex && sideMenuOptions[index + 1] is SideMenuItemUi.ActionItem) {
+                        HorizontalDivider(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = SPACING_SMALL.dp)
+                        )
+                    }
+                }
             }
         }
     }
@@ -145,32 +164,18 @@ private fun SideMenuContentPreview() {
         Content(
             state = State(
                 isSideMenuVisible = true,
-                sideMenuTitle = stringResource(R.string.dashboard_side_menu_title),
+                sideMenuTitle = "",
                 sideMenuOptions = listOf(
-                    SideMenuItemUi(
-                        type = SideMenuTypeUi.CHANGE_PIN,
+                    SideMenuItemUi.Header("Actions"),
+                    SideMenuItemUi.ActionItem(
+                        type = SideMenuTypeUi.PROFILE,
                         data = ListItemDataUi(
-                            itemId = stringResource(R.string.dashboard_side_menu_option_change_pin_id),
+                            itemId = stringResource(R.string.dashboard_side_menu_option_profile_id),
                             mainContentData = ListItemMainContentDataUi.Text(
-                                text = stringResource(R.string.dashboard_side_menu_option_change_pin)
+                                text = stringResource(R.string.dashboard_side_menu_option_profile)
                             ),
                             leadingContentData = ListItemLeadingContentDataUi.Icon(
-                                iconData = AppIcons.ChangePin
-                            ),
-                            trailingContentData = ListItemTrailingContentDataUi.Icon(
-                                iconData = AppIcons.KeyboardArrowRight
-                            )
-                        )
-                    ),
-                    SideMenuItemUi(
-                        type = SideMenuTypeUi.SETTINGS,
-                        data = ListItemDataUi(
-                            itemId = stringResource(R.string.dashboard_side_menu_option_settings_id),
-                            mainContentData = ListItemMainContentDataUi.Text(
-                                text = stringResource(R.string.dashboard_side_menu_option_settings)
-                            ),
-                            leadingContentData = ListItemLeadingContentDataUi.Icon(
-                                iconData = AppIcons.Settings
+                                iconData = AppIcons.UserIcon
                             ),
                             trailingContentData = ListItemTrailingContentDataUi.Icon(
                                 iconData = AppIcons.KeyboardArrowRight

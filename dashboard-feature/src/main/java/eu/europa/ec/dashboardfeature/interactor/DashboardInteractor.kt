@@ -36,16 +36,90 @@ class DashboardInteractorImpl(
 
     override fun getSideMenuOptions(): List<SideMenuItemUi> {
         return buildList {
+            add(SideMenuItemUi.Header(resourceProvider.getString(R.string.home_screen_quick_actions)))
+
             add(
-                SideMenuItemUi(
-                    type = SideMenuTypeUi.SETTINGS,
+                SideMenuItemUi.ActionItem(
+                    type = SideMenuTypeUi.AUTHENTICATE,
                     data = ListItemDataUi(
-                        itemId = resourceProvider.getString(R.string.dashboard_side_menu_option_settings_id),
+                        itemId = "authenticate",
                         mainContentData = ListItemMainContentDataUi.Text(
-                            text = resourceProvider.getString(R.string.dashboard_side_menu_option_settings)
+                            text = resourceProvider.getString(R.string.home_screen_authenticate)
                         ),
                         leadingContentData = ListItemLeadingContentDataUi.Icon(
-                            iconData = AppIcons.Settings
+                            iconData = AppIcons.TouchId
+                        ),
+                        trailingContentData = ListItemTrailingContentDataUi.Icon(
+                            iconData = AppIcons.KeyboardArrowRight
+                        )
+                    )
+                )
+            )
+            add(
+                SideMenuItemUi.ActionItem(
+                    type = SideMenuTypeUi.ADD_DOCUMENT,
+                    data = ListItemDataUi(
+                        itemId = "add_document",
+                        mainContentData = ListItemMainContentDataUi.Text(
+                            text = resourceProvider.getString(R.string.dashboard_quick_action_add_credential)
+                        ),
+                        leadingContentData = ListItemLeadingContentDataUi.Icon(
+                            iconData = AppIcons.Id
+                        ),
+                        trailingContentData = ListItemTrailingContentDataUi.Icon(
+                            iconData = AppIcons.KeyboardArrowRight
+                        )
+                    )
+                )
+            )
+            add(
+                SideMenuItemUi.ActionItem(
+                    type = SideMenuTypeUi.VERIFY,
+                    data = ListItemDataUi(
+                        itemId = "verify",
+                        mainContentData = ListItemMainContentDataUi.Text(
+                            text = resourceProvider.getString(R.string.verification_quick_action_title)
+                        ),
+                        leadingContentData = ListItemLeadingContentDataUi.Icon(
+                            iconData = AppIcons.Verified
+                        ),
+                        trailingContentData = ListItemTrailingContentDataUi.Icon(
+                            iconData = AppIcons.KeyboardArrowRight
+                        )
+                    )
+                )
+            )
+            add(
+                SideMenuItemUi.ActionItem(
+                    type = SideMenuTypeUi.SIGN_DOCUMENT,
+                    data = ListItemDataUi(
+                        itemId = "sign_document",
+                        mainContentData = ListItemMainContentDataUi.Text(
+                            text = resourceProvider.getString(R.string.home_screen_sign)
+                        ),
+                        leadingContentData = ListItemLeadingContentDataUi.Icon(
+                            iconData = AppIcons.Sign
+                        ),
+                        trailingContentData = ListItemTrailingContentDataUi.TextWithIcon(
+                            text = resourceProvider.getString(R.string.coming_soon_badge),
+                            iconData = AppIcons.KeyboardArrowRight
+                        )
+                    )
+                )
+            )
+
+            add(SideMenuItemUi.Header(resourceProvider.getString(R.string.dashboard_side_menu_option_profile)))
+
+            add(
+                SideMenuItemUi.ActionItem(
+                    type = SideMenuTypeUi.PROFILE,
+                    data = ListItemDataUi(
+                        itemId = resourceProvider.getString(R.string.dashboard_side_menu_option_profile_id),
+                        mainContentData = ListItemMainContentDataUi.Text(
+                            text = resourceProvider.getString(R.string.dashboard_side_menu_option_profile)
+                        ),
+                        leadingContentData = ListItemLeadingContentDataUi.Icon(
+                            iconData = AppIcons.UserIcon
                         ),
                         trailingContentData = ListItemTrailingContentDataUi.Icon(
                             iconData = AppIcons.KeyboardArrowRight

@@ -168,7 +168,7 @@ object AppIcons {
     )
 
     val AuthboundLogoAndText: IconDataUi = IconDataUi(
-        resourceId = R.drawable.ic_authbound_logo_and_text_100_x_50,
+        resourceId = R.drawable.authbound_new_logo,
         contentDescriptionId = R.string.content_description_logo_text_icon,
         imageVector = null
     )

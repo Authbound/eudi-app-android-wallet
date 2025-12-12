@@ -63,7 +63,7 @@ class ThemeColors {
         private const val eudiw_theme_light_onErrorContainer: Long = 0xFF7A0000
         
         // HSL: --background: 48 100% 99% -> #FFFCF5
-        private const val eudiw_theme_light_surface: Long = 0xFFFFFCF5
+        private const val eudiw_theme_light_surface: Long = 0xFFFFFCF6
         // HSL: --foreground: 220 86% 11% -> #0A1A36
         private const val eudiw_theme_light_onSurface: Long = 0xFF0A1A36
         private const val eudiw_theme_light_background: Long = eudiw_theme_light_surface

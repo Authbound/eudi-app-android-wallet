@@ -18,12 +18,20 @@ package eu.europa.ec.dashboardfeature.ui.dashboard.model
 
 import eu.europa.ec.uilogic.component.ListItemDataUi
 
-data class SideMenuItemUi(
-    val type: SideMenuTypeUi,
-    val data: ListItemDataUi,
-)
+sealed interface SideMenuItemUi {
+    data class Header(val title: String) : SideMenuItemUi
+    data class ActionItem(
+        val type: SideMenuTypeUi,
+        val data: ListItemDataUi,
+    ) : SideMenuItemUi
+}
 
 enum class SideMenuTypeUi {
+    AUTHENTICATE,
+    ADD_DOCUMENT,
+    VERIFY,
+    SIGN_DOCUMENT,
+    PROFILE,
     CHANGE_PIN,
     SETTINGS,
 }

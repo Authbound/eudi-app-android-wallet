@@ -73,6 +73,7 @@ import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
 fun WrapPinTextField(
     modifier: Modifier = Modifier.fillMaxWidth(),
     displayCode: String? = null,
+    controlledCode: String? = null,
     onPinUpdate: (code: String) -> Unit,
     length: Int,
     hasError: Boolean = false,
@@ -82,9 +83,14 @@ fun WrapPinTextField(
     clearCode: Boolean = false,
     focusOnCreate: Boolean = false,
     shouldHideKeyboardOnCompletion: Boolean = false,
+    enabled: Boolean = true,
+    readOnly: Boolean = false,
     colors: TextFieldColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = MaterialTheme.colorScheme.primary,
         unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+        disabledBorderColor = MaterialTheme.colorScheme.outlineVariant,
+        disabledTextColor = MaterialTheme.colorScheme.onSurface,
+        disabledContainerColor = Color.Transparent,
     )
 ) {
 
@@ -119,6 +125,12 @@ fun WrapPinTextField(
             mutableState.value = otpCode[index].toString()
         }
         onPinUpdate.invoke(otpCode)
+    }
+
+    controlledCode?.let { code ->
+        textFieldStateList.forEachIndexed { index, mutableState ->
+            mutableState.value = code.getOrNull(index)?.toString() ?: ""
+        }
     }
 
     if (clearCode) {
@@ -187,8 +199,13 @@ fun WrapPinTextField(
                             ),
                             visualTransformation = visualTransformation,
                             isError = hasError,
+                            enabled = enabled,
+                            readOnly = readOnly || controlledCode != null,
                             singleLine = true,
                             onValueChange = { newText: String ->
+                                if (controlledCode != null) {
+                                    return@OutlinedTextField
+                                }
 
                                 if (
                                     !newText.isDigitsOnly()

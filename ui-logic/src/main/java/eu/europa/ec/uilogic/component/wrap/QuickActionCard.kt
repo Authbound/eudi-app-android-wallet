@@ -59,6 +59,7 @@ data class QuickActionConfig(
  */
 @Composable
 fun QuickActionCard(
+    modifier: Modifier = Modifier,
     config: QuickActionConfig,
     onClick: () -> Unit
 ) {
@@ -74,8 +75,7 @@ fun QuickActionCard(
     )
     
     Surface(
-        modifier = Modifier
-            .size(155.dp)  // Fixed size for all cards
+        modifier = modifier
             .scale(scale)
             .clickable(
                 interactionSource = interactionSource,
@@ -101,19 +101,12 @@ fun QuickActionCard(
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Icon container with circular background
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(Color.White.copy(alpha = 0.25f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    WrapIcon(
-                        iconData = config.icon,
-                        customTint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+                // Icon - Clean and large
+                WrapIcon(
+                    iconData = config.icon,
+                    customTint = Color.White,
+                    modifier = Modifier.size(40.dp)
+                )
                 
                 // Title
                 Text(

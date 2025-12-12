@@ -38,6 +38,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -211,6 +212,43 @@ internal fun DashboardScreen(
                         effect.intent,
                         effect.chooserTitle
                     )
+                }
+
+                is Effect.TriggerQuickAction -> {
+                    if (bottomNavigationController.currentDestination?.route != BottomNavigationItem.Home.route) {
+                        bottomNavigationController.navigate(BottomNavigationItem.Home.route) {
+                            popUpTo(bottomNavigationController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                    homeViewModel.setEvent(
+                        eu.europa.ec.dashboardfeature.ui.home.Event.QuickActionPressed(
+                            effect.actionId
+                        )
+                    )
+                }
+
+                is Effect.SwitchBottomTab -> {
+                    if (bottomNavigationController.currentDestination?.route != effect.route) {
+                        bottomNavigationController.navigate(effect.route) {
+                            popUpTo(bottomNavigationController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                }
+
+                is Effect.ShowComingSoon -> {
+                    android.widget.Toast.makeText(
+                        context,
+                        context.getString(R.string.feature_coming_soon),
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
         }.collect()

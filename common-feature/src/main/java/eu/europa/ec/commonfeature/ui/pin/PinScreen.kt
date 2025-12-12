@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -36,6 +37,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -50,6 +53,7 @@ import eu.europa.ec.uilogic.component.content.ContentScreen
 import eu.europa.ec.uilogic.component.content.ImePaddingConfig
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
+import eu.europa.ec.uilogic.component.utils.OneTimeLaunchedEffect
 import eu.europa.ec.uilogic.component.utils.SPACING_LARGE
 import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
 import eu.europa.ec.uilogic.component.wrap.BottomSheetTextDataUi
@@ -59,6 +63,7 @@ import eu.europa.ec.uilogic.component.wrap.DialogBottomSheet
 import eu.europa.ec.uilogic.component.wrap.StickyBottomConfig
 import eu.europa.ec.uilogic.component.wrap.StickyBottomType
 import eu.europa.ec.uilogic.component.wrap.WrapModalBottomSheet
+import eu.europa.ec.uilogic.component.wrap.WrapPinKeypad
 import eu.europa.ec.uilogic.component.wrap.WrapPinTextField
 import eu.europa.ec.uilogic.component.wrap.WrapStickyBottomContent
 import eu.europa.ec.uilogic.extension.finish
@@ -181,53 +186,89 @@ private fun Content(
     coroutineScope: CoroutineScope,
     modalBottomSheetState: SheetState,
 ) {
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    // This screen uses an in-app keypad. Ensure the system keyboard stays hidden.
+    OneTimeLaunchedEffect {
+        focusManager.clearFocus(force = true)
+        keyboardController?.hide()
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .verticalScroll(rememberScrollState())
     ) {
-        AppIconAndText(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = SPACING_LARGE.dp),
-            appIconAndTextData = AppIconAndTextData(),
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+        ) {
+            AppIconAndText(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = SPACING_LARGE.dp),
+                appIconAndTextData = AppIconAndTextData(),
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = SPACING_LARGE.dp),
+                verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp, Alignment.Top)
+            ) {
+                Text(
+                    text = state.title,
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                )
+                Text(
+                    text = state.subtitle,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = SPACING_LARGE.dp),
+                verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp, Alignment.Top)
+            ) {
+                PinFieldLayout(
+                    modifier = Modifier.fillMaxWidth(),
+                    state = state,
+                    onPinInput = { quickPin ->
+                        onEventSend(Event.OnQuickPinEntered(quickPin))
+                    }
+                )
+            }
+        }
+
+        WrapPinKeypad(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(bottom = SPACING_SMALL.dp),
+            onDigitPressed = { digit ->
+                val current = state.pin
+                val next = if (!state.quickPinError.isNullOrEmpty()) {
+                    digit.toString()
+                } else {
+                    (current + digit.toString())
+                }.take(state.quickPinSize)
+                onEventSend(Event.OnQuickPinEntered(next))
+            },
+            onBackspacePressed = {
+                val current = state.pin
+                val next = if (current.isNotEmpty()) current.dropLast(1) else current
+                onEventSend(Event.OnQuickPinEntered(next))
+            }
         )
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = SPACING_LARGE.dp),
-            verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp, Alignment.Top)
-        ) {
-            Text(
-                text = state.title,
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            )
-            Text(
-                text = state.subtitle,
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            )
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = SPACING_LARGE.dp),
-            verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp, Alignment.Top)
-        ) {
-            PinFieldLayout(
-                modifier = Modifier.fillMaxWidth(),
-                state = state,
-                onPinInput = { quickPin ->
-                    onEventSend(Event.OnQuickPinEntered(quickPin))
-                }
-            )
-        }
     }
 
     LaunchedEffect(Unit) {
@@ -277,6 +318,7 @@ private fun PinFieldLayout(
 ) {
     WrapPinTextField(
         modifier = modifier,
+        controlledCode = state.pin,
         onPinUpdate = onPinInput,
         length = state.quickPinSize,
         hasError = !state.quickPinError.isNullOrEmpty(),
@@ -284,7 +326,9 @@ private fun PinFieldLayout(
         visualTransformation = PasswordVisualTransformation(),
         pinWidth = 42.dp,
         clearCode = state.resetPin,
-        focusOnCreate = true
+        focusOnCreate = false,
+        enabled = false,
+        shouldHideKeyboardOnCompletion = true
     )
 }
 

@@ -182,10 +182,10 @@ class HomeViewModel(
     override fun setInitialState(): State {
         // Define colors for quick actions
         val authenticateColor = Color(0xFF1E40AF) // Deep blue
-        val signColor = Color(0xFF7C3AED) // Purple
+        val signColor = Color(0xFF6D28D9) // Richer Purple
         val viewCredentialsColor = Color(0xFF16A34A) // Green
-        val settingsColor = Color(0xFFD97706) // Amber
-        val verificationColor = Color(0xFF16A34A) // Red
+        val settingsColor = Color(0xFFE0530D) // Amber (This is acuatlly the add a crenedential action)
+        val verificationColor = Color(0xFF059649) // Green
 
         // Create quick actions list
         val quickActionsList =
@@ -200,7 +200,7 @@ class HomeViewModel(
                         resourceProvider.getString(
                             R.string.home_screen_authentication_card_title
                         ),
-                    icon = AppIcons.IdCards,
+                    icon = AppIcons.TouchId,
                     backgroundColor = authenticateColor,
                     borderColor = authenticateColor.copy(alpha = 0.7f)
                 ),
@@ -226,7 +226,7 @@ class HomeViewModel(
                         resourceProvider.getString(
                             R.string.verification_quick_action_description
                         ),
-                    icon = AppIcons.Certified,
+                    icon = AppIcons.Verified,
                     backgroundColor = verificationColor,
                     borderColor = verificationColor.copy(alpha = 0.7f)
                 ),
@@ -237,7 +237,7 @@ class HomeViewModel(
                         resourceProvider.getString(
                             R.string.home_screen_sign_card_title
                         ),
-                    icon = AppIcons.Contract,
+                    icon = AppIcons.Sign,
                     backgroundColor = signColor,
                     borderColor = signColor.copy(alpha = 0.7f)
                 ),

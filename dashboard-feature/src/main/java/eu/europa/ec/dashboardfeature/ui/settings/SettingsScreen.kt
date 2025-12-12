@@ -17,6 +17,7 @@
 package eu.europa.ec.dashboardfeature.ui.settings
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import android.content.Context
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -25,12 +26,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +45,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -196,14 +202,28 @@ private fun Content(
 
             WrapButton(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(SPACING_MEDIUM.dp),
+                    .wrapContentWidth()
+                    .padding(SPACING_MEDIUM.dp)
+                    .align(Alignment.CenterHorizontally),
                 buttonConfig = ButtonConfig(
-                    type = ButtonType.SECONDARY,
-                    onClick = { onEventSend(Event.Logout) }
+                    type = ButtonType.PRIMARY,
+                    onClick = { onEventSend(Event.Logout) },
+                    buttonColors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
                 )
             ) {
-                Text(text = "Logout")
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Logout",
+                    style = MaterialTheme.typography.labelLarge
+                )
             }
 
             Text(
@@ -287,15 +307,14 @@ private fun ProfileHeader(email: String?, phone: String?, profile: Profile?) {
                     .clip(CircleShape),
                 color = MaterialTheme.colorScheme.secondaryContainer,
             ) {
-                // Realistic placeholder avatar via network; falls back to icon
-                WrapAsyncImage(
-                    source = "https://avatar.iran.liara.run/public/15",
+                // Using local avatar resource
+                Image(
+                    painter = painterResource(id = R.drawable.authbound_avatar_placeholder_mascot),
+                    contentDescription = "User Avatar",
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(CircleShape),
-                    contentScale = ContentScale.Crop,
-                    placeholder = AppIcons.User,
-                    error = AppIcons.User
+                    contentScale = ContentScale.Crop
                 )
             }
         }

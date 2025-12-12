@@ -28,11 +28,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.uilogic.component.content.ContentScreen
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
 import eu.europa.ec.uilogic.component.utils.SPACING_LARGE
@@ -100,7 +102,7 @@ private fun AuthInfoSection(authInfo: AuthInfoUi) {
             .padding(horizontal = SPACING_MEDIUM.dp)
     ) {
         Text(
-            text = "Account details",
+            text = stringResource(R.string.dashboard_side_menu_option_profile),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
