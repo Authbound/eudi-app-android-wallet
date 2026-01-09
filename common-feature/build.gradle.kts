@@ -38,6 +38,9 @@ dependencies {
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
     implementation(libs.androidx.camera.camera2)
+
+    testImplementation(project(LibraryModule.TestLogic.path))
+    androidTestImplementation(project(LibraryModule.TestLogic.path))
 }
 
 excludeFromKoverReport(

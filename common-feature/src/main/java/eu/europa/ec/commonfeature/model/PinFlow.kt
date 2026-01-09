@@ -16,8 +16,15 @@
 
 package eu.europa.ec.commonfeature.model
 
+/**
+ * Enum representing the different PIN flows in the application.
+ *
+ * - CREATE: First-time PIN setup (enter → re-enter for confirmation)
+ * - UPDATE: Change existing PIN (validate current → enter new → re-enter new)
+ * - VERIFY: Verify existing PIN during startup (single entry, no re-enter)
+ */
 enum class PinFlow {
     CREATE,
     UPDATE,
-    
+    VERIFY
 }

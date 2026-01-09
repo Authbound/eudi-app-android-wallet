@@ -203,9 +203,10 @@ fun provideGetMyProfileUseCase(
 @Factory
 fun provideIsProfileCompletedUseCase(
     prefKeys: PrefKeysV2,
-    profileRepository: ProfileRepository
+    profileRepository: ProfileRepository,
+    logController: LogController
 ): IsProfileCompletedUseCase =
-    IsProfileCompletedUseCaseV2Impl(prefKeys, profileRepository)
+    IsProfileCompletedUseCaseV2Impl(prefKeys, profileRepository, logController)
 
 @Factory
 fun provideIsWalletActivatedUseCase(
@@ -232,8 +233,9 @@ fun provideLocalAuthenticationPolicy(
 fun provideKeyGateImpl(
     prefs: PrefsControllerV2,
     prefKeys: PrefKeysV2,
-    pinStorage: PinStorageController
-): KeyGateV2Impl = KeyGateV2Impl(prefs, prefKeys, pinStorage)
+    pinStorage: PinStorageController,
+    logController: LogController
+): KeyGateV2Impl = KeyGateV2Impl(prefs, prefKeys, pinStorage, logController)
 
 @Factory
 fun provideKeyGate(impl: KeyGateV2Impl): KeyGate = impl

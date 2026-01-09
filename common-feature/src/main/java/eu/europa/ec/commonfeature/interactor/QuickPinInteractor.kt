@@ -51,10 +51,6 @@ class QuickPinInteractorImpl(
         get() = resourceProvider.genericErrorMessage()
 
     override suspend fun hasPin(): Boolean {
-        val pin = pinStorageController.retrievePin()
-
-        println("pin: $pin")
-
         return pinStorageController.retrievePin().isNotBlank()
     }
 

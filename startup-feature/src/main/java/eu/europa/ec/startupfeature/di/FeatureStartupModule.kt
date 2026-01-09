@@ -16,18 +16,15 @@
 
 package eu.europa.ec.startupfeature.di
 
-import eu.europa.ec.authenticationlogic.policy.LocalAuthPolicy
+import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
 import eu.europa.ec.authenticationlogic.usecase.IsProfileCompletedUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsWalletActivatedUseCase
 import eu.europa.ec.businesslogic.controller.log.LogController
-import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
 import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractor
-import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.startupfeature.interactor.SplashInteractor
 import eu.europa.ec.startupfeature.interactor.SplashInteractorImpl
-import eu.europa.ec.uilogic.serializer.UiSerializer
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Module
@@ -39,24 +36,18 @@ class FeatureStartupModule
 @Factory
 fun provideSplashInteractor(
     supabaseAuthRepository: SupabaseAuthRepository,
-    uiSerializer: UiSerializer,
-    resourceProvider: ResourceProvider,
-    prefsController: PrefsControllerV2,
     prefKeys: PrefKeysV2,
     logController: LogController,
-    localAuthPolicy: LocalAuthPolicy,
     isWalletActivatedUseCase: IsWalletActivatedUseCase,
     isProfileCompletedUseCase: IsProfileCompletedUseCase,
-    quickPinInteractor: QuickPinInteractor
+    quickPinInteractor: QuickPinInteractor,
+    localUnlockTracker: LocalUnlockTracker
 ): SplashInteractor = SplashInteractorImpl(
     supabaseAuthRepository,
-    uiSerializer,
-    resourceProvider,
-    prefsController,
     prefKeys,
     logController,
-    localAuthPolicy,
     isWalletActivatedUseCase,
     isProfileCompletedUseCase,
-    quickPinInteractor
+    quickPinInteractor,
+    localUnlockTracker
 )

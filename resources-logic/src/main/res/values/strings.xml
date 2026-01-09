@@ -28,6 +28,7 @@
     <string name="generic_confirm_capitalized" tools:ignore="ButtonCase">CONFIRM</string>
     <string name="generic_continue">Continue</string>
     <string name="generic_continue_capitalized" tools:ignore="ButtonCase">CONTINUE</string>
+    <string name="generic_verify_capitalized" tools:ignore="ButtonCase">VERIFY</string>
     <string name="generic_enable_capitalized" tools:ignore="ButtonCase">ENABLE</string>
     <string name="generic_success">Success</string>
     <string name="generic_close">Close</string>
@@ -155,6 +156,9 @@
     <string name="quick_pin_change_validate_current_subtitle">Type your current pin</string>
     <string name="quick_pin_change_enter_new_subtitle">Select a quick pin for future logins</string>
     <string name="quick_pin_change_reenter_new_subtitle">Re-enter the new quick pin</string>
+
+    <string name="quick_pin_verify_title">Verify PIN</string>
+    <string name="quick_pin_verify_subtitle">Enter your PIN to unlock your wallet</string>
 
     <string name="quick_pin_create_success_text">Your wallet is secured!</string>
     <string name="quick_pin_create_success_description">To activate your wallet, connect to your National System to add your Digital ID.</string>

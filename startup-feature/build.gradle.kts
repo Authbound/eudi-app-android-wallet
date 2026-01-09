@@ -36,7 +36,8 @@ dependencies {
     implementation(libs.supabase.auth.kt)
     implementation(libs.supabase.realtime.kt)
 
-
+    testImplementation(project(LibraryModule.TestLogic.path))
+    androidTestImplementation(project(LibraryModule.TestLogic.path))
 }
 
 moduleConfig {

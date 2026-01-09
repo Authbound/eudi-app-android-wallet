@@ -16,172 +16,186 @@
 
 package eu.europa.ec.startupfeature.interactor
 
-import eu.europa.ec.authenticationlogic.policy.LocalAuthPolicy
+import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
 import eu.europa.ec.authenticationlogic.usecase.IsProfileCompletedUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsWalletActivatedUseCase
 import eu.europa.ec.authenticationlogic.usecase.WalletActivationStatus
 import eu.europa.ec.businesslogic.controller.log.LogController
-import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
 import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
-import eu.europa.ec.commonfeature.config.BiometricMode
-import eu.europa.ec.commonfeature.config.BiometricUiConfig
-import eu.europa.ec.commonfeature.config.IssuanceFlowType
-import eu.europa.ec.commonfeature.config.IssuanceUiConfig
-import eu.europa.ec.commonfeature.config.OnBackNavigationConfig
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractor
-import eu.europa.ec.commonfeature.model.PinFlow
-import eu.europa.ec.resourceslogic.R
-import eu.europa.ec.resourceslogic.provider.ResourceProvider
-import eu.europa.ec.uilogic.config.ConfigNavigation
-import eu.europa.ec.uilogic.config.NavigationType
-import eu.europa.ec.uilogic.navigation.AuthenticationScreens
-import eu.europa.ec.uilogic.navigation.CommonScreens
-import eu.europa.ec.uilogic.navigation.DashboardScreens
-import eu.europa.ec.uilogic.navigation.IssuanceScreens
-import eu.europa.ec.uilogic.navigation.helper.generateComposableArguments
-import eu.europa.ec.uilogic.navigation.helper.generateComposableNavigationLink
-import eu.europa.ec.uilogic.serializer.UiSerializer
+import eu.europa.ec.startupfeature.model.StartupState
 import io.github.jan.supabase.auth.status.SessionStatus
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 
 /**
- * Streamlined splash interactor with proper session initialization.
+ * Streamlined splash interactor with proper session initialization and state-based routing.
  *
- * SECURITY IMPROVEMENT: Eliminates race conditions by:
- * - Waiting for Supabase session initialization before routing
- * - Using PrefsControllerV2 which auto-derives user context
- * - Proper error handling with fail-safe defaults
- * - Clear logging for debugging auth flow
+ * IMPROVEMENTS:
+ * - Returns StartupState for better error handling and logging
+ * - Three-level state checking: Authentication → Onboarding → Local Unlock
+ * - TTL-based PIN skip for hot starts
+ * - Comprehensive logging for debugging startup issues
  *
  * Startup Flow:
  * 1. Wait for Supabase session to initialize (not in Initializing state)
  * 2. Check authentication status (Supabase is source of truth)
  * 3. If authenticated: Check profile completion → wallet activation → local unlock
- * 4. Route to appropriate screen based on state
+ * 4. Return appropriate StartupState based on checks
  */
 interface SplashInteractor {
-    suspend fun getAfterSplashRoute(): String
+    /**
+     * Determine the startup state based on authentication, profile, wallet, and unlock status.
+     *
+     * @return StartupState containing the appropriate screen route and log message
+     */
+    suspend fun determineStartupState(): StartupState
 }
 
 class SplashInteractorImpl(
     private val supabaseAuthRepository: SupabaseAuthRepository,
-    private val uiSerializer: UiSerializer,
-    private val resourceProvider: ResourceProvider,
-    private val prefsController: PrefsControllerV2,
     private val prefKeys: PrefKeysV2,
     private val logController: LogController,
-    private val localAuthPolicy: LocalAuthPolicy,
     private val isWalletActivatedUseCase: IsWalletActivatedUseCase,
     private val isProfileCompletedUseCase: IsProfileCompletedUseCase,
     private val quickPinInteractor: QuickPinInteractor,
+    private val localUnlockTracker: LocalUnlockTracker
+) : SplashInteractor {
 
-    ) : SplashInteractor {
+    companion object {
+        private const val TAG = "SplashInteractor"
+    }
 
-    override suspend fun getAfterSplashRoute(): String {
+    override suspend fun determineStartupState(): StartupState {
         try {
-            logController.i("SplashInteractorV2") { "Starting splash routing..." }
+            logController.i(TAG) { "Starting startup state determination..." }
 
-            logController.d("SplashInteractorV2", "Waiting for session initialization...")
-            val sessionStatus = waitForSessionInitialization()
-            logController.d(
-                "SplashInteractorV2", "Session status: ${sessionStatus::class.simpleName}"
-            )
-
-            val isAuthenticated = sessionStatus is SessionStatus.Authenticated
-            logController.i("SplashInteractorV2") { "Authenticated: $isAuthenticated" }
-
-            if (!isAuthenticated) {
-                logController.i("SplashInteractorV2") { "No authenticated session → Login" }
-                return AuthenticationScreens.Login.screenRoute
+            // Level 1: Authentication Check
+            val authState = checkAuthenticationState()
+            if (authState != null) {
+                logController.i(TAG) { authState.logMessage }
+                return authState
             }
 
-            val profileCompleted = isProfileCompletedUseCase()
-
-            logController.i("SplashInteractorV2") { "Profile completed: $profileCompleted" }
-
-            if (!profileCompleted) {
-                logController.i("SplashInteractorV2") { "Profile incomplete → ProfileCompletion" }
-                return AuthenticationScreens.ProfileCompletion.screenRoute
+            // Level 2: Onboarding Check (Profile + WUA)
+            val onboardingState = checkOnboardingState()
+            if (onboardingState != null) {
+                logController.i(TAG) { onboardingState.logMessage }
+                return onboardingState
             }
 
-            val walletStatus = isWalletActivatedUseCase()
-
-            return when (walletStatus) {
-                WalletActivationStatus.Activated -> {
-                    completeStartupFlow()
-                }
-
-                else -> {
-                    createWUA(walletStatus)
-                }
-            }
-
+            // Level 3: Local Unlock Check (PIN/Biometric)
+            val unlockState = checkLocalUnlockState()
+            logController.i(TAG) { unlockState.logMessage }
+            return unlockState
 
         } catch (e: SecurityException) {
-
-            logController.e("SplashInteractorV2", e)
-            logController.w("SplashInteractorV2") {
-                "SecurityException during splash routing - forcing login: ${e.message}"
-            }
-            return AuthenticationScreens.Login.screenRoute
+            logController.e(TAG, e)
+            val state = StartupState.SecurityError(e.message ?: "Security error")
+            logController.w(TAG) { state.logMessage }
+            return state
         } catch (e: Exception) {
-
-            logController.e("SplashInteractorV2", e)
-            logController.w("SplashInteractorV2") {
-                "Unexpected error during splash routing - forcing login: ${e.message}"
-            }
-            return AuthenticationScreens.Login.screenRoute
+            logController.e(TAG, e)
+            val state = StartupState.SecurityError("Unexpected error: ${e.message}")
+            logController.w(TAG) { state.logMessage }
+            return state
         }
     }
 
+    /**
+     * Level 1: Check authentication status.
+     *
+     * @return StartupState if not authenticated, null if authenticated
+     */
+    private suspend fun checkAuthenticationState(): StartupState? {
+        logController.d(TAG, "Level 1: Checking authentication status...")
 
-    private suspend fun createWUA(walletStatus: WalletActivationStatus): String {
+        val sessionStatus = waitForSessionInitialization()
+        logController.d(TAG, "Session status: ${sessionStatus::class.simpleName}")
 
-        if (walletStatus is WalletActivationStatus.NotActivated) {
-            logController.i("SplashInteractor") {
-                "Wallet not activated - Reason: ${walletStatus.reason} " + "(Key exists: ${walletStatus.privateKeyExists}, Flag set: ${walletStatus.localFlagSet})"
-            }
-
-
-            if (walletStatus.localFlagSet && !walletStatus.privateKeyExists) {
-                logController.w("SplashInteractorV2") {
-                    "Inconsistent state detected: Clearing stale activation flag"
-                }
-                try {
-                    prefKeys.setWalletActivated(false)
-                } catch (e: Exception) {
-                    logController.e("SplashInteractorV2", e)
-                }
-            }
-
-            return AuthenticationScreens.WalletSetup.screenRoute
-        } else {
-            throw IllegalStateException("Unexpected wallet activation status: $walletStatus")
+        if (sessionStatus !is SessionStatus.Authenticated) {
+            return StartupState.NotAuthenticated
         }
 
+        logController.d(TAG, "User is authenticated, proceeding to onboarding check")
+        return null // Continue to next level
     }
 
-    private suspend fun completeStartupFlow(): String {
-        return when (quickPinInteractor.hasPin()) {
-            true -> {
-                logController.d {
-                    "User pin set. Getting biometrics conf"
-                }
-                getBiometricsConfig()
+    /**
+     * Level 2: Check onboarding status (profile + wallet activation).
+     *
+     * @return StartupState if onboarding incomplete, null if complete
+     */
+    private suspend fun checkOnboardingState(): StartupState? {
+        logController.d(TAG, "Level 2: Checking onboarding status...")
+
+        // Check profile completion
+        val profileCompleted = isProfileCompletedUseCase()
+        logController.d(TAG, "Profile completed: $profileCompleted")
+
+        if (!profileCompleted) {
+            return StartupState.ProfileIncomplete
+        }
+
+        // Check wallet activation
+        val walletStatus = isWalletActivatedUseCase()
+        logController.d(TAG, "Wallet status: ${walletStatus::class.simpleName}")
+
+        when (walletStatus) {
+            WalletActivationStatus.Activated -> {
+                logController.d(TAG, "Wallet is activated, proceeding to local unlock check")
+                return null // Continue to next level
             }
 
-            false -> {
-                logController.d {
-                    "User pin not set. Redirecting to pin creation"
+            is WalletActivationStatus.NotActivated -> {
+                logController.d(TAG, "Wallet not activated: ${walletStatus.reason}")
+
+                // Fix inconsistent state if needed
+                if (walletStatus.localFlagSet && !walletStatus.privateKeyExists) {
+                    logController.w(TAG) { "Inconsistent state: Clearing stale activation flag" }
+                    try {
+                        prefKeys.setWalletActivated(false)
+                    } catch (e: Exception) {
+                        logController.e(TAG, e)
+                    }
                 }
 
-                getQuickPinConfig()
+                return StartupState.WalletNotActivated(walletStatus.reason)
             }
         }
     }
 
+    /**
+     * Level 3: Check local unlock status (PIN/biometric).
+     *
+     * This determines whether the user needs to verify their PIN or can go directly to dashboard.
+     *
+     * @return StartupState for the appropriate screen
+     */
+    private suspend fun checkLocalUnlockState(): StartupState {
+        logController.d(TAG, "Level 3: Checking local unlock status...")
+
+        // Check if PIN exists
+        val hasPin = quickPinInteractor.hasPin()
+        logController.d(TAG, "Has PIN: $hasPin")
+
+        if (!hasPin) {
+            // PIN not set - force PIN creation (mandatory after wallet activation)
+            return StartupState.PinNotSet
+        }
+
+        // Check if user is already unlocked (within TTL)
+        val isUnlocked = localUnlockTracker.isUnlocked()
+        logController.d(TAG, "Is unlocked (within TTL): $isUnlocked")
+
+        if (isUnlocked) {
+            // User is within TTL - go directly to dashboard (hot start)
+            return StartupState.Ready
+        }
+
+        // User needs to verify PIN (warm start)
+        return StartupState.PinVerificationRequired
+    }
 
     /**
      * Wait for Supabase session to finish initializing.
@@ -194,64 +208,15 @@ class SplashInteractorImpl(
      */
     private suspend fun waitForSessionInitialization(): SessionStatus {
         return try {
+            logController.d(TAG, "Waiting for session initialization...")
             // Wait for first non-initializing status
             supabaseAuthRepository.observeAuthState()
                 .first { status -> status !is SessionStatus.Initializing }
         } catch (e: Exception) {
-            logController.e("SplashInteractor", e)
+            logController.e(TAG, e)
+            logController.w(TAG) { "Session initialization failed, defaulting to not authenticated" }
             // Default to not authenticated on error (not an explicit sign-out)
             SessionStatus.NotAuthenticated(isSignOut = false)
         }
-    }
-
-
-    private fun getQuickPinConfig(): String {
-        return generateComposableNavigationLink(
-            screen = CommonScreens.QuickPin,
-            arguments = generateComposableArguments(mapOf("pinFlow" to PinFlow.CREATE))
-        )
-    }
-
-
-    private fun getBiometricsConfig(): String {
-        return generateComposableNavigationLink(
-            screen = CommonScreens.Biometric,
-            arguments = generateComposableArguments(
-                mapOf(
-                    BiometricUiConfig.serializedKeyName to uiSerializer.toBase64(
-                        BiometricUiConfig(
-                            mode = BiometricMode.Login(
-                                title = resourceProvider.getString(R.string.biometric_login_title),
-                                subTitleWhenBiometricsEnabled = resourceProvider.getString(R.string.biometric_login_biometrics_enabled_subtitle),
-                                subTitleWhenBiometricsNotEnabled = resourceProvider.getString(R.string.biometric_login_biometrics_not_enabled_subtitle),
-                            ),
-                            isPreAuthorization = true,
-                            shouldInitializeBiometricAuthOnCreate = true,
-                            onSuccessNavigation = ConfigNavigation(
-                                navigationType = NavigationType.PushScreen(
-                                    screen = DashboardScreens.Dashboard,
-                                    arguments = emptyMap()
-                                )
-                            ),
-                            onBackNavigationConfig = OnBackNavigationConfig(
-                                onBackNavigation = ConfigNavigation(
-                                    navigationType = NavigationType.Finish
-                                ),
-                                hasToolbarBackIcon = false
-                            )
-                        ),
-                        BiometricUiConfig.Parser
-                    ).orEmpty()
-                )
-            )
-        )
-    }
-
-
-    companion object {
-        private const val USER_CONTEXT_MAX_ATTEMPTS = 20
-        private const val USER_CONTEXT_POLL_DELAY_MS = 50L
-
-
     }
 }

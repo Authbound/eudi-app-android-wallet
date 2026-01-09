@@ -20,6 +20,9 @@ import eu.europa.ec.authenticationlogic.controller.authentication.BiometricAuthe
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricsAuthenticate
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricsAvailability
 import eu.europa.ec.authenticationlogic.controller.storage.BiometryStorageController
+import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.test.TestScope
 import eu.europa.ec.testfeature.util.mockedNotifyOnAuthenticationFailure
 import eu.europa.ec.testlogic.base.TestApplication
 import eu.europa.ec.testlogic.base.getMockedContext
@@ -36,6 +39,8 @@ import org.junit.runner.RunWith
 import org.mockito.Mock
 import org.mockito.Mockito.mock
 import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.any
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
@@ -57,6 +62,9 @@ class TestBiometricInteractor {
     @Mock
     private lateinit var quickPinInteractor: QuickPinInteractor
 
+    @Mock
+    private lateinit var localUnlockTracker: LocalUnlockTracker
+
     private lateinit var interactor: BiometricInteractor
 
     private lateinit var closeable: AutoCloseable
@@ -68,7 +76,9 @@ class TestBiometricInteractor {
         interactor = BiometricInteractorImpl(
             biometryStorageController = biometryStorageController,
             biometricAuthenticationController = biometricAuthenticationController,
-            quickPinInteractor = quickPinInteractor
+            quickPinInteractor = quickPinInteractor,
+            localUnlockTracker = localUnlockTracker,
+            coroutineScope = coroutineRule.testScope
         )
     }
 
@@ -168,8 +178,8 @@ class TestBiometricInteractor {
     //region authenticateWithBiometrics
 
     // Case: authenticateWithBiometrics behaviour
-    // Defining a mock BiometricsAuthenticate function callback to verify that authenticate function
-    // on the biometricAuthenticationController is executed when authenticateWithBiometrics is called
+    // Verify that authenticate is called on the biometricAuthenticationController
+    // Note: The listener is wrapped internally to handle unlock tracking, so we use any() for the listener arg
     @Test
     fun `When authenticateWithBiometrics is called, Then verify authenticate is executed with correct parameters`() {
         // Given
@@ -183,11 +193,12 @@ class TestBiometricInteractor {
             listener = mockListener
         )
 
-        // Then
+        // Then - verify authenticate is called with context, notifyOnAuthenticationFailure
+        // The listener is wrapped internally to add unlock tracking, so we use any() for the listener
         verify(biometricAuthenticationController).authenticate(
-            context,
-            mockedNotifyOnAuthenticationFailure,
-            mockListener
+            eq(context),
+            eq(mockedNotifyOnAuthenticationFailure),
+            any()
         )
     }
     //endregion

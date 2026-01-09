@@ -76,6 +76,7 @@ data class State(
             return when (pinFlow) {
                 PinFlow.CREATE -> ScreenNavigateAction.NONE
                 PinFlow.UPDATE -> ScreenNavigateAction.CANCELABLE
+                PinFlow.VERIFY -> ScreenNavigateAction.NONE
             }
         }
 
@@ -84,6 +85,7 @@ data class State(
             return when (pinFlow) {
                 PinFlow.CREATE -> Event.Finish
                 PinFlow.UPDATE -> Event.CancelPressed
+                PinFlow.VERIFY -> Event.Finish
             }
         }
 }
@@ -144,6 +146,13 @@ class PinViewModel(
                     resourceProvider.getString(R.string.quick_pin_change_validate_current_subtitle)
                 pinState = PinValidationState.VALIDATE
                 buttonText = calculateButtonText(pinState)
+            }
+
+            PinFlow.VERIFY -> {
+                title = resourceProvider.getString(R.string.quick_pin_verify_title)
+                subtitle = resourceProvider.getString(R.string.quick_pin_verify_subtitle)
+                pinState = PinValidationState.VALIDATE
+                buttonText = resourceProvider.getString(R.string.generic_verify_capitalized)
             }
         }
 
@@ -218,13 +227,31 @@ class PinViewModel(
                     is QuickPinInteractorPinValidPartialState.Failed -> {
                         setState {
                             copy(
-                                quickPinError = it.errorMessage
+                                quickPinError = it.errorMessage,
+                                pin = "",
+                                resetPin = true
                             )
                         }
                     }
 
                     QuickPinInteractorPinValidPartialState.Success -> {
-                        setupEnterPhase()
+                        when (pinFlow) {
+                            PinFlow.VERIFY -> {
+                                // VERIFY flow: Go directly to Dashboard after successful PIN verification
+                                // No success screen needed - just unlock and go
+                                setEffect {
+                                    Effect.Navigation.SwitchScreen(DashboardScreens.Dashboard.screenRoute)
+                                }
+                            }
+                            PinFlow.UPDATE -> {
+                                // UPDATE flow: Continue to enter new PIN phase
+                                setupEnterPhase()
+                            }
+                            PinFlow.CREATE -> {
+                                // CREATE flow should not reach VALIDATE state, but handle it gracefully
+                                setupEnterPhase()
+                            }
+                        }
                     }
                 }
             }
@@ -337,6 +364,11 @@ class PinViewModel(
                     PinValidationState.VALIDATE -> viewState.value.subtitle
                 }
             }
+
+            PinFlow.VERIFY -> {
+                // VERIFY flow only uses VALIDATE state, always show the same subtitle
+                resourceProvider.getString(R.string.quick_pin_verify_subtitle)
+            }
         }
     }
 
@@ -349,12 +381,17 @@ class PinViewModel(
     }
 
     private fun getNextScreenRoute(): String {
+        // Fail fast if called for VERIFY flow (programming error)
+        // VERIFY flow navigates directly to Dashboard from validatePin() - no success screen
+        check(pinFlow != PinFlow.VERIFY) {
+            "getNextScreenRoute() should not be called for VERIFY flow"
+        }
 
         // After PIN creation → Push to Dashboard (Dashboard not in nav stack yet)
         val navigationAfterCreate = ConfigNavigation(
             navigationType = NavigationType.PushScreen(
                 screen = DashboardScreens.Dashboard,
-                popUpToScreen = CommonScreens.QuickPin // Clear PIN screen from stack
+                popUpToScreen = CommonScreens.QuickPin
             ),
         )
 
@@ -363,6 +400,35 @@ class PinViewModel(
             navigationType = NavigationType.PopTo(DashboardScreens.Dashboard),
         )
 
+        val navigation = when (pinFlow) {
+            PinFlow.CREATE -> navigationAfterCreate
+            PinFlow.UPDATE -> navigationAfterUpdate
+            PinFlow.VERIFY -> error("Unreachable - checked above")
+        }
+
+        val (successText, successDescription, successButton) = when (pinFlow) {
+            PinFlow.CREATE -> Triple(
+                resourceProvider.getString(R.string.quick_pin_create_success_text),
+                resourceProvider.getString(R.string.quick_pin_create_success_description),
+                resourceProvider.getString(R.string.quick_pin_create_success_btn)
+            )
+            PinFlow.UPDATE -> Triple(
+                resourceProvider.getString(R.string.quick_pin_change_success_text),
+                resourceProvider.getString(R.string.quick_pin_change_success_description),
+                resourceProvider.getString(R.string.quick_pin_change_success_btn)
+            )
+            PinFlow.VERIFY -> error("Unreachable - checked above")
+        }
+
+        val imageConfig = when (pinFlow) {
+            PinFlow.CREATE -> SuccessUIConfig.ImageConfig(
+                type = SuccessUIConfig.ImageConfig.Type.Drawable(icon = AppIcons.WalletSecured),
+                tint = null,
+            )
+            PinFlow.UPDATE -> SuccessUIConfig.ImageConfig()
+            PinFlow.VERIFY -> error("Unreachable - checked above")
+        }
+
         return generateComposableNavigationLink(
             screen = CommonScreens.Success,
             arguments = generateComposableArguments(
@@ -370,42 +436,18 @@ class PinViewModel(
                     SuccessUIConfig.serializedKeyName to uiSerializer.toBase64(
                         SuccessUIConfig(
                             textElementsConfig = SuccessUIConfig.TextElementsConfig(
-                                text = when (pinFlow) {
-                                    PinFlow.CREATE -> resourceProvider.getString(R.string.quick_pin_create_success_text)
-                                    PinFlow.UPDATE -> resourceProvider.getString(R.string.quick_pin_change_success_text)
-                                },
-                                description = when (pinFlow) {
-                                    PinFlow.CREATE -> resourceProvider.getString(R.string.quick_pin_create_success_description)
-                                    PinFlow.UPDATE -> resourceProvider.getString(R.string.quick_pin_change_success_description)
-                                }
+                                text = successText,
+                                description = successDescription
                             ),
-                            imageConfig = when (pinFlow) {
-                                PinFlow.CREATE -> SuccessUIConfig.ImageConfig(
-                                    type = SuccessUIConfig.ImageConfig.Type.Drawable(
-                                        icon = AppIcons.WalletSecured
-                                    ),
-                                    tint = null,
-                                )
-
-                                PinFlow.UPDATE -> SuccessUIConfig.ImageConfig()
-                            },
+                            imageConfig = imageConfig,
                             buttonConfig = listOf(
                                 SuccessUIConfig.ButtonConfig(
-                                    text = when (pinFlow) {
-                                        PinFlow.CREATE -> resourceProvider.getString(R.string.quick_pin_create_success_btn)
-                                        PinFlow.UPDATE -> resourceProvider.getString(R.string.quick_pin_change_success_btn)
-                                    },
+                                    text = successButton,
                                     style = SuccessUIConfig.ButtonConfig.Style.PRIMARY,
-                                    navigation = when (pinFlow) {
-                                        PinFlow.CREATE -> navigationAfterCreate
-                                        PinFlow.UPDATE -> navigationAfterUpdate
-                                    }
+                                    navigation = navigation
                                 )
                             ),
-                            onBackScreenToNavigate = when (pinFlow) {
-                                PinFlow.CREATE -> navigationAfterCreate
-                                PinFlow.UPDATE -> navigationAfterUpdate
-                            },
+                            onBackScreenToNavigate = navigation,
                         ),
                         SuccessUIConfig.Parser
                     ).orEmpty()

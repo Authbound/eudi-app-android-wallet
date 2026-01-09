@@ -18,13 +18,18 @@ package eu.europa.ec.startupfeature.ui.splash
 
 import androidx.lifecycle.viewModelScope
 import eu.europa.ec.startupfeature.interactor.SplashInteractor
+import eu.europa.ec.startupfeature.model.StartupState
 import eu.europa.ec.uilogic.mvi.MviViewModel
 import eu.europa.ec.uilogic.mvi.ViewEvent
 import eu.europa.ec.uilogic.mvi.ViewSideEffect
 import eu.europa.ec.uilogic.mvi.ViewState
+import eu.europa.ec.uilogic.navigation.AuthenticationScreens
 import eu.europa.ec.uilogic.navigation.ModuleRoute
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import org.koin.android.annotation.KoinViewModel
+import kotlin.coroutines.cancellation.CancellationException
 
 data class State(
     val isLoading: Boolean = true,
@@ -48,6 +53,13 @@ class SplashViewModel(
     private val interactor: SplashInteractor,
 ) : MviViewModel<Event, State, Effect>() {
 
+    companion object {
+        // 15s timeout accounts for:
+        // - Retry delays in profile check (500ms + 1s + 1.5s = 3s)
+        // - Supabase session initialization (network dependent)
+        // - Sequential checks (auth → profile → wallet → unlock)
+        private const val STARTUP_TIMEOUT_MS = 15_000L
+    }
 
     override fun setInitialState(): State = State()
 
@@ -57,17 +69,49 @@ class SplashViewModel(
                 determineInitialRoute()
             }
         }
-
     }
-
 
     private fun determineInitialRoute() {
         viewModelScope.launch {
-            val screenRoute = interactor.getAfterSplashRoute()
-
-            setState { copy(isLoading = false) }
-            setEffect { Effect.Navigation.SwitchScreen(screenRoute) }
+            try {
+                val startupState = withTimeout(STARTUP_TIMEOUT_MS) {
+                    interactor.determineStartupState()
+                }
+                handleStartupState(startupState)
+            } catch (e: TimeoutCancellationException) {
+                // Startup took too long – fail safe to login
+                setState { copy(isLoading = false) }
+                setEffect { Effect.Navigation.SwitchScreen(AuthenticationScreens.Login.screenRoute) }
+            } catch (e: CancellationException) {
+                // Respect cancellation (e.g., VM cleared)
+                throw e
+            } catch (e: Exception) {
+                // Unexpected error – fail safe to login
+                setState { copy(isLoading = false) }
+                setEffect { Effect.Navigation.SwitchScreen(AuthenticationScreens.Login.screenRoute) }
+            }
         }
     }
 
+    private fun handleStartupState(state: StartupState) {
+        setState { copy(isLoading = false) }
+
+        when (state) {
+            is StartupState.NetworkError -> {
+                // For retryable errors, we could add retry logic here
+                // For now, use the cached fallback or default to login
+                setEffect { Effect.Navigation.SwitchScreen(state.screenRoute) }
+            }
+
+            is StartupState.SecurityError -> {
+                // Security errors always go to login for safety
+                setEffect { Effect.Navigation.SwitchScreen(state.screenRoute) }
+            }
+
+            else -> {
+                // All other states have their route defined in StartupState
+                setEffect { Effect.Navigation.SwitchScreen(state.screenRoute) }
+            }
+        }
+    }
 }

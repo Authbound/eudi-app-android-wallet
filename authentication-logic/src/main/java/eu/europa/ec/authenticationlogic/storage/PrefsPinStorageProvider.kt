@@ -79,14 +79,9 @@ class PrefsPinStorageProvider(
             "PinEnc", ""
         ).ifEmpty { return "" }
 
-
-        println("encryptedBase64: $encryptedBase64")
-
         val ivBase64 = prefsController.getString(
             "PinIv", ""
         ).ifEmpty { return "" }
-
-        println("ivBase64: $ivBase64")
 
         val cipher = cryptoController.getCipher(
             encrypt = false,

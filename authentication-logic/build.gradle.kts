@@ -54,6 +54,9 @@ dependencies {
     ksp(libs.koin.ksp)
 
     implementation(libs.kotlinx.datetime)
+
+    testImplementation(project(LibraryModule.TestLogic.path))
+    androidTestImplementation(project(LibraryModule.TestLogic.path))
 }
 
 excludeFromKoverReport(

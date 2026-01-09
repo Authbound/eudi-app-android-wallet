@@ -24,5 +24,13 @@ interface LocalUnlockTracker {
     /** Force-lock immediately (eg. on sign-out or manual lock). */
     suspend fun lockNow()
 
+    /**
+     * Check if user is currently unlocked (within TTL).
+     *
+     * @return `true` if user authenticated within the TTL period, `false` otherwise.
+     *         When `true`, PIN verification can be skipped during startup.
+     */
+    fun isUnlocked(): Boolean
+
     companion object { const val DEFAULT_TTL_MS: Long = 10 * 60 * 1000L } // 10 minutes
 }

@@ -17,12 +17,14 @@
 package eu.europa.ec.authenticationlogic.gate
 
 import eu.europa.ec.authenticationlogic.controller.storage.PinStorageController
+import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
 import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 private const val PREF_LAST_UNLOCK_AT = "authbound.last_local_unlock_at_ms"
+private const val TAG = "KeyGateV2"
 
 /**
  * V2 implementation with automatic user context handling.
@@ -33,7 +35,8 @@ private const val PREF_LAST_UNLOCK_AT = "authbound.last_local_unlock_at_ms"
 class KeyGateV2Impl(
     private val prefs: PrefsControllerV2,
     private val prefKeys: PrefKeysV2,
-    private val pinStorage: PinStorageController
+    private val pinStorage: PinStorageController,
+    private val logController: LogController
 ) : KeyGate, LocalUnlockTracker {
 
     override suspend fun isKeyLocked(): Boolean = withContext(Dispatchers.IO) {
@@ -79,9 +82,45 @@ class KeyGateV2Impl(
         Unit
     }
 
+    /**
+     * Check if user is currently unlocked (within TTL).
+     *
+     * This is a synchronous check using safe accessors for use in startup flow.
+     * Returns false if:
+     * - No unlock timestamp recorded
+     * - TTL has expired
+     * - Error reading timestamp
+     */
+    override fun isUnlocked(): Boolean {
+        val last = prefs.safeLong(PREF_LAST_UNLOCK_AT, 0L)
+        if (last == 0L) {
+            // Never unlocked - not unlocked
+            return false
+        }
+
+        val ttl = LocalUnlockTracker.DEFAULT_TTL_MS
+        val timeSinceUnlock = System.currentTimeMillis() - last
+        return timeSinceUnlock <= ttl
+    }
+
+    /**
+     * Execute a block safely, returning null on failure.
+     *
+     * Security exceptions are logged per EUDI-ARF compliance.
+     * This is critical for detecting keystore tampering, encryption failures,
+     * or other security-related issues.
+     */
     private inline fun <T> safe(block: () -> T): T? = try {
         block()
-    } catch (_: Exception) {
+    } catch (e: SecurityException) {
+        // Security exceptions MUST be logged per EUDI-ARF compliance
+        // These indicate potential tampering, keystore issues, or crypto failures
+        logController.e(TAG, e)
+        logController.w(TAG) { "Security exception in KeyGate: ${e.message}" }
+        null
+    } catch (e: Exception) {
+        // Non-security exceptions are logged at debug level
+        logController.d(TAG, "Safe accessor failed: ${e.message}")
         null
     }
 }

@@ -17,6 +17,7 @@
 package eu.europa.ec.commonfeature.interactor
 
 import eu.europa.ec.authenticationlogic.controller.storage.PinStorageController
+import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import eu.europa.ec.businesslogic.validator.FormValidator
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
@@ -52,6 +53,9 @@ class TestQuickPinInteractor {
     @Mock
     private lateinit var resourceProvider: ResourceProvider
 
+    @Mock
+    private lateinit var localUnlockTracker: LocalUnlockTracker
+
     private lateinit var interactor: QuickPinInteractor
 
     private lateinit var closeable: AutoCloseable
@@ -63,7 +67,8 @@ class TestQuickPinInteractor {
         interactor = QuickPinInteractorImpl(
             formValidator = formValidator,
             pinStorageController = pinStorageController,
-            resourceProvider = resourceProvider
+            resourceProvider = resourceProvider,
+            localUnlockTracker = localUnlockTracker
         )
 
         whenever(resourceProvider.genericErrorMessage())

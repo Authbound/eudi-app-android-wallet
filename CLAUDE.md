@@ -69,6 +69,72 @@ The app follows EU Digital Identity Wallet Architecture Reference Framework (EUD
 ./gradlew generateBaselineProfile
 ```
 
+## Build Environment Requirements
+
+**CRITICAL**: This project requires specific Java and Gradle versions. Using incompatible versions will cause build failures.
+
+| Tool | Required Version | Notes |
+|------|------------------|-------|
+| **Java (JDK)** | **17** | JDK 17 is required. JDK 18+ may work but JDK 21+ often causes issues. JDK 25 is NOT supported. |
+| **Gradle** | 8.13 | Managed by wrapper (`./gradlew`) |
+| **Android Gradle Plugin** | 8.13.0 | Defined in `gradle/libs.versions.toml` |
+| **Kotlin** | 2.2.21 | Defined in `gradle/libs.versions.toml` |
+| **Android SDK** | 34+ | Compile SDK 34 or higher |
+
+### Setting Up Java for Builds
+
+If your system default Java is incompatible (e.g., JDK 25), you must use JDK 17:
+
+```bash
+# Check your current Java version
+java -version
+
+# List available Java versions (macOS)
+/usr/libexec/java_home -V
+
+# Option 1: Set JAVA_HOME for a single build
+JAVA_HOME=$(/usr/libexec/java_home -v 17) ./gradlew assembleDevDebug
+
+# Option 2: Set JAVA_HOME in your shell profile (~/.zshrc or ~/.bashrc)
+export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+
+# Option 3: Use Android Studio's bundled JDK (recommended)
+# Android Studio includes a compatible JDK at:
+# macOS: /Applications/Android Studio.app/Contents/jbr/Contents/Home
+# Linux: ~/android-studio/jbr
+# Windows: C:\Program Files\Android Studio\jbr
+
+JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew assembleDevDebug
+```
+
+### Installing JDK 17
+
+```bash
+# macOS (Homebrew)
+brew install openjdk@17
+
+# Or use Amazon Corretto (recommended for Android)
+brew install --cask corretto17
+
+# Ubuntu/Debian
+sudo apt install openjdk-17-jdk
+
+# Windows (use installer from adoptium.net or Amazon Corretto)
+```
+
+### Verifying Build Environment
+
+```bash
+# Verify Java version (should show 17.x.x)
+java -version
+
+# Verify Gradle can run
+./gradlew --version
+
+# Test compilation of core modules
+./gradlew :authentication-logic:compileDevDebugKotlin :startup-feature:compileDevDebugKotlin
+```
+
 ## Architecture Overview
 
 ### Clean Architecture Structure
@@ -116,12 +182,13 @@ ViewModels use Model-View-Intent (MVI) pattern with:
 
 ## Key Technologies
 
-- **Language:** Kotlin with coroutines and Flow
+- **Language:** Kotlin 2.2.21 with coroutines and Flow
+- **Build:** Gradle 8.13, Android Gradle Plugin 8.13.0, **JDK 17 required**
 - **UI:** Jetpack Compose with Material 3 (migrating from XML views)
 - **DI:** Koin with annotations (@Single, @Factory, @Module)
 - **Architecture:** Clean Architecture + MVI pattern
 - **Security:** Android Keystore, biometric authentication, encrypted storage
-- **Database:** Room with SQLCipher encryption  
+- **Database:** Room with SQLCipher encryption
 - **Network:** Retrofit + OkHttp with certificate pinning
 - **Testing:** JUnit 5, MockK, Truth assertions, Compose Test
 - **Backend:** Supabase for authentication and data management
@@ -263,9 +330,11 @@ class DashboardInteractorTest {
 ## Common Issues
 
 ### Build Issues
+- **Java version mismatch**: If build fails with cryptic errors (e.g., just a number like "25"), check your Java version. See [Build Environment Requirements](#build-environment-requirements) above.
 - Ensure Android SDK 34+ is installed
 - Check that `local.properties` contains correct SDK path
-- Clean build if experiencing caching issues
+- Clean build if experiencing caching issues (`./gradlew clean`)
+- If using Android Studio's bundled JDK, set `JAVA_HOME` to Android Studio's JBR path
 
 ### Security Issues
 - Biometric authentication requires BIOMETRIC_STRONG capability
