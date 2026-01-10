@@ -54,3 +54,5 @@ fastlane/report.xml
 
 # extensions
 *.apk
+# Firebase
+firebase-debug.log
