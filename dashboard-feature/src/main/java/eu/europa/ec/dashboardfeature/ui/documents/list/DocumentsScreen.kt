@@ -95,10 +95,16 @@ import eu.europa.ec.uilogic.component.wrap.ButtonType
 import eu.europa.ec.uilogic.component.wrap.DialogBottomSheet
 import eu.europa.ec.uilogic.component.wrap.GenericBottomSheet
 import eu.europa.ec.uilogic.component.wrap.WrapButton
+import eu.europa.ec.uilogic.component.wrap.CredentialStatus
+import eu.europa.ec.uilogic.component.wrap.CredentialVisualType
+import eu.europa.ec.uilogic.component.wrap.DocumentCategoryHeader
+import eu.europa.ec.uilogic.component.wrap.VisualCredentialCard
+import eu.europa.ec.uilogic.component.wrap.VisualCredentialConfig
 import eu.europa.ec.uilogic.component.wrap.WrapExpandableListItem
 import eu.europa.ec.uilogic.component.wrap.WrapIconButton
 import eu.europa.ec.uilogic.component.wrap.WrapListItem
 import eu.europa.ec.uilogic.component.wrap.WrapModalBottomSheet
+import eu.europa.ec.uilogic.component.loader.SkeletonDocumentList
 import eu.europa.ec.uilogic.extension.finish
 import eu.europa.ec.uilogic.extension.paddingFrom
 import kotlinx.coroutines.CoroutineScope
@@ -273,16 +279,27 @@ private fun Content(
                 VSpacer.Large()
             }
 
-            if (state.showNoResultsFound) {
+            if (state.isLoading && state.documentsUi.isEmpty()) {
+                // Show skeleton loading state
+                item {
+                    SkeletonDocumentList(
+                        count = 3,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = SPACING_MEDIUM.dp)
+                    )
+                }
+            } else if (state.showNoResultsFound) {
                 item {
                     NoResults(modifier = Modifier.fillMaxWidth())
                 }
             } else {
                 itemsIndexed(items = state.documentsUi) { index, (documentCategory, documents) ->
-                    DocumentCategory(
+                    DocumentCategorySection(
                         modifier = Modifier.fillMaxWidth(),
                         category = documentCategory,
                         documents = documents,
+                        categoryIndex = index,
                         onEventSend = onEventSend
                     )
 
@@ -352,27 +369,92 @@ private fun Content(
     }
 }
 
+/**
+ * A redesigned document category section with premium visual credential cards.
+ * Features Apple Wallet-style cards with gradient backgrounds and staggered animations.
+ */
 @Composable
-private fun DocumentCategory(
+private fun DocumentCategorySection(
     modifier: Modifier = Modifier,
     category: DocumentCategory,
     documents: List<DocumentUi>,
+    categoryIndex: Int,
     onEventSend: (Event) -> Unit,
 ) {
     Column(
-        modifier = modifier,
+        modifier = modifier.padding(horizontal = SPACING_MEDIUM.dp),
         verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
     ) {
-        SectionTitle(
-            modifier = Modifier.fillMaxWidth(),
-            text = stringResource(category.stringResId)
+        // Category header with icon
+        val categoryIcon = when (category) {
+            DocumentCategory.Government -> AppIcons.IdCards
+            DocumentCategory.Finance -> AppIcons.IdCards
+            DocumentCategory.Education -> AppIcons.IdCards
+            DocumentCategory.Health -> AppIcons.IdCards
+            DocumentCategory.Travel -> AppIcons.IdCards
+            DocumentCategory.SocialSecurity -> AppIcons.IdCards
+            DocumentCategory.Retail -> AppIcons.IdCards
+            DocumentCategory.Other -> AppIcons.IdCards
+        }
+
+        DocumentCategoryHeader(
+            title = stringResource(category.stringResId),
+            icon = categoryIcon
         )
 
-        documents.forEach { documentItem: DocumentUi ->
-            WrapListItem(
+        documents.forEachIndexed { docIndex, documentItem: DocumentUi ->
+            // Map DocumentIssuanceStateUi to CredentialStatus
+            val status = when (documentItem.documentIssuanceState) {
+                DocumentIssuanceStateUi.Issued -> CredentialStatus.ISSUED
+                DocumentIssuanceStateUi.Pending -> CredentialStatus.PENDING
+                DocumentIssuanceStateUi.Failed -> CredentialStatus.PENDING
+                DocumentIssuanceStateUi.Expired -> CredentialStatus.EXPIRED
+                DocumentIssuanceStateUi.Revoked -> CredentialStatus.REVOKED
+            }
+
+            // Map DocumentIdentifier to CredentialVisualType for premium styling
+            val visualType = when (documentItem.documentIdentifier) {
+                is DocumentIdentifier.MdocPid,
+                is DocumentIdentifier.SdJwtPid -> CredentialVisualType.PID
+                is DocumentIdentifier.OTHER -> {
+                    // Check formatType for mDL or map by category
+                    val formatType = documentItem.documentIdentifier.formatType.lowercase()
+                    when {
+                        formatType.contains("mdl") || formatType.contains("driving") -> CredentialVisualType.MDL
+                        category == DocumentCategory.Education -> CredentialVisualType.DIPLOMA
+                        category == DocumentCategory.Health -> CredentialVisualType.HEALTH
+                        else -> CredentialVisualType.GENERIC
+                    }
+                }
+            }
+
+            // Extract title from mainContentData
+            val title = when (val content = documentItem.uiData.mainContentData) {
+                is ListItemMainContentDataUi.Text -> content.text
+                is ListItemMainContentDataUi.Image -> documentItem.uiData.itemId
+            }
+
+            // Check if this document should show a photo placeholder
+            val hasPhoto = visualType == CredentialVisualType.PID ||
+                           visualType == CredentialVisualType.MDL
+
+            VisualCredentialCard(
                 modifier = Modifier.fillMaxWidth(),
-                item = documentItem.uiData,
-                onItemClick = {
+                config = VisualCredentialConfig(
+                    id = documentItem.uiData.itemId,
+                    visualType = visualType,
+                    title = title,
+                    subtitle = getCredentialSubtitle(visualType),
+                    holderName = null, // Will be populated from actual document data
+                    issuerName = documentItem.uiData.overlineText,
+                    primaryField = null,
+                    secondaryField = null,
+                    status = status,
+                    expiryDate = documentItem.uiData.supportingText?.removePrefix("Valid until: "),
+                    hasPhoto = hasPhoto
+                ),
+                animationDelay = (categoryIndex * 100) + (docIndex * 50),
+                onClick = {
                     val onItemClickEvent = if (
                         documentItem.documentIssuanceState == DocumentIssuanceStateUi.Pending
                         || documentItem.documentIssuanceState == DocumentIssuanceStateUi.Failed
@@ -384,16 +466,22 @@ private fun DocumentCategory(
                         Event.GoToDocumentDetails(documentItem.uiData.itemId)
                     }
                     onEventSend(onItemClickEvent)
-                },
-                supportingTextColor = when (documentItem.documentIssuanceState) {
-                    DocumentIssuanceStateUi.Issued -> null
-                    DocumentIssuanceStateUi.Pending -> MaterialTheme.colorScheme.warning
-                    DocumentIssuanceStateUi.Failed -> MaterialTheme.colorScheme.error
-                    DocumentIssuanceStateUi.Expired -> MaterialTheme.colorScheme.error
-                    DocumentIssuanceStateUi.Revoked -> MaterialTheme.colorScheme.error
                 }
             )
         }
+    }
+}
+
+/**
+ * Get subtitle text for credential type.
+ */
+private fun getCredentialSubtitle(type: CredentialVisualType): String? {
+    return when (type) {
+        CredentialVisualType.PID -> "Personal Identification Data"
+        CredentialVisualType.MDL -> "Mobile Driving License"
+        CredentialVisualType.DIPLOMA -> "Education Credential"
+        CredentialVisualType.HEALTH -> "Health Credential"
+        CredentialVisualType.GENERIC -> null
     }
 }
 

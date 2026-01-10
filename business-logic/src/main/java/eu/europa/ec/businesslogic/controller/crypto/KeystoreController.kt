@@ -32,7 +32,16 @@ import javax.crypto.SecretKey
 
 interface KeystoreController {
     fun retrieveOrGenerateSecretKey(userAuthenticationRequired: Boolean): SecretKey?
-    fun generateWuaKeyPair(): Array<Certificate>?
+    /**
+     * Generates a WUA (Wallet Unit Attestation) key pair in the Android Keystore.
+     *
+     * @param challenge The attestation challenge from the backend server. This should be a
+     *                  unique, server-provided nonce for each WUA generation to prevent
+     *                  replay attacks. If null, uses a default challenge (NOT recommended
+     *                  for production - backend should always provide a fresh challenge).
+     * @return The certificate chain for the generated key pair, or null if generation fails.
+     */
+    fun generateWuaKeyPair(challenge: ByteArray? = null): Array<Certificate>?
     fun deleteBiometricSecretKey(alias: String)
 }
 
@@ -45,6 +54,8 @@ class KeystoreControllerImpl(
     companion object {
         private const val STORE_TYPE = "AndroidKeyStore"
         private const val WUA_KEY_ALIAS = "wua_key_alias"
+        // Default challenge - should be replaced with server-provided nonce for ARF compliance
+        private const val DEFAULT_ATTESTATION_CHALLENGE = "authbound"
     }
 
     private var androidKeyStore: KeyStore? = null
@@ -93,7 +104,7 @@ class KeystoreControllerImpl(
         }
     }
 
-    override fun generateWuaKeyPair(): Array<Certificate>? {
+    override fun generateWuaKeyPair(challenge: ByteArray?): Array<Certificate>? {
         return androidKeyStore?.let {
             if (!it.containsAlias(WUA_KEY_ALIAS)) {
                 val keyPairGenerator =
@@ -101,6 +112,10 @@ class KeystoreControllerImpl(
                         KeyProperties.KEY_ALGORITHM_EC,
                         STORE_TYPE
                     )
+
+                // Use server-provided challenge or fallback to default
+                // NOTE: For ARF compliance, backend should always provide a unique challenge
+                val attestationChallenge = challenge ?: DEFAULT_ATTESTATION_CHALLENGE.toByteArray()
 
                 val parameterSpec = KeyGenParameterSpec.Builder(
                     WUA_KEY_ALIAS,
@@ -111,8 +126,16 @@ class KeystoreControllerImpl(
                         KeyProperties.DIGEST_SHA256,
                         KeyProperties.DIGEST_SHA512
                     )
-                    setUserAuthenticationRequired(false)
-                    setAttestationChallenge("authbound".toByteArray())
+                    // ARF Compliance: WUA keys must require user authentication
+                    setUserAuthenticationRequired(true)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        // Auth valid for 5 minutes, requires strong biometric or device credential
+                        setUserAuthenticationParameters(
+                            300, // 5 minutes
+                            KeyProperties.AUTH_BIOMETRIC_STRONG or KeyProperties.AUTH_DEVICE_CREDENTIAL
+                        )
+                    }
+                    setAttestationChallenge(attestationChallenge)
                     build()
                 }
                 keyPairGenerator.initialize(parameterSpec)

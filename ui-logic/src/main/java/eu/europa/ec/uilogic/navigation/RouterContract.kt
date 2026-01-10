@@ -61,6 +61,8 @@ sealed class DashboardScreens {
         name = "TRANSACTION_DETAILS",
         parameters = "?transactionId={transactionId}"
     )
+
+    data object MyData : Screen(name = "MY_DATA")
 }
 
 sealed class PresentationScreens {

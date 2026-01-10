@@ -99,6 +99,11 @@ import eu.europa.ec.uilogic.component.wrap.ButtonType
 import eu.europa.ec.uilogic.component.wrap.ExpandableListItemUi
 import eu.europa.ec.uilogic.component.wrap.GenericBottomSheet
 import eu.europa.ec.uilogic.component.wrap.WrapButton
+import eu.europa.ec.uilogic.component.wrap.TimeGroupHeader
+import eu.europa.ec.uilogic.component.wrap.TimelineItem
+import eu.europa.ec.uilogic.component.wrap.TransactionCardConfig
+import eu.europa.ec.uilogic.component.wrap.TransactionStatus
+import eu.europa.ec.uilogic.component.wrap.TransactionType
 import eu.europa.ec.uilogic.component.wrap.WrapExpandableCard
 import eu.europa.ec.uilogic.component.wrap.WrapExpandableListItem
 import eu.europa.ec.uilogic.component.wrap.WrapIcon
@@ -106,6 +111,8 @@ import eu.europa.ec.uilogic.component.wrap.WrapIconButton
 import eu.europa.ec.uilogic.component.wrap.WrapListItem
 import eu.europa.ec.uilogic.component.wrap.WrapListItems
 import eu.europa.ec.uilogic.component.wrap.WrapModalBottomSheet
+import eu.europa.ec.uilogic.component.loader.SkeletonTransactionList
+import eu.europa.ec.dashboardfeature.ui.transactions.model.TransactionTypeUi
 import eu.europa.ec.uilogic.extension.finish
 import eu.europa.ec.uilogic.extension.paddingFrom
 import kotlinx.coroutines.CoroutineScope
@@ -251,16 +258,28 @@ private fun Content(
                 VSpacer.Large()
             }
 
-            if (state.showNoResultsFound) {
+            if (state.isLoading && state.transactionsUi.isEmpty()) {
+                // Show skeleton loading state
+                item {
+                    SkeletonTransactionList(
+                        count = 4,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = SPACING_MEDIUM.dp)
+                    )
+                }
+            } else if (state.showNoResultsFound) {
                 item {
                     NoResults(modifier = Modifier.fillMaxWidth())
                 }
             } else {
-                itemsIndexed(items = state.transactionsUi) { index, (documentCategory, documents) ->
-                    TransactionCategory(
+                itemsIndexed(items = state.transactionsUi) { index, (timeCategory, transactions) ->
+                    TransactionTimelineSection(
                         modifier = Modifier.fillMaxWidth(),
-                        category = documentCategory,
-                        transactions = documents,
+                        category = timeCategory,
+                        transactions = transactions,
+                        categoryIndex = index,
+                        isLastCategory = index == state.transactionsUi.lastIndex,
                         onEventSend = onEventSend
                     )
 
@@ -341,52 +360,83 @@ private fun handleNavigationEffect(
     }
 }
 
+/**
+ * A redesigned transaction section with timeline visualization.
+ * Features staggered entrance animations and time group headers.
+ */
 @Composable
-private fun TransactionCategory(
+private fun TransactionTimelineSection(
     modifier: Modifier = Modifier,
     category: TransactionCategoryUi,
     transactions: List<TransactionUi>,
+    categoryIndex: Int,
+    isLastCategory: Boolean,
     onEventSend: (Event) -> Unit,
 ) {
     Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
+        modifier = modifier.padding(horizontal = SPACING_MEDIUM.dp),
+        verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
-        SectionTitle(
-            modifier = Modifier.fillMaxWidth(),
-            text = category.displayName ?: stringResource(category.stringResId)
+        // Time group header (Today, This Week, etc.)
+        TimeGroupHeader(
+            title = category.displayName ?: stringResource(category.stringResId)
         )
 
-        val transactionItems = remember(key1 = transactions) {
-            transactions.map { it.uiData }
-        }
-        val transactionMap = remember(key1 = transactions) {
-            transactions.associateBy { it.uiData.header.itemId }
-        }
+        VSpacer.Small()
 
-        WrapListItems(
-            modifier = Modifier.fillMaxWidth(),
-            items = transactionItems,
-            onItemClick = { item ->
-                onEventSend(
-                    Event.TransactionItemPressed(itemId = item.itemId)
-                )
-            },
-            onExpandedChange = null,
-            overlineTextStyle = { item ->
-                val transactionUi = transactionMap[item.itemId]
-
-                val overlineTextColor = when (transactionUi?.uiStatus) {
-                    TransactionStatusUi.Completed -> MaterialTheme.colorScheme.success
-                    TransactionStatusUi.Failed -> MaterialTheme.colorScheme.error
-                    null -> MaterialTheme.colorScheme.onSurfaceVariant
-                }
-
-                MaterialTheme.typography.labelMedium.copy(
-                    color = overlineTextColor
-                )
+        transactions.forEachIndexed { txIndex, transaction ->
+            // Map TransactionStatusUi to TransactionStatus
+            val status = when (transaction.uiStatus) {
+                TransactionStatusUi.Completed -> TransactionStatus.COMPLETED
+                TransactionStatusUi.Failed -> TransactionStatus.FAILED
             }
-        )
+
+            // Get status label
+            val statusLabel = when (transaction.uiStatus) {
+                TransactionStatusUi.Completed -> stringResource(R.string.transactions_filter_item_status_completed)
+                TransactionStatusUi.Failed -> stringResource(R.string.transactions_filter_item_status_failed)
+            }
+
+            // Extract transaction info from header
+            val header = transaction.uiData.header
+            val title = when (val content = header.mainContentData) {
+                is ListItemMainContentDataUi.Text -> content.text
+                is ListItemMainContentDataUi.Image -> header.itemId
+            }
+
+            // Determine transaction type from the transaction data
+            val transactionType = TransactionType.SHARE // Default to SHARE for presentations
+
+            // Description from supporting text
+            val description = header.supportingText
+
+            TimelineItem(
+                modifier = Modifier.fillMaxWidth(),
+                config = TransactionCardConfig(
+                    id = header.itemId,
+                    title = title,
+                    verifierName = header.overlineText ?: "",
+                    timestamp = "", // Timestamp could be extracted if available
+                    description = description,
+                    type = transactionType,
+                    status = status,
+                    statusLabel = statusLabel
+                ),
+                showTimelineLine = true,
+                isLastItem = isLastCategory && txIndex == transactions.lastIndex,
+                animationDelay = (categoryIndex * 100) + (txIndex * 75),
+                onClick = {
+                    onEventSend(
+                        Event.TransactionItemPressed(itemId = header.itemId)
+                    )
+                }
+            )
+
+            // Add spacing between items except for last
+            if (txIndex < transactions.lastIndex) {
+                VSpacer.Small()
+            }
+        }
     }
 }
 

@@ -183,6 +183,30 @@ fun String?.ifEmptyOrNull(default: String): String {
     return if (this.isNullOrBlank()) default else this
 }
 
+/**
+ * Converts a hexadecimal string to a ByteArray.
+ *
+ * This function parses a hex string (e.g., "a1b2c3") and converts each pair of
+ * hex characters into the corresponding byte value. The input string must have
+ * an even number of characters and contain only valid hexadecimal digits (0-9, a-f, A-F).
+ *
+ * @return ByteArray containing the decoded bytes
+ * @throws IllegalStateException if the string has odd length
+ * @throws NumberFormatException if the string contains invalid hex characters
+ *
+ * Example usage:
+ * ```
+ * val hex = "48656c6c6f"
+ * val bytes = hex.hexToByteArray() // [72, 101, 108, 108, 111] = "Hello" in ASCII
+ * ```
+ */
+fun String.hexToByteArray(): ByteArray {
+    check(length % 2 == 0) { "Hex string must have even length, but was $length" }
+    return chunked(2)
+        .map { it.toInt(16).toByte() }
+        .toByteArray()
+}
+
 private val FY_SEED = intArrayOf(1, 3, 5, 7, 9, 2, 4, 6, 8)
 
 internal fun String.shuffle(seed: IntArray = FY_SEED): String =

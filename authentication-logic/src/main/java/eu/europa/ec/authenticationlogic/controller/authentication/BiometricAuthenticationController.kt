@@ -22,7 +22,7 @@ import android.content.Intent.FLAG_ACTIVITY_NEW_TASK
 import android.os.Build
 import android.provider.Settings
 import androidx.biometric.BiometricManager
-import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
+import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
 import androidx.biometric.BiometricPrompt
 import androidx.biometric.BiometricPrompt.AuthenticationResult
 import androidx.core.content.ContextCompat
@@ -82,7 +82,7 @@ class BiometricAuthenticationControllerImpl(
 
     override fun deviceSupportsBiometrics(listener: (BiometricsAvailability) -> Unit) {
         val biometricManager = BiometricManager.from(resourceProvider.provideContext())
-        when (biometricManager.canAuthenticate(BIOMETRIC_WEAK)) {
+        when (biometricManager.canAuthenticate(BIOMETRIC_STRONG)) {
             BiometricManager.BIOMETRIC_SUCCESS -> listener.invoke(BiometricsAvailability.CanAuthenticate)
             BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> listener.invoke(BiometricsAvailability.NonEnrolled)
             BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE, BiometricManager.BIOMETRIC_ERROR_UNSUPPORTED -> listener.invoke(
@@ -148,7 +148,7 @@ class BiometricAuthenticationControllerImpl(
             Intent(Settings.ACTION_BIOMETRIC_ENROLL).apply {
                 putExtra(
                     Settings.EXTRA_BIOMETRIC_AUTHENTICATORS_ALLOWED,
-                    BIOMETRIC_WEAK
+                    BIOMETRIC_STRONG
                 )
             }
         } else {
@@ -161,7 +161,7 @@ class BiometricAuthenticationControllerImpl(
     override fun hasBiometricHardware(): Boolean {
         return try {
             val biometricManager = BiometricManager.from(resourceProvider.provideContext())
-            when (biometricManager.canAuthenticate(BIOMETRIC_WEAK)) {
+            when (biometricManager.canAuthenticate(BIOMETRIC_STRONG)) {
                 BiometricManager.BIOMETRIC_SUCCESS,
                 BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> true
                 else -> false

@@ -27,12 +27,17 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -78,10 +83,10 @@ sealed class BottomNavigationItem(
         icon = AppIcons.Documents
     )
 
-    data object Transactions : BottomNavigationItem(
-        route = "TRANSACTIONS",
-        titleRes = R.string.transactions_screen_title,
-        icon = AppIcons.Transactions
+    data object Actions : BottomNavigationItem(
+        route = "ACTIONS",
+        titleRes = R.string.actions_screen_title,
+        icon = AppIcons.Actions
     )
 
     data object Settings: BottomNavigationItem(
@@ -92,18 +97,22 @@ sealed class BottomNavigationItem(
 }
 
 @Composable
-fun BottomNavigationBar(navController: NavController) {
+fun BottomNavigationBar(
+    navController: NavController,
+    onQrScanClick: () -> Unit = {}
+) {
     val navItems = listOf(
         BottomNavigationItem.Home,
         BottomNavigationItem.Documents,
-        BottomNavigationItem.Transactions,
+        BottomNavigationItem.Actions,
         BottomNavigationItem.Settings
     )
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+    val view = LocalView.current
 
-    // Create a floating navigation bar
+    // Create a floating navigation bar with center QR FAB
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -128,7 +137,8 @@ fun BottomNavigationBar(navController: NavController) {
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                navItems.forEach { screen ->
+                // First two nav items (Home, Documents)
+                navItems.take(2).forEach { screen ->
                     val selected = currentDestination?.hierarchy?.any {
                         it.route == screen.route
                     } == true
@@ -139,19 +149,69 @@ fun BottomNavigationBar(navController: NavController) {
                         selected = selected,
                         onItemClick = {
                             if (!selected) {
-                                navController.navigate(screen.route){
-                                    popUpTo(navController.graph.findStartDestination().id){
+                                navController.navigate(screen.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
                                         saveState = true
                                     }
                                     launchSingleTop = true
                                     restoreState = true
                                 }
                             }
+                        }
+                    )
+                }
 
+                // Spacer for center FAB
+                Spacer(modifier = Modifier.width(56.dp))
+
+                // Last two nav items (Actions, Settings)
+                navItems.drop(2).forEach { screen ->
+                    val selected = currentDestination?.hierarchy?.any {
+                        it.route == screen.route
+                    } == true
+
+                    FloatingNavItem(
+                        icon = screen.icon,
+                        label = stringResource(screen.titleRes),
+                        selected = selected,
+                        onItemClick = {
+                            if (!selected) {
+                                navController.navigate(screen.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
                         }
                     )
                 }
             }
+        }
+
+        // Center QR Scan FAB - overlaps the nav bar
+        FloatingActionButton(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .offset(y = (-20).dp)
+                .size(56.dp),
+            onClick = {
+                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                onQrScanClick()
+            },
+            shape = CircleShape,
+            containerColor = MaterialTheme.colorScheme.primary,
+            elevation = FloatingActionButtonDefaults.elevation(
+                defaultElevation = 8.dp,
+                pressedElevation = 12.dp
+            )
+        ) {
+            WrapIcon(
+                iconData = AppIcons.QrScanner,
+                customTint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }

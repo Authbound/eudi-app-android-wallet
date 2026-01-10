@@ -25,9 +25,9 @@ data class SettingsItemUi(
 
 enum class SettingsMenuItemType {
     ACCOUNT_DETAILS,
+    MY_DATA,
     CHANGE_PIN,
     RETRIEVE_LOGS,
     CHANGELOG,
     DELETE_WALLET_ACTIVATION,
-
 }

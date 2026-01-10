@@ -29,7 +29,9 @@ import eu.europa.ec.corelogic.di.getOrCreatePresentationScope
 import eu.europa.ec.corelogic.model.DocumentCategory
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractor
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetCredentialsPartialState
+import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetHeroCredentialPartialState
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetUserNameViaMainPidDocumentPartialState
+import eu.europa.ec.dashboardfeature.ui.home.model.HeroCredentialUi
 
 import eu.europa.ec.dashboardfeature.ui.component.BottomNavigationItem
 import eu.europa.ec.dashboardfeature.ui.documents.list.model.DocumentUi
@@ -74,7 +76,11 @@ data class State(
     val bleAvailability: BleAvailability = BleAvailability.UNKNOWN,
     val isBleCentralClientModeEnabled: Boolean = false,
 
-    // New credentials list for the home screen
+    // Hero credential for the top of the home screen
+    val heroCredential: HeroCredentialUi? = null,
+    val isLoadingHeroCredential: Boolean = false,
+
+    // Credentials list for the home screen (deprecated - moved to hero card)
     val isLoadingCredentials: Boolean = false,
     val credentials: List<Pair<DocumentCategory, List<DocumentUi>>> = emptyList(),
     val showEmptyCredentialsMessage: Boolean = false
@@ -84,6 +90,8 @@ sealed class Event : ViewEvent {
     data object Init : Event()
     data object StartProximityFlow : Event()
     data object GetCredentials : Event()
+    data object HeroCredentialPressed : Event()
+    data object QrScanPressed : Event()
 
     sealed class AuthenticateCard : Event() {
         data object AuthenticatePressed : Event()
@@ -282,6 +290,7 @@ class HomeViewModel(
         when (event) {
             is Event.Init -> {
                 getUserNameViaMainPidDocument()
+                getHeroCredential()
                 getCredentials()
             }
 
@@ -400,6 +409,14 @@ class HomeViewModel(
 
             is Event.AddCredentialPressed -> {
                 showBottomSheet(HomeScreenBottomSheetContent.AddDocument)
+            }
+
+            is Event.HeroCredentialPressed -> {
+                handleHeroCredentialPressed()
+            }
+
+            is Event.QrScanPressed -> {
+                navigateToQrScan()
             }
         }
     }
@@ -680,6 +697,55 @@ class HomeViewModel(
                     }
                 }
             }
+        }
+    }
+
+    private fun getHeroCredential() {
+        setState { copy(isLoadingHeroCredential = true) }
+        viewModelScope.launch {
+            homeInteractor.getHeroCredential().collect { response ->
+                when (response) {
+                    is HomeInteractorGetHeroCredentialPartialState.Failure -> {
+                        setState {
+                            copy(
+                                isLoadingHeroCredential = false,
+                                heroCredential = null
+                            )
+                        }
+                    }
+
+                    is HomeInteractorGetHeroCredentialPartialState.Success -> {
+                        setState {
+                            copy(
+                                isLoadingHeroCredential = false,
+                                heroCredential = response.heroCredential
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun handleHeroCredentialPressed() {
+        val heroCredential = viewState.value.heroCredential ?: return
+
+        // Navigate to proximity QR screen to share the credential
+        getOrCreatePresentationScope()
+        setEffect {
+            Effect.Navigation.SwitchScreen(
+                screenRoute = generateComposableNavigationLink(
+                    screen = ProximityScreens.QR,
+                    arguments = generateComposableArguments(
+                        mapOf(
+                            RequestUriConfig.serializedKeyName to uiSerializer.toBase64(
+                                RequestUriConfig(PresentationMode.Ble(DashboardScreens.Dashboard.screenRoute)),
+                                RequestUriConfig.Parser
+                            )
+                        )
+                    )
+                )
+            )
         }
     }
 

@@ -40,7 +40,7 @@ interface CryptoController {
      * @return A [String] representing the generated code verifier.
      */
     fun generateCodeVerifier(): String
-    fun generateWuaKeyPair(): Array<Certificate>?
+    fun generateWuaKeyPair(challenge: ByteArray? = null): Array<Certificate>?
     fun signData(data: ByteArray): ByteArray?
 
 
@@ -103,8 +103,8 @@ class CryptoControllerImpl(
         return Base64.encodeToString(code, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
     }
 
-    override fun generateWuaKeyPair(): Array<Certificate>? {
-        return keystoreController.generateWuaKeyPair()
+    override fun generateWuaKeyPair(challenge: ByteArray?): Array<Certificate>? {
+        return keystoreController.generateWuaKeyPair(challenge)
     }
 
     override fun signData(data: ByteArray): ByteArray? {

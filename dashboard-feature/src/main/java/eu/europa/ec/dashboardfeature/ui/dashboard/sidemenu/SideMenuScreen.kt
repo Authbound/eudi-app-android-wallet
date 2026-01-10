@@ -16,17 +16,36 @@
 
 package eu.europa.ec.dashboardfeature.ui.dashboard.sidemenu
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -37,6 +56,7 @@ import eu.europa.ec.dashboardfeature.ui.dashboard.model.SideMenuItemUi
 import eu.europa.ec.dashboardfeature.ui.dashboard.model.SideMenuTypeUi
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.uilogic.component.AppIcons
+import eu.europa.ec.uilogic.component.IconDataUi
 import eu.europa.ec.uilogic.component.ListItemDataUi
 import eu.europa.ec.uilogic.component.ListItemLeadingContentDataUi
 import eu.europa.ec.uilogic.component.ListItemMainContentDataUi
@@ -48,10 +68,18 @@ import eu.europa.ec.uilogic.component.content.ToolbarActionUi
 import eu.europa.ec.uilogic.component.content.ToolbarConfig
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
+import eu.europa.ec.uilogic.component.utils.SPACING_LARGE
 import eu.europa.ec.uilogic.component.utils.SPACING_MEDIUM
 import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
+import eu.europa.ec.uilogic.component.utils.VSpacer
+import eu.europa.ec.uilogic.component.wrap.MenuFooter
+import eu.europa.ec.uilogic.component.wrap.MenuItemCard
+import eu.europa.ec.uilogic.component.wrap.MenuSectionHeader
+import eu.europa.ec.uilogic.component.wrap.ProfileHeader
+import eu.europa.ec.uilogic.component.wrap.ProfileHeaderConfig
 import eu.europa.ec.uilogic.component.wrap.TextConfig
 import eu.europa.ec.uilogic.component.wrap.WrapListItem
+import kotlinx.coroutines.delay
 
 @Composable
 internal fun SideMenuScreen(
@@ -94,17 +122,180 @@ private fun Content(
     onEventSent: (Event) -> Unit,
     paddingValues: PaddingValues
 ) {
+    // Staggered animation states
+    var showProfile by remember { mutableStateOf(false) }
+    var showActions by remember { mutableStateOf(false) }
+    var showAccount by remember { mutableStateOf(false) }
+    var showFooter by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        delay(100)
+        showProfile = true
+        delay(100)
+        showActions = true
+        delay(100)
+        showAccount = true
+        delay(100)
+        showFooter = true
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(paddingValues)
+            .background(MaterialTheme.colorScheme.surface)
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            SideMenuOptions(
-                sideMenuOptions = state.sideMenuOptions,
-                onEventSent = onEventSent,
+        // Profile Header (no padding, full bleed)
+        AnimatedVisibility(
+            visible = showProfile,
+            enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { -it / 4 }
+        ) {
+            ProfileHeader(
+                config = ProfileHeaderConfig(
+                    displayName = state.userProfile?.displayName ?: "User",
+                    email = state.userProfile?.email,
+                    avatarUrl = state.userProfile?.avatarUrl,
+                    onEditClick = {
+                        onEventSent(Event.SideMenu.ItemClicked(SideMenuTypeUi.PROFILE))
+                    }
+                ),
+                onProfileClick = {
+                    onEventSent(Event.SideMenu.ItemClicked(SideMenuTypeUi.PROFILE))
+                }
             )
         }
+
+        // Scrollable content area
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(top = SPACING_LARGE.dp)
+        ) {
+            // Group menu options by section
+            val quickActions = state.sideMenuOptions.filterQuickActions()
+            val accountOptions = state.sideMenuOptions.filterAccountOptions()
+
+            // Quick Actions Section
+            if (quickActions.isNotEmpty()) {
+                AnimatedVisibility(
+                    visible = showActions,
+                    enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 4 }
+                ) {
+                    MenuSection(
+                        title = stringResource(R.string.dashboard_side_menu_quick_actions_header),
+                        items = quickActions,
+                        onEventSent = onEventSent
+                    )
+                }
+            }
+
+            VSpacer.Large()
+
+            // Account Section
+            if (accountOptions.isNotEmpty()) {
+                AnimatedVisibility(
+                    visible = showAccount,
+                    enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 4 }
+                ) {
+                    MenuSection(
+                        title = stringResource(R.string.dashboard_side_menu_account_header),
+                        items = accountOptions,
+                        onEventSent = onEventSent
+                    )
+                }
+            }
+        }
+
+        // Footer
+        AnimatedVisibility(
+            visible = showFooter,
+            enter = fadeIn(tween(300))
+        ) {
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = SPACING_MEDIUM.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+            MenuFooter(
+                appVersion = "1.0.0", // TODO: Get from BuildConfig
+                copyrightText = stringResource(R.string.app_copyright)
+            )
+        }
+    }
+}
+
+/**
+ * A section of menu items with a header and grouped cards.
+ */
+@Composable
+private fun MenuSection(
+    title: String,
+    items: List<SideMenuItemUi.ActionItem>,
+    onEventSent: (Event) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        MenuSectionHeader(title = title)
+
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = SPACING_MEDIUM.dp),
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow
+        ) {
+            Column {
+                items.forEachIndexed { index, item ->
+                    val title = when (val content = item.data.mainContentData) {
+                        is ListItemMainContentDataUi.Text -> content.text
+                        is ListItemMainContentDataUi.Image -> ""
+                    }
+
+                    val icon = when (val leading = item.data.leadingContentData) {
+                        is ListItemLeadingContentDataUi.Icon -> leading.iconData
+                        else -> AppIcons.IdCards
+                    }
+
+                    MenuItemCard(
+                        title = title,
+                        icon = icon,
+                        onClick = {
+                            onEventSent(Event.SideMenu.ItemClicked(itemType = item.type))
+                        },
+                        isEnabled = item.isEnabled,
+                        badge = if (!item.isEnabled) "Coming" else null,
+                        showDivider = index < items.lastIndex
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Extension function to filter quick action items from side menu.
+ */
+private fun List<SideMenuItemUi>.filterQuickActions(): List<SideMenuItemUi.ActionItem> {
+    return filterIsInstance<SideMenuItemUi.ActionItem>().filter { item ->
+        item.type in listOf(
+            SideMenuTypeUi.AUTHENTICATE,
+            SideMenuTypeUi.ADD_DOCUMENT,
+            SideMenuTypeUi.VERIFY,
+            SideMenuTypeUi.SIGN
+        )
+    }
+}
+
+/**
+ * Extension function to filter account-related items from side menu.
+ */
+private fun List<SideMenuItemUi>.filterAccountOptions(): List<SideMenuItemUi.ActionItem> {
+    return filterIsInstance<SideMenuItemUi.ActionItem>().filter { item ->
+        item.type in listOf(
+            SideMenuTypeUi.PROFILE,
+            SideMenuTypeUi.CHANGE_PIN,
+            SideMenuTypeUi.SETTINGS,
+            SideMenuTypeUi.EU_GUIDE,
+            SideMenuTypeUi.SHARE_LOGS
+        )
     }
 }
 

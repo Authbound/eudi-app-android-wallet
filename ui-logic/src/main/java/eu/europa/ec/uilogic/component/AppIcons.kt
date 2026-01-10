@@ -454,4 +454,16 @@ object AppIcons {
         contentDescriptionId = R.string.content_description_settings_icon,
         imageVector = null
     )
+
+    val Actions: IconDataUi = IconDataUi(
+        resourceId = R.drawable.ic_actions,
+        contentDescriptionId = R.string.content_description_actions_icon,
+        imageVector = null
+    )
+
+    val Inbox: IconDataUi = IconDataUi(
+        resourceId = R.drawable.ic_inbox,
+        contentDescriptionId = R.string.content_description_inbox_icon,
+        imageVector = null
+    )
 }

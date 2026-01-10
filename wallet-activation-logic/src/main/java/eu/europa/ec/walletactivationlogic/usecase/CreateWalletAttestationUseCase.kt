@@ -16,13 +16,11 @@
 package eu.europa.ec.walletactivationlogic.usecase
 
 import eu.europa.ec.businesslogic.controller.crypto.CryptoController
-
+import eu.europa.ec.businesslogic.model.error.WalletActivationError
+import eu.europa.ec.businesslogic.extension.hexToByteArray
 import eu.europa.ec.businesslogic.model.DeviceInfo
 import eu.europa.ec.networklogic.model.response.WalletActivationResponse
 import eu.europa.ec.walletactivationlogic.repository.WalletActivationRepository
-
-
-
 
 interface CreateWalletAttestationUseCase {
     suspend operator fun invoke(
@@ -35,18 +33,57 @@ class CreateWalletAttestationUseCaseImpl(
     private val cryptoController: CryptoController,
     private val walletActivationRepository: WalletActivationRepository,
 ) : CreateWalletAttestationUseCase {
+
     override suspend fun invoke(
         deviceInfo: DeviceInfo,
         pushToken: String,
     ): Result<WalletActivationResponse> {
-        val certificateChain = cryptoController.generateWuaKeyPair()
-            ?: return Result.failure(Exception("Failed to generate key pair"))
+        // Step 1: Get attestation challenge from backend
+        val challengeResponse = walletActivationRepository.getAttestationChallenge()
+            .getOrElse { error ->
+                return Result.failure(
+                    if (error is WalletActivationError) error
+                    else WalletActivationError.UnexpectedError(error)
+                )
+            }
+
+        // Step 2: Convert hex-encoded challenge to bytes
+        val challengeBytes = try {
+            challengeResponse.challenge.hexToByteArray()
+        } catch (e: Exception) {
+            return Result.failure(
+                WalletActivationError.ServerRejection(
+                    httpCode = 400,
+                    serverMessage = "Invalid challenge format: ${e.message}"
+                )
+            )
+        }
+
+        // Step 3: Generate WUA key pair with the challenge embedded in attestation
+        val certificateChain = try {
+            cryptoController.generateWuaKeyPair(challengeBytes)
+                ?: return Result.failure(
+                    WalletActivationError.CryptographicFailure(
+                        operation = "WUA key pair generation",
+                        cause = Exception("KeyStore returned null certificate chain")
+                    )
+                )
+        } catch (e: Exception) {
+            return Result.failure(
+                WalletActivationError.CryptographicFailure(
+                    operation = "WUA key pair generation",
+                    cause = e
+                )
+            )
+        }
 
         val publicKey = certificateChain.first()
 
+        // Step 4: Activate wallet with attestation chain and challenge ID
         return walletActivationRepository.activateWallet(
             publicKey = publicKey,
             attestationChain = certificateChain,
+            challengeId = challengeResponse.challengeId,
             deviceInfo = deviceInfo,
             pushToken = pushToken,
         )

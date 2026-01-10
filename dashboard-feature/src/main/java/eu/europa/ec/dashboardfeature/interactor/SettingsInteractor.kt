@@ -96,6 +96,25 @@ class SettingsInteractorImpl(
 
             add(
                 SettingsItemUi(
+                    type = SettingsMenuItemType.MY_DATA,
+                    data = ListItemDataUi(
+                        itemId = "my_data",
+                        mainContentData = ListItemMainContentDataUi.Text(
+                            text = resourceProvider.getString(R.string.settings_my_data_title)
+                        ),
+                        supportingText = resourceProvider.getString(R.string.settings_my_data_description),
+                        leadingContentData = ListItemLeadingContentDataUi.Icon(
+                            iconData = AppIcons.Id
+                        ),
+                        trailingContentData = ListItemTrailingContentDataUi.Icon(
+                            iconData = AppIcons.KeyboardArrowRight
+                        )
+                    )
+                )
+            )
+
+            add(
+                SettingsItemUi(
                     type = SettingsMenuItemType.CHANGE_PIN,
                     data = ListItemDataUi(
                         itemId = resourceProvider.getString(R.string.dashboard_side_menu_option_change_pin_id),

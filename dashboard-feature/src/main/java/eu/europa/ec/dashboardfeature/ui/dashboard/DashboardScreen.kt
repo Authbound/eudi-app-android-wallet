@@ -55,8 +55,8 @@ import eu.europa.ec.dashboardfeature.ui.home.HomeViewModel
 import eu.europa.ec.dashboardfeature.ui.settings.SettingsScreen
 import eu.europa.ec.dashboardfeature.ui.settings.SettingsViewModel
 
-import eu.europa.ec.dashboardfeature.ui.transactions.list.TransactionsScreen
-import eu.europa.ec.dashboardfeature.ui.transactions.list.TransactionsViewModel
+import eu.europa.ec.dashboardfeature.ui.actions.ActionsScreen
+import eu.europa.ec.dashboardfeature.ui.actions.ActionsViewModel
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.uilogic.component.SystemBroadcastReceiver
 import eu.europa.ec.uilogic.component.utils.LifecycleEffect
@@ -82,7 +82,7 @@ internal fun DashboardScreen(
     viewModel: DashboardViewModel,
     documentsViewModel: DocumentsViewModel,
     homeViewModel: HomeViewModel,
-    transactionsViewModel: TransactionsViewModel,
+    actionsViewModel: ActionsViewModel,
     settingsViewModel: SettingsViewModel
 ) {
     val context = LocalContext.current
@@ -96,7 +96,14 @@ internal fun DashboardScreen(
     )
 
     Scaffold(
-        bottomBar = { BottomNavigationBar(bottomNavigationController) }
+        bottomBar = {
+            BottomNavigationBar(
+                navController = bottomNavigationController,
+                onQrScanClick = {
+                    viewModel.setEvent(Event.QrScanPressed)
+                }
+            )
+        }
     ) { padding ->
         NavHost(
             modifier = Modifier
@@ -124,10 +131,10 @@ internal fun DashboardScreen(
                     }
                 )
             }
-            composable(BottomNavigationItem.Transactions.route) {
-                TransactionsScreen(
-                    hostNavController,
-                    transactionsViewModel,
+            composable(BottomNavigationItem.Actions.route) {
+                ActionsScreen(
+                    navController = hostNavController,
+                    viewModel = actionsViewModel,
                     onDashboardEventSent = { event ->
                         viewModel.setEvent(event)
                     }

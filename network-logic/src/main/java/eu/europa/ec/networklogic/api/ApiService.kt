@@ -19,6 +19,7 @@ package eu.europa.ec.networklogic.api
 import eu.europa.ec.networklogic.model.request.WalletActivationRequest
 import eu.europa.ec.networklogic.model.request.DummyRequest
 import eu.europa.ec.networklogic.model.request.CompleteProfileRequest
+import eu.europa.ec.networklogic.model.response.AttestationChallengeResponse
 import eu.europa.ec.networklogic.model.response.DummyResponse
 import eu.europa.ec.networklogic.model.response.WalletActivationResponse
 import eu.europa.ec.networklogic.model.response.CheckHandleResponse
@@ -37,6 +38,11 @@ interface Api {
     suspend fun test(
         @Body body: DummyRequest
     ): Response<DummyResponse>
+
+    @GET("api/mobile/wallet-activation/challenge")
+    suspend fun getAttestationChallenge(
+        @Header("Authorization") auth: String
+    ): Response<AttestationChallengeResponse>
 
     @POST("api/mobile/wallet-activation")
     suspend fun activateWallet(
@@ -73,6 +79,7 @@ interface ApiClient {
         body: DummyRequest
     ): Response<DummyResponse>
 
+    suspend fun getAttestationChallenge(bearerToken: String): Response<AttestationChallengeResponse>
     suspend fun activateWallet(body: WalletActivationRequest, bearerToken: String): Response<WalletActivationResponse>
     suspend fun deleteWalletActivation(bearerToken: String): Response<Unit>
 
@@ -85,6 +92,10 @@ interface ApiClient {
 class ApiClientImpl(private val apiService: Api) : ApiClient {
     override suspend fun test(body: DummyRequest): Response<DummyResponse> {
         return apiService.test(body)
+    }
+
+    override suspend fun getAttestationChallenge(bearerToken: String): Response<AttestationChallengeResponse> {
+        return apiService.getAttestationChallenge("Bearer $bearerToken")
     }
 
     override suspend fun activateWallet(body: WalletActivationRequest, bearerToken: String): Response<WalletActivationResponse> {

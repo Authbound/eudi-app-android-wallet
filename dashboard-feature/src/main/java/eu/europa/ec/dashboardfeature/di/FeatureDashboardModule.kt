@@ -27,8 +27,12 @@ import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
 import eu.europa.ec.corelogic.config.WalletCoreConfig
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
+import eu.europa.ec.dashboardfeature.interactor.ActionsInteractor
+import eu.europa.ec.dashboardfeature.interactor.ActionsInteractorImpl
 import eu.europa.ec.dashboardfeature.interactor.DashboardInteractor
 import eu.europa.ec.dashboardfeature.interactor.DashboardInteractorImpl
+import eu.europa.ec.dashboardfeature.interactor.MyDataInteractor
+import eu.europa.ec.dashboardfeature.interactor.MyDataInteractorImpl
 import eu.europa.ec.dashboardfeature.interactor.DocumentDetailsInteractor
 import eu.europa.ec.dashboardfeature.interactor.DocumentDetailsInteractorImpl
 import eu.europa.ec.dashboardfeature.interactor.DocumentSignInteractor
@@ -56,7 +60,25 @@ class FeatureDashboardModule
 @Factory
 fun provideDashboardInteractor(
     resourceProvider: ResourceProvider,
+    getCurrentUserUseCase: GetCurrentUserUseCase,
+    getMyProfileUseCase: GetMyProfileUseCase,
 ): DashboardInteractor = DashboardInteractorImpl(
+    resourceProvider,
+    getCurrentUserUseCase,
+    getMyProfileUseCase,
+)
+
+@Factory
+fun provideActionsInteractor(
+    resourceProvider: ResourceProvider,
+): ActionsInteractor = ActionsInteractorImpl(
+    resourceProvider,
+)
+
+@Factory
+fun provideMyDataInteractor(
+    resourceProvider: ResourceProvider,
+): MyDataInteractor = MyDataInteractorImpl(
     resourceProvider,
 )
 

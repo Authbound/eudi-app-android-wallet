@@ -90,7 +90,9 @@ import eu.europa.ec.corelogic.model.DocumentCategory
 import eu.europa.ec.corelogic.model.DocumentIdentifier
 import eu.europa.ec.dashboardfeature.ui.documents.detail.model.DocumentIssuanceStateUi
 import eu.europa.ec.dashboardfeature.ui.documents.list.model.DocumentUi
+import eu.europa.ec.dashboardfeature.ui.home.model.HeroCredentialUi
 import eu.europa.ec.eudi.wallet.document.DocumentId
+import eu.europa.ec.uilogic.component.wrap.VisualCredentialCard
 
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.theme.values.warning
@@ -249,6 +251,7 @@ private fun Content(
     modalBottomSheetState: SheetState,
     paddingValues: PaddingValues
 ) {
+    // Scrollable content layout
     val scrollState = rememberScrollState()
     Column(
         modifier = Modifier
@@ -258,16 +261,19 @@ private fun Content(
             .padding(vertical = SPACING_MEDIUM.dp),
         verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
     ) {
-        // Welcome message
-        /**  Text(
-        text = state.welcomeUserMessage,
-        style = MaterialTheme.typography.headlineMedium.copy(
-        color = MaterialTheme.colorScheme.onSurface
+        // Hero Credential Section at the top
+        HeroCredentialSection(
+            heroCredential = state.heroCredential,
+            isLoading = state.isLoadingHeroCredential,
+            onCredentialClick = {
+                onEventSent(Event.HeroCredentialPressed)
+            },
+            onAddCredentialClick = {
+                onEventSent(Event.AddCredentialPressed)
+            }
         )
-        )
-         */
 
-        // Quick Actions section
+        // Quick Actions section below hero
         QuickActionsSection(
             quickActions = state.quickActions,
             onQuickActionClick = { actionId ->
@@ -275,16 +281,16 @@ private fun Content(
             }
         )
 
-        // EUDI guide section (privacy and how it works)
+        // Guide carousel section
         EudiWalletGuide()
 
-        // Credentials section
+        // Credentials section with document list
         CredentialsSection(
             isLoading = state.isLoadingCredentials,
             credentials = state.credentials,
             showEmptyMessage = state.showEmptyCredentialsMessage,
-            onCredentialClick = { docId -> 
-                onEventSent(Event.CredentialPressed(docId))
+            onCredentialClick = { documentId ->
+                onEventSent(Event.CredentialPressed(documentId))
             },
             onViewAllClick = {
                 onEventSent(Event.ViewAllCredentialsPressed)
@@ -293,39 +299,9 @@ private fun Content(
                 onEventSent(Event.AddCredentialPressed)
             }
         )
+
+        // Bottom spacer for navigation bar clearance
         Spacer(modifier = Modifier.height(75.dp))
-
-
-        // Keep the original action cards as a fallback if needed
-        // Comment out for now as we're replacing them with the quick actions grid
-
-//        WrapActionCard(
-//            config = state.authenticateCardConfig,
-//            onActionClick = {
-//                onEventSent(
-//                    Event.AuthenticateCard.AuthenticatePressed
-//                )
-//            },
-//            onLearnMoreClick = {
-//                onEventSent(
-//                    Event.AuthenticateCard.LearnMorePressed
-//                )
-//            }
-//        )
-//
-//        WrapActionCard(
-//            config = state.signCardConfig,
-//            onActionClick = {
-//                onEventSent(
-//                    Event.SignDocumentCard.SignDocumentPressed
-//                )
-//            },
-//            onLearnMoreClick = {
-//                onEventSent(
-//                    Event.SignDocumentCard.LearnMorePressed
-//                )
-//            }
-//        )
     }
 
     if (state.bleAvailability == BleAvailability.NO_PERMISSION) {
@@ -936,7 +912,132 @@ private fun QuickActionsSection(
 }
 
 /**
+ * Hero Credential Section - displays the primary credential (PID or mDL) at the top
+ */
+@Composable
+private fun HeroCredentialSection(
+    heroCredential: HeroCredentialUi?,
+    isLoading: Boolean,
+    onCredentialClick: () -> Unit,
+    onAddCredentialClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = SPACING_SMALL.dp)
+    ) {
+        when {
+            isLoading -> {
+                // Loading state - show placeholder
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(172.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+
+            heroCredential != null -> {
+                // Show the hero credential card
+                VisualCredentialCard(
+                    config = heroCredential.toVisualConfig(),
+                    modifier = Modifier.height(172.dp),
+                    onClick = onCredentialClick
+                )
+
+                // Tap to share hint
+                Text(
+                    text = stringResource(R.string.home_hero_tap_to_share),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            else -> {
+                // Empty state - invite user to add first credential
+                EmptyHeroCard(onAddCredentialClick = onAddCredentialClick)
+            }
+        }
+    }
+}
+
+/**
+ * Empty hero card shown when user has no credentials
+ */
+@Composable
+private fun EmptyHeroCard(
+    onAddCredentialClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(172.dp)
+            .clickable { onAddCredentialClick() },
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        border = BorderStroke(
+            width = 2.dp,
+            brush = Brush.linearGradient(
+                colors = listOf(
+                    MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                    MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)
+                )
+            )
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // Icon
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                WrapIcon(
+                    iconData = AppIcons.IdCards,
+                    customTint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Title
+            Text(
+                text = stringResource(R.string.home_hero_empty_title),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Description
+            Text(
+                text = stringResource(R.string.home_hero_empty_description),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+/**
  * Credentials section to display user's digital documents
+ * @deprecated Replaced by HeroCredentialSection - kept for backwards compatibility
  */
 @Composable
 private fun CredentialsSection(

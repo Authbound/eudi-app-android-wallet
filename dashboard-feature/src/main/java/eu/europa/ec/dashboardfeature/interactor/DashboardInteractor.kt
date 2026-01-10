@@ -16,8 +16,11 @@
 
 package eu.europa.ec.dashboardfeature.interactor
 
+import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
+import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
 import eu.europa.ec.dashboardfeature.ui.dashboard.model.SideMenuItemUi
 import eu.europa.ec.dashboardfeature.ui.dashboard.model.SideMenuTypeUi
+import eu.europa.ec.dashboardfeature.ui.dashboard.model.UserProfileUi
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.uilogic.component.AppIcons
@@ -28,10 +31,13 @@ import eu.europa.ec.uilogic.component.ListItemTrailingContentDataUi
 
 interface DashboardInteractor {
     fun getSideMenuOptions(): List<SideMenuItemUi>
+    suspend fun getUserProfile(): UserProfileUi?
 }
 
 class DashboardInteractorImpl(
     private val resourceProvider: ResourceProvider,
+    private val getCurrentUserUseCase: GetCurrentUserUseCase,
+    private val getMyProfileUseCase: GetMyProfileUseCase,
 ) : DashboardInteractor {
 
     override fun getSideMenuOptions(): List<SideMenuItemUi> {
@@ -91,7 +97,8 @@ class DashboardInteractorImpl(
             )
             add(
                 SideMenuItemUi.ActionItem(
-                    type = SideMenuTypeUi.SIGN_DOCUMENT,
+                    type = SideMenuTypeUi.SIGN,
+                    isEnabled = false, // Coming soon
                     data = ListItemDataUi(
                         itemId = "sign_document",
                         mainContentData = ListItemMainContentDataUi.Text(
@@ -127,6 +134,26 @@ class DashboardInteractorImpl(
                     )
                 )
             )
+        }
+    }
+
+    override suspend fun getUserProfile(): UserProfileUi? {
+        return try {
+            val user = getCurrentUserUseCase()
+            val profile = getMyProfileUseCase().getOrNull()
+
+            user?.let {
+                UserProfileUi(
+                    displayName = profile?.displayName
+                        ?: user.email?.substringBefore("@")
+                        ?: "User",
+                    email = user.email,
+                    handle = profile?.handle,
+                    avatarUrl = null
+                )
+            }
+        } catch (e: Exception) {
+            null
         }
     }
 }

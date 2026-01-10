@@ -17,6 +17,9 @@ package eu.europa.ec.authenticationfeature.ui
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -36,6 +39,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import eu.europa.ec.businesslogic.controller.log.LogController
+import eu.europa.ec.businesslogic.model.error.WalletActivationError
+import eu.europa.ec.businesslogic.model.error.getErrorTitle
+import eu.europa.ec.businesslogic.model.error.getUserFriendlyMessage
+import eu.europa.ec.businesslogic.model.error.isPermanent
+import eu.europa.ec.businesslogic.model.error.isRetryable
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.uilogic.component.content.ContentScreen
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
@@ -147,88 +155,73 @@ fun WalletSetupScreen(
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            } else if (state.activationError != null) {
-                // Error state
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_error),
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.error
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-                Text(
-                    text = "Wallet Setup Failed",
-                    style = MaterialTheme.typography.headlineLarge,
-                    textAlign = TextAlign.Center,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = state.activationError.orEmpty(),
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(32.dp))
-                WrapButton(
-                    modifier = Modifier.fillMaxWidth(),
-                    buttonConfig = ButtonConfig(
-                        type = ButtonType.PRIMARY,
-                        onClick = { 
-                            logController.d("WalletSetupScreen", "Retry button pressed")
-                            viewModel.setEvent(WalletSetupEvent.Retry) 
-                        },
-                    )
-                ) {
-                    Text(text = "Try Again")
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                WrapButton(
-                    modifier = Modifier.fillMaxWidth(),
-                    buttonConfig = ButtonConfig(
-                        type = ButtonType.SECONDARY,
-                        onClick = {
-                            logController.d("WalletSetupScreen", "Sign Out button pressed")
-                            viewModel.setEvent(WalletSetupEvent.SignOut)
-                        },
-                    )
-                ) {
-                    Text(text = "Sign Out")
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                WrapButton(
-                    modifier = Modifier.fillMaxWidth(),
-                    buttonConfig = ButtonConfig(
-                        type = ButtonType.SECONDARY,
-                        onClick = {
-                            logController.d("WalletSetupScreen", "Delete Wallet button pressed")
-                            viewModel.setEvent(WalletSetupEvent.DeleteWallet)
-                        },
-                        enabled = !state.isDeleting
-                    )
-                ) {
-                    Text(text = if (state.isDeleting) "Deleting..." else "Delete Wallet")
-                }
             } else {
-                // Loading state - wallet activation in progress
-                CircularProgressIndicator(
-                    modifier = Modifier.size(64.dp),
-                    strokeWidth = 6.dp
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-                Text(
-                    text = "Setting up your secure wallet...",
-                    style = MaterialTheme.typography.headlineLarge,
-                    textAlign = TextAlign.Center,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "This may take a few moments. Please don't close the app.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                // Capture error in local val for smart cast
+                val activationError = state.activationError
+                when {
+                    activationError != null -> {
+                        // Error state with enhanced UX based on error type
+                        WalletActivationErrorContent(
+                            error = activationError,
+                            retryCountdown = state.retryCountdown,
+                            isDeleting = state.isDeleting,
+                            onRetry = {
+                                logController.d("WalletSetupScreen", "Retry button pressed")
+                                viewModel.setEvent(WalletSetupEvent.Retry)
+                            },
+                            onSignOut = {
+                                logController.d("WalletSetupScreen", "Sign Out button pressed")
+                                viewModel.setEvent(WalletSetupEvent.SignOut)
+                            },
+                            onDeleteWallet = {
+                                logController.d("WalletSetupScreen", "Delete Wallet button pressed")
+                                viewModel.setEvent(WalletSetupEvent.DeleteWallet)
+                            }
+                        )
+                    }
+                    state.autoRetrying -> {
+                        // Auto-retry state
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(48.dp),
+                            strokeWidth = 4.dp
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Text(
+                            text = "Retrying automatically...",
+                            style = MaterialTheme.typography.headlineMedium,
+                            textAlign = TextAlign.Center,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Refreshing security session",
+                            style = MaterialTheme.typography.bodyLarge,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    else -> {
+                        // Loading state - wallet activation in progress
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(64.dp),
+                            strokeWidth = 6.dp
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Text(
+                            text = "Setting up your secure wallet...",
+                            style = MaterialTheme.typography.headlineLarge,
+                            textAlign = TextAlign.Center,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "This may take a few moments. Please don't close the app.",
+                            style = MaterialTheme.typography.bodyLarge,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
         }
 
@@ -304,6 +297,160 @@ fun WalletSetupScreen(
                     }
                 }
             )
+        }
+    }
+}
+
+/**
+ * Enhanced error content with different visuals based on error type.
+ */
+@Composable
+private fun WalletActivationErrorContent(
+    error: WalletActivationError,
+    retryCountdown: Int?,
+    isDeleting: Boolean,
+    onRetry: () -> Unit,
+    onSignOut: () -> Unit,
+    onDeleteWallet: () -> Unit,
+) {
+    // Choose icon and color based on error type
+    val (iconRes, iconTint) = when (error) {
+        is WalletActivationError.ChallengeRateLimited -> {
+            R.drawable.ic_clock_timer to MaterialTheme.colorScheme.tertiary
+        }
+        is WalletActivationError.NetworkFailure,
+        is WalletActivationError.TimeoutError -> {
+            R.drawable.ic_error to MaterialTheme.colorScheme.error
+        }
+        is WalletActivationError.DeviceSecurityInsufficient,
+        is WalletActivationError.AttestationRejected -> {
+            R.drawable.ic_warning to MaterialTheme.colorScheme.error
+        }
+        else -> {
+            R.drawable.ic_error to MaterialTheme.colorScheme.error
+        }
+    }
+
+    Icon(
+        painter = painterResource(id = iconRes),
+        contentDescription = null,
+        modifier = Modifier.size(64.dp),
+        tint = iconTint
+    )
+    Spacer(modifier = Modifier.height(24.dp))
+
+    // Title
+    Text(
+        text = error.getErrorTitle(),
+        style = MaterialTheme.typography.headlineMedium,
+        textAlign = TextAlign.Center,
+        fontWeight = FontWeight.Bold
+    )
+    Spacer(modifier = Modifier.height(16.dp))
+
+    // Message
+    Text(
+        text = error.getUserFriendlyMessage(),
+        style = MaterialTheme.typography.bodyLarge,
+        textAlign = TextAlign.Center,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+
+    // Rate limit countdown
+    AnimatedVisibility(
+        visible = retryCountdown != null,
+        enter = fadeIn(),
+        exit = fadeOut()
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(top = 24.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(
+                    progress = { (retryCountdown?.toFloat() ?: 0f) / 60f },
+                    modifier = Modifier.size(80.dp),
+                    strokeWidth = 6.dp,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "${retryCountdown ?: 0}",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "seconds",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+
+    // Device security requirements (for device-related errors)
+    if (error is WalletActivationError.DeviceSecurityInsufficient) {
+        Spacer(modifier = Modifier.height(24.dp))
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.Start
+        ) {
+            Text(
+                text = "Required security features:",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Medium
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            error.missingRequirements.forEach { requirement ->
+                Text(
+                    text = "• $requirement",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+
+    Spacer(modifier = Modifier.height(32.dp))
+
+    // Action buttons based on error type
+    if (error.isRetryable() && retryCountdown == null) {
+        WrapButton(
+            modifier = Modifier.fillMaxWidth(),
+            buttonConfig = ButtonConfig(
+                type = ButtonType.PRIMARY,
+                onClick = onRetry,
+            )
+        ) {
+            Text(text = "Try Again")
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+
+    // Always show Sign Out option
+    WrapButton(
+        modifier = Modifier.fillMaxWidth(),
+        buttonConfig = ButtonConfig(
+            type = ButtonType.SECONDARY,
+            onClick = onSignOut,
+        )
+    ) {
+        Text(text = "Sign Out")
+    }
+
+    // Show Delete Wallet for permanent errors
+    if (error.isPermanent()) {
+        Spacer(modifier = Modifier.height(16.dp))
+        WrapButton(
+            modifier = Modifier.fillMaxWidth(),
+            buttonConfig = ButtonConfig(
+                type = ButtonType.SECONDARY,
+                onClick = onDeleteWallet,
+                enabled = !isDeleting
+            )
+        ) {
+            Text(text = if (isDeleting) "Deleting..." else "Delete Wallet")
         }
     }
 } 

@@ -17,12 +17,18 @@ package eu.europa.ec.authenticationfeature.ui
 
 import androidx.lifecycle.viewModelScope
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricAuthenticationController
+import eu.europa.ec.businesslogic.model.error.WalletActivationError
+import eu.europa.ec.businesslogic.model.error.getErrorTitle
+import eu.europa.ec.businesslogic.model.error.getRetryDelaySeconds
+import eu.europa.ec.businesslogic.model.error.getUserFriendlyMessage
+import eu.europa.ec.businesslogic.model.error.isPermanent
+import eu.europa.ec.businesslogic.model.error.isRetryable
+import eu.europa.ec.businesslogic.model.error.shouldAutoRetry
+import eu.europa.ec.businesslogic.model.error.toWalletActivationError
 import eu.europa.ec.authenticationlogic.usecase.SignOutMode
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.businesslogic.controller.device.DeviceController
 import eu.europa.ec.businesslogic.controller.log.LogController
-import eu.europa.ec.businesslogic.controller.storage.PrefKeys
-import eu.europa.ec.businesslogic.controller.storage.PrefsController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
 import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
 import eu.europa.ec.businesslogic.model.DeviceInfo
@@ -33,20 +39,43 @@ import eu.europa.ec.uilogic.mvi.ViewSideEffect
 import eu.europa.ec.uilogic.mvi.ViewState
 import eu.europa.ec.walletactivationlogic.usecase.CreateWalletAttestationUseCase
 import eu.europa.ec.walletactivationlogic.usecase.DeleteWalletActivationUseCase
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.android.annotation.KoinViewModel
 
-// State: Enhanced with navigation control
+/**
+ * Represents the current step in the wallet activation process.
+ */
+enum class ActivationStep {
+    IDLE,
+    FETCHING_CHALLENGE,
+    GENERATING_KEYS,
+    ACTIVATING_WALLET
+}
+
+/**
+ * State for the wallet setup screen with enhanced error handling.
+ */
 data class WalletSetupState(
     val isActivating: Boolean = false,
-    val activationError: String? = null,
+    val activationError: WalletActivationError? = null,
     val canNavigateBack: Boolean = true,
     val backButtonText: String = "Cancel Setup",
     val showConfirmationDialog: Boolean = false,
     val isDeleting: Boolean = false,
     val showDeleteConfirmationDialog: Boolean = false,
     val isWalletAlreadyActivated: Boolean = false,
-) : ViewState
+    // Enhanced error UX fields
+    val currentStep: ActivationStep = ActivationStep.IDLE,
+    val retryCountdown: Int? = null,
+    val autoRetrying: Boolean = false,
+    val autoRetryAttempt: Int = 0,
+) : ViewState {
+    companion object {
+        const val MAX_AUTO_RETRY_ATTEMPTS = 3
+    }
+}
 
 // Events: Actions the user can take on this screen
 sealed class WalletSetupEvent : ViewEvent {
@@ -81,6 +110,8 @@ class WalletSetupViewModel(
     private val prefsController: PrefsControllerV2,
     private val logController: LogController
 ) : MviViewModel<WalletSetupEvent, WalletSetupState, WalletSetupEffect>() {
+
+    private var countdownJob: Job? = null
 
     override fun setInitialState(): WalletSetupState {
         // EUDI-ARF: Check if wallet is already activated for this user to avoid re-attestation
@@ -120,14 +151,17 @@ class WalletSetupViewModel(
         }
     }
 
-    private fun activateWallet() {
+    private fun activateWallet(isAutoRetry: Boolean = false) {
         // Prevent duplicate activations if already in progress or already activated
         val currentState = viewState.value
-        if (currentState.isActivating) {
+        if (currentState.isActivating && !isAutoRetry) {
             logController.w("WalletSetupViewModel") { "Activation already in progress, ignoring." }
             return
         }
-        
+
+        // Cancel any running countdown
+        countdownJob?.cancel()
+
         // Double-check wallet activation status before proceeding
         try {
             if (prefKeys.isWalletActivatedSafe()) {
@@ -142,15 +176,19 @@ class WalletSetupViewModel(
         }
 
         viewModelScope.launch {
-            setState { 
+            setState {
                 copy(
-                    isActivating = true, 
+                    isActivating = true,
                     activationError = null,
                     backButtonText = "Cancel Setup",
-                    canNavigateBack = true
-                ) 
+                    canNavigateBack = true,
+                    currentStep = ActivationStep.FETCHING_CHALLENGE,
+                    retryCountdown = null,
+                    autoRetrying = isAutoRetry
+                )
             }
             try {
+                // Step 1: Register for push notifications
                 val pushToken =
                     pushNotificationController.registerForPushNotifications().getOrThrow()
                 val deviceInfo = getCombinedDeviceInfo()
@@ -158,56 +196,138 @@ class WalletSetupViewModel(
                 logController.d("WalletSetupViewModel", "Push Token: $pushToken")
                 logController.d("WalletSetupViewModel", "Device Info: $deviceInfo")
 
+                // Step 2-4: Create wallet attestation (challenge → keys → activate)
+                setState { copy(currentStep = ActivationStep.GENERATING_KEYS) }
                 createWalletAttestationUseCase(deviceInfo, pushToken).getOrThrow()
-                
+
                 try {
                     prefKeys.setWalletActivated(true)
                 } catch (e: SecurityException) {
-                    logController.w("WalletSetupViewModel") { 
-                        "Failed to save wallet activation status due to security error: ${e.message}" 
+                    logController.w("WalletSetupViewModel") {
+                        "Failed to save wallet activation status due to security error: ${e.message}"
                     }
-                    // Still proceed to home - the wallet is activated even if we can't save the flag
                 }
-                
-                setState { 
+
+                setState {
                     copy(
                         isActivating = false,
-                        canNavigateBack = false // No back button on success
-                    ) 
+                        canNavigateBack = false,
+                        currentStep = ActivationStep.IDLE,
+                        autoRetrying = false,
+                        autoRetryAttempt = 0
+                    )
                 }
                 setEffect { WalletSetupEffect.NavigateToHome }
 
             } catch (e: Exception) {
                 logController.e("WalletSetupViewModel", e)
-                val errorMessage = e.message ?: "Wallet activation failed"
-                
-                // Check if this is a "wallet already exists" error from backend
-                val isAlreadyExistsError = errorMessage.contains("already exists", ignoreCase = true) ||
-                        errorMessage.contains("already activated", ignoreCase = true) ||
-                        errorMessage.contains("duplicate", ignoreCase = true) ||
-                        errorMessage.contains("409", ignoreCase = true)
-                
-                if (isAlreadyExistsError) {
-                    logController.i("WalletSetupViewModel") { "Wallet already exists on backend, marking as activated and navigating to home." }
-                    try {
-                        prefKeys.setWalletActivated(true)
-                    } catch (securityException: SecurityException) {
-                        logController.w("WalletSetupViewModel") { "Failed to save wallet activation status: ${securityException.message}" }
+                handleActivationError(e)
+            }
+        }
+    }
+
+    private suspend fun handleActivationError(exception: Exception) {
+        val error = if (exception is WalletActivationError) {
+            exception
+        } else {
+            exception.toWalletActivationError()
+        }
+
+        val errorMessage = exception.message ?: "Wallet activation failed"
+
+        // Check if this is a "wallet already exists" error from backend
+        val isAlreadyExistsError = errorMessage.contains("already exists", ignoreCase = true) ||
+                errorMessage.contains("already activated", ignoreCase = true) ||
+                errorMessage.contains("duplicate", ignoreCase = true) ||
+                errorMessage.contains("409", ignoreCase = true)
+
+        when {
+            isAlreadyExistsError -> {
+                logController.i("WalletSetupViewModel") {
+                    "Wallet already exists on backend, marking as activated and navigating to home."
+                }
+                try {
+                    prefKeys.setWalletActivated(true)
+                } catch (securityException: SecurityException) {
+                    logController.w("WalletSetupViewModel") {
+                        "Failed to save wallet activation status: ${securityException.message}"
                     }
-                    setState { copy(isActivating = false, canNavigateBack = false) }
-                    setEffect { WalletSetupEffect.NavigateToHome }
-                } else {
-                    setState { 
-                        copy(
-                            isActivating = false, 
-                            activationError = errorMessage,
-                            backButtonText = "Back to Login",
-                            canNavigateBack = true
-                        ) 
-                    }
-                    setEffect { WalletSetupEffect.ShowError(errorMessage) }
+                }
+                setState {
+                    copy(
+                        isActivating = false,
+                        canNavigateBack = false,
+                        autoRetrying = false
+                    )
+                }
+                setEffect { WalletSetupEffect.NavigateToHome }
+            }
+
+            // Auto-retry for transient errors (expired/not found challenges)
+            error.shouldAutoRetry() && viewState.value.autoRetryAttempt < WalletSetupState.MAX_AUTO_RETRY_ATTEMPTS -> {
+                val attempt = viewState.value.autoRetryAttempt + 1
+                logController.i("WalletSetupViewModel") {
+                    "Auto-retrying activation (attempt $attempt of ${WalletSetupState.MAX_AUTO_RETRY_ATTEMPTS})"
+                }
+                setState {
+                    copy(
+                        autoRetryAttempt = attempt,
+                        autoRetrying = true
+                    )
+                }
+                // Small delay before auto-retry
+                viewModelScope.launch {
+                    delay(500)
+                    activateWallet(isAutoRetry = true)
                 }
             }
+
+            // Rate limited - start countdown
+            error is WalletActivationError.ChallengeRateLimited -> {
+                startRateLimitCountdown(error.retryAfterSeconds)
+                setState {
+                    copy(
+                        isActivating = false,
+                        activationError = error,
+                        backButtonText = "Cancel Setup",
+                        canNavigateBack = true,
+                        currentStep = ActivationStep.IDLE,
+                        autoRetrying = false
+                    )
+                }
+            }
+
+            // Other errors - show error UI
+            else -> {
+                setState {
+                    copy(
+                        isActivating = false,
+                        activationError = error,
+                        backButtonText = "Back to Login",
+                        canNavigateBack = true,
+                        currentStep = ActivationStep.IDLE,
+                        autoRetrying = false,
+                        autoRetryAttempt = 0
+                    )
+                }
+                setEffect { WalletSetupEffect.ShowError(error.getUserFriendlyMessage()) }
+            }
+        }
+    }
+
+    private fun startRateLimitCountdown(seconds: Int) {
+        countdownJob?.cancel()
+        countdownJob = viewModelScope.launch {
+            var remaining = seconds
+            while (remaining > 0) {
+                setState { copy(retryCountdown = remaining) }
+                delay(1000)
+                remaining--
+            }
+            setState { copy(retryCountdown = null) }
+            // Auto-retry after countdown completes
+            logController.i("WalletSetupViewModel") { "Rate limit countdown complete, auto-retrying" }
+            activateWallet(isAutoRetry = true)
         }
     }
 
@@ -234,7 +354,8 @@ class WalletSetupViewModel(
                 setEffect { WalletSetupEffect.NavigateToLogin }
             } catch (e: Exception) {
                 logController.e("WalletSetupViewModel", e)
-                setState { copy(isActivating = false, activationError = e.message) }
+                val signOutError = e.toWalletActivationError()
+                setState { copy(isActivating = false, activationError = signOutError) }
                 setEffect { WalletSetupEffect.ShowError(e.message ?: "Sign out failed") }
             }
         }
@@ -321,15 +442,15 @@ class WalletSetupViewModel(
                 
             } catch (e: Exception) {
                 logController.e("WalletSetupViewModel", e)
-                val errorMessage = e.message ?: "Failed to delete wallet activation"
-                setState { 
+                val deleteError = e.toWalletActivationError()
+                setState {
                     copy(
-                        isDeleting = false, 
-                        activationError = errorMessage,
+                        isDeleting = false,
+                        activationError = deleteError,
                         canNavigateBack = true
-                    ) 
+                    )
                 }
-                setEffect { WalletSetupEffect.ShowError(errorMessage) }
+                setEffect { WalletSetupEffect.ShowError(deleteError.getUserFriendlyMessage()) }
             }
         }
     }

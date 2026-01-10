@@ -25,10 +25,10 @@ import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.device.DeviceController
 import eu.europa.ec.walletactivationlogic.usecase.CreateWalletAttestationUseCase
 import eu.europa.ec.notificationlogic.controller.UserScopedPushNotificationController
-import eu.europa.ec.authenticationfeature.model.WalletActivationError
-import eu.europa.ec.authenticationfeature.model.toWalletActivationError
-import eu.europa.ec.authenticationfeature.model.getUserFriendlyMessage
-import eu.europa.ec.authenticationfeature.model.isRetryable
+import eu.europa.ec.businesslogic.model.error.WalletActivationError
+import eu.europa.ec.businesslogic.model.error.toWalletActivationError
+import eu.europa.ec.businesslogic.model.error.getUserFriendlyMessage
+import eu.europa.ec.businesslogic.model.error.isRetryable
 import eu.europa.ec.authenticationlogic.usecase.SignOutMode
 import eu.europa.ec.uilogic.mvi.MviViewModel
 import eu.europa.ec.uilogic.mvi.ViewEvent

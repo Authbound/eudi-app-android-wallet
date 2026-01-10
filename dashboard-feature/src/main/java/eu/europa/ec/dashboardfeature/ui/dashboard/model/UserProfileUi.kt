@@ -16,25 +16,12 @@
 
 package eu.europa.ec.dashboardfeature.ui.dashboard.model
 
-import eu.europa.ec.uilogic.component.ListItemDataUi
-
-sealed interface SideMenuItemUi {
-    data class Header(val title: String) : SideMenuItemUi
-    data class ActionItem(
-        val type: SideMenuTypeUi,
-        val data: ListItemDataUi,
-        val isEnabled: Boolean = true
-    ) : SideMenuItemUi
-}
-
-enum class SideMenuTypeUi {
-    AUTHENTICATE,
-    ADD_DOCUMENT,
-    VERIFY,
-    SIGN,
-    PROFILE,
-    CHANGE_PIN,
-    SETTINGS,
-    EU_GUIDE,
-    SHARE_LOGS,
-}
+/**
+ * UI model for user profile data displayed in the side menu.
+ */
+data class UserProfileUi(
+    val displayName: String,
+    val email: String?,
+    val handle: String?,
+    val avatarUrl: String?
+)

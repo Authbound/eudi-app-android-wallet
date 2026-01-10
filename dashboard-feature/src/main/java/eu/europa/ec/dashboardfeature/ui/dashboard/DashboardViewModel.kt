@@ -20,6 +20,8 @@ import android.content.Intent
 import android.net.Uri
 import eu.europa.ec.commonfeature.config.OfferUiConfig
 import eu.europa.ec.commonfeature.config.PresentationMode
+import eu.europa.ec.commonfeature.config.QrScanFlow
+import eu.europa.ec.commonfeature.config.QrScanUiConfig
 import eu.europa.ec.commonfeature.config.RequestUriConfig
 import eu.europa.ec.commonfeature.model.PinFlow
 import eu.europa.ec.corelogic.di.getOrCreatePresentationScope
@@ -28,6 +30,9 @@ import eu.europa.ec.dashboardfeature.interactor.DashboardInteractor
 import eu.europa.ec.dashboardfeature.ui.component.BottomNavigationItem
 import eu.europa.ec.dashboardfeature.ui.dashboard.model.SideMenuItemUi
 import eu.europa.ec.dashboardfeature.ui.dashboard.model.SideMenuTypeUi
+import eu.europa.ec.dashboardfeature.ui.dashboard.model.UserProfileUi
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import eu.europa.ec.eudi.wallet.document.DocumentId
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
@@ -57,6 +62,9 @@ data class State(
     val sideMenuAnimation: SideMenuAnimation = SideMenuAnimation.SLIDE,
     val menuAnimationDuration: Int = 1500,
 
+    // user profile for side menu
+    val userProfile: UserProfileUi? = null,
+
     val isBottomSheetOpen: Boolean = false,
     val sheetContent: DashboardBottomSheetContent = DashboardBottomSheetContent.DocumentRevocation(
         options = emptyList()
@@ -66,6 +74,7 @@ data class State(
 sealed class Event : ViewEvent {
     data class Init(val deepLinkUri: Uri?) : Event()
     data object Pop : Event()
+    data object QrScanPressed : Event()
 
     data class DocumentRevocationNotificationReceived(
         val payload: List<RevokedDocumentDataDomain>
@@ -146,6 +155,10 @@ class DashboardViewModel(
 
             is Event.Pop -> setEffect { Effect.Navigation.Pop }
 
+            is Event.QrScanPressed -> {
+                navigateToQrScan()
+            }
+
             is Event.SideMenu.ItemClicked -> {
                 handleSideMenuItemClicked(event.itemType)
             }
@@ -166,6 +179,7 @@ class DashboardViewModel(
                         sideMenuAnimation = SideMenuAnimation.SLIDE
                     )
                 }
+                loadUserProfile()
             }
 
             is Event.DocumentRevocationNotificationReceived -> {
@@ -231,6 +245,37 @@ class DashboardViewModel(
         }
     }
 
+    private fun navigateToQrScan() {
+        // Create presentation scope for QR scanning
+        getOrCreatePresentationScope()
+
+        val navigationEffect = Effect.Navigation.SwitchScreen(
+            screenRoute = generateComposableNavigationLink(
+                screen = CommonScreens.QrScan,
+                arguments = generateComposableArguments(
+                    mapOf(
+                        QrScanUiConfig.serializedKeyName to uiSerializer.toBase64(
+                            QrScanUiConfig(
+                                title = resourceProvider.getString(R.string.qr_scan_title),
+                                subTitle = resourceProvider.getString(R.string.qr_scan_subtitle),
+                                qrScanFlow = QrScanFlow.Presentation
+                            ),
+                            QrScanUiConfig.Parser
+                        )
+                    )
+                )
+            )
+        )
+        setEffect { navigationEffect }
+    }
+
+    private fun loadUserProfile() {
+        viewModelScope.launch {
+            val profile = dashboardInteractor.getUserProfile()
+            setState { copy(userProfile = profile) }
+        }
+    }
+
     private fun getDocumentRevocationBottomSheetOptions(revokedDocumentData: List<RevokedDocumentDataDomain>): List<ModalOptionUi<Event>> {
         return revokedDocumentData.map {
             ModalOptionUi(
@@ -260,8 +305,16 @@ class DashboardViewModel(
                 setEffect { Effect.TriggerQuickAction("verify") }
             }
 
-            SideMenuTypeUi.SIGN_DOCUMENT -> {
+            SideMenuTypeUi.SIGN -> {
                 setEffect { Effect.ShowComingSoon }
+            }
+
+            SideMenuTypeUi.EU_GUIDE -> {
+                // TODO: Navigate to EU Guide
+            }
+
+            SideMenuTypeUi.SHARE_LOGS -> {
+                // TODO: Share logs functionality
             }
 
             SideMenuTypeUi.PROFILE -> {

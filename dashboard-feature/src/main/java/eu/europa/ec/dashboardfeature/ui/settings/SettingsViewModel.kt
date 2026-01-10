@@ -191,6 +191,14 @@ class SettingsViewModel(
                 }
             }
 
+            SettingsMenuItemType.MY_DATA -> {
+                setEffect {
+                    Effect.Navigation.SwitchScreen(
+                        screenRoute = DashboardScreens.MyData.screenRoute
+                    )
+                }
+            }
+
             SettingsMenuItemType.CHANGE_PIN -> {
                 val nextScreenRoute = generateComposableNavigationLink(
                     screen = CommonScreens.QuickPin,

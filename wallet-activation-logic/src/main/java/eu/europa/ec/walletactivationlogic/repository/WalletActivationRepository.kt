@@ -21,26 +21,34 @@ import io.github.jan.supabase.auth.auth
 
 import android.util.Base64
 import eu.europa.ec.businesslogic.controller.log.LogController
+import eu.europa.ec.businesslogic.model.error.HttpErrorResponse
+import eu.europa.ec.businesslogic.model.error.WalletActivationError
+import eu.europa.ec.businesslogic.model.error.toWalletActivationError
 import eu.europa.ec.businesslogic.model.DeviceInfo
 
 import eu.europa.ec.networklogic.api.ApiClient
 
 import eu.europa.ec.networklogic.model.request.WalletActivationRequest
 import eu.europa.ec.networklogic.model.request.EnhancedDeviceInfo
+import eu.europa.ec.networklogic.model.response.AttestationChallengeResponse
 import eu.europa.ec.networklogic.model.response.WalletActivationResponse
+import retrofit2.Response
 
 import java.security.cert.Certificate
 
 
 
 interface WalletActivationRepository {
+    suspend fun getAttestationChallenge(): Result<AttestationChallengeResponse>
+
     suspend fun activateWallet(
         publicKey: Certificate,
         attestationChain: Array<Certificate>,
+        challengeId: String,
         deviceInfo: DeviceInfo,
         pushToken: String,
     ): Result<WalletActivationResponse>
-    
+
     suspend fun deleteWalletActivation(): Result<Unit>
 }
 
@@ -49,29 +57,78 @@ class WalletActivationRepositoryImpl(
     private val api: ApiClient,
     private val logController: LogController
 ) : WalletActivationRepository {
+
+    override suspend fun getAttestationChallenge(): Result<AttestationChallengeResponse> {
+        return try {
+            val token = supabaseClient.auth.currentSessionOrNull()?.accessToken
+                ?: return Result.failure(
+                    WalletActivationError.AuthenticationFailure("User not authenticated")
+                )
+
+            logController.d("WalletActivation", "Fetching attestation challenge...")
+            val response = api.getAttestationChallenge(token)
+
+            if (response.isSuccessful) {
+                val responseBody = response.body()
+                if (responseBody != null) {
+                    logController.d("WalletActivation", "Challenge received: ${responseBody.challengeId}")
+                    Result.success(responseBody)
+                } else {
+                    logController.e("WalletActivation", Exception("Challenge response body is null"))
+                    Result.failure(
+                        WalletActivationError.ServerRejection(
+                            httpCode = response.code(),
+                            serverMessage = "Empty response body"
+                        )
+                    )
+                }
+            } else {
+                val error = parseHttpError(response)
+                logController.e("WalletActivation", Exception("Challenge fetch failed: ${error.message}"))
+                Result.failure(error)
+            }
+        } catch (e: WalletActivationError) {
+            logController.e("WalletActivation", e)
+            Result.failure(e)
+        } catch (e: Exception) {
+            logController.e("WalletActivation", e)
+            Result.failure(e.toWalletActivationError())
+        }
+    }
+
     override suspend fun activateWallet(
         publicKey: Certificate,
         attestationChain: Array<Certificate>,
+        challengeId: String,
         deviceInfo: DeviceInfo,
         pushToken: String,
     ): Result<WalletActivationResponse> {
         return try {
             val token = supabaseClient.auth.currentSessionOrNull()?.accessToken
-                ?: return Result.failure(Exception("User not authenticated"))
+                ?: return Result.failure(
+                    WalletActivationError.AuthenticationFailure("User not authenticated")
+                )
 
             // Create comprehensive device security assessment for WUA
             val enhancedDeviceInfo = createEnhancedDeviceInfo(deviceInfo)
 
+            // Convert certificate chain to Base64-encoded strings
+            val base64AttestationChain = attestationChain.map { cert ->
+                Base64.encodeToString(cert.encoded, Base64.NO_WRAP)
+            }
+
             val request = WalletActivationRequest(
-                pushNotificationToken = pushToken,
                 wuaPublicKey = Base64.encodeToString(publicKey.encoded, Base64.NO_WRAP),
+                attestationChain = base64AttestationChain,
+                challengeId = challengeId,
                 deviceInfo = enhancedDeviceInfo,
+                pushNotificationToken = pushToken,
                 pushNotificationProvider = "fcm"
             )
 
             logController.d("WalletActivation", "Enhanced Device Security Assessment: $enhancedDeviceInfo")
             val response = api.activateWallet(request, token)
-            
+
             if (response.isSuccessful) {
                 val responseBody = response.body()
                 if (responseBody != null) {
@@ -79,16 +136,24 @@ class WalletActivationRepositoryImpl(
                     Result.success(responseBody)
                 } else {
                     logController.e("WalletActivation", Exception("WUA failed. Error body is null"))
-                    Result.failure(Exception("Empty response body"))
+                    Result.failure(
+                        WalletActivationError.ServerRejection(
+                            httpCode = response.code(),
+                            serverMessage = "Empty response body"
+                        )
+                    )
                 }
             } else {
-                val errorMsg = "HTTP ${response.code()}: ${response.message()}"
-                logController.e("WalletActivation", Exception(errorMsg))
-                Result.failure(Exception(errorMsg))
+                val error = parseHttpError(response, challengeId)
+                logController.e("WalletActivation", Exception("WUA failed: ${error.message}"))
+                Result.failure(error)
             }
-        } catch (e: Exception) {
+        } catch (e: WalletActivationError) {
             logController.e("WalletActivation", e)
             Result.failure(e)
+        } catch (e: Exception) {
+            logController.e("WalletActivation", e)
+            Result.failure(e.toWalletActivationError())
         }
     }
 
@@ -196,22 +261,74 @@ class WalletActivationRepositoryImpl(
     override suspend fun deleteWalletActivation(): Result<Unit> {
         return try {
             val token = supabaseClient.auth.currentSessionOrNull()?.accessToken
-                ?: return Result.failure(Exception("User not authenticated"))
+                ?: return Result.failure(
+                    WalletActivationError.AuthenticationFailure("User not authenticated")
+                )
 
             logController.d("WalletActivation", "Deleting wallet activation...")
             val response = api.deleteWalletActivation(token)
-            
+
             if (response.isSuccessful) {
                 logController.d("WalletActivation", "Wallet activation deleted successfully")
                 Result.success(Unit)
             } else {
-                val errorMsg = "HTTP ${response.code()}: ${response.message()}"
-                logController.e("WalletActivation", Exception("Delete failed: $errorMsg"))
-                Result.failure(Exception("Failed to delete wallet activation: $errorMsg"))
+                val error = parseHttpError(response)
+                logController.e("WalletActivation", Exception("Delete failed: ${error.message}"))
+                Result.failure(error)
             }
-        } catch (e: Exception) {
+        } catch (e: WalletActivationError) {
             logController.e("WalletActivation", e)
             Result.failure(e)
+        } catch (e: Exception) {
+            logController.e("WalletActivation", e)
+            Result.failure(e.toWalletActivationError())
+        }
+    }
+
+    /**
+     * Parses HTTP error response into a typed WalletActivationError.
+     * Extracts retry-after header for rate limiting and parses error body for context.
+     */
+    private fun <T> parseHttpError(
+        response: Response<T>,
+        challengeId: String? = null
+    ): WalletActivationError {
+        val errorBody = try {
+            response.errorBody()?.string()
+        } catch (e: Exception) {
+            null
+        }
+
+        // Extract Retry-After header for rate limiting
+        val retryAfter = response.headers()["Retry-After"]?.toIntOrNull()
+            ?: response.headers()["X-RateLimit-Reset"]?.let { resetTime ->
+                // Convert Unix timestamp to seconds from now
+                try {
+                    val resetTimestamp = resetTime.toLong()
+                    val now = System.currentTimeMillis() / 1000
+                    (resetTimestamp - now).toInt().coerceAtLeast(1)
+                } catch (e: Exception) {
+                    null
+                }
+            }
+
+        val httpError = HttpErrorResponse(
+            code = response.code(),
+            message = response.message(),
+            errorBody = errorBody,
+            retryAfterSeconds = retryAfter
+        )
+
+        // For challenge-related errors, inject the challenge ID if available
+        return when {
+            response.code() == 410 && challengeId != null -> {
+                WalletActivationError.ChallengeExpired(challengeId)
+            }
+            response.code() == 404 && challengeId != null &&
+                    errorBody?.contains("challenge", ignoreCase = true) == true -> {
+                WalletActivationError.ChallengeNotFound(challengeId)
+            }
+            else -> httpError.toWalletActivationError()
         }
     }
 } 

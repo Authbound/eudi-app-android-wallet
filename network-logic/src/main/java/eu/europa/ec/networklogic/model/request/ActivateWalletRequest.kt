@@ -75,6 +75,10 @@ data class EnhancedDeviceInfo(
 data class WalletActivationRequest(
     @SerializedName("wuaPublicKey")
     val wuaPublicKey: String,
+    @SerializedName("attestationChain")
+    val attestationChain: List<String>,
+    @SerializedName("challengeId")
+    val challengeId: String,
     @SerializedName("deviceInfo")
     val deviceInfo: EnhancedDeviceInfo,
     @SerializedName("pushNotificationToken")

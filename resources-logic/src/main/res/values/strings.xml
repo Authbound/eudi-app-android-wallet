@@ -110,6 +110,8 @@
     <string name="content_description_in_progress_icon">In progress</string>
     <string name="content_description_notifications_icon">Notifications</string>
     <string name="content_description_transactions_icon">Transactions</string>
+    <string name="content_description_actions_icon">Actions</string>
+    <string name="content_description_inbox_icon">Inbox</string>
     <string name="content_description_wallet_activated_icon">Wallet activated</string>
     <string name="content_description_wallet_secured_icon">Wallet secured</string>
     <string name="content_description_info_icon">Info</string>
@@ -198,6 +200,13 @@
     <!-- Dashboard -->
     <string name="dashboard_document_has_not_expired">Valid until:\ %1$s</string>
     <string name="dashboard_document_has_expired">Expired</string>
+
+    <!-- Document Status Labels -->
+    <string name="document_status_issued">Issued</string>
+    <string name="document_status_pending">Pending</string>
+    <string name="document_status_failed">Failed</string>
+    <string name="document_status_expired">Expired</string>
+    <string name="document_status_revoked">Revoked</string>
     <string name="dashboard_document_deferred_pending">Pending</string>
     <string name="dashboard_document_deferred_failed">Issuance failed</string>
     <string name="dashboard_document_revoked">Revoked</string>
@@ -229,6 +238,9 @@
 
     <!-- Dashboard Side Menu -->
     <string name="dashboard_side_menu_title">Menu</string>
+    <string name="dashboard_side_menu_quick_actions_header">Quick Actions</string>
+    <string name="dashboard_side_menu_account_header">Account</string>
+    <string name="app_copyright">2025 Authbound</string>
     <string name="dashboard_side_menu_option_change_pin">Change PIN</string>
     <string name="dashboard_side_menu_option_change_pin_id">changePinId</string>
     <string name="dashboard_side_menu_option_settings">Settings</string>
@@ -274,6 +286,18 @@
     <string name="home_screen_view_credentials_description">View and manage your digital credentials</string>
     <string name="home_screen_settings_description">Configure your wallet preferences</string>
     <string name="side_menu_settings">Settings</string>
+
+    <!-- Home Screen Hero Card -->
+    <string name="home_hero_tap_to_share">Tap to share</string>
+    <string name="home_hero_empty_title">Get Your Digital ID</string>
+    <string name="home_hero_empty_description">Your wallet is ready for your first digital credential</string>
+    <string name="home_hero_pid_subtitle">Personal Identification Data</string>
+    <string name="home_hero_mdl_subtitle">Mobile Driving License</string>
+
+    <!-- QR Scan -->
+    <string name="qr_scan_title">Scan QR Code</string>
+    <string name="qr_scan_subtitle">Scan a QR code to present your credentials or authenticate</string>
+    <string name="qr_scan_fab_description">Scan QR code</string>
 
     <!-- Documents Screen -->
     <string name="documents_screen_title">Documents</string>
@@ -585,4 +609,108 @@
 
     <string name="feature_coming_soon">This feature is coming soon</string>
     <string name="coming_soon_badge">Coming soon</string>
+
+    <!-- Actions Screen (Inbox) -->
+    <string name="actions_screen_title">Actions</string>
+    <string name="actions_screen_search_label">Search actions</string>
+    <string name="actions_screen_search_no_results_id">noActionsId</string>
+    <string name="actions_screen_search_no_results">No actions found. Try changing your search query or filters.</string>
+    <string name="actions_screen_empty_title">No pending actions</string>
+    <string name="actions_screen_empty_description">When you receive requests to sign, verify, or share data, they will appear here.</string>
+    <string name="actions_category_pending">PENDING</string>
+    <string name="actions_category_completed">COMPLETED</string>
+    <string name="actions_category_today">TODAY</string>
+    <string name="actions_category_this_week">THIS WEEK</string>
+    <string name="actions_category_earlier">EARLIER</string>
+    <string name="actions_type_sign_request">Sign Request</string>
+    <string name="actions_type_verify_request">Verify Request</string>
+    <string name="actions_type_data_request">Data Request</string>
+    <string name="actions_status_pending">Pending</string>
+    <string name="actions_status_accepted">Accepted</string>
+    <string name="actions_status_declined">Declined</string>
+    <string name="actions_status_expired">Expired</string>
+    <string name="actions_button_accept">Accept</string>
+    <string name="actions_button_decline">Decline</string>
+    <string name="actions_button_review">Review</string>
+    <string name="actions_button_verify">Verify</string>
+    <string name="actions_button_sign">Sign</string>
+    <string name="actions_button_share">Share</string>
+    <string name="actions_time_just_now">Just now</string>
+    <string name="actions_time_minutes_ago">%1$d min ago</string>
+    <string name="actions_time_hours_ago">%1$d h ago</string>
+    <string name="actions_time_yesterday">Yesterday</string>
+    <string name="actions_time_days_ago">%1$d days ago</string>
+    <string name="actions_time_weeks_ago">%1$d weeks ago</string>
+    <string name="actions_toast_accepted">Action accepted</string>
+    <string name="actions_toast_declined">Action declined</string>
+    <string name="actions_toast_all_accepted">%1$d actions accepted</string>
+    <string name="actions_toast_all_declined">%1$d actions declined</string>
+    <string name="actions_mass_accept_all">Accept All</string>
+    <string name="actions_mass_decline_all">Decline All</string>
+    <string name="actions_history">History</string>
+    <string name="actions_filter_all">All</string>
+    <string name="actions_filter_sign">Sign</string>
+    <string name="actions_filter_verify">Verify</string>
+    <string name="actions_filter_data">Data</string>
+    <string name="actions_sort_newest">Newest first</string>
+    <string name="actions_sort_oldest">Oldest first</string>
+    <string name="actions_sort_by_type">By type</string>
+    <string name="actions_sort_by_requester">By requester</string>
+
+    <!-- My Data Screen -->
+    <string name="my_data_screen_title">My Data</string>
+    <string name="my_data_screen_description">Your verified personal information from your credentials, all in one place.</string>
+    <string name="my_data_category_identity">IDENTITY</string>
+    <string name="my_data_category_contact">CONTACT</string>
+    <string name="my_data_category_address">ADDRESS</string>
+    <string name="my_data_category_driving">DRIVING</string>
+    <string name="my_data_category_education">EDUCATION</string>
+    <string name="my_data_field_full_name">Full Name</string>
+    <string name="my_data_field_date_of_birth">Date of Birth</string>
+    <string name="my_data_field_nationality">Nationality</string>
+    <string name="my_data_field_email">Email</string>
+    <string name="my_data_field_phone">Phone</string>
+    <string name="my_data_field_address">Address</string>
+    <string name="my_data_status_verified">Verified</string>
+    <string name="my_data_status_self_declared">Self-declared</string>
+    <string name="my_data_status_pending">Pending verification</string>
+    <string name="my_data_source_from">from %1$s</string>
+    <string name="my_data_button_verify">Verify</string>
+    <string name="my_data_button_edit">Edit</string>
+    <string name="my_data_coming_soon_title">Coming Soon</string>
+    <string name="my_data_coming_soon_form_fill">Form Fill</string>
+    <string name="my_data_coming_soon_form_fill_description">Auto-fill online forms with your verified data</string>
+    <string name="my_data_coming_soon_learn_more">Learn More</string>
+
+    <!-- Settings Menu Items -->
+    <string name="settings_my_data_title">My Data</string>
+    <string name="settings_my_data_description">View and manage your verified personal data</string>
+
+    <!-- Wallet Activation Errors -->
+    <string name="wallet_error_rate_limited_title">Too Many Attempts</string>
+    <string name="wallet_error_rate_limited_message">Please wait %1$d seconds before trying again.</string>
+    <string name="wallet_error_network_title">Connection Lost</string>
+    <string name="wallet_error_network_message">Check your internet connection and try again.</string>
+    <string name="wallet_error_device_title">Device Not Supported</string>
+    <string name="wallet_error_device_message">Your device doesn\'t meet the security requirements for this wallet.</string>
+    <string name="wallet_error_attestation_title">Verification Failed</string>
+    <string name="wallet_error_attestation_message">Your device couldn\'t be verified. Please contact support.</string>
+    <string name="wallet_error_server_title">Server Unavailable</string>
+    <string name="wallet_error_server_message">Our servers are temporarily unavailable. Please try again in a moment.</string>
+    <string name="wallet_error_crypto_title">Security Error</string>
+    <string name="wallet_error_crypto_message">Failed to create secure keys for your wallet. Please try again.</string>
+    <string name="wallet_error_auth_title">Authentication Error</string>
+    <string name="wallet_error_auth_message">Please sign in again to continue.</string>
+    <string name="wallet_error_timeout_title">Request Timeout</string>
+    <string name="wallet_error_timeout_message">The operation took too long. Please check your connection and try again.</string>
+    <string name="wallet_error_generic_title">Something Went Wrong</string>
+    <string name="wallet_error_generic_message">We couldn\'t set up your wallet. Please try again or contact support.</string>
+    <string name="wallet_error_retrying">Retrying automatically…</string>
+    <string name="wallet_error_retry_countdown">Retry in %1$d seconds</string>
+    <string name="wallet_error_session_expired">Session Expired</string>
+    <string name="wallet_error_session_expired_message">The security session expired. Retrying automatically...</string>
+    <string name="wallet_setup_step_challenge">Fetching security challenge</string>
+    <string name="wallet_setup_step_keys">Generating secure keys</string>
+    <string name="wallet_setup_step_activate">Activating wallet</string>
+    <string name="wallet_setup_requirements_title">Required security features:</string>
 </resources>
