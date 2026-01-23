@@ -331,7 +331,7 @@ fun TransactionStatusIndicator(
 }
 
 /**
- * A time group header for separating transactions by date.
+ * A time group header for separating transactions by date with improved visibility.
  */
 @Composable
 fun TimeGroupHeader(
@@ -341,28 +341,28 @@ fun TimeGroupHeader(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = title.uppercase(),
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurface,
             letterSpacing = 1.5.sp
         )
 
         Spacer(modifier = Modifier.width(12.dp))
 
-        // Gradient line
+        // Gradient line with better visibility
         Box(
             modifier = Modifier
                 .weight(1f)
-                .height(1.dp)
+                .height(1.5.dp)
                 .background(
                     brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
                         colors = listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
                             Color.Transparent
                         )
                     )

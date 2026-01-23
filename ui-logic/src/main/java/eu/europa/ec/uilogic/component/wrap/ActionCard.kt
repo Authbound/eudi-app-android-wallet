@@ -165,7 +165,7 @@ fun ActionCard(
                 ),
             shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 2.dp
+            shadowElevation = 4.dp
         ) {
             Row(modifier = Modifier.fillMaxWidth()) {
                 // Left accent border

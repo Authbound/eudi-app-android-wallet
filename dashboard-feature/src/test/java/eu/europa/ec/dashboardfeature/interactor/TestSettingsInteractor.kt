@@ -17,8 +17,16 @@
 package eu.europa.ec.dashboardfeature.interactor
 
 import android.net.Uri
+import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
+import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
+import eu.europa.ec.authenticationlogic.usecase.IsUserAuthenticatedUseCase
+import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
+import eu.europa.ec.businesslogic.config.AppBuildType
 import eu.europa.ec.businesslogic.config.ConfigLogic
 import eu.europa.ec.businesslogic.controller.log.LogController
+import eu.europa.ec.businesslogic.controller.storage.PrefKeys
+import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
+import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
 import eu.europa.ec.dashboardfeature.ui.settings.model.SettingsMenuItemType
 import eu.europa.ec.dashboardfeature.util.mockedChangeLogUrl
 import eu.europa.ec.resourceslogic.R
@@ -51,6 +59,27 @@ class TestSettingsInteractor {
     @Mock
     private lateinit var resourceProvider: ResourceProvider
 
+    @Mock
+    private lateinit var prefKeys: PrefKeys
+
+    @Mock
+    private lateinit var prefsController: PrefsControllerV2
+
+    @Mock
+    private lateinit var walletCoreDocumentsController: WalletCoreDocumentsController
+
+    @Mock
+    private lateinit var getCurrentUserUseCase: GetCurrentUserUseCase
+
+    @Mock
+    private lateinit var signOutUseCase: SignOutUseCase
+
+    @Mock
+    private lateinit var isUserAuthenticatedUseCase: IsUserAuthenticatedUseCase
+
+    @Mock
+    private lateinit var getMyProfileUseCase: GetMyProfileUseCase
+
     private lateinit var interactor: SettingsInteractor
 
     private lateinit var closeable: AutoCloseable
@@ -63,6 +92,13 @@ class TestSettingsInteractor {
             configLogic = configLogic,
             logController = logController,
             resourceProvider = resourceProvider,
+            prefKeys = prefKeys,
+            prefsController = prefsController,
+            walletCoreDocumentsController = walletCoreDocumentsController,
+            getCurrentUserUseCase = getCurrentUserUseCase,
+            signOutUseCase = signOutUseCase,
+            isUserAuthenticatedUseCase = isUserAuthenticatedUseCase,
+            getMyProfileUseCase = getMyProfileUseCase,
         )
     }
 
@@ -143,116 +179,122 @@ class TestSettingsInteractor {
 
     //region getSettingsItemsUi
     @Test
-    fun `Given no Changelog URL, When getSettingsItemsUi is called, Then only one SettingsItemUi entry is returned`() {
-        // Given
-        mockStringsNeededForGetSettingsItemsUi(
-            resourcesProvider = resourceProvider,
-            changeLogUrlIsNull = true,
-        )
-
-        // When
-        val settingsItems = interactor.getSettingsItemsUi(changelogUrl = null)
-
-        // Then
-        // 1. Size = 1 (RETRIEVE_LOGS)
-        assertEquals(1, settingsItems.size)
-
-        // 2. First item: RETRIEVE_LOGS
-        val secondItem = settingsItems[0]
-        // 2a. Type
-        assertEquals(SettingsMenuItemType.RETRIEVE_LOGS, secondItem.type)
-        // 2b. itemId
-        assertEquals(retrieveLogsIdString, secondItem.data.itemId)
-        // 2c. mainContentData.text
-        val mainContent2 =
-            secondItem.data.mainContentData as ListItemMainContentDataUi.Text
-        assertEquals(retrieveLogsText, mainContent2.text)
-        // 2d. leadingContentData is an icon with AppIcons.OpenNew
-        val leadingIcon2 =
-            secondItem.data.leadingContentData as ListItemLeadingContentDataUi.Icon
-        assertEquals(AppIcons.OpenNew, leadingIcon2.iconData)
-        // 2e. trailingContentData is an icon with AppIcons.KeyboardArrowRight
-        val trailingIcon2 =
-            secondItem.data.trailingContentData as ListItemTrailingContentDataUi.Icon
-        assertEquals(AppIcons.KeyboardArrowRight, trailingIcon2.iconData)
+    fun `Given release build, When getSettingsItemsUi is called, Then expected entries are returned`() {
+        whenever(configLogic.appBuildType).thenReturn(AppBuildType.RELEASE)
+        mockStringsNeededForGetSettingsItemsUi(resourcesProvider = resourceProvider)
+        val settingsItems = interactor.getSettingsItemsUi(changelogUrl = mockedChangeLogUrl)
+        assertEquals(5, settingsItems.size)
+        val accountDetailsItem = settingsItems[0]
+        assertEquals(SettingsMenuItemType.ACCOUNT_DETAILS, accountDetailsItem.type)
+        assertEquals(accountDetailsIdString, accountDetailsItem.data.itemId)
+        val accountDetailsMain =
+            accountDetailsItem.data.mainContentData as ListItemMainContentDataUi.Text
+        assertEquals(accountDetailsText, accountDetailsMain.text)
+        val accountDetailsLeading =
+            accountDetailsItem.data.leadingContentData as ListItemLeadingContentDataUi.Icon
+        assertEquals(AppIcons.UserIcon, accountDetailsLeading.iconData)
+        val accountDetailsTrailing =
+            accountDetailsItem.data.trailingContentData as ListItemTrailingContentDataUi.Icon
+        assertEquals(AppIcons.KeyboardArrowRight, accountDetailsTrailing.iconData)
+        val myDataItem = settingsItems[1]
+        assertEquals(SettingsMenuItemType.MY_DATA, myDataItem.type)
+        assertEquals(myDataIdString, myDataItem.data.itemId)
+        val myDataMain = myDataItem.data.mainContentData as ListItemMainContentDataUi.Text
+        assertEquals(myDataTitle, myDataMain.text)
+        assertEquals(myDataDescription, myDataItem.data.supportingText)
+        val myDataLeading = myDataItem.data.leadingContentData as ListItemLeadingContentDataUi.Icon
+        assertEquals(AppIcons.Id, myDataLeading.iconData)
+        val myDataTrailing = myDataItem.data.trailingContentData as ListItemTrailingContentDataUi.Icon
+        assertEquals(AppIcons.KeyboardArrowRight, myDataTrailing.iconData)
+        val changePinItem = settingsItems[2]
+        assertEquals(SettingsMenuItemType.CHANGE_PIN, changePinItem.type)
+        assertEquals(changePinIdString, changePinItem.data.itemId)
+        val changePinMain = changePinItem.data.mainContentData as ListItemMainContentDataUi.Text
+        assertEquals(changePinText, changePinMain.text)
+        val changePinLeading =
+            changePinItem.data.leadingContentData as ListItemLeadingContentDataUi.Icon
+        assertEquals(AppIcons.ChangePin, changePinLeading.iconData)
+        val changePinTrailing =
+            changePinItem.data.trailingContentData as ListItemTrailingContentDataUi.Icon
+        assertEquals(AppIcons.KeyboardArrowRight, changePinTrailing.iconData)
+        val retrieveLogsItem = settingsItems[3]
+        assertEquals(SettingsMenuItemType.RETRIEVE_LOGS, retrieveLogsItem.type)
+        assertEquals(retrieveLogsIdString, retrieveLogsItem.data.itemId)
+        val retrieveLogsMain =
+            retrieveLogsItem.data.mainContentData as ListItemMainContentDataUi.Text
+        assertEquals(retrieveLogsText, retrieveLogsMain.text)
+        val retrieveLogsLeading =
+            retrieveLogsItem.data.leadingContentData as ListItemLeadingContentDataUi.Icon
+        assertEquals(AppIcons.OpenNew, retrieveLogsLeading.iconData)
+        val retrieveLogsTrailing =
+            retrieveLogsItem.data.trailingContentData as ListItemTrailingContentDataUi.Icon
+        assertEquals(AppIcons.KeyboardArrowRight, retrieveLogsTrailing.iconData)
+        val resetHealthItem = settingsItems[4]
+        assertEquals(SettingsMenuItemType.RESET_HEALTH_DATA, resetHealthItem.type)
+        assertEquals(resetHealthDataIdString, resetHealthItem.data.itemId)
+        val resetHealthMain = resetHealthItem.data.mainContentData as ListItemMainContentDataUi.Text
+        assertEquals(resetHealthDataTitle, resetHealthMain.text)
+        assertEquals(resetHealthDataDescription, resetHealthItem.data.supportingText)
+        val resetHealthLeading = resetHealthItem.data.leadingContentData as ListItemLeadingContentDataUi.Icon
+        assertEquals(AppIcons.Refresh, resetHealthLeading.iconData)
+        val resetHealthTrailing = resetHealthItem.data.trailingContentData as ListItemTrailingContentDataUi.Icon
+        assertEquals(AppIcons.KeyboardArrowRight, resetHealthTrailing.iconData)
     }
 
     @Test
-    fun `Given a Changelog URL, When getSettingsItemsUi is called, Then two SettingsItemUi entries are returned`() {
-        // Given
-        mockStringsNeededForGetSettingsItemsUi(
-            resourcesProvider = resourceProvider,
-            changeLogUrlIsNull = false,
-        )
-
-        val sampleChangelogUrl = mockedChangeLogUrl
-
-        // When
-        val settingsItems = interactor.getSettingsItemsUi(changelogUrl = sampleChangelogUrl)
-
-        // Then
-        // 1. Size = 2 (RETRIEVE_LOGS + CHANGELOG)
-        assertEquals(2, settingsItems.size)
-
-        // 2. First item: RETRIEVE_LOGS
-        val firstItem = settingsItems[0]
-        assertEquals(SettingsMenuItemType.RETRIEVE_LOGS, firstItem.type)
-        assertEquals(retrieveLogsIdString, firstItem.data.itemId)
-        val mainContent1 =
-            firstItem.data.mainContentData as ListItemMainContentDataUi.Text
-        assertEquals(retrieveLogsText, mainContent1.text)
-        val leadingIcon1 =
-            firstItem.data.leadingContentData as ListItemLeadingContentDataUi.Icon
-        assertEquals(AppIcons.OpenNew, leadingIcon1.iconData)
-        val trailingIcon1 =
-            firstItem.data.trailingContentData as ListItemTrailingContentDataUi.Icon
-        assertEquals(AppIcons.KeyboardArrowRight, trailingIcon1.iconData)
-
-        // 3. Second item: CHANGELOG
-        val secondItem = settingsItems[1]
-        assertEquals(SettingsMenuItemType.CHANGELOG, secondItem.type)
-        assertEquals(changelogIdString, secondItem.data.itemId)
-        val mainContent2 =
-            secondItem.data.mainContentData as ListItemMainContentDataUi.Text
-        assertEquals(changelogText, mainContent2.text)
-        val leadingIcon2 =
-            secondItem.data.leadingContentData as ListItemLeadingContentDataUi.Icon
-        assertEquals(AppIcons.OpenInBrowser, leadingIcon2.iconData)
-        val trailingIcon2 =
-            secondItem.data.trailingContentData as ListItemTrailingContentDataUi.Icon
-        assertEquals(AppIcons.KeyboardArrowRight, trailingIcon2.iconData)
+    fun `Given debug build, When getSettingsItemsUi is called, Then delete wallet activation is included`() {
+        whenever(configLogic.appBuildType).thenReturn(AppBuildType.DEBUG)
+        mockStringsNeededForGetSettingsItemsUi(resourcesProvider = resourceProvider)
+        val settingsItems = interactor.getSettingsItemsUi(changelogUrl = null)
+        assertEquals(6, settingsItems.size)
+        val deleteWalletItem = settingsItems[5]
+        assertEquals(SettingsMenuItemType.DELETE_WALLET_ACTIVATION, deleteWalletItem.type)
+        assertEquals(deleteWalletActivationIdString, deleteWalletItem.data.itemId)
+        val deleteWalletMain =
+            deleteWalletItem.data.mainContentData as ListItemMainContentDataUi.Text
+        assertEquals(deleteWalletActivationText, deleteWalletMain.text)
+        val deleteWalletLeading =
+            deleteWalletItem.data.leadingContentData as ListItemLeadingContentDataUi.Icon
+        assertEquals(AppIcons.Delete, deleteWalletLeading.iconData)
+        val deleteWalletTrailing =
+            deleteWalletItem.data.trailingContentData as ListItemTrailingContentDataUi.Icon
+        assertEquals(AppIcons.KeyboardArrowRight, deleteWalletTrailing.iconData)
     }
     //endregion
 
     //region Mock Calls
-    private fun mockStringsNeededForGetSettingsItemsUi(
-        resourcesProvider: ResourceProvider,
-        changeLogUrlIsNull: Boolean,
-    ) {
+    private fun mockStringsNeededForGetSettingsItemsUi(resourcesProvider: ResourceProvider) {
         mockResourceProviderStrings(
             resourcesProvider,
             listOf(
+                R.string.settings_my_data_title to myDataTitle,
+                R.string.settings_my_data_description to myDataDescription,
+                R.string.dashboard_side_menu_option_change_pin_id to changePinIdString,
+                R.string.dashboard_side_menu_option_change_pin to changePinText,
                 R.string.settings_screen_option_retrieve_logs_id to retrieveLogsIdString,
                 R.string.settings_screen_option_retrieve_logs to retrieveLogsText,
+                R.string.settings_reset_health_data_id to resetHealthDataIdString,
+                R.string.settings_reset_health_data_title to resetHealthDataTitle,
+                R.string.settings_reset_health_data_description to resetHealthDataDescription,
             )
         )
-
-        if (!changeLogUrlIsNull) {
-            mockResourceProviderStrings(
-                resourcesProvider,
-                listOf(
-                    R.string.settings_screen_option_changelog_id to changelogIdString,
-                    R.string.settings_screen_option_changelog to changelogText,
-                )
-            )
-        }
     }
     //endregion
 
     //region Mocked objects needed for tests.
+    private val accountDetailsIdString = "account_details"
+    private val accountDetailsText = "Account details"
+    private val myDataIdString = "my_data"
+    private val myDataTitle = "My data"
+    private val myDataDescription = "My data description"
+    private val changePinIdString = "changePinId"
+    private val changePinText = "Change PIN"
     private val retrieveLogsIdString = "retrieveLogsId"
     private val retrieveLogsText = "Retrieve logs"
-    private val changelogIdString = "changelogId"
-    private val changelogText = "Changelog"
+    private val resetHealthDataIdString = "resetHealthDataId"
+    private val resetHealthDataTitle = "Reset health data"
+    private val resetHealthDataDescription = "Remove imported health credentials and reset Maisa status"
+    private val deleteWalletActivationIdString = "delete_wallet_activation"
+    private val deleteWalletActivationText = "Delete Wallet Activation"
     //endregion
 }

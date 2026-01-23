@@ -190,11 +190,11 @@ class TestSplashViewModel {
             }
         }
 
-    // Case 6:
+        // Case 6:
     // Interactor returns WalletNotActivated state.
-    // Expected: Navigates to WalletSetup.
+    // Expected: Navigates to DeviceSecurityRequired.
     @Test
-    fun `Given interactor returns WalletNotActivated, When Initialize event, Then navigates to WalletSetup`() =
+    fun `Given interactor returns WalletNotActivated, When Initialize event, Then navigates to DeviceSecurityRequired`() =
         coroutineRule.runTest {
             // Given
             whenever(interactor.determineStartupState())
@@ -209,11 +209,12 @@ class TestSplashViewModel {
                 val effect = awaitItem()
                 assertTrue(effect is Effect.Navigation.SwitchScreen)
                 assertEquals(
-                    AuthenticationScreens.WalletSetup.screenRoute,
+                    AuthenticationScreens.DeviceSecurityRequired.screenRoute,
                     (effect as Effect.Navigation.SwitchScreen).route
                 )
             }
         }
+
 
     //endregion
 

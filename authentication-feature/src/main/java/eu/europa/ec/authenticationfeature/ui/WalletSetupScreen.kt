@@ -60,6 +60,7 @@ fun WalletSetupScreen(
     logController: LogController,
     onNavigateToHome: () -> Unit,
     onNavigateToLogin: () -> Unit,
+    onNavigateToDeviceSecurity: () -> Unit,
 ) {
     val state by viewModel.viewState.collectAsState()
     val context = LocalContext.current
@@ -81,6 +82,7 @@ fun WalletSetupScreen(
             when (effect) {
                 is WalletSetupEffect.NavigateToHome -> onNavigateToHome()
                 is WalletSetupEffect.NavigateToLogin -> onNavigateToLogin()
+                is WalletSetupEffect.NavigateToDeviceSecurity -> onNavigateToDeviceSecurity()
                 is WalletSetupEffect.ShowError -> {
                     Toast.makeText(context, effect.message, Toast.LENGTH_LONG).show()
                 }

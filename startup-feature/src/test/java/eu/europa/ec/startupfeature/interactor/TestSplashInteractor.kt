@@ -20,7 +20,10 @@ import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
 import eu.europa.ec.authenticationlogic.usecase.IsProfileCompletedUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsWalletActivatedUseCase
+import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.authenticationlogic.usecase.WalletActivationStatus
+import eu.europa.ec.businesslogic.controller.device.DeviceController
+import eu.europa.ec.businesslogic.controller.device.DeviceSecurityState
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractor
@@ -76,12 +79,24 @@ class TestSplashInteractor {
     @Mock
     private lateinit var localUnlockTracker: LocalUnlockTracker
 
+    @Mock
+    private lateinit var deviceController: DeviceController
+
+    @Mock
+    private lateinit var signOutUseCase: SignOutUseCase
+
     private lateinit var interactor: SplashInteractorImpl
     private lateinit var closeable: AutoCloseable
 
     @Before
     fun before() {
         closeable = MockitoAnnotations.openMocks(this)
+        val readyState: DeviceSecurityState = DeviceSecurityState(
+            isDeviceSecure = true,
+            canAuthenticateWithDeviceCredential = true,
+            canUseStrongBiometrics = true
+        )
+        whenever(deviceController.getDeviceSecurityState()).thenReturn(readyState)
         interactor = SplashInteractorImpl(
             supabaseAuthRepository = supabaseAuthRepository,
             prefKeys = prefKeys,
@@ -89,7 +104,9 @@ class TestSplashInteractor {
             isWalletActivatedUseCase = isWalletActivatedUseCase,
             isProfileCompletedUseCase = isProfileCompletedUseCase,
             quickPinInteractor = quickPinInteractor,
-            localUnlockTracker = localUnlockTracker
+            localUnlockTracker = localUnlockTracker,
+            deviceController = deviceController,
+            signOutUseCase = signOutUseCase
         )
     }
 

@@ -16,11 +16,14 @@
 
 package eu.europa.ec.dashboardfeature.interactor
 
+import androidx.annotation.VisibleForTesting
 import eu.europa.ec.dashboardfeature.ui.actions.model.ActionCategoryUi
 import eu.europa.ec.dashboardfeature.ui.actions.model.ActionRequest
 import eu.europa.ec.dashboardfeature.ui.actions.model.ActionStatus
 import eu.europa.ec.dashboardfeature.ui.actions.model.ActionType
 import eu.europa.ec.dashboardfeature.ui.actions.model.ActionUi
+import eu.europa.ec.dashboardfeature.ui.actions.model.DeviceLinkStatus
+import eu.europa.ec.dashboardfeature.ui.actions.model.LinkedDeviceInfo
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import kotlinx.coroutines.flow.Flow
@@ -38,11 +41,24 @@ sealed class ActionsInteractorPartialState {
     data class Failure(val error: String) : ActionsInteractorPartialState()
 }
 
+sealed class DeviceLinkPartialState {
+    data class Success(
+        val status: DeviceLinkStatus,
+        val deviceInfo: LinkedDeviceInfo?
+    ) : DeviceLinkPartialState()
+
+    data class Failure(val error: String) : DeviceLinkPartialState()
+}
+
 interface ActionsInteractor {
     fun getActions(): Flow<ActionsInteractorPartialState>
     suspend fun acceptAction(actionId: String): Result<Unit>
     suspend fun declineAction(actionId: String): Result<Unit>
     fun getPendingActionsCount(): Flow<Int>
+
+    // Device linking
+    fun getDeviceLinkStatus(): Flow<DeviceLinkPartialState>
+    suspend fun unlinkDevice(): Result<Unit>
 }
 
 class ActionsInteractorImpl(
@@ -208,6 +224,39 @@ class ActionsInteractorImpl(
 
     override fun getPendingActionsCount(): Flow<Int> = flow {
         emit(mockActions.count { it.status == ActionStatus.PENDING })
+    }
+
+    // Mock device linking state - will be replaced with real backend integration
+    private var mockLinkedDevice: LinkedDeviceInfo? = null
+
+    override fun getDeviceLinkStatus(): Flow<DeviceLinkPartialState> = flow {
+        try {
+            // In real implementation, check with backend/local storage
+            val status = if (mockLinkedDevice != null) DeviceLinkStatus.LINKED else DeviceLinkStatus.NOT_LINKED
+            emit(DeviceLinkPartialState.Success(status, mockLinkedDevice))
+        } catch (e: Exception) {
+            emit(DeviceLinkPartialState.Failure(e.localizedMessage ?: "Unknown error"))
+        }
+    }
+
+    override suspend fun unlinkDevice(): Result<Unit> {
+        return try {
+            // In real implementation, call backend API to unlink
+            mockLinkedDevice = null
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    internal fun simulateLinkDevice(deviceName: String, deviceModel: String) {
+        mockLinkedDevice = LinkedDeviceInfo(
+            deviceId = "device_${System.currentTimeMillis()}",
+            deviceName = deviceName,
+            deviceModel = deviceModel,
+            linkedAt = Instant.now()
+        )
     }
 
     private fun formatRelativeTime(timestamp: Instant): String {

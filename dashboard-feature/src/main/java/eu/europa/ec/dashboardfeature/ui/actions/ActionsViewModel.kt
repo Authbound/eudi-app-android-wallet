@@ -17,13 +17,18 @@
 package eu.europa.ec.dashboardfeature.ui.actions
 
 import androidx.lifecycle.viewModelScope
+import eu.europa.ec.commonfeature.config.QrScanFlow
+import eu.europa.ec.commonfeature.config.QrScanUiConfig
 import eu.europa.ec.dashboardfeature.interactor.ActionsInteractor
 import eu.europa.ec.dashboardfeature.interactor.ActionsInteractorPartialState
+import eu.europa.ec.dashboardfeature.interactor.DeviceLinkPartialState
 import eu.europa.ec.dashboardfeature.ui.actions.model.ActionCategoryUi
 import eu.europa.ec.dashboardfeature.ui.actions.model.ActionFilterChipUi
 import eu.europa.ec.dashboardfeature.ui.actions.model.ActionSortOrder
 import eu.europa.ec.dashboardfeature.ui.actions.model.ActionType
 import eu.europa.ec.dashboardfeature.ui.actions.model.ActionUi
+import eu.europa.ec.dashboardfeature.ui.actions.model.DeviceLinkStatus
+import eu.europa.ec.dashboardfeature.ui.actions.model.LinkedDeviceInfo
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.uilogic.component.content.ContentErrorConfig
@@ -31,13 +36,28 @@ import eu.europa.ec.uilogic.mvi.MviViewModel
 import eu.europa.ec.uilogic.mvi.ViewEvent
 import eu.europa.ec.uilogic.mvi.ViewSideEffect
 import eu.europa.ec.uilogic.mvi.ViewState
+import eu.europa.ec.uilogic.navigation.CommonScreens
 import eu.europa.ec.uilogic.navigation.DashboardScreens
+import eu.europa.ec.uilogic.navigation.helper.generateComposableArguments
+import eu.europa.ec.uilogic.navigation.helper.generateComposableNavigationLink
+//import eu.europa.ec.uilogic.navigation.generateComposableArguments
+//import eu.europa.ec.uilogic.navigation.generateComposableNavigationLink
+import eu.europa.ec.uilogic.serializer.UiSerializer
 import kotlinx.coroutines.launch
 import org.koin.android.annotation.KoinViewModel
 
 data class State(
     val isLoading: Boolean = true,
     val error: ContentErrorConfig? = null,
+
+    // Device linking state
+    val deviceLinkStatus: DeviceLinkStatus = DeviceLinkStatus.CHECKING,
+    val linkedDeviceInfo: LinkedDeviceInfo? = null,
+    val showDeviceManagementSheet: Boolean = false,
+    val showUnlinkConfirmation: Boolean = false,
+    val isUnlinkingDevice: Boolean = false,
+
+    // Actions state
     val pendingCount: Int = 0,
     val groupedActions: List<Pair<ActionCategoryUi, List<ActionUi>>> = emptyList(),
     val filteredGroupedActions: List<Pair<ActionCategoryUi, List<ActionUi>>> = emptyList(),
@@ -55,6 +75,15 @@ sealed class Event : ViewEvent {
     data object OnResume : Event()
     data object Pop : Event()
 
+    // Device linking events
+    data object LinkDevice : Event()
+    data object ManageDevice : Event()
+    data object DismissDeviceManagement : Event()
+    data object UnlinkDevice : Event()
+    data object DismissUnlinkConfirmation : Event()
+    data object ConfirmUnlinkDevice : Event()
+
+    // Actions events
     data class OnFilterSelected(val type: ActionType?) : Event()
     data class OnSortOrderChanged(val order: ActionSortOrder) : Event()
     data class ActionItemClicked(val actionId: String) : Event()
@@ -83,15 +112,37 @@ sealed class Effect : ViewSideEffect {
 class ActionsViewModel(
     private val interactor: ActionsInteractor,
     private val resourceProvider: ResourceProvider,
+    private val uiSerializer: UiSerializer,
 ) : MviViewModel<Event, State, Effect>() {
 
     override fun setInitialState(): State = State()
 
     override fun handleEvents(event: Event) {
         when (event) {
-            is Event.Init -> loadActions()
-            is Event.OnResume -> loadActions()
+            is Event.Init -> {
+                loadDeviceLinkStatus()
+                loadActions()
+            }
+            is Event.OnResume -> {
+                loadDeviceLinkStatus()
+                loadActions()
+            }
             is Event.Pop -> setEffect { Effect.Navigation.Pop }
+
+            // Device linking events
+            is Event.LinkDevice -> handleLinkDevice()
+            is Event.ManageDevice -> setState { copy(showDeviceManagementSheet = true) }
+            is Event.DismissDeviceManagement -> setState { copy(showDeviceManagementSheet = false) }
+            is Event.UnlinkDevice -> setState {
+                copy(
+                    showDeviceManagementSheet = false,
+                    showUnlinkConfirmation = true
+                )
+            }
+            is Event.DismissUnlinkConfirmation -> setState { copy(showUnlinkConfirmation = false) }
+            is Event.ConfirmUnlinkDevice -> handleUnlinkDevice()
+
+            // Actions events
             is Event.OnFilterSelected -> handleFilterSelection(event.type)
             is Event.OnSortOrderChanged -> handleSortOrderChange(event.order)
             is Event.ActionItemClicked -> handleActionClick(event.actionId)
@@ -100,6 +151,81 @@ class ActionsViewModel(
             is Event.AcceptAllPending -> handleAcceptAll()
             is Event.DeclineAllPending -> handleDeclineAll()
             is Event.ViewHistory -> handleViewHistory()
+        }
+    }
+
+    private fun loadDeviceLinkStatus() {
+        viewModelScope.launch {
+            interactor.getDeviceLinkStatus().collect { result ->
+                when (result) {
+                    is DeviceLinkPartialState.Success -> {
+                        setState {
+                            copy(
+                                deviceLinkStatus = result.status,
+                                linkedDeviceInfo = result.deviceInfo
+                            )
+                        }
+                    }
+                    is DeviceLinkPartialState.Failure -> {
+                        setState { copy(deviceLinkStatus = DeviceLinkStatus.NOT_LINKED) }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun handleLinkDevice() {
+        setEffect {
+            Effect.Navigation.SwitchScreen(
+                screenRoute = generateComposableNavigationLink(
+                    screen = CommonScreens.QrScan,
+                    arguments = generateComposableArguments(
+                        mapOf(
+                            QrScanUiConfig.serializedKeyName to uiSerializer.toBase64(
+                                QrScanUiConfig(
+                                    title = resourceProvider.getString(R.string.qr_scan_title),
+                                    subTitle = resourceProvider.getString(R.string.qr_scan_subtitle),
+                                    qrScanFlow = QrScanFlow.Presentation
+                                ),
+                                QrScanUiConfig.Parser
+                            )
+                        )
+                    )
+                )
+            )
+        }
+    }
+
+    private fun handleUnlinkDevice() {
+        setState {
+            copy(
+                isUnlinkingDevice = true,
+                showDeviceManagementSheet = false,
+                showUnlinkConfirmation = false
+            )
+        }
+
+        viewModelScope.launch {
+            interactor.unlinkDevice().fold(
+                onSuccess = {
+                    setState {
+                        copy(
+                            isUnlinkingDevice = false,
+                            deviceLinkStatus = DeviceLinkStatus.NOT_LINKED,
+                            linkedDeviceInfo = null
+                        )
+                    }
+                    setEffect {
+                        Effect.ShowToast(resourceProvider.getString(R.string.actions_device_unlinked))
+                    }
+                },
+                onFailure = { error ->
+                    setState { copy(isUnlinkingDevice = false) }
+                    setEffect {
+                        Effect.ShowToast(error.localizedMessage ?: "Failed to unlink device")
+                    }
+                }
+            )
         }
     }
 

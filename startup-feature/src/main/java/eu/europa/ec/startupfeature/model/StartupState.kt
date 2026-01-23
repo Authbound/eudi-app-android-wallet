@@ -62,11 +62,19 @@ sealed class StartupState {
     }
 
     /**
-     * Wallet Unit Attestation (WUA) not activated. Route to wallet setup screen.
+     * Wallet Unit Attestation (WUA) not activated. Route to device security preflight.
      */
     data class WalletNotActivated(val reason: String) : StartupState() {
-        override val screenRoute: String = AuthenticationScreens.WalletSetup.screenRoute
-        override val logMessage: String = "Wallet not activated ($reason) → WalletSetup"
+        override val screenRoute: String = AuthenticationScreens.DeviceSecurityRequired.screenRoute
+        override val logMessage: String = "Wallet not activated ($reason) → DeviceSecurityRequired"
+    }
+
+    /**
+     * Device security missing. Route to device security preflight screen.
+     */
+    data object DeviceSecurityRequired : StartupState() {
+        override val screenRoute: String = AuthenticationScreens.DeviceSecurityRequired.screenRoute
+        override val logMessage: String = "Device security missing → DeviceSecurityRequired"
     }
 
     /**

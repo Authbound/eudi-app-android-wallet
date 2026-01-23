@@ -188,66 +188,48 @@ class HomeViewModel(
 ) : MviViewModel<Event, State, Effect>() {
 
     override fun setInitialState(): State {
-        // Define colors for quick actions
-        val authenticateColor = Color(0xFF1E40AF) // Deep blue
-        val signColor = Color(0xFF6D28D9) // Richer Purple
-        val viewCredentialsColor = Color(0xFF16A34A) // Green
-        val settingsColor = Color(0xFFE0530D) // Amber (This is acuatlly the add a crenedential action)
-        val verificationColor = Color(0xFF059649) // Green
+        // Premium gradient color definitions - Authbound brand palette
+        // Navy spectrum: #0A1A36 (deepest) → #1E3A5F (medium) → #2A4A6F (lighter)
+        // Accents: Blue #3B82F6, Teal #2A8A9A, Amber #E0530D, Purple #6D28D9
 
-        // Create quick actions list
+        // Create quick actions list with premium gradient styling
         val quickActionsList =
             listOf(
                 QuickActionConfig(
                     id = "authenticate",
-                    title =
-                        resourceProvider.getString(
-                            R.string.home_screen_authenticate
-                        ),
-                    description =
-                        resourceProvider.getString(
-                            R.string.home_screen_authentication_card_title
-                        ),
+                    title = resourceProvider.getString(R.string.home_screen_authenticate),
+                    description = resourceProvider.getString(R.string.home_screen_authentication_card_title),
                     icon = AppIcons.TouchId,
-                    backgroundColor = authenticateColor,
-                    borderColor = authenticateColor.copy(alpha = 0.7f)
+                    gradientStart = Color(0xFF0A1A36),  // Deep navy
+                    gradientEnd = Color(0xFF1E3A5F),    // Medium navy
+                    accentColor = Color(0xFF3B82F6)     // Blue accent
                 ),
                 QuickActionConfig(
                     id = "add_credentials",
-                    title =
-                        resourceProvider.getString(
-                            R.string.dashboard_quick_action_add_credential
-                        ),
-                    description =
-                        resourceProvider.getString(
-                            R.string
-                                .dashboard_quick_action_add_credential_description
-                        ),
+                    title = resourceProvider.getString(R.string.dashboard_quick_action_add_credential),
+                    description = resourceProvider.getString(R.string.dashboard_quick_action_add_credential_description),
                     icon = AppIcons.Id,
-                    backgroundColor = settingsColor,
-                    borderColor = settingsColor.copy(alpha = 0.7f)
+                    gradientStart = Color(0xFFB45309),  // Amber dark
+                    gradientEnd = Color(0xFFD97706),    // Amber light
+                    accentColor = Color(0xFFFBBF24)     // Yellow accent
                 ),
                 QuickActionConfig(
                     id = "verify",
                     title = resourceProvider.getString(R.string.verification_quick_action_title),
-                    description =
-                        resourceProvider.getString(
-                            R.string.verification_quick_action_description
-                        ),
+                    description = resourceProvider.getString(R.string.verification_quick_action_description),
                     icon = AppIcons.Verified,
-                    backgroundColor = verificationColor,
-                    borderColor = verificationColor.copy(alpha = 0.7f)
+                    gradientStart = Color(0xFF047857),  // Emerald dark
+                    gradientEnd = Color(0xFF059669),    // Emerald light
+                    accentColor = Color(0xFF34D399)     // Green accent
                 ),
                 QuickActionConfig(
                     id = "sign",
                     title = resourceProvider.getString(R.string.home_screen_sign),
-                    description =
-                        resourceProvider.getString(
-                            R.string.home_screen_sign_card_title
-                        ),
+                    description = resourceProvider.getString(R.string.home_screen_sign_card_title),
                     icon = AppIcons.Sign,
-                    backgroundColor = signColor,
-                    borderColor = signColor.copy(alpha = 0.7f)
+                    gradientStart = Color(0xFF5B21B6),  // Purple dark
+                    gradientEnd = Color(0xFF7C3AED),    // Purple light
+                    accentColor = Color(0xFFA78BFA)     // Violet accent
                 ),
             )
 
@@ -506,8 +488,11 @@ class HomeViewModel(
     }
 
     private fun navigateToDocumentsTab() {
-        setEffect { Effect.Navigation.SwitchTab(BottomNavigationItem.Documents.route) }
-
+        setEffect {
+            Effect.Navigation.SwitchTab(
+                "${BottomNavigationItem.Wallet.route}?tab=${eu.europa.ec.dashboardfeature.ui.wallet.WalletTab.Documents.routeValue}"
+            )
+        }
     }
 
     private fun startProximityFlow() {

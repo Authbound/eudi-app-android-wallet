@@ -71,11 +71,11 @@ The app follows EU Digital Identity Wallet Architecture Reference Framework (EUD
 
 ## Build Environment Requirements
 
-**CRITICAL**: This project requires specific Java and Gradle versions. Using incompatible versions will cause build failures.
+**CRITICAL**: Always use Android Studio's bundled JDK and Gradle wrapper. Do NOT use system Java installations.
 
-| Tool | Required Version | Notes |
-|------|------------------|-------|
-| **Java (JDK)** | **17** | JDK 17 is required. JDK 18+ may work but JDK 21+ often causes issues. JDK 25 is NOT supported. |
+| Tool | Version | Notes |
+|------|---------|-------|
+| **Java (JDK)** | Android Studio JBR | Always use Android Studio's bundled JDK - no exceptions |
 | **Gradle** | 8.13 | Managed by wrapper (`./gradlew`) |
 | **Android Gradle Plugin** | 8.13.0 | Defined in `gradle/libs.versions.toml` |
 | **Kotlin** | 2.2.21 | Defined in `gradle/libs.versions.toml` |
@@ -83,50 +83,42 @@ The app follows EU Digital Identity Wallet Architecture Reference Framework (EUD
 
 ### Setting Up Java for Builds
 
-If your system default Java is incompatible (e.g., JDK 25), you must use JDK 17:
+**Always use Android Studio's bundled JDK.** This is the only supported configuration.
 
 ```bash
-# Check your current Java version
-java -version
+# Find your Android Studio installation and set JAVA_HOME
+# Check these common locations:
+ls -d ~/Applications/Android\ Studio.app 2>/dev/null || \
+ls -d /Applications/Android\ Studio.app 2>/dev/null
 
-# List available Java versions (macOS)
-/usr/libexec/java_home -V
+# Set JAVA_HOME to Android Studio's JBR (JetBrains Runtime)
+# Use the FULL PATH - do not use $HOME or ~ in JAVA_HOME as it may not expand correctly
+# Example for ~/Applications:
+export JAVA_HOME="/Users/$(whoami)/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 
-# Option 1: Set JAVA_HOME for a single build
-JAVA_HOME=$(/usr/libexec/java_home -v 17) ./gradlew assembleDevDebug
+# Or for /Applications:
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 
-# Option 2: Set JAVA_HOME in your shell profile (~/.zshrc or ~/.bashrc)
-export JAVA_HOME=$(/usr/libexec/java_home -v 17)
-
-# Option 3: Use Android Studio's bundled JDK (recommended)
-# Android Studio includes a compatible JDK at:
-# macOS: /Applications/Android Studio.app/Contents/jbr/Contents/Home
-# Linux: ~/android-studio/jbr
-# Windows: C:\Program Files\Android Studio\jbr
-
-JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew assembleDevDebug
+# Verify it works
+$JAVA_HOME/bin/java -version
 ```
 
-### Installing JDK 17
+### Build Commands
 
 ```bash
-# macOS (Homebrew)
-brew install openjdk@17
+# If JAVA_HOME is set correctly in your environment:
+./gradlew assembleDevDebug
 
-# Or use Amazon Corretto (recommended for Android)
-brew install --cask corretto17
-
-# Ubuntu/Debian
-sudo apt install openjdk-17-jdk
-
-# Windows (use installer from adoptium.net or Amazon Corretto)
+# Or specify JAVA_HOME inline (use full absolute path):
+JAVA_HOME="/Users/lassi/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew assembleDevDebug
 ```
 
 ### Verifying Build Environment
 
 ```bash
-# Verify Java version (should show 17.x.x)
-java -version
+# Verify using Android Studio JDK
+$JAVA_HOME/bin/java -version
+# Should show JetBrains Runtime (e.g., "OpenJDK Runtime Environment (build 21.0.x...)")
 
 # Verify Gradle can run
 ./gradlew --version

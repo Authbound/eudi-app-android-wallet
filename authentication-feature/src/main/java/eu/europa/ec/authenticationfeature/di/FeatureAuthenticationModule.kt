@@ -29,17 +29,18 @@ import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Module
 import org.koin.core.annotation.Single
 import eu.europa.ec.authenticationfeature.ui.AuthenticationViewModel
+import eu.europa.ec.authenticationfeature.ui.DeviceSecurityRequiredViewModel
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricAuthenticationController
+import eu.europa.ec.authenticationlogic.usecase.CheckHandleAvailabilityUseCase
+import eu.europa.ec.authenticationlogic.usecase.CompleteProfileUseCase
+import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
+import eu.europa.ec.authenticationlogic.usecase.IsProfileCompletedUseCase
 import eu.europa.ec.authenticationlogic.usecase.ObserveAuthStateUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignInWithEmailPasswordUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignInWithOAuthUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
-import eu.europa.ec.authenticationfeature.ui.WalletSetupViewModel
 import eu.europa.ec.authenticationfeature.ui.ProfileCompletionViewModel
-import eu.europa.ec.authenticationlogic.usecase.CheckHandleAvailabilityUseCase
-import eu.europa.ec.authenticationlogic.usecase.CompleteProfileUseCase
-import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
-import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
+import eu.europa.ec.authenticationfeature.ui.WalletSetupViewModel
 import eu.europa.ec.notificationlogic.controller.UserScopedPushNotificationController
 
 @Module
@@ -53,8 +54,7 @@ fun provideAuthenticationViewModel(
     signInWithOAuthUseCase: SignInWithOAuthUseCase,
     signOutUseCase: SignOutUseCase,
     observeAuthStateUseCase: ObserveAuthStateUseCase,
-    getMyProfileUseCase: GetMyProfileUseCase,
-    prefsController: PrefsControllerV2,
+    isProfileCompletedUseCase: IsProfileCompletedUseCase,
     prefKeys: PrefKeysV2,
     logController: LogController
 ): AuthenticationViewModel = AuthenticationViewModel(
@@ -63,9 +63,19 @@ fun provideAuthenticationViewModel(
     signInWithOAuthUseCase,
     signOutUseCase,
     observeAuthStateUseCase,
-    getMyProfileUseCase,
-    prefsController,
+    isProfileCompletedUseCase,
     prefKeys,
+    logController
+)
+
+@Factory
+fun provideDeviceSecurityRequiredViewModel(
+    deviceController: DeviceController,
+    getCurrentUserUseCase: GetCurrentUserUseCase,
+    logController: LogController
+): DeviceSecurityRequiredViewModel = DeviceSecurityRequiredViewModel(
+    deviceController,
+    getCurrentUserUseCase,
     logController
 )
 
@@ -101,6 +111,7 @@ fun provideProfileCompletionViewModel(
     userScopedPushNotificationController: UserScopedPushNotificationController,
     deviceController: DeviceController,
     signOutUseCase: SignOutUseCase,
+    prefKeys: PrefKeysV2,
     logController: LogController
 ): ProfileCompletionViewModel = ProfileCompletionViewModel(
     completeProfileUseCase,
@@ -110,5 +121,6 @@ fun provideProfileCompletionViewModel(
     userScopedPushNotificationController,
     deviceController,
     signOutUseCase,
+    prefKeys,
     logController
 )

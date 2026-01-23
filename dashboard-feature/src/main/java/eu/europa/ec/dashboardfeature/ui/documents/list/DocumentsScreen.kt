@@ -23,6 +23,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -62,6 +65,7 @@ import eu.europa.ec.corelogic.util.CoreActions
 import eu.europa.ec.dashboardfeature.model.SearchItemUi
 import eu.europa.ec.dashboardfeature.ui.documents.detail.model.DocumentIssuanceStateUi
 import eu.europa.ec.dashboardfeature.ui.documents.list.model.DocumentUi
+import eu.europa.ec.dashboardfeature.ui.component.NotificationIconButton
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.theme.values.warning
 import eu.europa.ec.uilogic.component.AppIcons
@@ -74,7 +78,7 @@ import eu.europa.ec.uilogic.component.ListItemDataUi
 import eu.europa.ec.uilogic.component.ListItemMainContentDataUi
 import eu.europa.ec.uilogic.component.ModalOptionUi
 import eu.europa.ec.uilogic.component.SectionTitle
-import eu.europa.ec.uilogic.component.content.BroadcastAction
+import eu.europa.ec.uilogic.component.SystemBroadcastReceiver
 import eu.europa.ec.uilogic.component.content.ContentScreen
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
@@ -123,17 +127,12 @@ typealias OpenSideMenuEvent = eu.europa.ec.dashboardfeature.ui.dashboard.Event.S
 fun DocumentsScreen(
     navHostController: NavController,
     viewModel: DocumentsViewModel,
+    notificationCount: Int = 0,
+    onNotificationsClick: () -> Unit = {},
     onDashboardEventSent: (DashboardEvent) -> Unit,
 ) {
     val state: State by viewModel.viewState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-
-    val isBottomSheetOpen = state.isBottomSheetOpen
-    val scope = rememberCoroutineScope()
-    val bottomSheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true
-    )
-
+    val context: Context = LocalContext.current
     ContentScreen(
         isLoading = state.isLoading,
         navigatableAction = ScreenNavigateAction.NONE,
@@ -141,51 +140,72 @@ fun DocumentsScreen(
         contentErrorConfig = null,
         topBar = {
             TopBar(
+                notificationCount = notificationCount,
+                onNotificationsClick = onNotificationsClick,
                 onEventSend = { viewModel.setEvent(it) },
                 onDashboardEventSent = onDashboardEventSent
             )
-        },
-        broadcastAction = BroadcastAction(
-            intentFilters = listOf(
-                CoreActions.REVOCATION_WORK_REFRESH_ACTION
-            ),
-            callback = {
-                viewModel.setEvent(Event.GetDocuments)
-            }
-        )
-    ) { paddingValues ->
-        Content(
-            state = state,
-            effectFlow = viewModel.effect,
-            onEventSend = { viewModel.setEvent(it) },
-            onNavigationRequested = { navigationEffect ->
-                handleNavigationEffect(navigationEffect, navHostController, context)
-            },
-            paddingValues = paddingValues,
-            coroutineScope = scope,
-            modalBottomSheetState = bottomSheetState
-        )
-
-        if (isBottomSheetOpen) {
-            WrapModalBottomSheet(
-                onDismissRequest = {
-                    viewModel.setEvent(
-                        Event.BottomSheet.UpdateBottomSheetState(
-                            isOpen = false
-                        )
-                    )
-                },
-                sheetState = bottomSheetState
-            ) {
-                DocumentsSheetContent(
-                    sheetContent = state.sheetContent,
-                    state = state,
-                    onEventSent = {
-                        viewModel.setEvent(it)
-                    }
-                )
-            }
         }
+    ) { paddingValues ->
+        DocumentsTabContent(
+            navHostController = navHostController,
+            viewModel = viewModel,
+            paddingValues = paddingValues,
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun DocumentsTabContent(
+    navHostController: NavController,
+    viewModel: DocumentsViewModel,
+    paddingValues: PaddingValues,
+) {
+    val state: State by viewModel.viewState.collectAsStateWithLifecycle()
+    val context: Context = LocalContext.current
+    val isBottomSheetOpen: Boolean = state.isBottomSheetOpen
+    val scope: CoroutineScope = rememberCoroutineScope()
+    val bottomSheetState: SheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true
+    )
+    DocumentsContent(
+        state = state,
+        effectFlow = viewModel.effect,
+        onEventSend = { viewModel.setEvent(it) },
+        onNavigationRequested = { navigationEffect ->
+            handleNavigationEffect(navigationEffect, navHostController, context)
+        },
+        paddingValues = paddingValues,
+        coroutineScope = scope,
+        modalBottomSheetState = bottomSheetState
+    )
+    if (isBottomSheetOpen) {
+        WrapModalBottomSheet(
+            onDismissRequest = {
+                viewModel.setEvent(
+                    Event.BottomSheet.UpdateBottomSheetState(
+                        isOpen = false
+                    )
+                )
+            },
+            sheetState = bottomSheetState
+        ) {
+            DocumentsSheetContent(
+                sheetContent = state.sheetContent,
+                state = state,
+                onEventSent = { event ->
+                    viewModel.setEvent(event)
+                }
+            )
+        }
+    }
+    SystemBroadcastReceiver(
+        intentFilters = listOf(
+            CoreActions.REVOCATION_WORK_REFRESH_ACTION
+        )
+    ) {
+        viewModel.setEvent(Event.GetDocuments)
     }
 }
 
@@ -208,6 +228,8 @@ private fun handleNavigationEffect(
 
 @Composable
 private fun TopBar(
+    notificationCount: Int,
+    onNotificationsClick: () -> Unit,
     onEventSend: (Event) -> Unit,
     onDashboardEventSent: (DashboardEvent) -> Unit,
 ) {
@@ -226,7 +248,6 @@ private fun TopBar(
         ) {
             onDashboardEventSent(OpenSideMenuEvent)
         }
-
         Text(
             modifier = Modifier.align(Alignment.Center),
             textAlign = TextAlign.Center,
@@ -234,20 +255,28 @@ private fun TopBar(
             style = MaterialTheme.typography.headlineMedium,
             text = stringResource(R.string.documents_screen_title)
         )
-
-        WrapIconButton(
+        Row(
             modifier = Modifier.align(Alignment.CenterEnd),
-            iconData = AppIcons.Add,
-            customTint = MaterialTheme.colorScheme.onSurfaceVariant,
+            horizontalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            onEventSend(Event.AddDocumentPressed)
+            WrapIconButton(
+                iconData = AppIcons.Add,
+                customTint = MaterialTheme.colorScheme.onSurfaceVariant,
+            ) {
+                onEventSend(Event.AddDocumentPressed)
+            }
+            NotificationIconButton(
+                badgeCount = notificationCount,
+                onClick = onNotificationsClick,
+            )
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun Content(
+internal fun DocumentsContent(
     state: State,
     effectFlow: Flow<Effect>,
     onEventSend: (Event) -> Unit,
@@ -303,8 +332,15 @@ private fun Content(
                         onEventSend = onEventSend
                     )
 
+                    // Section divider between categories
                     if (index != state.documentsUi.lastIndex) {
-                        VSpacer.ExtraLarge()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 48.dp),
+                            thickness = 0.5.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
                 }
             }
@@ -399,7 +435,8 @@ private fun DocumentCategorySection(
 
         DocumentCategoryHeader(
             title = stringResource(category.stringResId),
-            icon = categoryIcon
+            icon = categoryIcon,
+            documentCount = documents.size
         )
 
         documents.forEachIndexed { docIndex, documentItem: DocumentUi ->
@@ -679,9 +716,12 @@ private fun DocumentsScreenPreview() {
             onBack = { },
             topBar = {
                 TopBar(
-                    onEventSend = { },
+                    notificationCount = 0,
+                    onNotificationsClick = {},
+                    onEventSend = {},
                     onDashboardEventSent = {}
                 )
+
             },
         ) { paddingValues ->
             val issuerName = "Issuer name"
@@ -740,7 +780,7 @@ private fun DocumentsScreenPreview() {
                     documentCategory = DocumentCategory.Other
                 ),
             )
-            Content(
+            DocumentsContent(
                 state = State(
                     isLoading = false,
                     isFilteringActive = false,

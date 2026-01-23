@@ -62,6 +62,12 @@ sealed class DashboardScreens {
         parameters = "?transactionId={transactionId}"
     )
 
+    data object VerificationTemplateSelection : Screen(name = "VERIFICATION_TEMPLATE_SELECTION")
+
+    data object VerificationCustomCreation : Screen(name = "VERIFICATION_CUSTOM_CREATION")
+
+    data object VerificationSharing : Screen(name = "VERIFICATION_SHARING")
+
     data object MyData : Screen(name = "MY_DATA")
 }
 
@@ -128,5 +134,6 @@ sealed class ModuleRoute(val route: String) : NavigatableItem {
 sealed class AuthenticationScreens(name: String, parameters: String = "") : Screen(name, parameters) {
     data object Login : AuthenticationScreens("login")
     data object WalletSetup : AuthenticationScreens("wallet_setup")
+    data object DeviceSecurityRequired : AuthenticationScreens("device_security_required")
     data object ProfileCompletion : AuthenticationScreens("profileCompletion")
 }

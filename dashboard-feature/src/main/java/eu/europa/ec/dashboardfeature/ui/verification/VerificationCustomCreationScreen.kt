@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import eu.europa.ec.dashboardfeature.model.verification.ParameterType
+import eu.europa.ec.dashboardfeature.ui.component.NotificationIconButton
 import eu.europa.ec.dashboardfeature.model.verification.ValidationCriteria
 import eu.europa.ec.dashboardfeature.model.verification.VerificationParameter
 import eu.europa.ec.resourceslogic.R
@@ -83,11 +84,12 @@ import kotlinx.coroutines.flow.onEach
 @Composable
 fun VerificationCustomCreationScreen(
     navController: NavController,
-    viewModel: VerificationViewModel
+    viewModel: VerificationViewModel,
+    notificationCount: Int = 0,
+    onNotificationsClick: () -> Unit = {},
 ) {
     val state: State by viewModel.viewState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-
+    val context: Context = LocalContext.current
     ContentScreen(
         isLoading = false,
         navigatableAction = ScreenNavigateAction.BACKABLE,
@@ -107,6 +109,11 @@ fun VerificationCustomCreationScreen(
                     style = MaterialTheme.typography.headlineMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
+                NotificationIconButton(
+                    modifier = Modifier.align(Alignment.CenterEnd),
+                    badgeCount = notificationCount,
+                    onClick = onNotificationsClick,
+                )
             }
         }
     ) { paddingValues ->
@@ -120,7 +127,6 @@ fun VerificationCustomCreationScreen(
             paddingValues = paddingValues
         )
     }
-
     OneTimeLaunchedEffect {
         viewModel.setEvent(Event.LoadTemplates)
     }

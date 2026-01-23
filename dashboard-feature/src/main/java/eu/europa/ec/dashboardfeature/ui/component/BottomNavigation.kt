@@ -21,6 +21,9 @@ import androidx.annotation.StringRes
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -49,9 +52,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -69,7 +74,7 @@ sealed class BottomNavigationItem(
     val route: String,
     @param:StringRes val titleRes: Int,
     val icon: IconDataUi,
-
+    val iconSize: Dp = 24.dp,
 ) {
     data object Home : BottomNavigationItem(
         route = "HOME",
@@ -77,16 +82,16 @@ sealed class BottomNavigationItem(
         icon = AppIcons.Home
     )
 
-    data object Documents : BottomNavigationItem(
-        route = "DOCUMENTS",
-        titleRes = R.string.documents_screen_title,
-        icon = AppIcons.Documents
+    data object Wallet : BottomNavigationItem(
+        route = "WALLET",
+        titleRes = R.string.wallet_screen_title,
+        icon = AppIcons.WalletOutline,
     )
 
-    data object Actions : BottomNavigationItem(
-        route = "ACTIONS",
-        titleRes = R.string.actions_screen_title,
-        icon = AppIcons.Actions
+    data object Verify : BottomNavigationItem(
+        route = "VERIFY",
+        titleRes = R.string.verification_quick_action_title,
+        icon = AppIcons.Verified
     )
 
     data object Settings: BottomNavigationItem(
@@ -103,8 +108,8 @@ fun BottomNavigationBar(
 ) {
     val navItems = listOf(
         BottomNavigationItem.Home,
-        BottomNavigationItem.Documents,
-        BottomNavigationItem.Actions,
+        BottomNavigationItem.Wallet,
+        BottomNavigationItem.Verify,
         BottomNavigationItem.Settings
     )
 
@@ -124,11 +129,11 @@ fun BottomNavigationBar(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(70.dp),
-            shape = RoundedCornerShape(35.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.65f),
-            shadowElevation = 8.dp,
-            tonalElevation = 4.dp
+                .height(72.dp),
+            shape = RoundedCornerShape(36.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.85f),
+            shadowElevation = 12.dp,
+            tonalElevation = 6.dp
         ) {
             Row(
                 modifier = Modifier
@@ -137,16 +142,17 @@ fun BottomNavigationBar(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // First two nav items (Home, Documents)
+                // First two nav items (Home, Wallet)
                 navItems.take(2).forEach { screen ->
                     val selected = currentDestination?.hierarchy?.any {
-                        it.route == screen.route
+                        it.route?.substringBefore("?") == screen.route
                     } == true
 
                     FloatingNavItem(
                         icon = screen.icon,
                         label = stringResource(screen.titleRes),
                         selected = selected,
+                        iconSize = screen.iconSize,
                         onItemClick = {
                             if (!selected) {
                                 navController.navigate(screen.route) {
@@ -164,16 +170,17 @@ fun BottomNavigationBar(
                 // Spacer for center FAB
                 Spacer(modifier = Modifier.width(56.dp))
 
-                // Last two nav items (Actions, Settings)
+                // Last two nav items (Verify, Settings)
                 navItems.drop(2).forEach { screen ->
                     val selected = currentDestination?.hierarchy?.any {
-                        it.route == screen.route
+                        it.route?.substringBefore("?") == screen.route
                     } == true
 
                     FloatingNavItem(
                         icon = screen.icon,
                         label = stringResource(screen.titleRes),
                         selected = selected,
+                        iconSize = screen.iconSize,
                         onItemClick = {
                             if (!selected) {
                                 navController.navigate(screen.route) {
@@ -190,28 +197,50 @@ fun BottomNavigationBar(
             }
         }
 
-        // Center QR Scan FAB - overlaps the nav bar
-        FloatingActionButton(
+        // Center QR Scan FAB with glow effect - overlaps the nav bar
+        Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .offset(y = (-20).dp)
-                .size(56.dp),
-            onClick = {
-                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                onQrScanClick()
-            },
-            shape = CircleShape,
-            containerColor = MaterialTheme.colorScheme.primary,
-            elevation = FloatingActionButtonDefaults.elevation(
-                defaultElevation = 8.dp,
-                pressedElevation = 12.dp
-            )
+                .offset(y = (-20).dp),
+            contentAlignment = Alignment.Center
         ) {
-            WrapIcon(
-                iconData = AppIcons.QrScanner,
-                customTint = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(24.dp)
+            // Glow effect behind FAB
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                                Color.Transparent
+                            ),
+                            radius = 56f
+                        ),
+                        shape = CircleShape
+                    )
             )
+
+            // FAB
+            FloatingActionButton(
+                modifier = Modifier.size(56.dp),
+                onClick = {
+                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    onQrScanClick()
+                },
+                shape = CircleShape,
+                containerColor = MaterialTheme.colorScheme.primary,
+                elevation = FloatingActionButtonDefaults.elevation(
+                    defaultElevation = 8.dp,
+                    pressedElevation = 12.dp
+                )
+            ) {
+                WrapIcon(
+                    iconData = AppIcons.QrScanner,
+                    customTint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
         }
     }
 }
@@ -221,16 +250,34 @@ fun FloatingNavItem(
     icon: IconDataUi,
     label: String,
     selected: Boolean,
+    iconSize: Dp = 24.dp,
     onItemClick: () -> Unit
 ) {
     val view = LocalView.current
     val interactionSource = remember { MutableInteractionSource() }
 
-    // Animation for icon scaling
+    // Smooth scale animation with spring
     val scale by animateFloatAsState(
-        targetValue = if (selected) 1.2f else 1f,
-        animationSpec = tween(durationMillis = 200),
+        targetValue = if (selected) 1.15f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
         label = "scale"
+    )
+
+    // Animated background alpha
+    val backgroundAlpha by animateFloatAsState(
+        targetValue = if (selected) 0.12f else 0f,
+        animationSpec = tween(durationMillis = 200),
+        label = "backgroundAlpha"
+    )
+
+    // Animated icon tint
+    val iconTint by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+        animationSpec = tween(durationMillis = 200),
+        label = "iconTint"
     )
 
     // Trigger haptic feedback when selected
@@ -249,46 +296,77 @@ fun FloatingNavItem(
             ) {
                 onItemClick()
             }
-            .padding(8.dp)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
-        // Icon with background highlight when selected
+        // Icon container with fixed size to prevent overflow
         Box(
             modifier = Modifier
-                .size(50.dp)
+                .size(48.dp)
                 .clip(CircleShape)
-                .background(
-                    if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                    else Color.Transparent
-                ),
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = backgroundAlpha)),
             contentAlignment = Alignment.Center
         ) {
+            // Inner icon box with explicit constraints to prevent clipping
             Box(
-                modifier = Modifier.scale(scale)
+                modifier = Modifier
+                    .size(iconSize)
+                    .scale(scale),
+                contentAlignment = Alignment.Center
             ) {
                 WrapIcon(
                     iconData = icon,
                     enabled = true,
-                    customTint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                    customTint = iconTint,
+                    modifier = Modifier.size(iconSize)
                 )
             }
         }
 
-        // Indicator dot for selected item
-        if (selected) {
+        // Premium pill-shaped indicator with glow
+        Box(
+            modifier = Modifier.padding(top = 4.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            // Glow effect behind indicator (only when selected)
+            if (selected) {
+                Box(
+                    modifier = Modifier
+                        .width(24.dp)
+                        .height(8.dp)
+                        .background(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.tertiary.copy(alpha = 0.35f),
+                                    Color.Transparent
+                                ),
+                                radius = 32f
+                            ),
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                )
+            }
+
+            // Indicator pill
             Box(
                 modifier = Modifier
-                    .padding(top = 4.dp)
-                    .size(4.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary)
-            )
-        } else {
-            // Empty space to maintain layout
-            Box(
-                modifier = Modifier
-                    .padding(top = 4.dp)
-                    .size(4.dp)
-                    .alpha(0f)
+                    .width(if (selected) 16.dp else 4.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(
+                        if (selected) {
+                            Brush.horizontalGradient(
+                                listOf(
+                                    MaterialTheme.colorScheme.primary,
+                                    MaterialTheme.colorScheme.tertiary
+                                )
+                            )
+                        } else {
+                            Brush.horizontalGradient(
+                                listOf(Color.Transparent, Color.Transparent)
+                            )
+                        }
+                    )
+                    .alpha(if (selected) 1f else 0f)
             )
         }
     }

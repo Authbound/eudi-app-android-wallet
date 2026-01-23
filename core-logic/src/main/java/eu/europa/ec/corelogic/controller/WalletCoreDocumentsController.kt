@@ -16,6 +16,7 @@
 
 package eu.europa.ec.corelogic.controller
 
+import android.util.Log
 import androidx.core.net.toUri
 import eu.europa.ec.authenticationlogic.controller.authentication.DeviceAuthenticationResult
 import eu.europa.ec.authenticationlogic.model.BiometricCrypto
@@ -173,6 +174,11 @@ interface WalletCoreDocumentsController {
     fun issueDocumentsByOfferUri(
         offerUri: String,
         txCode: String? = null,
+    ): Flow<IssueDocumentsPartialState>
+
+    fun issueDocumentsByOffer(
+        offer: Offer,
+        txCode: String? = null
     ): Flow<IssueDocumentsPartialState>
 
     fun deleteDocument(
@@ -379,28 +385,37 @@ class WalletCoreDocumentsControllerImpl(
                             )
                         )
                     }
-
                     is ResolveDocumentOfferPartialState.Success -> {
-
-                        val issuerId = it
-                            .offer
-                            .credentialOffer
-                            .credentialIssuerIdentifier
-                            .toString()
-
-                        val manager = openId4VciManagers[issuerId]
-                            ?: openId4VciManagers.values.firstOrNull()
-
-                        require(manager != null) { documentErrorMessage }
-
-                        manager.issueDocumentByOffer(
+                        issueDocumentsByOffer(
                             offer = it.offer,
-                            onIssueEvent = issuanceCallback(),
-                            txCode = txCode,
-                        )
+                            txCode = txCode
+                        ).collect { response ->
+                            trySendBlocking(response)
+                        }
                     }
                 }
             }
+            awaitClose()
+        }.safeAsync {
+            IssueDocumentsPartialState.Failure(
+                errorMessage = documentErrorMessage
+            )
+        }
+
+    override fun issueDocumentsByOffer(
+        offer: Offer,
+        txCode: String?
+    ): Flow<IssueDocumentsPartialState> =
+        callbackFlow {
+            val issuerId = offer.credentialOffer.credentialIssuerIdentifier.toString()
+            val manager = openId4VciManagers[issuerId]
+                ?: openId4VciManagers.values.firstOrNull()
+            require(manager != null) { documentErrorMessage }
+            manager.issueDocumentByOffer(
+                offer = offer,
+                onIssueEvent = issuanceCallback(),
+                txCode = txCode,
+            )
             awaitClose()
         }.safeAsync {
             IssueDocumentsPartialState.Failure(
@@ -493,35 +508,76 @@ class WalletCoreDocumentsControllerImpl(
 
     override fun resolveDocumentOffer(offerUri: String): Flow<ResolveDocumentOfferPartialState> =
         callbackFlow {
-
             val issuerId = extractCredentialIssuerFromOfferUri(offerUri).getOrNull()
-
-            val manager = issuerId?.let { id -> openId4VciManagers[id] }
-                ?: openId4VciManagers.values.firstOrNull()
-
-            require(manager != null) { genericErrorMessage }
-
-            manager.resolveDocumentOffer(offerUri) { result ->
-                when (result) {
-                    is OfferResult.Failure -> {
-                        trySendBlocking(
-                            ResolveDocumentOfferPartialState.Failure(
-                                result.cause.localizedMessage ?: genericErrorMessage
+            val managerEntries = if (issuerId != null) {
+                val preferred = openId4VciManagers[issuerId]?.let { manager -> issuerId to manager }
+                listOfNotNull(preferred)
+            } else {
+                openId4VciManagers.map { entry -> entry.key to entry.value }
+            }
+            Log.d(
+                "WalletCoreDocumentsController",
+                "resolveDocumentOffer offerUri=$offerUri issuerId=$issuerId managers=${managerEntries.size}"
+            )
+            if (issuerId != null && managerEntries.isEmpty()) {
+                Log.e(
+                    "WalletCoreDocumentsController",
+                    "resolveDocumentOffer missing manager for issuerId=$issuerId"
+                )
+            }
+            require(managerEntries.isNotEmpty()) { genericErrorMessage }
+            fun resolveWithManager(index: Int) {
+                val (managerId, manager) = managerEntries[index]
+                Log.d(
+                    "WalletCoreDocumentsController",
+                    "resolveDocumentOffer using manager=$managerId index=$index"
+                )
+                manager.resolveDocumentOffer(offerUri) { result ->
+                    when (result) {
+                        is OfferResult.Failure -> {
+                            Log.e(
+                                "WalletCoreDocumentsController",
+                                "resolveDocumentOffer failure manager=$managerId cause=${result.cause::class.java.name} message=${result.cause.message}",
+                                result.cause
                             )
-                        )
-                    }
-
-                    is OfferResult.Success -> {
-                        trySendBlocking(
-                            ResolveDocumentOfferPartialState.Success(
-                                offer = result.offer
+                            val nextIndex = index + 1
+                            if (nextIndex < managerEntries.size) {
+                                Log.w(
+                                    "WalletCoreDocumentsController",
+                                    "resolveDocumentOffer retry with fallback manager index=$nextIndex"
+                                )
+                                resolveWithManager(nextIndex)
+                            } else {
+                                trySendBlocking(
+                                    ResolveDocumentOfferPartialState.Failure(
+                                        result.cause.localizedMessage ?: genericErrorMessage
+                                    )
+                                )
+                                close()
+                            }
+                        }
+                        is OfferResult.Success -> {
+                            Log.d(
+                                "WalletCoreDocumentsController",
+                                "resolveDocumentOffer success manager=$managerId offerIssuer=${result.offer.credentialOffer.credentialIssuerIdentifier}"
                             )
-                        )
+                            trySendBlocking(
+                                ResolveDocumentOfferPartialState.Success(
+                                    offer = result.offer
+                                )
+                            )
+                            close()
+                        }
                     }
                 }
             }
+            resolveWithManager(0)
             awaitClose()
         }.safeAsync {
+            Log.e(
+                "WalletCoreDocumentsController",
+                "resolveDocumentOffer exception: ${it.message}"
+            )
             ResolveDocumentOfferPartialState.Failure(
                 errorMessage = it.localizedMessage ?: genericErrorMessage
             )
@@ -796,9 +852,35 @@ class WalletCoreDocumentsControllerImpl(
 
     private fun extractCredentialIssuerFromOfferUri(offerUri: String): Result<String> =
         runCatching {
-            val credentialOffer = offerUri.toUri().getQueryParameter("credential_offer")
-            val decoded = URLDecoder.decode(credentialOffer, "UTF-8")
-            val json = JSONObject(decoded)
-            json.getString("credential_issuer")
+            val uri = offerUri.toUri()
+            val credentialOffer = uri.getQueryParameter("credential_offer")
+            if (!credentialOffer.isNullOrBlank()) {
+                val decoded = URLDecoder.decode(credentialOffer, "UTF-8")
+                val json = JSONObject(decoded)
+                return@runCatching json.getString("credential_issuer")
+            }
+            val credentialOfferUri = uri.getQueryParameter("credential_offer_uri")
+            if (!credentialOfferUri.isNullOrBlank()) {
+                return@runCatching deriveIssuerFromCredentialOfferUri(credentialOfferUri)
+            }
+            throw IllegalArgumentException("Missing credential offer parameters")
         }
+
+    private fun deriveIssuerFromCredentialOfferUri(offerUri: String): String {
+        val uri = offerUri.toUri()
+        val path = uri.path.orEmpty()
+        val basePath = when {
+            path.contains("/credential-offer/") -> path.substringBefore("/credential-offer/")
+            path.contains("/credential-offer") -> path.substringBefore("/credential-offer")
+            else -> path.substringBeforeLast("/")
+        }
+        val issuerPath = if (basePath.endsWith("/service")) {
+            "$basePath/draft-13"
+        } else {
+            basePath
+        }
+        val issuer = uri.buildUpon().path(issuerPath).build().toString()
+        Log.d("WalletCoreDocumentsController", "deriveIssuerFromCredentialOfferUri offerUri=$offerUri issuer=$issuer")
+        return issuer
+    }
 }

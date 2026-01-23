@@ -51,6 +51,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import eu.europa.ec.dashboardfeature.ui.component.NotificationIconButton
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.content.ContentScreen
@@ -66,11 +67,12 @@ import kotlinx.coroutines.flow.onEach
 @Composable
 fun VerificationSharingScreen(
     navController: NavController,
-    viewModel: VerificationViewModel
+    viewModel: VerificationViewModel,
+    notificationCount: Int = 0,
+    onNotificationsClick: () -> Unit = {},
 ) {
     val state: State by viewModel.viewState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-
+    val context: Context = LocalContext.current
     ContentScreen(
         isLoading = state.isLoading,
         navigatableAction = ScreenNavigateAction.BACKABLE,
@@ -89,6 +91,11 @@ fun VerificationSharingScreen(
                     text = stringResource(R.string.verification_sharing_title),
                     style = MaterialTheme.typography.headlineMedium,
                     color = MaterialTheme.colorScheme.onSurface
+                )
+                NotificationIconButton(
+                    modifier = Modifier.align(Alignment.CenterEnd),
+                    badgeCount = notificationCount,
+                    onClick = onNotificationsClick,
                 )
             }
         }

@@ -196,9 +196,9 @@ fun VisualCredentialCard(
 
     AnimatedVisibility(
         visible = isVisible,
-        enter = fadeIn(tween(400)) + slideInVertically(
-            animationSpec = tween(400),
-            initialOffsetY = { it / 3 }
+        enter = fadeIn(tween(300)) + slideInVertically(
+            animationSpec = tween(300),
+            initialOffsetY = { it / 4 }
         )
     ) {
         Surface(

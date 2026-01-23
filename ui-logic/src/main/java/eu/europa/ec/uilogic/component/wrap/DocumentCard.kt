@@ -53,7 +53,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -65,7 +64,6 @@ import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.IconDataUi
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
-import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 
 /**
@@ -166,8 +164,8 @@ fun DocumentCard(
                 ),
             shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.surfaceContainer,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
-            shadowElevation = 2.dp
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)),
+            shadowElevation = 4.dp
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -319,57 +317,72 @@ fun StatusBadge(
 }
 
 /**
- * A category header for grouping documents.
+ * A modern category header for grouping documents.
+ * Features icon-forward design with sentence case typography.
  */
 @Composable
 fun DocumentCategoryHeader(
     title: String,
     icon: IconDataUi? = null,
+    documentCount: Int? = null,
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // Left accent bar
-        Box(
-            modifier = Modifier
-                .width(4.dp)
-                .height(24.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(MaterialTheme.colorScheme.primary)
-        )
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        // Category chip
-        Surface(
-            shape = RoundedCornerShape(8.dp),
-            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+        // Icon with circular background
+        if (icon != null) {
+            Surface(
+                modifier = Modifier.size(32.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
             ) {
-                if (icon != null) {
+                Box(contentAlignment = Alignment.Center) {
                     WrapIcon(
                         iconData = icon,
                         customTint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
+            }
+        }
+
+        // Title with sentence case (more modern, easier to read)
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+
+        // Optional document count badge
+        if (documentCount != null && documentCount > 0) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh
+            ) {
                 Text(
-                    text = title.uppercase(),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary,
-                    letterSpacing = 1.5.sp
+                    text = documentCount.toString(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                 )
             }
         }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        // Subtle horizontal line (replaces full-width gradient)
+        Box(
+            modifier = Modifier
+                .weight(0.3f)
+                .height(1.dp)
+                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        )
     }
 }
 
@@ -383,7 +396,8 @@ private fun DocumentCardPreview() {
         ) {
             DocumentCategoryHeader(
                 title = "Government",
-                icon = AppIcons.IdCards
+                icon = AppIcons.IdCards,
+                documentCount = 3
             )
 
             DocumentCard(

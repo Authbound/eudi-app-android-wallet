@@ -17,41 +17,51 @@
 package eu.europa.ec.dashboardfeature.di
 
 import eu.europa.ec.businesslogic.config.ConfigLogic
-import eu.europa.ec.businesslogic.controller.log.LogController
-import eu.europa.ec.businesslogic.controller.storage.PrefKeys
-import eu.europa.ec.businesslogic.provider.UuidProvider
-import eu.europa.ec.businesslogic.validator.FilterValidator
 import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
+import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsUserAuthenticatedUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
-import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
+import eu.europa.ec.businesslogic.controller.log.LogController
+import eu.europa.ec.businesslogic.controller.storage.PrefKeys
+import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
+import eu.europa.ec.businesslogic.provider.UuidProvider
+import eu.europa.ec.businesslogic.validator.FilterValidator
 import eu.europa.ec.corelogic.config.WalletCoreConfig
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
 import eu.europa.ec.dashboardfeature.interactor.ActionsInteractor
 import eu.europa.ec.dashboardfeature.interactor.ActionsInteractorImpl
 import eu.europa.ec.dashboardfeature.interactor.DashboardInteractor
 import eu.europa.ec.dashboardfeature.interactor.DashboardInteractorImpl
-import eu.europa.ec.dashboardfeature.interactor.MyDataInteractor
-import eu.europa.ec.dashboardfeature.interactor.MyDataInteractorImpl
 import eu.europa.ec.dashboardfeature.interactor.DocumentDetailsInteractor
 import eu.europa.ec.dashboardfeature.interactor.DocumentDetailsInteractorImpl
 import eu.europa.ec.dashboardfeature.interactor.DocumentSignInteractor
 import eu.europa.ec.dashboardfeature.interactor.DocumentSignInteractorImpl
 import eu.europa.ec.dashboardfeature.interactor.DocumentsInteractor
 import eu.europa.ec.dashboardfeature.interactor.DocumentsInteractorImpl
+import eu.europa.ec.dashboardfeature.interactor.HealthInteractor
+import eu.europa.ec.dashboardfeature.interactor.HealthInteractorImpl
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractor
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorImpl
+import eu.europa.ec.dashboardfeature.interactor.MyDataInteractor
+import eu.europa.ec.dashboardfeature.interactor.MyDataInteractorImpl
 import eu.europa.ec.dashboardfeature.interactor.SettingsInteractor
 import eu.europa.ec.dashboardfeature.interactor.SettingsInteractorImpl
 import eu.europa.ec.dashboardfeature.interactor.TransactionDetailsInteractor
 import eu.europa.ec.dashboardfeature.interactor.TransactionDetailsInteractorImpl
 import eu.europa.ec.dashboardfeature.interactor.TransactionsInteractor
 import eu.europa.ec.dashboardfeature.interactor.TransactionsInteractorImpl
+import eu.europa.ec.dashboardfeature.repository.MaisaRepository
+import eu.europa.ec.dashboardfeature.repository.MaisaRepositoryImpl
+import eu.europa.ec.dashboardfeature.repository.VerificationRepository
+import eu.europa.ec.dashboardfeature.repository.VerificationRepositoryImpl
+import eu.europa.ec.networklogic.api.ApiClient
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
+import io.github.jan.supabase.SupabaseClient
 
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Module
+import org.koin.core.annotation.Single
 
 @Module
 @ComponentScan("eu.europa.ec.dashboardfeature")
@@ -76,6 +86,32 @@ fun provideActionsInteractor(
 )
 
 @Factory
+fun provideMaisaRepository(
+    apiClient: ApiClient,
+    supabaseClient: SupabaseClient,
+    prefsController: PrefsControllerV2,
+    logController: LogController
+): MaisaRepository = MaisaRepositoryImpl(
+    apiClient,
+    supabaseClient,
+    prefsController,
+    logController
+)
+
+@Factory
+fun provideHealthInteractor(
+    resourceProvider: ResourceProvider,
+    prefsController: PrefsControllerV2,
+    walletCoreDocumentsController: WalletCoreDocumentsController,
+    maisaRepository: MaisaRepository
+): HealthInteractor = HealthInteractorImpl(
+    resourceProvider,
+    prefsController,
+    walletCoreDocumentsController,
+    maisaRepository
+)
+
+@Factory
 fun provideMyDataInteractor(
     resourceProvider: ResourceProvider,
 ): MyDataInteractor = MyDataInteractorImpl(
@@ -88,6 +124,8 @@ fun provideSettingsInteractor(
     logController: LogController,
     resourceProvider: ResourceProvider,
     prefKeys: PrefKeys,
+    prefsController: PrefsControllerV2,
+    walletCoreDocumentsController: WalletCoreDocumentsController,
     getCurrentUserUseCase: GetCurrentUserUseCase,
     signOutUseCase: SignOutUseCase,
     isUserAuthenticatedUseCase: IsUserAuthenticatedUseCase,
@@ -97,6 +135,8 @@ fun provideSettingsInteractor(
     logController,
     resourceProvider,
     prefKeys,
+    prefsController,
+    walletCoreDocumentsController,
     getCurrentUserUseCase,
     signOutUseCase,
     isUserAuthenticatedUseCase,
@@ -167,3 +207,8 @@ fun provideTransactionDetailsInteractor(
         resourceProvider,
         uuidProvider
     )
+
+@Single
+fun provideVerificationRepository(
+    resourceProvider: ResourceProvider,
+): VerificationRepository = VerificationRepositoryImpl(resourceProvider)

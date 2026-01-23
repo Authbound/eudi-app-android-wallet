@@ -20,13 +20,17 @@ import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
 import eu.europa.ec.authenticationlogic.usecase.IsProfileCompletedUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsWalletActivatedUseCase
+import eu.europa.ec.authenticationlogic.usecase.SignOutMode
+import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.authenticationlogic.usecase.WalletActivationStatus
+import eu.europa.ec.businesslogic.controller.device.DeviceController
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractor
 import eu.europa.ec.startupfeature.model.StartupState
 import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Streamlined splash interactor with proper session initialization and state-based routing.
@@ -59,11 +63,14 @@ class SplashInteractorImpl(
     private val isWalletActivatedUseCase: IsWalletActivatedUseCase,
     private val isProfileCompletedUseCase: IsProfileCompletedUseCase,
     private val quickPinInteractor: QuickPinInteractor,
-    private val localUnlockTracker: LocalUnlockTracker
+    private val localUnlockTracker: LocalUnlockTracker,
+    private val deviceController: DeviceController,
+    private val signOutUseCase: SignOutUseCase
 ) : SplashInteractor {
 
     companion object {
         private const val TAG = "SplashInteractor"
+        private const val SESSION_RESTORE_GRACE_MS = 2_000L
     }
 
     override suspend fun determineStartupState(): StartupState {
@@ -128,29 +135,27 @@ class SplashInteractorImpl(
      */
     private suspend fun checkOnboardingState(): StartupState? {
         logController.d(TAG, "Level 2: Checking onboarding status...")
-
-        // Check profile completion
         val profileCompleted = isProfileCompletedUseCase()
         logController.d(TAG, "Profile completed: $profileCompleted")
-
         if (!profileCompleted) {
             return StartupState.ProfileIncomplete
         }
-
-        // Check wallet activation
+        val securityState = deviceController.getDeviceSecurityState()
+        logController.d(TAG, "Device security ready: ${securityState.isReady}")
+        if (!securityState.isReady) {
+            val walletStatus = isWalletActivatedUseCase()
+            handleMissingDeviceSecurity(walletStatus)
+            return StartupState.DeviceSecurityRequired
+        }
         val walletStatus = isWalletActivatedUseCase()
         logController.d(TAG, "Wallet status: ${walletStatus::class.simpleName}")
-
         when (walletStatus) {
             WalletActivationStatus.Activated -> {
                 logController.d(TAG, "Wallet is activated, proceeding to local unlock check")
-                return null // Continue to next level
+                return null
             }
-
             is WalletActivationStatus.NotActivated -> {
                 logController.d(TAG, "Wallet not activated: ${walletStatus.reason}")
-
-                // Fix inconsistent state if needed
                 if (walletStatus.localFlagSet && !walletStatus.privateKeyExists) {
                     logController.w(TAG) { "Inconsistent state: Clearing stale activation flag" }
                     try {
@@ -159,9 +164,26 @@ class SplashInteractorImpl(
                         logController.e(TAG, e)
                     }
                 }
-
                 return StartupState.WalletNotActivated(walletStatus.reason)
             }
+        }
+    }
+
+    private suspend fun handleMissingDeviceSecurity(walletStatus: WalletActivationStatus) {
+        if (walletStatus is WalletActivationStatus.Activated) {
+            logController.w(TAG) { "Device security missing while wallet active, signing out" }
+            try {
+                prefKeys.setWalletActivated(false)
+            } catch (e: Exception) {
+                logController.e(TAG, e)
+            }
+            try {
+                signOutUseCase(SignOutMode.Soft)
+            } catch (e: Exception) {
+                logController.e(TAG, e)
+            }
+        } else {
+            logController.w(TAG) { "Device security missing before wallet activation" }
         }
     }
 
@@ -209,9 +231,20 @@ class SplashInteractorImpl(
     private suspend fun waitForSessionInitialization(): SessionStatus {
         return try {
             logController.d(TAG, "Waiting for session initialization...")
-            // Wait for first non-initializing status
-            supabaseAuthRepository.observeAuthState()
+            val initialStatus = supabaseAuthRepository.observeAuthState()
                 .first { status -> status !is SessionStatus.Initializing }
+            if (initialStatus is SessionStatus.NotAuthenticated && !initialStatus.isSignOut) {
+                logController.d(TAG, "Session not authenticated after init, waiting for restore grace...")
+                val restoredStatus = withTimeoutOrNull(SESSION_RESTORE_GRACE_MS) {
+                    supabaseAuthRepository.observeAuthState().first { status ->
+                        status is SessionStatus.Authenticated ||
+                            (status is SessionStatus.NotAuthenticated && status.isSignOut)
+                    }
+                }
+                restoredStatus ?: initialStatus
+            } else {
+                initialStatus
+            }
         } catch (e: Exception) {
             logController.e(TAG, e)
             logController.w(TAG) { "Session initialization failed, defaulting to not authenticated" }

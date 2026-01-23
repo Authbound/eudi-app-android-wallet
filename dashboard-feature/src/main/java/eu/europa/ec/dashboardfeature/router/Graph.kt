@@ -16,6 +16,9 @@
 
 package eu.europa.ec.dashboardfeature.router
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
@@ -24,6 +27,7 @@ import androidx.navigation.compose.navigation
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import eu.europa.ec.dashboardfeature.BuildConfig
+import eu.europa.ec.dashboardfeature.ui.actions.ActionsViewModel
 import eu.europa.ec.dashboardfeature.ui.dashboard.DashboardScreen
 import eu.europa.ec.dashboardfeature.ui.document_sign.DocumentSignScreen
 import eu.europa.ec.dashboardfeature.ui.documents.detail.DocumentDetailsScreen
@@ -31,6 +35,9 @@ import eu.europa.ec.dashboardfeature.ui.mydata.MyDataScreen
 import eu.europa.ec.dashboardfeature.ui.settings.SettingsScreen
 import eu.europa.ec.dashboardfeature.ui.settings.AccountDetailsScreen
 import eu.europa.ec.dashboardfeature.ui.transactions.detail.TransactionDetailsScreen
+import eu.europa.ec.dashboardfeature.ui.verification.VerificationCustomCreationScreen
+import eu.europa.ec.dashboardfeature.ui.verification.VerificationSharingScreen
+import eu.europa.ec.dashboardfeature.ui.verification.VerificationTemplateSelectionScreen
 import eu.europa.ec.uilogic.navigation.DashboardScreens
 import eu.europa.ec.uilogic.navigation.ModuleRoute
 import org.koin.androidx.compose.koinViewModel
@@ -56,6 +63,7 @@ fun NavGraphBuilder.featureDashboardGraph(navController: NavController) {
                 documentsViewModel = koinViewModel(),
                 homeViewModel = koinViewModel(),
                 actionsViewModel = koinViewModel(),
+                healthViewModel = koinViewModel(),
                 settingsViewModel = koinViewModel(),
             )
         }
@@ -69,9 +77,111 @@ fun NavGraphBuilder.featureDashboardGraph(navController: NavController) {
                 }
             ),
         ) {
+            val actionsViewModel: ActionsViewModel = koinViewModel()
+            val actionsState: eu.europa.ec.dashboardfeature.ui.actions.State by actionsViewModel
+                .viewState
+                .collectAsStateWithLifecycle()
+            val onNotificationsClick: () -> Unit = {
+                val previousEntry: androidx.navigation.NavBackStackEntry? =
+                    navController.previousBackStackEntry
+                if (previousEntry != null) {
+                    previousEntry.savedStateHandle.set("openActions", true)
+                    navController.popBackStack(DashboardScreens.Dashboard.screenRoute, false)
+                } else {
+                    navController.navigate(DashboardScreens.Dashboard.screenRoute)
+                }
+            }
+            LaunchedEffect(Unit) {
+                actionsViewModel.setEvent(eu.europa.ec.dashboardfeature.ui.actions.Event.OnResume)
+            }
             SettingsScreen(
                 navController = navController,
-                viewModel = koinViewModel()
+                viewModel = koinViewModel(),
+                notificationCount = actionsState.pendingCount,
+                onNotificationsClick = onNotificationsClick,
+            )
+        }
+
+        composable(
+            route = DashboardScreens.VerificationTemplateSelection.screenRoute,
+        ) {
+            val actionsViewModel: ActionsViewModel = koinViewModel()
+            val actionsState: eu.europa.ec.dashboardfeature.ui.actions.State by actionsViewModel
+                .viewState
+                .collectAsStateWithLifecycle()
+            val onNotificationsClick: () -> Unit = {
+                val previousEntry: androidx.navigation.NavBackStackEntry? =
+                    navController.previousBackStackEntry
+                if (previousEntry != null) {
+                    previousEntry.savedStateHandle.set("openActions", true)
+                    navController.popBackStack(DashboardScreens.Dashboard.screenRoute, false)
+                } else {
+                    navController.navigate(DashboardScreens.Dashboard.screenRoute)
+                }
+            }
+            LaunchedEffect(Unit) {
+                actionsViewModel.setEvent(eu.europa.ec.dashboardfeature.ui.actions.Event.OnResume)
+            }
+            VerificationTemplateSelectionScreen(
+                navController = navController,
+                viewModel = koinViewModel(),
+                notificationCount = actionsState.pendingCount,
+                onNotificationsClick = onNotificationsClick,
+            )
+        }
+
+        composable(
+            route = DashboardScreens.VerificationCustomCreation.screenRoute,
+        ) {
+            val actionsViewModel: ActionsViewModel = koinViewModel()
+            val actionsState: eu.europa.ec.dashboardfeature.ui.actions.State by actionsViewModel
+                .viewState
+                .collectAsStateWithLifecycle()
+            val onNotificationsClick: () -> Unit = {
+                val previousEntry: androidx.navigation.NavBackStackEntry? =
+                    navController.previousBackStackEntry
+                if (previousEntry != null) {
+                    previousEntry.savedStateHandle.set("openActions", true)
+                    navController.popBackStack(DashboardScreens.Dashboard.screenRoute, false)
+                } else {
+                    navController.navigate(DashboardScreens.Dashboard.screenRoute)
+                }
+            }
+            LaunchedEffect(Unit) {
+                actionsViewModel.setEvent(eu.europa.ec.dashboardfeature.ui.actions.Event.OnResume)
+            }
+            VerificationCustomCreationScreen(
+                navController = navController,
+                viewModel = koinViewModel(),
+                notificationCount = actionsState.pendingCount,
+                onNotificationsClick = onNotificationsClick,
+            )
+        }
+        composable(
+            route = DashboardScreens.VerificationSharing.screenRoute,
+        ) {
+            val actionsViewModel: ActionsViewModel = koinViewModel()
+            val actionsState: eu.europa.ec.dashboardfeature.ui.actions.State by actionsViewModel
+                .viewState
+                .collectAsStateWithLifecycle()
+            val onNotificationsClick: () -> Unit = {
+                val previousEntry: androidx.navigation.NavBackStackEntry? =
+                    navController.previousBackStackEntry
+                if (previousEntry != null) {
+                    previousEntry.savedStateHandle.set("openActions", true)
+                    navController.popBackStack(DashboardScreens.Dashboard.screenRoute, false)
+                } else {
+                    navController.navigate(DashboardScreens.Dashboard.screenRoute)
+                }
+            }
+            LaunchedEffect(Unit) {
+                actionsViewModel.setEvent(eu.europa.ec.dashboardfeature.ui.actions.Event.OnResume)
+            }
+            VerificationSharingScreen(
+                navController = navController,
+                viewModel = koinViewModel(),
+                notificationCount = actionsState.pendingCount,
+                onNotificationsClick = onNotificationsClick,
             )
         }
 

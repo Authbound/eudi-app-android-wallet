@@ -20,6 +20,8 @@ import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
 import eu.europa.ec.authenticationlogic.usecase.IsProfileCompletedUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsWalletActivatedUseCase
+import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
+import eu.europa.ec.businesslogic.controller.device.DeviceController
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractor
@@ -41,7 +43,9 @@ fun provideSplashInteractor(
     isWalletActivatedUseCase: IsWalletActivatedUseCase,
     isProfileCompletedUseCase: IsProfileCompletedUseCase,
     quickPinInteractor: QuickPinInteractor,
-    localUnlockTracker: LocalUnlockTracker
+    localUnlockTracker: LocalUnlockTracker,
+    deviceController: DeviceController,
+    signOutUseCase: SignOutUseCase
 ): SplashInteractor = SplashInteractorImpl(
     supabaseAuthRepository,
     prefKeys,
@@ -49,5 +53,7 @@ fun provideSplashInteractor(
     isWalletActivatedUseCase,
     isProfileCompletedUseCase,
     quickPinInteractor,
-    localUnlockTracker
+    localUnlockTracker,
+    deviceController,
+    signOutUseCase
 )

@@ -3,7 +3,7 @@ package eu.europa.ec.uilogic.component.wrap
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -11,11 +11,12 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ripple
@@ -27,8 +28,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -40,22 +45,43 @@ import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
 import eu.europa.ec.uilogic.component.AppIcons
 
 /**
- * Data class for configuring a QuickActionCard
+ * Data class for configuring a QuickActionCard with premium gradient styling.
+ * Supports diagonal gradients (135°) with accent glow for icon containers.
  */
 data class QuickActionConfig(
     val id: String,
     val title: String,
     val description: String,
     val icon: IconDataUi,
-    val backgroundColor: Color,
-    val borderColor: Color,
-    val isEnabled: Boolean = true,
-
-)
+    val gradientStart: Color,           // Primary gradient color (darker)
+    val gradientEnd: Color,             // Secondary gradient color (lighter)
+    val accentColor: Color,             // Accent color for icon glow
+    val isEnabled: Boolean = true
+) {
+    // Legacy constructor for backward compatibility
+    constructor(
+        id: String,
+        title: String,
+        description: String,
+        icon: IconDataUi,
+        backgroundColor: Color,
+        borderColor: Color,
+        isEnabled: Boolean = true
+    ) : this(
+        id = id,
+        title = title,
+        description = description,
+        icon = icon,
+        gradientStart = backgroundColor,
+        gradientEnd = backgroundColor.copy(alpha = 0.85f),
+        accentColor = borderColor,
+        isEnabled = isEnabled
+    )
+}
 
 /**
- * A modern, visually appealing card component for quick actions
- * Inspired by the mobile app design with animations and visual feedback
+ * Premium QuickActionCard with diagonal gradient background, icon glow container,
+ * decorative circles, and arrow indicator. Matches Authbound web dashboard design.
  */
 @Composable
 fun QuickActionCard(
@@ -66,14 +92,14 @@ fun QuickActionCard(
     val view = LocalView.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    
+
     // Animation for card scaling when pressed
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
+        targetValue = if (isPressed) 0.97f else 1f,
         animationSpec = tween(durationMillis = 100),
         label = "scale"
     )
-    
+
     Surface(
         modifier = modifier
             .scale(scale)
@@ -82,52 +108,131 @@ fun QuickActionCard(
                 indication = ripple(bounded = true, color = Color.White.copy(alpha = 0.2f)),
                 enabled = config.isEnabled,
                 onClick = {
-                    // Trigger haptic feedback when clicked
                     view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                     onClick()
                 }
             ),
-        shape = RoundedCornerShape(16.dp),
-        color = config.backgroundColor,
-        border = BorderStroke(1.dp, config.borderColor),
-        shadowElevation = 4.dp
+        shape = RoundedCornerShape(20.dp),
+        color = Color.Transparent,
+        shadowElevation = 8.dp
     ) {
-        Column(
+        Box(
             modifier = Modifier
-                .padding(16.dp)
-                .fillMaxSize(),
-            verticalArrangement = Arrangement.SpaceBetween
+                .fillMaxSize()
+                .background(
+                    brush = Brush.linearGradient(
+                        colors = listOf(config.gradientStart, config.gradientEnd),
+                        start = Offset(0f, 0f),
+                        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+                    )
+                )
         ) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Icon - Clean and large
-                WrapIcon(
-                    iconData = config.icon,
-                    customTint = Color.White,
-                    modifier = Modifier.size(40.dp)
-                )
-                
-                // Title
-                Text(
-                    text = config.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            
-            // Description at the bottom
-            Text(
-                text = config.description,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.9f),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+            // Decorative circles (top-right, brand element)
+            QuickActionDecorativeCircles(
+                modifier = Modifier.align(Alignment.TopEnd),
+                color = config.accentColor
             )
+
+            // Main content
+            Column(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .fillMaxSize(),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Top section: Icon with glow + Title
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Icon with accent glow ring
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(config.accentColor.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        WrapIcon(
+                            iconData = config.icon,
+                            customTint = Color.White,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+
+                    // Title
+                    Text(
+                        text = config.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                // Bottom section: Description + Arrow indicator
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalAlignment = Alignment.Bottom,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Description
+                    Text(
+                        text = config.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.8f),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Arrow indicator
+                    WrapIcon(
+                        iconData = AppIcons.KeyboardArrowRight,
+                        customTint = Color.White.copy(alpha = 0.6f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
         }
+    }
+}
+
+/**
+ * Decorative circular pattern for QuickActionCard backgrounds.
+ * Creates subtle brand-aligned visual interest.
+ */
+@Composable
+private fun QuickActionDecorativeCircles(
+    modifier: Modifier = Modifier,
+    color: Color
+) {
+    Canvas(
+        modifier = modifier
+            .size(80.dp)
+            .padding(8.dp)
+    ) {
+        // Large circle (outline)
+        drawCircle(
+            color = color.copy(alpha = 0.10f),
+            radius = 28.dp.toPx(),
+            center = Offset(size.width * 0.7f, size.height * 0.3f),
+            style = Stroke(width = 1.5.dp.toPx())
+        )
+        // Medium circle (filled)
+        drawCircle(
+            color = color.copy(alpha = 0.08f),
+            radius = 12.dp.toPx(),
+            center = Offset(size.width * 0.35f, size.height * 0.55f)
+        )
+        // Small circle (filled)
+        drawCircle(
+            color = color.copy(alpha = 0.12f),
+            radius = 5.dp.toPx(),
+            center = Offset(size.width * 0.85f, size.height * 0.7f)
+        )
     }
 }
 
@@ -136,13 +241,15 @@ fun QuickActionCard(
 private fun QuickActionCardPreview() {
     PreviewTheme {
         QuickActionCard(
+            modifier = Modifier.size(width = 180.dp, height = 140.dp),
             config = QuickActionConfig(
                 id = "authenticate",
                 title = "Authenticate",
                 description = "Verify your identity securely",
                 icon = AppIcons.IdCards,
-                backgroundColor = MaterialTheme.colorScheme.primary,
-                borderColor = MaterialTheme.colorScheme.primaryContainer
+                gradientStart = Color(0xFF0A1A36),
+                gradientEnd = Color(0xFF1E3A5F),
+                accentColor = Color(0xFF3B82F6)
             ),
             onClick = {}
         )

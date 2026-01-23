@@ -146,6 +146,11 @@ private fun Content(
         )
     }
 
+    LaunchedEffect(state.autoSubmitPin) {
+        state.autoSubmitPin?.let {
+            onEventSend(Event.OnPinChange(code = it, context = context))
+        }
+    }
     LaunchedEffect(Unit) {
         effectFlow.onEach { effect ->
             when (effect) {

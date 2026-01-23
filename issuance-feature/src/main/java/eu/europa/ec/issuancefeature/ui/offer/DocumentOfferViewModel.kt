@@ -19,6 +19,7 @@ package eu.europa.ec.issuancefeature.ui.offer
 import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.viewModelScope
+import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.extension.ifEmptyOrNull
 import eu.europa.ec.businesslogic.extension.toUri
 import eu.europa.ec.commonfeature.config.IssuanceSuccessUiConfig
@@ -28,6 +29,7 @@ import eu.europa.ec.commonfeature.config.PresentationMode
 import eu.europa.ec.commonfeature.config.RequestUriConfig
 import eu.europa.ec.corelogic.di.getOrCreatePresentationScope
 import eu.europa.ec.eudi.wallet.document.DocumentId
+import eu.europa.ec.eudi.wallet.issue.openid4vci.Offer
 import eu.europa.ec.issuancefeature.interactor.DocumentOfferInteractor
 import eu.europa.ec.issuancefeature.interactor.IssueDocumentsInteractorPartialState
 import eu.europa.ec.issuancefeature.interactor.ResolveDocumentOfferInteractorPartialState
@@ -107,8 +109,11 @@ class DocumentOfferViewModel(
     private val documentOfferInteractor: DocumentOfferInteractor,
     private val resourceProvider: ResourceProvider,
     private val uiSerializer: UiSerializer,
+    private val logController: LogController,
     @InjectedParam private val offerSerializedConfig: String,
 ) : MviViewModel<Event, State, Effect>() {
+
+    private var resolvedOffer: Offer? = null
 
     override fun setInitialState(): State {
         val deserializedOfferUiConfig = uiSerializer.fromBase64(
@@ -116,7 +121,7 @@ class DocumentOfferViewModel(
             OfferUiConfig::class.java,
             OfferUiConfig.Parser
         ) ?: throw RuntimeException("OfferUiConfig:: is Missing or invalid")
-
+        logController.d("DocumentOfferViewModel", "Initialized with offerUri=${deserializedOfferUiConfig.offerURI}")
         return State(
             offerUiConfig = deserializedOfferUiConfig,
             headerConfig = getInitialHeaderConfig()
@@ -124,6 +129,7 @@ class DocumentOfferViewModel(
     }
 
     override fun handleEvents(event: Event) {
+        logController.d("DocumentOfferViewModel", "Event received: $event")
         when (event) {
             is Event.Init -> {
                 if (viewState.value.documents.isEmpty()) {
@@ -198,6 +204,7 @@ class DocumentOfferViewModel(
     }
 
     private fun resolveDocumentOffer(offerUri: String, deepLink: Uri? = null) {
+        logController.d("DocumentOfferViewModel", "Resolving offerUri=$offerUri deepLink=$deepLink")
         setState {
             copy(
                 isLoading = documents.isEmpty(),
@@ -210,6 +217,8 @@ class DocumentOfferViewModel(
             ).collect { response ->
                 when (response) {
                     is ResolveDocumentOfferInteractorPartialState.Failure -> {
+                        resolvedOffer = null
+                        logController.e("DocumentOfferViewModel") { "Resolve offer failed: ${response.errorMessage}" }
                         setState {
                             copy(
                                 isLoading = false,
@@ -224,8 +233,9 @@ class DocumentOfferViewModel(
                             )
                         }
                     }
-
                     is ResolveDocumentOfferInteractorPartialState.Success -> {
+                        resolvedOffer = response.offer
+                        logController.d("DocumentOfferViewModel", "Resolve offer success documents=${response.documents.size} txCodeLength=${response.txCodeLength}")
                         setState {
                             copy(
                                 isLoading = false,
@@ -242,11 +252,10 @@ class DocumentOfferViewModel(
                                 ),
                             )
                         }
-
                         handleDeepLink(deepLink)
                     }
-
                     is ResolveDocumentOfferInteractorPartialState.NoDocument -> {
+                        logController.d("DocumentOfferViewModel", "Resolve offer success with no documents")
                         setState {
                             copy(
                                 isLoading = false,
@@ -292,6 +301,11 @@ class DocumentOfferViewModel(
         )
     }
 
+    private fun isMaisaOffer(offerUri: String, offer: Offer?): Boolean {
+        val issuer = offer?.credentialOffer?.credentialIssuerIdentifier?.toString().orEmpty()
+        return issuer.contains("oid4vc.igrant.io") || offerUri.contains("oid4vc.igrant.io")
+    }
+
     private fun issueDocuments(
         context: Context,
         offerUri: String,
@@ -299,9 +313,10 @@ class DocumentOfferViewModel(
         onSuccessNavigation: ConfigNavigation,
         txCodeLength: Int?
     ) {
+        logController.d("DocumentOfferViewModel", "Issue documents requested offerUri=$offerUri txCodeLength=$txCodeLength")
         viewModelScope.launch {
-
-            txCodeLength?.let {
+            val isMaisa = isMaisaOffer(offerUri, resolvedOffer)
+            if (txCodeLength != null && !isMaisa) {
                 navigateToOfferCodeScreen(
                     offerUri,
                     issuerName,
@@ -310,21 +325,30 @@ class DocumentOfferViewModel(
                 )
                 return@launch
             }
-
+            val txCode = if (txCodeLength != null && isMaisa) "1234" else null
             setState {
                 copy(
                     isLoading = true,
                     error = null
                 )
             }
-
-            documentOfferInteractor.issueDocuments(
+            val issueFlow = resolvedOffer?.let { offer ->
+                documentOfferInteractor.issueDocumentsFromOffer(
+                    offer = offer,
+                    issuerName = issuerName,
+                    navigation = onSuccessNavigation,
+                    txCode = txCode
+                )
+            } ?: documentOfferInteractor.issueDocuments(
                 offerUri = offerUri,
                 issuerName = issuerName,
-                navigation = onSuccessNavigation
-            ).collect { response ->
+                navigation = onSuccessNavigation,
+                txCode = txCode
+            )
+            issueFlow.collect { response ->
                 when (response) {
                     is IssueDocumentsInteractorPartialState.Failure -> {
+                        logController.e("DocumentOfferViewModel") { "Issue documents failed: ${response.errorMessage}" }
                         setState {
                             copy(
                                 isLoading = false,
@@ -335,33 +359,31 @@ class DocumentOfferViewModel(
                             )
                         }
                     }
-
                     is IssueDocumentsInteractorPartialState.Success -> {
+                        logController.d("DocumentOfferViewModel", "Issue documents success ids=${response.documentIds}")
                         setState {
                             copy(
                                 isLoading = false,
                                 error = null,
                             )
                         }
-
                         goToDocumentIssuanceSuccessScreen(
                             documentIds = response.documentIds,
                             onSuccessNavigation = onSuccessNavigation,
                         )
                     }
-
                     is IssueDocumentsInteractorPartialState.DeferredSuccess -> {
+                        logController.d("DocumentOfferViewModel", "Issue documents deferred success route=${response.successRoute}")
                         setState {
                             copy(
                                 isLoading = false,
                                 error = null,
                             )
                         }
-
                         goToSuccessScreen(route = response.successRoute)
                     }
-
                     is IssueDocumentsInteractorPartialState.UserAuthRequired -> {
+                        logController.d("DocumentOfferViewModel", "Issue documents auth required crypto=${response.crypto::class.simpleName}")
                         documentOfferInteractor.handleUserAuthentication(
                             context = context,
                             crypto = response.crypto,

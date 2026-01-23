@@ -99,3 +99,38 @@ const val PERCENTAGE_25 = 0.25F
 
 /** Value 0.6 */
 const val PERCENTAGE_60 = 0.6F
+
+// Animation constants for consistent UX
+/** Standard entrance animation duration (ms) */
+const val ANIMATION_DURATION_ENTRANCE = 300
+
+/** Stagger delay between animated items (ms) */
+const val ANIMATION_STAGGER_DELAY = 50
+
+/** Scale factor for press feedback */
+const val PRESSED_SCALE = 0.97f
+
+/** Quick interaction animation duration (ms) */
+const val ANIMATION_DURATION_INTERACTION = 100
+
+// Premium animation constants
+/** Tab indicator slide animation duration (ms) */
+const val ANIMATION_DURATION_TAB_SLIDE = 250
+
+/** Spring damping ratio for smooth animations */
+const val ANIMATION_SPRING_DAMPING = 0.8f
+
+/** Spring stiffness for tab indicator */
+const val ANIMATION_SPRING_STIFFNESS = 400f
+
+/** Scale factor for card press feedback */
+const val PRESSED_SCALE_CARD = 0.98f
+
+/** Scale factor for button press feedback */
+const val PRESSED_SCALE_BUTTON = 0.96f
+
+/** Stagger delay for card list items (ms) */
+const val ANIMATION_STAGGER_CARD = 50
+
+/** Stagger delay for empty state elements (ms) */
+const val ANIMATION_STAGGER_EMPTY_STATE = 150

@@ -19,8 +19,17 @@ package eu.europa.ec.dashboardfeature.ui.home
 import android.Manifest
 import android.content.Context
 import android.os.Build
+import android.view.HapticFeedbackConstants
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,9 +61,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.sp
+import androidx.compose.material3.ripple
 
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -91,6 +105,7 @@ import eu.europa.ec.corelogic.model.DocumentIdentifier
 import eu.europa.ec.dashboardfeature.ui.documents.detail.model.DocumentIssuanceStateUi
 import eu.europa.ec.dashboardfeature.ui.documents.list.model.DocumentUi
 import eu.europa.ec.dashboardfeature.ui.home.model.HeroCredentialUi
+import eu.europa.ec.dashboardfeature.ui.component.NotificationIconButton
 import eu.europa.ec.eudi.wallet.document.DocumentId
 import eu.europa.ec.uilogic.component.wrap.VisualCredentialCard
 
@@ -148,6 +163,8 @@ fun HomeScreen(
     navHostController: NavController,
     viewModel: HomeViewModel,
     bottomNavHostController: NavController,
+    notificationCount: Int,
+    onNotificationsClick: () -> Unit,
     onDashboardEventSent: (DashboardEvent) -> Unit
 ) {
     val context = LocalContext.current
@@ -164,6 +181,8 @@ fun HomeScreen(
         onBack = { context.finish() },
         topBar = {
             TopBar(
+                notificationCount = notificationCount,
+                onNotificationsClick = onNotificationsClick,
                 onEventSent = onDashboardEventSent
             )
         }
@@ -208,6 +227,8 @@ fun HomeScreen(
 
 @Composable
 private fun TopBar(
+    notificationCount: Int,
+    onNotificationsClick: () -> Unit,
     onEventSent: (DashboardEvent) -> Unit
 ) {
     Box(
@@ -226,17 +247,16 @@ private fun TopBar(
         ) {
             onEventSent(OpenSideMenuEvent)
         }
-
         // wallet logo
         AppIconAndText(
             modifier = Modifier.align(Alignment.Center),
             appIconAndTextData = AppIconAndTextData(),
         )
-
-//        WrapIconButton(
-//            modifier = Modifier,
-//            iconData = AppIcons.Info
-//        ) { }
+        NotificationIconButton(
+            modifier = Modifier.align(Alignment.CenterEnd),
+            badgeCount = notificationCount,
+            onClick = onNotificationsClick,
+        )
     }
 }
 
@@ -348,7 +368,8 @@ private fun EudiWalletGuide() {
     var selectedIndex by remember { mutableStateOf(0) }
     var delayDuration by remember { mutableStateOf(5000L) }
 
-    // Define topics with "Insane" visual style colors
+    // Define topics with Authbound brand gradient colors
+    // Navy spectrum: #0A1A36 (deepest) → #1E3A5F (medium) → #2A4A6F (lighter)
     val topics = remember {
         listOf(
             GuideTopic(
@@ -357,7 +378,9 @@ private fun EudiWalletGuide() {
                 title = "Selective\nSharing",
                 description = "Share only what is needed. You are in control.",
                 icon = AppIcons.Visibility,
-                color = Color(0xFF172554) // Red 700 - Distinct from Quick Actions
+                gradientStart = Color(0xFF0A1A36),  // Deep navy
+                gradientEnd = Color(0xFF1E3A5F),    // Medium navy
+                accentColor = Color(0xFF3B82F6)     // Blue accent
             ),
             GuideTopic(
                 id = "02",
@@ -365,15 +388,19 @@ private fun EudiWalletGuide() {
                 title = "Private\nby Design",
                 description = "Your data stays on your device. Encrypted & Secure.",
                 icon = AppIcons.TouchId,
-                color = Color(0xFF965b20) // Dark Blue (Darker than Slate, slight blue tint)
+                gradientStart = Color(0xFF1E3A5F),  // Medium navy
+                gradientEnd = Color(0xFF2A4A6F),    // Lighter navy
+                accentColor = Color(0xFF2A8A9A)     // Teal accent
             ),
             GuideTopic(
                 id = "03",
                 tabTitle = "Access",
                 title = "EU-Wide\nAccess",
                 description = "Accepted everywhere in the EU. All in one place.",
-                icon = AppIcons.Certified, // Reverted icon
-                color = Color(0xFF21758a) // Blue 600 (Close to original 1565C0 but brighter)
+                icon = AppIcons.Certified,
+                gradientStart = Color(0xFF0F2847),  // Deep navy variant
+                gradientEnd = Color(0xFF1A3D5C),    // Medium variant
+                accentColor = Color(0xFF3B82F6)     // Blue accent
             )
         )
     }
@@ -394,11 +421,9 @@ private fun EudiWalletGuide() {
             .fillMaxWidth()
             .padding(vertical = SPACING_SMALL.dp)
     ) {
-        // Section Header
-        Text(
+        // Section Header with gradient text
+        GradientSectionTitle(
             text = "Guide",
-            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(horizontal = SPACING_SMALL.dp, vertical = 8.dp)
         )
 
@@ -412,13 +437,25 @@ private fun EudiWalletGuide() {
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
-                // Background & Content Transition
+                // Background & Content Transition with gradient
                 Crossfade(targetState = currentTopic, label = "hero_bg") { topic ->
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(topic.color)
+                            .background(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(topic.gradientStart, topic.gradientEnd),
+                                    start = Offset(0f, 0f),
+                                    end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+                                )
+                            )
                     ) {
+                        // Decorative circles (top-right, brand element)
+                        GuideDecorativeCircles(
+                            modifier = Modifier.align(Alignment.TopEnd),
+                            color = topic.accentColor
+                        )
+
                         // Background Decoration (Giant Icon)
                         WrapIcon(
                             iconData = topic.icon,
@@ -426,7 +463,7 @@ private fun EudiWalletGuide() {
                             modifier = Modifier
                                 .size(350.dp)
                                 .align(Alignment.TopEnd)
-                                .offset(x = 100.dp, y = -80.dp) // Moved significantly higher
+                                .offset(x = 100.dp, y = -80.dp)
                                 .rotate(-15f)
                         )
 
@@ -526,14 +563,99 @@ private fun NavCircle(text: String, isSelected: Boolean, onClick: () -> Unit) {
     }
 }
 
+/**
+ * Data class for Guide carousel topics with premium gradient styling.
+ * Supports brand-aligned gradients with accent colors for visual coherence.
+ */
 private data class GuideTopic(
     val id: String,
     val tabTitle: String,
     val title: String,
     val description: String,
     val icon: IconDataUi,
-    val color: Color
-)
+    val gradientStart: Color,
+    val gradientEnd: Color,
+    val accentColor: Color
+) {
+    // Legacy constructor for backward compatibility
+    constructor(
+        id: String,
+        tabTitle: String,
+        title: String,
+        description: String,
+        icon: IconDataUi,
+        color: Color
+    ) : this(
+        id = id,
+        tabTitle = tabTitle,
+        title = title,
+        description = description,
+        icon = icon,
+        gradientStart = color,
+        gradientEnd = color.copy(alpha = 0.9f),
+        accentColor = Color(0xFF3B82F6)
+    )
+}
+
+/**
+ * Decorative circular pattern for Guide carousel card backgrounds.
+ * Creates subtle brand-aligned visual interest with varying sizes and opacities.
+ */
+@Composable
+private fun GuideDecorativeCircles(
+    modifier: Modifier = Modifier,
+    color: Color
+) {
+    Canvas(
+        modifier = modifier
+            .size(140.dp)
+            .padding(16.dp)
+    ) {
+        // Large circle (outline)
+        drawCircle(
+            color = color.copy(alpha = 0.08f),
+            radius = 50.dp.toPx(),
+            center = Offset(size.width * 0.7f, size.height * 0.25f),
+            style = Stroke(width = 2.dp.toPx())
+        )
+        // Medium circle (filled)
+        drawCircle(
+            color = color.copy(alpha = 0.12f),
+            radius = 22.dp.toPx(),
+            center = Offset(size.width * 0.35f, size.height * 0.5f)
+        )
+        // Small circle (filled)
+        drawCircle(
+            color = color.copy(alpha = 0.10f),
+            radius = 10.dp.toPx(),
+            center = Offset(size.width * 0.85f, size.height * 0.7f)
+        )
+    }
+}
+
+/**
+ * Section title with premium gradient text effect.
+ * Creates brand-aligned visual emphasis for section headers.
+ */
+@Composable
+private fun GradientSectionTitle(
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleLarge.copy(
+            fontWeight = FontWeight.Bold,
+            brush = Brush.linearGradient(
+                colors = listOf(
+                    MaterialTheme.colorScheme.onSurface,
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                )
+            )
+        ),
+        modifier = modifier
+    )
+}
 
 private fun handleNavigationEffect(
     navigationEffect: Effect.Navigation,
@@ -553,11 +675,14 @@ private fun handleNavigationEffect(
 
             is Effect.Navigation.SwitchTab -> {
                 val target = navigationEffect.tabRoute
-                if (bottomController.graph.findNode(target) == null) {
+                val targetRoute = target.substringBefore("?")
+                val routeExists = bottomController.graph.findNode(target) != null ||
+                    bottomController.graph.findNode(targetRoute) != null ||
+                    bottomController.graph.findNode("${targetRoute}?tab={tab}") != null
+                if (!routeExists) {
                     android.util.Log.e("HomeScreen", "Route '${target}' not found in bottom navigation graph")
                     return
                 }
-
                 bottomController.navigate(target) {
                     popUpTo(bottomController.graph.findStartDestination().id){
                         saveState = true
@@ -565,7 +690,6 @@ private fun handleNavigationEffect(
                     launchSingleTop = true
                     restoreState = true
                 }
-
             }
 
             is Effect.Navigation.OnAppSettings -> context.openAppSettings()
@@ -968,70 +1092,167 @@ private fun HeroCredentialSection(
 }
 
 /**
- * Empty hero card shown when user has no credentials
+ * Premium empty hero card with dark navy theme - shown when user has no credentials.
+ * Features:
+ * - Dark navy gradient background matching Authbound web dashboard (#0A1A36)
+ * - Decorative circular pattern elements (brand motif)
+ * - Left-aligned layout with icon, text, and arrow indicator
+ * - Smooth entrance animation and press feedback with haptics
  */
 @Composable
 private fun EmptyHeroCard(
     onAddCredentialClick: () -> Unit
 ) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(172.dp)
-            .clickable { onAddCredentialClick() },
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        border = BorderStroke(
-            width = 2.dp,
-            brush = Brush.linearGradient(
-                colors = listOf(
-                    MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                    MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)
-                )
-            )
+    val view = LocalView.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.98f else 1f,
+        animationSpec = tween(durationMillis = 100),
+        label = "scale"
+    )
+
+    // Entrance animation
+    var isVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(100)
+        isVisible = true
+    }
+
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = fadeIn(tween(300)) + slideInVertically(
+            animationSpec = tween(300),
+            initialOffsetY = { it / 4 }
         )
     ) {
-        Column(
+        Surface(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .fillMaxWidth()
+                .height(172.dp)
+                .scale(scale)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = ripple(color = MaterialTheme.colorScheme.tertiary)
+                ) {
+                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    onAddCredentialClick()
+                },
+            shape = RoundedCornerShape(20.dp),
+            color = Color.Transparent,
+            shadowElevation = 8.dp
         ) {
-            // Icon
             Box(
                 modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
-                contentAlignment = Alignment.Center
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primary,
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)
+                            )
+                        )
+                    )
             ) {
-                WrapIcon(
-                    iconData = AppIcons.IdCards,
-                    customTint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(32.dp)
+                // Decorative circles (top-right, brand element)
+                DecorativeCircles(
+                    modifier = Modifier.align(Alignment.TopEnd),
+                    color = MaterialTheme.colorScheme.tertiary
                 )
+
+                // Content
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Icon container
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        WrapIcon(
+                            iconData = AppIcons.Id,
+                            customTint = MaterialTheme.colorScheme.tertiary,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(20.dp))
+
+                    // Text content
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = stringResource(R.string.home_hero_empty_title),
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = (-0.5).sp
+                            ),
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = stringResource(R.string.home_hero_empty_description),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
+                            maxLines = 2
+                        )
+                    }
+
+                    // Arrow indicator
+                    WrapIcon(
+                        iconData = AppIcons.KeyboardArrowRight,
+                        customTint = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Title
-            Text(
-                text = stringResource(R.string.home_hero_empty_title),
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Description
-            Text(
-                text = stringResource(R.string.home_hero_empty_description),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
         }
+    }
+}
+
+/**
+ * Decorative circular pattern for premium card backgrounds.
+ * Creates subtle brand-aligned visual interest with varying circle sizes and opacities.
+ */
+@Composable
+private fun DecorativeCircles(
+    modifier: Modifier = Modifier,
+    color: Color
+) {
+    Canvas(
+        modifier = modifier
+            .size(120.dp)
+            .padding(12.dp)
+    ) {
+        // Large circle (outline)
+        drawCircle(
+            color = color.copy(alpha = 0.08f),
+            radius = 45.dp.toPx(),
+            center = Offset(size.width * 0.7f, size.height * 0.3f),
+            style = Stroke(width = 2.dp.toPx())
+        )
+        // Medium circle (filled)
+        drawCircle(
+            color = color.copy(alpha = 0.12f),
+            radius = 20.dp.toPx(),
+            center = Offset(size.width * 0.4f, size.height * 0.5f)
+        )
+        // Small circle (filled)
+        drawCircle(
+            color = color.copy(alpha = 0.1f),
+            radius = 8.dp.toPx(),
+            center = Offset(size.width * 0.85f, size.height * 0.65f)
+        )
     }
 }
 
@@ -1060,10 +1281,8 @@ private fun CredentialsSection(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = stringResource(R.string.dashboard_home_screen_credential_section),
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onSurface
+            GradientSectionTitle(
+                text = stringResource(R.string.dashboard_home_screen_credential_section)
             )
 
             TextButton(onClick = onViewAllClick) {
@@ -1086,41 +1305,11 @@ private fun CredentialsSection(
                 CircularProgressIndicator()
             }
         }
-        // Empty state message
+        // Premium empty state
         else if (showEmptyMessage) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = SPACING_LARGE.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.dashboard_home_screen_no_credentials),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-
-                    Button(
-                        onClick = onAddCredentialClick,
-                        modifier = Modifier
-                            .padding(top = SPACING_SMALL.dp)
-                    ) {
-                        WrapIcon(
-                            iconData = AppIcons.Add,
-                            customTint = MaterialTheme.colorScheme.onPrimary
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = stringResource(R.string.dashboard_quick_action_add_credential)
-                        )
-                    }
-                }
-            }
+            CredentialsEmptyState(
+                onAddCredentialClick = onAddCredentialClick
+            )
         }
         // Display credentials list
         else {
@@ -1131,6 +1320,184 @@ private fun CredentialsSection(
                         documents = documents,
                         onCredentialClick = onCredentialClick
                     )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Soft invitation empty state for credentials section.
+ * Differentiated from hero card with light surface treatment and dashed border.
+ * Creates visual hierarchy: Hero (bold) > Quick Actions (medium) > Empty States (soft)
+ */
+@Composable
+private fun CredentialsEmptyState(
+    onAddCredentialClick: () -> Unit
+) {
+    val view = LocalView.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.98f else 1f,
+        animationSpec = tween(durationMillis = 100),
+        label = "scale"
+    )
+
+    // Entrance animation
+    var isVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(100)
+        isVisible = true
+    }
+
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = fadeIn(tween(300)) + slideInVertically(
+            animationSpec = tween(300),
+            initialOffsetY = { it / 4 }
+        )
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .scale(scale)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = ripple(color = MaterialTheme.colorScheme.primary)
+                ) {
+                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    onAddCredentialClick()
+                },
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            border = BorderStroke(
+                width = 1.5.dp,
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                    )
+                )
+            ),
+            shadowElevation = 2.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 32.dp, horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Animated wallet illustration with floating + badge
+                Box(
+                    modifier = Modifier.size(80.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Soft glow background
+                    Box(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clip(CircleShape)
+                            .background(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f),
+                                        Color.Transparent
+                                    )
+                                )
+                            )
+                    )
+
+                    // Main icon container
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        WrapIcon(
+                            iconData = AppIcons.WalletOutline,
+                            customTint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+
+                    // Floating + badge
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .offset(x = 4.dp, y = 4.dp)
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        WrapIcon(
+                            iconData = AppIcons.Add,
+                            customTint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Title
+                Text(
+                    text = stringResource(R.string.dashboard_home_screen_no_credentials_title),
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Description
+                Text(
+                    text = stringResource(R.string.dashboard_home_screen_no_credentials),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Ghost-style CTA button (outlined)
+                Surface(
+                    onClick = {
+                        view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                        onAddCredentialClick()
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color.Transparent,
+                    border = BorderStroke(
+                        width = 1.5.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        WrapIcon(
+                            iconData = AppIcons.Add,
+                            customTint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = stringResource(R.string.dashboard_quick_action_add_credential),
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
         }
@@ -1188,6 +1555,8 @@ private fun HomeScreenContentPreview() {
             onBack = { },
             topBar = {
                 TopBar(
+                    notificationCount = 0,
+                    onNotificationsClick = {},
                     onEventSent = {}
                 )
             }

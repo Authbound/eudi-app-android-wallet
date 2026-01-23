@@ -120,6 +120,11 @@ class ThemeColors {
         // HSL: --border: 222 17% 44% -> #5F6A85
         internal const val eudiw_theme_light_divider: Long = 0xFF5F6A85
 
+        // Premium effect colors (light mode) - Authbound brand
+        internal const val eudiw_theme_light_shadow_navy: Long = 0x2E0A1A36      // 18% opacity navy shadow
+        internal const val eudiw_theme_light_glow_accent: Long = 0x403B82F6      // 25% opacity accent glow
+        internal const val eudiw_theme_light_glow_primary: Long = 0x330A1A36     // 20% opacity primary glow
+
         // Dark theme base colors palette - Updated to match Authbound global.css dark mode colors
         // HSL: --primary: 217 91% 60% -> #3B82F6 (dark mode primary)
         private const val eudiw_theme_dark_primary: Long = 0xFF3B82F6
@@ -205,6 +210,11 @@ class ThemeColors {
         internal const val eudiw_theme_dark_pending: Long = 0xFF3B82F6
         // HSL: --border: 222 17% 44% -> #5F6A85
         internal const val eudiw_theme_dark_divider: Long = 0xFF5F6A85
+
+        // Premium effect colors (dark mode) - Authbound brand
+        internal const val eudiw_theme_dark_shadow_navy: Long = 0x1A000000       // 10% opacity black shadow
+        internal const val eudiw_theme_dark_glow_accent: Long = 0x4D3B82F6       // 30% opacity accent glow
+        internal const val eudiw_theme_dark_glow_primary: Long = 0x263B82F6      // 15% opacity primary glow
 
         const val eudiw_theme_light_background_preview: Long =
             eudiw_theme_light_surface
@@ -354,6 +364,28 @@ class ThemeColors {
             } else {
                 Color(eudiw_theme_light_divider)
             }
+
+        // Premium effect colors - Authbound brand
+        val shadowNavy: Color
+            get() = if (isInDarkMode) {
+                Color(eudiw_theme_dark_shadow_navy)
+            } else {
+                Color(eudiw_theme_light_shadow_navy)
+            }
+
+        val glowAccent: Color
+            get() = if (isInDarkMode) {
+                Color(eudiw_theme_dark_glow_accent)
+            } else {
+                Color(eudiw_theme_light_glow_accent)
+            }
+
+        val glowPrimary: Color
+            get() = if (isInDarkMode) {
+                Color(eudiw_theme_dark_glow_primary)
+            } else {
+                Color(eudiw_theme_light_glow_primary)
+            }
     }
 }
 
@@ -383,4 +415,26 @@ val ColorScheme.divider: Color
         Color(ThemeColors.eudiw_theme_dark_divider)
     } else {
         Color(ThemeColors.eudiw_theme_light_divider)
+    }
+
+// Premium effect colors - Authbound brand
+val ColorScheme.shadowNavy: Color
+    @Composable get() = if (isSystemInDarkTheme()) {
+        Color(ThemeColors.eudiw_theme_dark_shadow_navy)
+    } else {
+        Color(ThemeColors.eudiw_theme_light_shadow_navy)
+    }
+
+val ColorScheme.glowAccent: Color
+    @Composable get() = if (isSystemInDarkTheme()) {
+        Color(ThemeColors.eudiw_theme_dark_glow_accent)
+    } else {
+        Color(ThemeColors.eudiw_theme_light_glow_accent)
+    }
+
+val ColorScheme.glowPrimary: Color
+    @Composable get() = if (isSystemInDarkTheme()) {
+        Color(ThemeColors.eudiw_theme_dark_glow_primary)
+    } else {
+        Color(ThemeColors.eudiw_theme_light_glow_primary)
     }

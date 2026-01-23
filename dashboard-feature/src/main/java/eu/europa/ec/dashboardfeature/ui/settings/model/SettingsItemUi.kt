@@ -29,5 +29,6 @@ enum class SettingsMenuItemType {
     CHANGE_PIN,
     RETRIEVE_LOGS,
     CHANGELOG,
+    RESET_HEALTH_DATA,
     DELETE_WALLET_ACTIVATION,
 }

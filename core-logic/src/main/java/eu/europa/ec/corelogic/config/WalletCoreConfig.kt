@@ -122,6 +122,9 @@ interface WalletCoreConfig {
                     DocumentIdentifier.OTHER(
                         formatType = "urn:eu.europa.ec.eudi:ehic:1"
                     ),
+                    DocumentIdentifier.OTHER(
+                        formatType = "fi.maisa.appointments"
+                    )
                 ),
                 DocumentCategory.SocialSecurity to listOf(
                     DocumentIdentifier.OTHER(

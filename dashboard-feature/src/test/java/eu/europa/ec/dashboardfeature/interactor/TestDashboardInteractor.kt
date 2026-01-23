@@ -16,6 +16,9 @@
 
 package eu.europa.ec.dashboardfeature.interactor
 
+import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
+import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
+import eu.europa.ec.dashboardfeature.ui.dashboard.model.SideMenuItemUi
 import eu.europa.ec.dashboardfeature.ui.dashboard.model.SideMenuTypeUi
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
@@ -38,6 +41,12 @@ class TestDashboardInteractor {
     @Mock
     private lateinit var resourceProvider: ResourceProvider
 
+    @Mock
+    private lateinit var getCurrentUserUseCase: GetCurrentUserUseCase
+
+    @Mock
+    private lateinit var getMyProfileUseCase: GetMyProfileUseCase
+
     private lateinit var interactor: DashboardInteractor
 
     private lateinit var closeable: AutoCloseable
@@ -45,9 +54,10 @@ class TestDashboardInteractor {
     @Before
     fun before() {
         closeable = MockitoAnnotations.openMocks(this)
-
         interactor = DashboardInteractorImpl(
             resourceProvider = resourceProvider,
+            getCurrentUserUseCase = getCurrentUserUseCase,
+            getMyProfileUseCase = getMyProfileUseCase,
         )
     }
 
@@ -58,48 +68,75 @@ class TestDashboardInteractor {
 
     //region getSideMenuOptions
     @Test
-    fun `When getSideMenuOptions is called, Then it returns two items with correct data`() {
-        // Arrange
+    fun `When getSideMenuOptions is called, Then it returns items with correct data`() {
         mockStringsNeededForGetSideMenuOptions(resourceProvider)
-
-        // When
         val sideMenuItems = interactor.getSideMenuOptions()
-
-        // Then
-        assertEquals(2, sideMenuItems.size)
-
-        // 1. First item: CHANGE_PIN
-        val firstItem = sideMenuItems[0]
-        assertEquals(SideMenuTypeUi.CHANGE_PIN, firstItem.type)
-        assertEquals(changePinIdString, firstItem.data.itemId)
-        val mainContent1 = firstItem.data.mainContentData as ListItemMainContentDataUi.Text
-        assertEquals(changePinText, mainContent1.text)
-        val leadingIcon1 = firstItem.data.leadingContentData as ListItemLeadingContentDataUi.Icon
-        assertEquals(AppIcons.ChangePin, leadingIcon1.iconData)
-        val trailingIcon1 = firstItem.data.trailingContentData as ListItemTrailingContentDataUi.Icon
-        assertEquals(AppIcons.KeyboardArrowRight, trailingIcon1.iconData)
-
-        // 2. Second item: SETTINGS
-        val secondItem = sideMenuItems[1]
-        assertEquals(SideMenuTypeUi.SETTINGS, secondItem.type)
-        assertEquals(settingsIdString, secondItem.data.itemId)
-        val mainContent2 = secondItem.data.mainContentData as ListItemMainContentDataUi.Text
-        assertEquals(settingsText, mainContent2.text)
-        val leadingIcon2 = secondItem.data.leadingContentData as ListItemLeadingContentDataUi.Icon
-        assertEquals(AppIcons.Settings, leadingIcon2.iconData)
-        val trailingIcon2 =
-            secondItem.data.trailingContentData as ListItemTrailingContentDataUi.Icon
-        assertEquals(AppIcons.KeyboardArrowRight, trailingIcon2.iconData)
-
-        // Verify that getString was called exactly once per resource ID
+        assertEquals(7, sideMenuItems.size)
+        val quickActionsHeaderItem = sideMenuItems[0] as SideMenuItemUi.Header
+        assertEquals(quickActionsHeaderText, quickActionsHeaderItem.title)
+        val authenticateItem = sideMenuItems[1] as SideMenuItemUi.ActionItem
+        assertEquals(SideMenuTypeUi.AUTHENTICATE, authenticateItem.type)
+        assertEquals("authenticate", authenticateItem.data.itemId)
+        val authenticateMain = authenticateItem.data.mainContentData as ListItemMainContentDataUi.Text
+        assertEquals(authenticateText, authenticateMain.text)
+        val authenticateLeading =
+            authenticateItem.data.leadingContentData as ListItemLeadingContentDataUi.Icon
+        assertEquals(AppIcons.TouchId, authenticateLeading.iconData)
+        val authenticateTrailing =
+            authenticateItem.data.trailingContentData as ListItemTrailingContentDataUi.Icon
+        assertEquals(AppIcons.KeyboardArrowRight, authenticateTrailing.iconData)
+        val addDocumentItem = sideMenuItems[2] as SideMenuItemUi.ActionItem
+        assertEquals(SideMenuTypeUi.ADD_DOCUMENT, addDocumentItem.type)
+        assertEquals("add_document", addDocumentItem.data.itemId)
+        val addDocumentMain = addDocumentItem.data.mainContentData as ListItemMainContentDataUi.Text
+        assertEquals(addDocumentText, addDocumentMain.text)
+        val addDocumentLeading =
+            addDocumentItem.data.leadingContentData as ListItemLeadingContentDataUi.Icon
+        assertEquals(AppIcons.Id, addDocumentLeading.iconData)
+        val addDocumentTrailing =
+            addDocumentItem.data.trailingContentData as ListItemTrailingContentDataUi.Icon
+        assertEquals(AppIcons.KeyboardArrowRight, addDocumentTrailing.iconData)
+        val verifyItem = sideMenuItems[3] as SideMenuItemUi.ActionItem
+        assertEquals(SideMenuTypeUi.VERIFY, verifyItem.type)
+        assertEquals("verify", verifyItem.data.itemId)
+        val verifyMain = verifyItem.data.mainContentData as ListItemMainContentDataUi.Text
+        assertEquals(verifyText, verifyMain.text)
+        val verifyLeading = verifyItem.data.leadingContentData as ListItemLeadingContentDataUi.Icon
+        assertEquals(AppIcons.Verified, verifyLeading.iconData)
+        val verifyTrailing = verifyItem.data.trailingContentData as ListItemTrailingContentDataUi.Icon
+        assertEquals(AppIcons.KeyboardArrowRight, verifyTrailing.iconData)
+        val signItem = sideMenuItems[4] as SideMenuItemUi.ActionItem
+        assertEquals(SideMenuTypeUi.SIGN, signItem.type)
+        assertEquals("sign_document", signItem.data.itemId)
+        assertEquals(false, signItem.isEnabled)
+        val signMain = signItem.data.mainContentData as ListItemMainContentDataUi.Text
+        assertEquals(signText, signMain.text)
+        val signLeading = signItem.data.leadingContentData as ListItemLeadingContentDataUi.Icon
+        assertEquals(AppIcons.Sign, signLeading.iconData)
+        val signTrailing =
+            signItem.data.trailingContentData as ListItemTrailingContentDataUi.TextWithIcon
+        assertEquals(comingSoonText, signTrailing.text)
+        assertEquals(AppIcons.KeyboardArrowRight, signTrailing.iconData)
+        val profileHeaderItem = sideMenuItems[5] as SideMenuItemUi.Header
+        assertEquals(profileHeaderText, profileHeaderItem.title)
+        val profileItem = sideMenuItems[6] as SideMenuItemUi.ActionItem
+        assertEquals(SideMenuTypeUi.PROFILE, profileItem.type)
+        assertEquals(profileIdString, profileItem.data.itemId)
+        val profileMain = profileItem.data.mainContentData as ListItemMainContentDataUi.Text
+        assertEquals(profileText, profileMain.text)
+        val profileLeading = profileItem.data.leadingContentData as ListItemLeadingContentDataUi.Icon
+        assertEquals(AppIcons.UserIcon, profileLeading.iconData)
+        val profileTrailing = profileItem.data.trailingContentData as ListItemTrailingContentDataUi.Icon
+        assertEquals(AppIcons.KeyboardArrowRight, profileTrailing.iconData)
+        verify(resourceProvider, times(1)).getString(R.string.home_screen_quick_actions)
+        verify(resourceProvider, times(1)).getString(R.string.home_screen_authenticate)
         verify(resourceProvider, times(1))
-            .getString(R.string.dashboard_side_menu_option_change_pin_id)
-        verify(resourceProvider, times(1))
-            .getString(R.string.dashboard_side_menu_option_change_pin)
-        verify(resourceProvider, times(1))
-            .getString(R.string.dashboard_side_menu_option_settings_id)
-        verify(resourceProvider, times(1))
-            .getString(R.string.dashboard_side_menu_option_settings)
+            .getString(R.string.dashboard_quick_action_add_credential)
+        verify(resourceProvider, times(1)).getString(R.string.verification_quick_action_title)
+        verify(resourceProvider, times(1)).getString(R.string.home_screen_sign)
+        verify(resourceProvider, times(1)).getString(R.string.coming_soon_badge)
+        verify(resourceProvider, times(2)).getString(R.string.dashboard_side_menu_option_profile)
+        verify(resourceProvider, times(1)).getString(R.string.dashboard_side_menu_option_profile_id)
     }
     //endregion
 
@@ -108,19 +145,28 @@ class TestDashboardInteractor {
         mockResourceProviderStrings(
             resourcesProvider,
             listOf(
-                R.string.dashboard_side_menu_option_change_pin_id to changePinIdString,
-                R.string.dashboard_side_menu_option_change_pin to changePinText,
-                R.string.dashboard_side_menu_option_settings_id to settingsIdString,
-                R.string.dashboard_side_menu_option_settings to settingsText,
+                R.string.home_screen_quick_actions to quickActionsHeaderText,
+                R.string.home_screen_authenticate to authenticateText,
+                R.string.dashboard_quick_action_add_credential to addDocumentText,
+                R.string.verification_quick_action_title to verifyText,
+                R.string.home_screen_sign to signText,
+                R.string.coming_soon_badge to comingSoonText,
+                R.string.dashboard_side_menu_option_profile to profileText,
+                R.string.dashboard_side_menu_option_profile_id to profileIdString,
             )
         )
     }
     //endregion
 
     //region Mocked objects needed for tests.
-    private val changePinIdString = "changePinId"
-    private val changePinText = "Change PIN"
-    private val settingsIdString = "settingsId"
-    private val settingsText = "Settings"
+    private val quickActionsHeaderText = "Quick Actions"
+    private val authenticateText = "Authenticate"
+    private val addDocumentText = "Add document"
+    private val verifyText = "Verify"
+    private val signText = "Sign"
+    private val comingSoonText = "Coming soon"
+    private val profileHeaderText = "Profile"
+    private val profileIdString = "profileId"
+    private val profileText = "Profile"
     //endregion
 }

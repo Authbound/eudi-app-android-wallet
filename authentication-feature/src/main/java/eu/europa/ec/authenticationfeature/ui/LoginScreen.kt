@@ -96,12 +96,6 @@ import eu.europa.ec.uilogic.component.wrap.ButtonType
 import eu.europa.ec.uilogic.component.wrap.WrapButton
 import kotlinx.coroutines.flow.collectLatest
 
-sealed class NavigationSource {
-    data object FROM_LOGIN : NavigationSource()
-    data object DIRECT : NavigationSource()
-    data object UNKNOWN : NavigationSource()
-}
-
 @Composable
 fun LoginScreen(
     viewModel: AuthenticationViewModel,

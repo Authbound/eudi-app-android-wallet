@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -401,6 +402,12 @@ object AppIcons {
         imageVector = null
     )
 
+    val WalletOutline: IconDataUi = IconDataUi(
+        resourceId = null,
+        contentDescriptionId = R.string.content_description_wallet_secured_icon,
+        imageVector = Icons.Outlined.AccountBalanceWallet
+    )
+
     val Info: IconDataUi = IconDataUi(
         resourceId = R.drawable.ic_info,
         contentDescriptionId = R.string.content_description_info_icon,
@@ -464,6 +471,48 @@ object AppIcons {
     val Inbox: IconDataUi = IconDataUi(
         resourceId = R.drawable.ic_inbox,
         contentDescriptionId = R.string.content_description_inbox_icon,
+        imageVector = null
+    )
+
+    val Health: IconDataUi = IconDataUi(
+        resourceId = R.drawable.ic_health,
+        contentDescriptionId = R.string.content_description_health_icon,
+        imageVector = null
+    )
+
+    val Medication: IconDataUi = IconDataUi(
+        resourceId = R.drawable.ic_medication,
+        contentDescriptionId = R.string.content_description_medication_icon,
+        imageVector = null
+    )
+
+    val Prescription: IconDataUi = IconDataUi(
+        resourceId = R.drawable.ic_prescription,
+        contentDescriptionId = R.string.content_description_prescription_icon,
+        imageVector = null
+    )
+
+    val HealthRecord: IconDataUi = IconDataUi(
+        resourceId = R.drawable.ic_health_record,
+        contentDescriptionId = R.string.content_description_health_record_icon,
+        imageVector = null
+    )
+
+    val Vaccination: IconDataUi = IconDataUi(
+        resourceId = R.drawable.ic_vaccination,
+        contentDescriptionId = R.string.content_description_vaccination_icon,
+        imageVector = null
+    )
+
+    val Share: IconDataUi = IconDataUi(
+        resourceId = R.drawable.ic_share,
+        contentDescriptionId = R.string.content_description_share_icon,
+        imageVector = null
+    )
+
+    val Refresh: IconDataUi = IconDataUi(
+        resourceId = R.drawable.ic_refresh,
+        contentDescriptionId = R.string.content_description_refresh_icon,
         imageVector = null
     )
 }

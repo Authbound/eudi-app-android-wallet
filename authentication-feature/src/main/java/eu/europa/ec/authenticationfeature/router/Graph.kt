@@ -19,6 +19,7 @@ package eu.europa.ec.authenticationfeature.router
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
+import eu.europa.ec.authenticationfeature.ui.DeviceSecurityRequiredScreen
 import eu.europa.ec.authenticationfeature.ui.LoginScreen
 import eu.europa.ec.authenticationfeature.ui.ProfileCompletionScreen
 import eu.europa.ec.authenticationfeature.ui.WalletSetupScreen
@@ -47,7 +48,7 @@ fun NavGraphBuilder.featureAuthenticationGraph(navController: NavController) {
                 }
             },
             onNavigateToWalletSetup = {
-                navController.navigate(AuthenticationScreens.WalletSetup.screenRoute)
+                navController.navigate(AuthenticationScreens.DeviceSecurityRequired.screenRoute)
             },
             onNavigateToProfileCompletion = {
                 navController.navigate(AuthenticationScreens.ProfileCompletion.screenRoute)
@@ -61,8 +62,30 @@ fun NavGraphBuilder.featureAuthenticationGraph(navController: NavController) {
         ProfileCompletionScreen(
             viewModel = koinViewModel(),
             onNavigateToWalletSetup = {
-                navController.navigate(AuthenticationScreens.WalletSetup.screenRoute) {
+                navController.navigate(AuthenticationScreens.DeviceSecurityRequired.screenRoute) {
                     popUpTo(AuthenticationScreens.ProfileCompletion.screenRoute) {
+                        inclusive = true
+                    }
+                }
+            },
+            onNavigateToLogin = {
+                navController.navigate(AuthenticationScreens.Login.screenRoute) {
+                    popUpTo(0) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
+        )
+    }
+
+    composable(
+        route = AuthenticationScreens.DeviceSecurityRequired.screenRoute,
+    ) {
+        val logController = koinInject<eu.europa.ec.businesslogic.controller.log.LogController>()
+        DeviceSecurityRequiredScreen(
+            logController = logController,
+            onNavigateToWalletSetup = {
+                navController.navigate(AuthenticationScreens.WalletSetup.screenRoute) {
+                    popUpTo(AuthenticationScreens.DeviceSecurityRequired.screenRoute) {
                         inclusive = true
                     }
                 }
@@ -80,7 +103,6 @@ fun NavGraphBuilder.featureAuthenticationGraph(navController: NavController) {
         route = AuthenticationScreens.WalletSetup.screenRoute,
     ) {
         val logController = koinInject<eu.europa.ec.businesslogic.controller.log.LogController>()
-        
         WalletSetupScreen(
             logController = logController,
             onNavigateToHome = {
@@ -93,6 +115,13 @@ fun NavGraphBuilder.featureAuthenticationGraph(navController: NavController) {
                 navController.navigate(AuthenticationScreens.Login.screenRoute) {
                     popUpTo(0) { inclusive = true }
                     launchSingleTop = true
+                }
+            },
+            onNavigateToDeviceSecurity = {
+                navController.navigate(AuthenticationScreens.DeviceSecurityRequired.screenRoute) {
+                    popUpTo(AuthenticationScreens.WalletSetup.screenRoute) {
+                        inclusive = true
+                    }
                 }
             }
         )

@@ -43,11 +43,10 @@ private typealias PinCode = String
 
 data class State(
     val offerCodeUiConfig: OfferCodeUiConfig,
-
+    val autoSubmitPin: String? = null,
     val isLoading: Boolean = false,
     val error: ContentErrorConfig? = null,
     val notifyOnAuthenticationFailure: Boolean = false,
-
     val screenTitle: String,
     val screenSubtitle: String
 ) : ViewState
@@ -84,6 +83,7 @@ class DocumentOfferCodeViewModel(
         ) ?: throw RuntimeException("OfferCodeUiConfig:: is Missing or invalid")
         return State(
             offerCodeUiConfig = deserializedOfferCodeUiConfig,
+            autoSubmitPin = resolveAutoSubmitPin(deserializedOfferCodeUiConfig.offerURI),
             screenTitle = calculateScreenTitle(issuerName = deserializedOfferCodeUiConfig.issuerName),
             screenSubtitle = calculateScreenCaption(txCodeLength = deserializedOfferCodeUiConfig.txCodeLength)
         )
@@ -196,6 +196,14 @@ class DocumentOfferCodeViewModel(
                     )
                 )
             )
+        }
+    }
+
+    private fun resolveAutoSubmitPin(offerUri: String): String? {
+        return if (offerUri.contains("oid4vc.igrant.io")) {
+            "1234"
+        } else {
+            null
         }
     }
 

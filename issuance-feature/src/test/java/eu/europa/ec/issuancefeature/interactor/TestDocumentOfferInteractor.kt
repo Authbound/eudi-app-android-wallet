@@ -18,6 +18,7 @@ package eu.europa.ec.issuancefeature.interactor
 
 import android.content.Context
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricsAvailability
+import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.authenticationlogic.controller.authentication.DeviceAuthenticationResult
 import eu.europa.ec.authenticationlogic.model.BiometricCrypto
 import eu.europa.ec.commonfeature.config.SuccessUIConfig
@@ -111,6 +112,9 @@ class TestDocumentOfferInteractor {
     private lateinit var uiSerializer: UiSerializer
 
     @Mock
+    private lateinit var logController: LogController
+
+    @Mock
     private lateinit var resultHandler: DeviceAuthenticationResult
 
     @Mock
@@ -130,7 +134,8 @@ class TestDocumentOfferInteractor {
             walletCoreDocumentsController = walletCoreDocumentsController,
             deviceAuthenticationInteractor = deviceAuthenticationInteractor,
             resourceProvider = resourceProvider,
-            uiSerializer = uiSerializer
+            uiSerializer = uiSerializer,
+            logController = logController
         )
         biometricCrypto = BiometricCrypto(cryptoObject = null)
 
@@ -327,7 +332,10 @@ class TestDocumentOfferInteractor {
                     issuerName = mockedIssuerName,
                     txCodeLength = mockedTxCodeFourDigits,
                     issuerLogo = null,
+                    offer = mockedOffer
                 )
+
+
                 // Then
                 assertEquals(expectedResult, awaitItem())
             }
@@ -398,8 +406,10 @@ class TestDocumentOfferInteractor {
     // 4. System Locale is supported by Metadata.
 
     // Case 6 Expected Result:
-    // ResolveDocumentOfferInteractorPartialState.Failure state, with:
-    // - an invalid wallet activation error message
+    // ResolveDocumentOfferInteractorPartialState.Success state, with:
+    // - DocumentUiItem list, with remote document names
+    // - issuer name
+    // - and txCodeLength
     @Test
     fun `Given Case 6, When resolveDocumentOffer is called, Then Case 6 Expected Result is returned`() =
         coroutineRule.runTest {
@@ -413,16 +423,22 @@ class TestDocumentOfferInteractor {
                 mainPid = null
             )
 
-            whenever(resourceProvider.getString(R.string.issuance_document_offer_error_missing_pid_text))
-                .thenReturn(mockedWalletActivationErrorMessage)
             mockWalletDocumentsControllerResolveOfferEventEmission(
                 event = ResolveDocumentOfferPartialState.Success(mockedOffer)
             )
 
             // When
             interactor.resolveDocumentOffer(mockedUriPath1).runFlowTest {
-                val expectedResult = ResolveDocumentOfferInteractorPartialState.Failure(
-                    errorMessage = mockedWalletActivationErrorMessage
+                val expectedDocumentsUiList = listOf(
+                    DocumentOfferUi(
+                        title = mockedOfferedDocumentName,
+                    )
+                )
+                val expectedResult = ResolveDocumentOfferInteractorPartialState.Success(
+                    documents = expectedDocumentsUiList,
+                    issuerName = mockedIssuerName,
+                    txCodeLength = mockedOffer.txCodeSpec?.length,
+                    issuerLogo = null,
                 )
                 // Then
                 assertEquals(expectedResult, awaitItem())

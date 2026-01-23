@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -67,6 +68,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import eu.europa.ec.dashboardfeature.ui.settings.model.SettingsItemUi
 import eu.europa.ec.dashboardfeature.ui.settings.model.SettingsMenuItemType
+import eu.europa.ec.dashboardfeature.ui.component.NotificationIconButton
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.ListItemDataUi
@@ -100,6 +102,8 @@ import eu.europa.ec.authenticationlogic.model.Profile
 fun SettingsScreen(
     navController: NavController,
     viewModel: SettingsViewModel,
+    notificationCount: Int = 0,
+    onNotificationsClick: () -> Unit = {},
 ) {
     val state: State by viewModel.viewState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -107,7 +111,13 @@ fun SettingsScreen(
     ContentScreen(
         navigatableAction = ScreenNavigateAction.NONE,
         isLoading = false,
-        onBack = { viewModel.setEvent(Event.Pop) }
+        onBack = { viewModel.setEvent(Event.Pop) },
+        topBar = {
+            TopBar(
+                notificationCount = notificationCount,
+                onNotificationsClick = onNotificationsClick
+            )
+        }
     ) { paddingValues ->
         Content(
             state = state,
@@ -139,6 +149,34 @@ private fun handleNavigationEffect(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun TopBar(
+    notificationCount: Int,
+    onNotificationsClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                horizontal = SPACING_SMALL.dp,
+                vertical = 4.dp
+            )
+    ) {
+        Text(
+            modifier = Modifier.align(Alignment.Center),
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.headlineMedium,
+            text = stringResource(R.string.settings_screen_title)
+        )
+        NotificationIconButton(
+            modifier = Modifier.align(Alignment.CenterEnd),
+            badgeCount = notificationCount,
+            onClick = onNotificationsClick,
+        )
     }
 }
 
@@ -248,6 +286,9 @@ private fun Content(
                         effect.intent,
                         effect.chooserTitle
                     )
+                }
+                is Effect.ShowToast -> {
+                    Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
                 }
             }
         }.collect()

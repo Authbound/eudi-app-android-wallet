@@ -1,0 +1,25 @@
+<!--
+  ~ Copyright (c) 2025 European Commission
+  ~
+  ~ Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
+  ~ Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
+  ~ except in compliance with the Licence.
+  ~
+  ~ You may obtain a copy of the Licence at:
+  ~ https://joinup.ec.europa.eu/software/page/eupl
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software distributed under
+  ~ the Licence is distributed on an "AS IS" basis, WITHOUT WARRANTIES OR CONDITIONS OF
+  ~ ANY KIND, either express or implied. See the Licence for the specific language
+  ~ governing permissions and limitations under the Licence.
+  -->
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#49454F"
+        android:pathData="M4.22,11.29L11.29,4.22C12.07,3.44 13.34,3.44 14.12,4.22L19.78,9.88C20.56,10.66 20.56,11.93 19.78,12.71L12.71,19.78C11.93,20.56 10.66,20.56 9.88,19.78L4.22,14.12C3.44,13.34 3.44,12.07 4.22,11.29ZM5.64,12.71L10.29,17.36L12.71,14.95L8.05,10.29L5.64,12.71ZM9.47,8.88L14.12,13.53L17.95,9.71L13.29,5.05L9.47,8.88Z"/>
+</vector>

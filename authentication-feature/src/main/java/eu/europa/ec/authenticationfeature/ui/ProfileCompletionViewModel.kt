@@ -23,6 +23,7 @@ import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.device.DeviceController
+import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
 import eu.europa.ec.walletactivationlogic.usecase.CreateWalletAttestationUseCase
 import eu.europa.ec.notificationlogic.controller.UserScopedPushNotificationController
 import eu.europa.ec.businesslogic.model.error.WalletActivationError
@@ -79,6 +80,7 @@ class ProfileCompletionViewModel(
     private val userScopedPushNotificationController: UserScopedPushNotificationController,
     private val deviceController: DeviceController,
     private val signOutUseCase: SignOutUseCase,
+    private val prefKeys: PrefKeysV2,
     private val logController: LogController
 ) : MviViewModel<ProfileCompletionEvent, ProfileCompletionState, ProfileCompletionEffect>() {
 
@@ -143,20 +145,26 @@ class ProfileCompletionViewModel(
             completeProfileUseCase(request)
                 .onSuccess {
                     logController.d("ProfileCompletion", "Profile completed successfully")
+                    try {
+                        prefKeys.setProfileCompleted(true)
+                    } catch (e: Exception) {
+                        logController.w("ProfileCompletion") { "Failed to cache profile completion: ${e.message}" }
+                    }
                     setState { copy(wuaCreationStep = "Creating wallet attestation...") }
                     createWalletAttestation()
                 }
                 .onFailure { error ->
                     logController.e("ProfileCompletion", error)
                     val walletError = error.toWalletActivationError()
-                    setState { 
+                    setState {
                         copy(
-                            isLoading = false, 
-                            isCreatingWUA = false, 
+                            isLoading = false,
+                            isCreatingWUA = false,
+                            wuaCreationStep = "", // Reset step indicator on failure
                             error = error.message,
                             lastError = walletError,
                             canRetry = false // Profile completion errors are not retryable
-                        ) 
+                        )
                     }
                     setEffect { ProfileCompletionEffect.ShowError(walletError.getUserFriendlyMessage()) }
                 }

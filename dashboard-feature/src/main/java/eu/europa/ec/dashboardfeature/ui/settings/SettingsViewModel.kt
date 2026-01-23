@@ -80,6 +80,7 @@ sealed class Effect : ViewSideEffect {
     }
 
     data class ShareLogFile(val intent: Intent, val chooserTitle: String) : Effect()
+    data class ShowToast(val message: String) : Effect()
 }
 
 @KoinViewModel
@@ -236,6 +237,10 @@ class SettingsViewModel(
                 }
             }
 
+            SettingsMenuItemType.RESET_HEALTH_DATA -> {
+                resetHealthData()
+            }
+
             SettingsMenuItemType.DELETE_WALLET_ACTIVATION -> {
                 setState { copy(showDeleteWalletConfirmation = true) }
             }
@@ -267,5 +272,27 @@ class SettingsViewModel(
 
     private fun dismissDeleteConfirmation() {
         setState { copy(showDeleteWalletConfirmation = false) }
+    }
+
+    private fun resetHealthData() {
+        viewModelScope.launch {
+            settingsInteractor.resetHealthData().fold(
+                onSuccess = {
+                    setEffect {
+                        Effect.ShowToast(
+                            resourceProvider.getString(R.string.settings_reset_health_data_success)
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    setEffect {
+                        Effect.ShowToast(
+                            error.localizedMessage
+                                ?: resourceProvider.getString(R.string.settings_reset_health_data_error)
+                        )
+                    }
+                }
+            )
+        }
     }
 }

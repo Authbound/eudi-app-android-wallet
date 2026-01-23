@@ -28,6 +28,7 @@ import eu.europa.ec.businesslogic.model.error.toWalletActivationError
 import eu.europa.ec.authenticationlogic.usecase.SignOutMode
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.businesslogic.controller.device.DeviceController
+import eu.europa.ec.businesslogic.controller.device.DeviceSecurityState
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
 import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
@@ -95,6 +96,7 @@ sealed class WalletSetupEvent : ViewEvent {
 sealed class WalletSetupEffect : ViewSideEffect {
     data object NavigateToHome : WalletSetupEffect()
     data object NavigateToLogin : WalletSetupEffect()
+    data object NavigateToDeviceSecurity : WalletSetupEffect()
     data class ShowError(val message: String) : WalletSetupEffect()
 }
 
@@ -176,6 +178,9 @@ class WalletSetupViewModel(
         }
 
         viewModelScope.launch {
+            if (!ensureDeviceSecurityReady()) {
+                return@launch
+            }
             setState {
                 copy(
                     isActivating = true,
@@ -188,7 +193,6 @@ class WalletSetupViewModel(
                 )
             }
             try {
-                // Step 1: Register for push notifications
                 val pushToken =
                     pushNotificationController.registerForPushNotifications().getOrThrow()
                 val deviceInfo = getCombinedDeviceInfo()
@@ -364,10 +368,28 @@ class WalletSetupViewModel(
     private fun getCombinedDeviceInfo(): DeviceInfo {
         val basicDeviceInfo = deviceController.getDeviceInfo()
         val hasBiometricHardware = biometricAuthenticationController.hasBiometricHardware()
-        
         return basicDeviceInfo.copy(
             hasBiometricHardware = hasBiometricHardware
         )
+    }
+
+    private suspend fun ensureDeviceSecurityReady(): Boolean {
+        val securityState: DeviceSecurityState = deviceController.getDeviceSecurityState()
+        if (securityState.isReady) {
+            return true
+        }
+        logController.w("WalletSetupViewModel") { "Device security missing, redirecting to setup" }
+        setState {
+            copy(
+                isActivating = false,
+                activationError = null,
+                currentStep = ActivationStep.IDLE,
+                autoRetrying = false,
+                autoRetryAttempt = 0
+            )
+        }
+        setEffect { WalletSetupEffect.NavigateToDeviceSecurity }
+        return false
     }
 
     private fun handleCancelSetup() {

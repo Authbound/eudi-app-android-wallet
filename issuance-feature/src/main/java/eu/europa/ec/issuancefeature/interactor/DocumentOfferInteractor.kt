@@ -18,6 +18,7 @@ package eu.europa.ec.issuancefeature.interactor
 
 import android.content.Context
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricsAvailability
+import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.authenticationlogic.controller.authentication.DeviceAuthenticationResult
 import eu.europa.ec.authenticationlogic.model.BiometricCrypto
 import eu.europa.ec.businesslogic.extension.safeAsync
@@ -34,6 +35,7 @@ import eu.europa.ec.corelogic.extension.getName
 import eu.europa.ec.corelogic.model.DocumentIdentifier
 import eu.europa.ec.eudi.openid4vci.TxCodeInputMode
 import eu.europa.ec.eudi.wallet.document.DocumentId
+import eu.europa.ec.eudi.wallet.issue.openid4vci.Offer
 import eu.europa.ec.issuancefeature.ui.offer.model.DocumentOfferUi
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
@@ -55,7 +57,8 @@ sealed class ResolveDocumentOfferInteractorPartialState {
         val documents: List<DocumentOfferUi>,
         val issuerName: String,
         val issuerLogo: URI?,
-        val txCodeLength: Int?
+        val txCodeLength: Int?,
+        val offer: Offer
     ) : ResolveDocumentOfferInteractorPartialState()
 
     data class NoDocument(
@@ -93,6 +96,13 @@ interface DocumentOfferInteractor {
         txCode: String? = null
     ): Flow<IssueDocumentsInteractorPartialState>
 
+    fun issueDocumentsFromOffer(
+        offer: Offer,
+        issuerName: String,
+        navigation: ConfigNavigation,
+        txCode: String? = null
+    ): Flow<IssueDocumentsInteractorPartialState>
+
     fun handleUserAuthentication(
         context: Context,
         crypto: BiometricCrypto,
@@ -107,7 +117,8 @@ class DocumentOfferInteractorImpl(
     private val walletCoreDocumentsController: WalletCoreDocumentsController,
     private val deviceAuthenticationInteractor: DeviceAuthenticationInteractor,
     private val resourceProvider: ResourceProvider,
-    private val uiSerializer: UiSerializer
+    private val uiSerializer: UiSerializer,
+    private val logController: LogController
 ) : DocumentOfferInteractor {
 
     private val genericErrorMsg
@@ -115,15 +126,17 @@ class DocumentOfferInteractorImpl(
 
     override fun resolveDocumentOffer(offerUri: String): Flow<ResolveDocumentOfferInteractorPartialState> =
         flow {
+            logController.d("DocumentOfferInteractor", "resolveDocumentOffer started offerUri=$offerUri")
             val userLocale = resourceProvider.getLocale()
             walletCoreDocumentsController.resolveDocumentOffer(
                 offerUri = offerUri
             ).map { response ->
+                logController.d("DocumentOfferInteractor", "resolveDocumentOffer response=${response::class.simpleName}")
                 when (response) {
                     is ResolveDocumentOfferPartialState.Failure -> {
+                        logController.e("DocumentOfferInteractor") { "resolveDocumentOffer failure: ${response.errorMessage}" }
                         ResolveDocumentOfferInteractorPartialState.Failure(errorMessage = response.errorMessage)
                     }
-
                     is ResolveDocumentOfferPartialState.Success -> {
                         val offerHasNoDocuments = response.offer.offeredDocuments.isEmpty()
                         if (offerHasNoDocuments) {
@@ -132,15 +145,12 @@ class DocumentOfferInteractorImpl(
                                 issuerLogo = response.offer.getIssuerLogo(userLocale),
                             )
                         } else {
-
                             val codeMinLength = 4
                             val codeMaxLength = 6
-
                             safeLet(
                                 response.offer.txCodeSpec?.inputMode,
                                 response.offer.txCodeSpec?.length
                             ) { inputMode, length ->
-
                                 if ((length !in codeMinLength..codeMaxLength) || inputMode == TxCodeInputMode.TEXT) {
                                     return@map ResolveDocumentOfferInteractorPartialState.Failure(
                                         errorMessage = resourceProvider.getString(
@@ -151,18 +161,24 @@ class DocumentOfferInteractorImpl(
                                     )
                                 }
                             }
-
                             val hasMainPid =
                                 walletCoreDocumentsController.getMainPidDocument() != null
-
                             val hasPidInOffer =
                                 response.offer.offeredDocuments.any { offeredDocument ->
                                     val id = offeredDocument.documentIdentifier
                                     id == DocumentIdentifier.MdocPid || id == DocumentIdentifier.SdJwtPid
                                 }
-
-                            if (hasMainPid || hasPidInOffer) {
-
+                            val offerHasOnlyNonPidDocuments =
+                                response.offer.offeredDocuments.isNotEmpty() &&
+                                    response.offer.offeredDocuments.none { offeredDocument ->
+                                        val id = offeredDocument.documentIdentifier
+                                        id == DocumentIdentifier.MdocPid || id == DocumentIdentifier.SdJwtPid
+                                    }
+                            if (hasMainPid || hasPidInOffer || offerHasOnlyNonPidDocuments) {
+                                logController.d(
+                                    "DocumentOfferInteractor",
+                                    "resolveDocumentOffer parsed issuer=${response.offer.credentialOffer.credentialIssuerIdentifier} txCode=${response.offer.txCodeSpec?.length} grants=${response.offer.credentialOffer.grants}"
+                                )
                                 ResolveDocumentOfferInteractorPartialState.Success(
                                     documents = response.offer.offeredDocuments.map { offeredDocument ->
                                         DocumentOfferUi(
@@ -171,7 +187,8 @@ class DocumentOfferInteractorImpl(
                                     },
                                     issuerName = response.offer.getIssuerName(userLocale),
                                     issuerLogo = response.offer.getIssuerLogo(userLocale),
-                                    txCodeLength = response.offer.txCodeSpec?.length
+                                    txCodeLength = response.offer.txCodeSpec?.length,
+                                    offer = response.offer
                                 )
                             } else {
                                 ResolveDocumentOfferInteractorPartialState.Failure(
@@ -187,6 +204,7 @@ class DocumentOfferInteractorImpl(
                 emit(it)
             }
         }.safeAsync {
+            logController.e("DocumentOfferInteractor") { "resolveDocumentOffer exception: ${it.message}" }
             ResolveDocumentOfferInteractorPartialState.Failure(
                 errorMessage = it.localizedMessage ?: genericErrorMsg
             )
@@ -199,34 +217,33 @@ class DocumentOfferInteractorImpl(
         txCode: String?
     ): Flow<IssueDocumentsInteractorPartialState> =
         flow {
+            logController.d("DocumentOfferInteractor", "issueDocuments started offerUri=$offerUri txCodeProvided=${!txCode.isNullOrBlank()}")
             walletCoreDocumentsController.issueDocumentsByOfferUri(
                 offerUri = offerUri,
                 txCode = txCode
             ).map { response ->
+                logController.d("DocumentOfferInteractor", "issueDocuments response=${response::class.simpleName}")
                 when (response) {
                     is IssueDocumentsPartialState.Failure -> {
+                        logController.e("DocumentOfferInteractor") { "issueDocuments failure: ${response.errorMessage}" }
                         IssueDocumentsInteractorPartialState.Failure(errorMessage = response.errorMessage)
                     }
-
                     is IssueDocumentsPartialState.PartialSuccess -> {
                         IssueDocumentsInteractorPartialState.Success(
                             documentIds = response.documentIds
                         )
                     }
-
                     is IssueDocumentsPartialState.Success -> {
                         IssueDocumentsInteractorPartialState.Success(
                             documentIds = response.documentIds
                         )
                     }
-
                     is IssueDocumentsPartialState.UserAuthRequired -> {
                         IssueDocumentsInteractorPartialState.UserAuthRequired(
                             crypto = response.crypto,
                             resultHandler = response.resultHandler
                         )
                     }
-
                     is IssueDocumentsPartialState.DeferredSuccess -> {
                         IssueDocumentsInteractorPartialState.DeferredSuccess(
                             successRoute = buildGenericSuccessRouteForDeferred(
@@ -243,6 +260,63 @@ class DocumentOfferInteractorImpl(
                 emit(it)
             }
         }.safeAsync {
+            logController.e("DocumentOfferInteractor") { "issueDocuments exception: ${it.message}" }
+            IssueDocumentsInteractorPartialState.Failure(
+                errorMessage = it.localizedMessage ?: genericErrorMsg
+            )
+        }
+
+    override fun issueDocumentsFromOffer(
+        offer: Offer,
+        issuerName: String,
+        navigation: ConfigNavigation,
+        txCode: String?
+    ): Flow<IssueDocumentsInteractorPartialState> =
+        flow {
+            logController.d("DocumentOfferInteractor", "issueDocumentsFromOffer started txCodeProvided=${!txCode.isNullOrBlank()}")
+            walletCoreDocumentsController.issueDocumentsByOffer(
+                offer = offer,
+                txCode = txCode
+            ).map { response ->
+                logController.d("DocumentOfferInteractor", "issueDocumentsFromOffer response=${response::class.simpleName}")
+                when (response) {
+                    is IssueDocumentsPartialState.Failure -> {
+                        logController.e("DocumentOfferInteractor") { "issueDocumentsFromOffer failure: ${response.errorMessage}" }
+                        IssueDocumentsInteractorPartialState.Failure(errorMessage = response.errorMessage)
+                    }
+                    is IssueDocumentsPartialState.PartialSuccess -> {
+                        IssueDocumentsInteractorPartialState.Success(
+                            documentIds = response.documentIds
+                        )
+                    }
+                    is IssueDocumentsPartialState.Success -> {
+                        IssueDocumentsInteractorPartialState.Success(
+                            documentIds = response.documentIds
+                        )
+                    }
+                    is IssueDocumentsPartialState.UserAuthRequired -> {
+                        IssueDocumentsInteractorPartialState.UserAuthRequired(
+                            crypto = response.crypto,
+                            resultHandler = response.resultHandler
+                        )
+                    }
+                    is IssueDocumentsPartialState.DeferredSuccess -> {
+                        IssueDocumentsInteractorPartialState.DeferredSuccess(
+                            successRoute = buildGenericSuccessRouteForDeferred(
+                                description = resourceProvider.getString(
+                                    R.string.issuance_document_offer_deferred_success_description,
+                                    issuerName
+                                ),
+                                navigation = navigation
+                            )
+                        )
+                    }
+                }
+            }.collect {
+                emit(it)
+            }
+        }.safeAsync {
+            logController.e("DocumentOfferInteractor") { "issueDocumentsFromOffer exception: ${it.message}" }
             IssueDocumentsInteractorPartialState.Failure(
                 errorMessage = it.localizedMessage ?: genericErrorMsg
             )

@@ -3,6 +3,7 @@ sealed class AuthenticationScreens(
 ) {
     data object Login : AuthenticationScreens("login")
     data object WalletSetup : AuthenticationScreens("walletSetup")
+    data object DeviceSecurityRequired : AuthenticationScreens("deviceSecurityRequired")
     data object ProfileCompletion : AuthenticationScreens("profileCompletion")
 }
 

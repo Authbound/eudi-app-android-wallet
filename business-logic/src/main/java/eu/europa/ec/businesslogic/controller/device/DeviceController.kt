@@ -15,20 +15,34 @@
  */
 package eu.europa.ec.businesslogic.controller.device
 
+import android.app.KeyguardManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
+import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
 import eu.europa.ec.businesslogic.model.DeviceInfo
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.util.UUID
 
+data class DeviceSecurityState(
+    val isDeviceSecure: Boolean,
+    val canAuthenticateWithDeviceCredential: Boolean,
+    val canUseStrongBiometrics: Boolean
+) {
+    val isReady: Boolean
+        get() = isDeviceSecure || canAuthenticateWithDeviceCredential
+}
+
 interface DeviceController {
     fun getDeviceInfo(): DeviceInfo
+    fun getDeviceSecurityState(): DeviceSecurityState
 }
 
 class DeviceControllerImpl(
@@ -50,6 +64,23 @@ class DeviceControllerImpl(
             deviceVerifiedBoot = hasVerifiedBoot(),
             playProtectVerified = hasPlayProtectVerification(context),
             hasBiometricHardware = false // Placeholder - will be overridden by authentication layer
+        )
+    }
+
+    override fun getDeviceSecurityState(): DeviceSecurityState {
+        val context: Context = resourceProvider.provideContext()
+        val keyguardManager = context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager?
+        val isDeviceSecure: Boolean = keyguardManager?.isDeviceSecure == true
+        val biometricManager: BiometricManager = BiometricManager.from(context)
+        val authenticators: Int = BIOMETRIC_STRONG or DEVICE_CREDENTIAL
+        val canAuthenticateWithDeviceCredential: Boolean = biometricManager
+            .canAuthenticate(authenticators) == BiometricManager.BIOMETRIC_SUCCESS
+        val canUseStrongBiometrics: Boolean = biometricManager
+            .canAuthenticate(BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS
+        return DeviceSecurityState(
+            isDeviceSecure = isDeviceSecure,
+            canAuthenticateWithDeviceCredential = canAuthenticateWithDeviceCredential,
+            canUseStrongBiometrics = canUseStrongBiometrics
         )
     }
 

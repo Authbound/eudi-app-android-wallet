@@ -35,6 +35,9 @@ dependencies {
 
     implementation(platform(libs.bom))
     implementation(project(":wallet-activation-logic"))
+    implementation(project(":network-logic"))
+    implementation(project(":business-logic"))
+    implementation(libs.androidx.browser)
     implementation(libs.supabase.postgrest.kt)
     implementation(libs.supabase.auth.kt)
     implementation(libs.supabase.realtime.kt)

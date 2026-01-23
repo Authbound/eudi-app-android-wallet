@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SheetState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -39,24 +40,30 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import eu.europa.ec.businesslogic.extension.getParcelableArrayListExtra
 import eu.europa.ec.corelogic.model.RevokedDocumentDataDomain
 import eu.europa.ec.corelogic.util.CoreActions
 import eu.europa.ec.dashboardfeature.ui.component.BottomNavigationBar
 import eu.europa.ec.dashboardfeature.ui.component.BottomNavigationItem
 import eu.europa.ec.dashboardfeature.ui.dashboard.sidemenu.SideMenuScreen
-import eu.europa.ec.dashboardfeature.ui.documents.list.DocumentsScreen
 import eu.europa.ec.dashboardfeature.ui.documents.list.DocumentsViewModel
 import eu.europa.ec.dashboardfeature.ui.home.HomeScreen
 import eu.europa.ec.dashboardfeature.ui.home.HomeViewModel
 import eu.europa.ec.dashboardfeature.ui.settings.SettingsScreen
 import eu.europa.ec.dashboardfeature.ui.settings.SettingsViewModel
+import eu.europa.ec.dashboardfeature.ui.wallet.WalletScreen
+import eu.europa.ec.dashboardfeature.ui.wallet.WalletTab
 
-import eu.europa.ec.dashboardfeature.ui.actions.ActionsScreen
 import eu.europa.ec.dashboardfeature.ui.actions.ActionsViewModel
+import eu.europa.ec.dashboardfeature.ui.health.HealthViewModel
+import eu.europa.ec.dashboardfeature.ui.verification.VerificationHomeScreen
+import eu.europa.ec.dashboardfeature.ui.verification.VerificationHomeViewModel
+import org.koin.androidx.compose.koinViewModel
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.uilogic.component.SystemBroadcastReceiver
 import eu.europa.ec.uilogic.component.utils.LifecycleEffect
@@ -70,6 +77,7 @@ import eu.europa.ec.uilogic.extension.openBleSettings
 import eu.europa.ec.uilogic.extension.openIntentChooser
 import eu.europa.ec.uilogic.extension.openUrl
 import eu.europa.ec.uilogic.navigation.helper.handleDeepLinkAction
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -83,18 +91,29 @@ internal fun DashboardScreen(
     documentsViewModel: DocumentsViewModel,
     homeViewModel: HomeViewModel,
     actionsViewModel: ActionsViewModel,
-    settingsViewModel: SettingsViewModel
+    healthViewModel: HealthViewModel,
+    settingsViewModel: SettingsViewModel,
 ) {
-    val context = LocalContext.current
-
-    val bottomNavigationController = rememberNavController()
+    val context: Context = LocalContext.current
+    val bottomNavigationController: NavHostController = rememberNavController()
     val state: State by viewModel.viewState.collectAsStateWithLifecycle()
-
-    val scope = rememberCoroutineScope()
-    val bottomSheetState = rememberModalBottomSheetState(
+    val actionsState: eu.europa.ec.dashboardfeature.ui.actions.State by actionsViewModel.viewState.collectAsStateWithLifecycle()
+    val scope: CoroutineScope = rememberCoroutineScope()
+    val bottomSheetState: SheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true
     )
-
+    val notificationCount: Int = actionsState.pendingCount
+    val onNotificationsClick: () -> Unit = {
+        bottomNavigationController.navigate(
+            "${BottomNavigationItem.Wallet.route}?tab=${WalletTab.Actions.routeValue}"
+        ) {
+            popUpTo(bottomNavigationController.graph.findStartDestination().id) {
+                saveState = true
+            }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
     Scaffold(
         bottomBar = {
             BottomNavigationBar(
@@ -117,37 +136,55 @@ internal fun DashboardScreen(
                     navHostController = hostNavController,
                     viewModel = homeViewModel,
                     bottomNavHostController = bottomNavigationController,
+                    notificationCount = notificationCount,
+                    onNotificationsClick = onNotificationsClick,
                     onDashboardEventSent = { event ->
                         viewModel.setEvent(event)
                     }
                 )
             }
-            composable(BottomNavigationItem.Documents.route) {
-                DocumentsScreen(
-                    hostNavController,
-                    documentsViewModel,
-                    onDashboardEventSent = { event ->
-                        viewModel.setEvent(event)
+            composable(
+                route = "${BottomNavigationItem.Wallet.route}?tab={tab}",
+                arguments = listOf(
+                    navArgument("tab") {
+                        defaultValue = WalletTab.Documents.routeValue
                     }
                 )
-            }
-            composable(BottomNavigationItem.Actions.route) {
-                ActionsScreen(
+            ) { backStackEntry ->
+                val selectedTab = WalletTab.fromRouteValue(
+                    backStackEntry.arguments?.getString("tab")
+                )
+                WalletScreen(
                     navController = hostNavController,
-                    viewModel = actionsViewModel,
+                    documentsViewModel = documentsViewModel,
+                    actionsViewModel = actionsViewModel,
+                    healthViewModel = healthViewModel,
+                    selectedTab = selectedTab,
+                    notificationCount = notificationCount,
+                    onNotificationsClick = onNotificationsClick,
                     onDashboardEventSent = { event ->
                         viewModel.setEvent(event)
                     }
+                )
+            }
+            composable(BottomNavigationItem.Verify.route) {
+                val verificationHomeViewModel: VerificationHomeViewModel = koinViewModel()
+                VerificationHomeScreen(
+                    navController = hostNavController,
+                    viewModel = verificationHomeViewModel,
+                    notificationCount = notificationCount,
+                    onNotificationsClick = onNotificationsClick,
                 )
             }
             composable(BottomNavigationItem.Settings.route) {
                 SettingsScreen(
                     navController = hostNavController,
                     viewModel = settingsViewModel,
+                    notificationCount = notificationCount,
+                    onNotificationsClick = onNotificationsClick,
                 )
             }
         }
-
         if (state.isBottomSheetOpen) {
             WrapModalBottomSheet(
                 onDismissRequest = {
@@ -188,6 +225,22 @@ internal fun DashboardScreen(
         lifecycleOwner = LocalLifecycleOwner.current,
         lifecycleEvent = Lifecycle.Event.ON_RESUME
     ) {
+        val shouldOpenActions: Boolean = hostNavController
+            .currentBackStackEntry
+            ?.savedStateHandle
+            ?.remove<Boolean>("openActions") == true
+        if (shouldOpenActions) {
+            bottomNavigationController.navigate(
+                "${BottomNavigationItem.Wallet.route}?tab=${WalletTab.Actions.routeValue}"
+            ) {
+                popUpTo(bottomNavigationController.graph.findStartDestination().id) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+        actionsViewModel.setEvent(eu.europa.ec.dashboardfeature.ui.actions.Event.OnResume)
         viewModel.setEvent(
             Event.Init(
                 deepLinkUri = context.getPendingDeepLink()

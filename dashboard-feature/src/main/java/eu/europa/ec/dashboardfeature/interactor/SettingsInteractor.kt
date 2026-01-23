@@ -35,11 +35,17 @@ import kotlinx.coroutines.flow.flow
 import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsUserAuthenticatedUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
-import eu.europa.ec.businesslogic.controller.storage.PrefKeys
-import io.github.jan.supabase.auth.user.UserInfo
 import eu.europa.ec.authenticationlogic.model.Profile
 import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignOutMode
+import eu.europa.ec.businesslogic.controller.storage.PrefKeys
+import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
+import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
+import eu.europa.ec.corelogic.model.DocumentCategory
+import eu.europa.ec.corelogic.model.toDocumentCategory
+import eu.europa.ec.corelogic.model.toDocumentIdentifier
+import io.github.jan.supabase.auth.user.UserInfo
+import kotlinx.coroutines.flow.collect
 
 interface SettingsInteractor {
     fun getAppVersion(): String
@@ -53,6 +59,7 @@ interface SettingsInteractor {
     suspend fun isUserAuthenticated(): Boolean
     suspend fun getCurrentUser(): UserInfo?
     suspend fun getMyProfile(): Result<Profile>
+    suspend fun resetHealthData(): Result<Unit>
 }
 
 class SettingsInteractorImpl(
@@ -60,6 +67,8 @@ class SettingsInteractorImpl(
     private val logController: LogController,
     private val resourceProvider: ResourceProvider,
     private val prefKeys: PrefKeys,
+    private val prefsController: PrefsControllerV2,
+    private val walletCoreDocumentsController: WalletCoreDocumentsController,
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
     private val signOutUseCase: SignOutUseCase,
     private val isUserAuthenticatedUseCase: IsUserAuthenticatedUseCase,
@@ -149,6 +158,25 @@ class SettingsInteractorImpl(
                 )
             )
 
+            add(
+                SettingsItemUi(
+                    type = SettingsMenuItemType.RESET_HEALTH_DATA,
+                    data = ListItemDataUi(
+                        itemId = resourceProvider.getString(R.string.settings_reset_health_data_id),
+                        mainContentData = ListItemMainContentDataUi.Text(
+                            text = resourceProvider.getString(R.string.settings_reset_health_data_title)
+                        ),
+                        supportingText = resourceProvider.getString(R.string.settings_reset_health_data_description),
+                        leadingContentData = ListItemLeadingContentDataUi.Icon(
+                            iconData = AppIcons.Refresh
+                        ),
+                        trailingContentData = ListItemTrailingContentDataUi.Icon(
+                            iconData = AppIcons.KeyboardArrowRight
+                        )
+                    )
+                )
+            )
+
             /* if (changelogUrl != null) {
                 add(
                     SettingsItemUi(
@@ -225,5 +253,26 @@ class SettingsInteractorImpl(
 
     override suspend fun getMyProfile(): Result<Profile> {
         return getMyProfileUseCase()
+    }
+
+    override suspend fun resetHealthData(): Result<Unit> {
+        return try {
+            val categories = walletCoreDocumentsController.getAllDocumentCategories()
+            val healthDocuments = walletCoreDocumentsController.getAllIssuedDocuments()
+                .filter { document ->
+                    document.toDocumentIdentifier().toDocumentCategory(categories) == DocumentCategory.Health
+                }
+            healthDocuments.forEach { document ->
+                walletCoreDocumentsController.deleteDocument(document.id).collect { }
+            }
+            prefsController.setBool("maisa_connected", false)
+            prefsController.setString("maisa_last_sync", "")
+            prefsController.setString("maisa_oauth_state", "")
+            prefsController.setString("maisa_subject_ref", "")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            logController.e("SettingsInteractor", e)
+            Result.failure(e)
+        }
     }
 }

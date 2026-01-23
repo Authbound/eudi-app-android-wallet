@@ -103,3 +103,26 @@ data class ActionFilterChipUi(
     val count: Int,
     val isSelected: Boolean
 )
+
+/**
+ * Device linking status for Authbound portal connection.
+ */
+enum class DeviceLinkStatus {
+    /** No device has been linked */
+    NOT_LINKED,
+    /** Device is linked and connected */
+    LINKED,
+    /** Checking device status */
+    CHECKING
+}
+
+/**
+ * Information about a linked device.
+ */
+data class LinkedDeviceInfo(
+    val deviceId: String,
+    val deviceName: String,
+    val deviceModel: String,
+    val linkedAt: Instant,
+    val isCurrentDevice: Boolean = true
+)

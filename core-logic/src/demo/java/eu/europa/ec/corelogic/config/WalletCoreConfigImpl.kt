@@ -118,6 +118,15 @@ internal class WalletCoreConfigImpl(
                 .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
                 .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
                 .withDPoPUsage(OpenId4VciManager.Config.DPoPUsage.IfSupported())
+                .build(),
+            OpenId4VciManager.Config.Builder()
+                .withIssuerUrl(
+                    issuerUrl = "https://oid4vc.igrant.io/organisation/cc8f6303-c49f-468c-ad3c-ce93a865f963/service/draft-13"
+                )
+                .withClientId(clientId = "wallet-dev")
+                .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
+                .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
+                .withDPoPUsage(OpenId4VciManager.Config.DPoPUsage.IfSupported())
                 .build()
         )
 }

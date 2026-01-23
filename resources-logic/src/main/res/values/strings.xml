@@ -234,7 +234,8 @@
     <string name="dashboard_quick_action_add_credential_description">Add new credentials to your wallet</string>
     <string name="dashboard_home_screen_credential_section">Your Credentials</string>
     <string name="dashboard_home_screen_view_all">View All</string>
-    <string name="dashboard_home_screen_no_credentials">You don\'t have any credentials yet.\nAdd your first one to get started.</string>
+    <string name="dashboard_home_screen_no_credentials_title">No Credentials Yet</string>
+    <string name="dashboard_home_screen_no_credentials">Add your first credential to unlock the full power of your digital wallet.</string>
 
     <!-- Dashboard Side Menu -->
     <string name="dashboard_side_menu_title">Menu</string>
@@ -250,8 +251,14 @@
 
     <!-- Settings Screen -->
     <string name="settings_screen_title">Settings</string>
+    <string name="wallet_screen_title">Wallet</string>
     <string name="settings_screen_option_retrieve_logs">Retrieve logs</string>
     <string name="settings_screen_option_retrieve_logs_id">retrieveLogsId</string>
+    <string name="settings_reset_health_data_title">Reset health data</string>
+    <string name="settings_reset_health_data_description">Remove imported health credentials and reset Maisa status</string>
+    <string name="settings_reset_health_data_id">resetHealthDataId</string>
+    <string name="settings_reset_health_data_success">Health data reset</string>
+    <string name="settings_reset_health_data_error">Failed to reset health data</string>
     <string name="settings_screen_option_changelog">Changelog</string>
     <string name="settings_screen_option_changelog_id">changelogId</string>
     <string name="settings_intent_chooser_logs_share_title">Share logs</string>
@@ -518,6 +525,22 @@
     <!-- Verification Feature -->
     <string name="verification_quick_action_title">Verify</string>
     <string name="verification_quick_action_description">Verify your identity documents</string>
+    <string name="verification_home_tab_active">Active</string>
+    <string name="verification_home_tab_history">History</string>
+    <string name="verification_home_create_button">Create Verification</string>
+    <string name="verification_home_empty_active">No Active Verifications</string>
+    <string name="verification_home_empty_history">No History Yet</string>
+    <string name="verification_home_session_code">Code: %1$s</string>
+    <string name="verification_empty_description">Create a verification request to start verifying credentials from others.</string>
+    <string name="verification_history_empty_description">Your completed verifications will appear here.</string>
+    <string name="verification_feature_qr_title">QR Code</string>
+    <string name="verification_feature_qr_description">Share via QR</string>
+    <string name="verification_feature_link_title">Deep Link</string>
+    <string name="verification_feature_link_description">Send a link</string>
+    <string name="verification_status_active">Active</string>
+    <string name="verification_status_completed">Completed</string>
+    <string name="verification_action_show_qr">Show QR</string>
+    <string name="verification_action_copy_link">Copy Link</string>
 
     <!-- Verification Templates -->
     <string name="verification_template_age_title">Age Verification</string>
@@ -657,6 +680,24 @@
     <string name="actions_sort_by_type">By type</string>
     <string name="actions_sort_by_requester">By requester</string>
 
+    <!-- Device Linking -->
+    <string name="actions_device_not_linked_title">Connect Your Device</string>
+    <string name="actions_device_not_linked_subtitle">Link your phone to Authbound to receive identity verification requests and sign documents securely.</string>
+    <string name="actions_device_feature_verify_title">Verify Identity</string>
+    <string name="actions_device_feature_verify_description">Respond to verification requests from trusted services</string>
+    <string name="actions_device_feature_sign_title">Sign Documents</string>
+    <string name="actions_device_feature_sign_description">Digitally sign contracts and agreements</string>
+    <string name="actions_device_feature_share_title">Share Securely</string>
+    <string name="actions_device_feature_share_description">Control what data you share with services</string>
+    <string name="actions_device_link_button">Link Device</string>
+    <string name="actions_device_linked_status">Connected</string>
+    <string name="actions_device_manage">Manage Device</string>
+    <string name="actions_device_unlink">Unlink Device</string>
+    <string name="actions_device_unlink_confirm_title">Unlink Device?</string>
+    <string name="actions_device_unlink_confirm_message">You will no longer receive verification or signing requests on this device.</string>
+    <string name="actions_device_unlinked">Device unlinked successfully</string>
+    <string name="actions_device_linked_since">Linked since %1$s</string>
+
     <!-- My Data Screen -->
     <string name="my_data_screen_title">My Data</string>
     <string name="my_data_screen_description">Your verified personal information from your credentials, all in one place.</string>
@@ -713,4 +754,71 @@
     <string name="wallet_setup_step_keys">Generating secure keys</string>
     <string name="wallet_setup_step_activate">Activating wallet</string>
     <string name="wallet_setup_requirements_title">Required security features:</string>
+
+    <!-- Health Tab -->
+    <string name="health_screen_title">Health</string>
+    <string name="health_empty_title">No Health Data Yet</string>
+    <string name="health_empty_description">Import your health records from Finnish health services to manage and share your health credentials securely.</string>
+    <string name="health_import_button">Import Health Data</string>
+    <string name="health_import_more">Import More</string>
+
+    <!-- Health Categories -->
+    <string name="health_category_medications">Active Medications</string>
+    <string name="health_category_prescriptions">Prescriptions</string>
+    <string name="health_category_records">Health Records</string>
+    <string name="health_category_vaccinations">Vaccinations</string>
+
+    <!-- Health Import -->
+    <string name="health_import_title">Import Health Data</string>
+    <string name="health_import_description">Connect to Finnish health services to import your health records, prescriptions, and vaccination history.</string>
+    <string name="health_kanta_title">Kanta.fi</string>
+    <string name="health_kanta_description">National health records archive containing your prescriptions, health records, and medical history.</string>
+    <string name="health_kanta_short_description">National records</string>
+    <string name="health_maisa_title">Maisa</string>
+    <string name="health_maisa_description">Regional healthcare services including appointments, test results, and treatment records.</string>
+    <string name="health_maisa_short_description">Healthcare services</string>
+
+    <!-- Health Connection -->
+    <string name="health_connected">Connected</string>
+    <string name="health_connected_to">Connected to %1$s</string>
+    <string name="health_connected_to_service">Connected to %1$s</string>
+    <string name="health_last_sync">Last synced: %1$s</string>
+
+    <!-- Health Item Details -->
+    <string name="health_valid_until">Valid until: %1$s</string>
+    <string name="health_prescribed_by">Prescribed by %1$s</string>
+    <string name="health_renewal_date">Renewal: %1$s</string>
+    <string name="health_next_dose">Next dose: %1$s</string>
+    <string name="health_booster">Booster</string>
+
+    <!-- Health Detail Labels -->
+    <string name="health_prescribed_by_label">Prescribed by</string>
+    <string name="health_pharmacy_label">Pharmacy</string>
+    <string name="health_valid_until_label">Valid until</string>
+    <string name="health_status_label">Status</string>
+    <string name="health_status_active">Active</string>
+    <string name="health_status_expiring_soon">Expiring Soon</string>
+    <string name="health_status_expired">Expired</string>
+    <string name="health_status_discontinued">Discontinued</string>
+
+    <!-- Health Share -->
+    <string name="health_share_title">Share Health Credential</string>
+    <string name="health_share_description">Choose how you want to share this health credential with a verifier.</string>
+    <string name="health_share_credential">Share Credential</string>
+    <string name="health_share_qr_title">QR Code</string>
+    <string name="health_share_qr_description">Show a QR code for in-person verification</string>
+    <string name="health_share_link_title">Send Link</string>
+    <string name="health_share_link_description">Share a verification link online</string>
+
+    <!-- Health Search -->
+    <string name="health_search_placeholder">Search medications, prescriptions…</string>
+
+    <!-- Content Descriptions for Health Icons -->
+    <string name="content_description_health_icon">Health</string>
+    <string name="content_description_medication_icon">Medication</string>
+    <string name="content_description_prescription_icon">Prescription</string>
+    <string name="content_description_health_record_icon">Health record</string>
+    <string name="content_description_vaccination_icon">Vaccination</string>
+    <string name="content_description_share_icon">Share</string>
+    <string name="content_description_refresh_icon">Refresh</string>
 </resources>
