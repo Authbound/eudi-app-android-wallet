@@ -16,73 +16,76 @@
 
 package eu.europa.ec.networklogic.model.request
 
-import com.google.gson.annotations.SerializedName
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 /**
  * Enhanced device information for WUA (Wallet Unit Attestation) security assessment.
- * 
- * This comprehensive device profile enables proper security evaluation and trust 
+ *
+ * This comprehensive device profile enables proper security evaluation and trust
  * establishment as required by EUDI wallet specifications for LoA High compliance.
  */
+@Serializable
 data class EnhancedDeviceInfo(
     // Basic device identification
-    @SerializedName("deviceModel")
+    @SerialName("deviceModel")
     val deviceModel: String,
-    
-    @SerializedName("osVersion")
+
+    @SerialName("osVersion")
     val osVersion: String,
-    
-    @SerializedName("deviceOsApiLevel")
+
+    @SerialName("deviceOsApiLevel")
     val deviceOsApiLevel: String,
-    
-    @SerializedName("securityPatchLevel")
+
+    @SerialName("securityPatchLevel")
     val securityPatchLevel: String,
-    
+
     // Hardware security capabilities - Critical for WUA assessment
-    @SerializedName("hasSecureElement")
+    @SerialName("hasSecureElement")
     val hasSecureElement: Boolean,
-    
-    @SerializedName("hasHardwareKeystore")
+
+    @SerialName("hasHardwareKeystore")
     val hasHardwareKeystore: Boolean,
-    
-    @SerializedName("hasStrongBox")
+
+    @SerialName("hasStrongBox")
     val hasStrongBox: Boolean,
-    
-    @SerializedName("attestationSupported")
+
+    @SerialName("attestationSupported")
     val attestationSupported: Boolean,
-    
-    @SerializedName("hasBiometricHardware")
+
+    @SerialName("hasBiometricHardware")
     val hasBiometricHardware: Boolean,
-    
+
     // Device integrity and verification
-    @SerializedName("deviceVerifiedBoot")
+    @SerialName("deviceVerifiedBoot")
     val deviceVerifiedBoot: Boolean,
-    
-    @SerializedName("playProtectVerified")
+
+    @SerialName("playProtectVerified")
     val playProtectVerified: Boolean,
-    
+
     // Derived security assessment
-    @SerializedName("securityLevel")
+    @SerialName("securityLevel")
     val securityLevel: String, // "HIGH", "MEDIUM", "LOW"
-    
-    @SerializedName("isHardwareBacked")
+
+    @SerialName("isHardwareBacked")
     val isHardwareBacked: Boolean,
-    
-    @SerializedName("meetsLoAHighRequirements")
+
+    @SerialName("meetsLoAHighRequirements")
     val meetsLoAHighRequirements: Boolean
 )
 
+@Serializable
 data class WalletActivationRequest(
-    @SerializedName("wuaPublicKey")
+    @SerialName("wuaPublicKey")
     val wuaPublicKey: String,
-    @SerializedName("attestationChain")
+    @SerialName("attestationChain")
     val attestationChain: List<String>,
-    @SerializedName("challengeId")
+    @SerialName("challengeId")
     val challengeId: String,
-    @SerializedName("deviceInfo")
+    @SerialName("deviceInfo")
     val deviceInfo: EnhancedDeviceInfo,
-    @SerializedName("pushNotificationToken")
+    @SerialName("pushNotificationToken")
     val pushNotificationToken: String?,
-    @SerializedName("pushNotificationProvider")
+    @SerialName("pushNotificationProvider")
     val pushNotificationProvider: String? = "fcm"
 )

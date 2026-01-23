@@ -15,6 +15,9 @@
  */
 package eu.europa.ec.networklogic.model.response
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class MaisaExchangeResponse(
     val accessToken: String,
     val tokenType: String,

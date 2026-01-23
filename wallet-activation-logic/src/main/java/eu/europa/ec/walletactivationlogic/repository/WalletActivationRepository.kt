@@ -27,12 +27,12 @@ import eu.europa.ec.businesslogic.model.error.toWalletActivationError
 import eu.europa.ec.businesslogic.model.DeviceInfo
 
 import eu.europa.ec.networklogic.api.ApiClient
+import eu.europa.ec.networklogic.model.ApiResponse
 
 import eu.europa.ec.networklogic.model.request.WalletActivationRequest
 import eu.europa.ec.networklogic.model.request.EnhancedDeviceInfo
 import eu.europa.ec.networklogic.model.response.AttestationChallengeResponse
 import eu.europa.ec.networklogic.model.response.WalletActivationResponse
-import retrofit2.Response
 
 import java.security.cert.Certificate
 
@@ -160,19 +160,15 @@ class WalletActivationRepositoryImpl(
     /**
      * Creates enhanced device information with comprehensive security assessment
      * required for WUA (Wallet Unit Attestation) evaluation.
-     * 
+     *
      * This assessment determines device security capabilities and LoA High compliance
      * as required by EUDI wallet specifications.
      */
     private fun createEnhancedDeviceInfo(deviceInfo: DeviceInfo): EnhancedDeviceInfo {
         val isHardwareBacked = deviceInfo.hasHardwareKeystore || deviceInfo.hasSecureElement
-        val hasAdvancedSecurity = deviceInfo.hasStrongBox || 
-                                 (deviceInfo.hasSecureElement && deviceInfo.attestationSupported)
-        
-        // Assess overall device security level for WUA evaluation
         val securityLevel = assessDeviceSecurityLevel(deviceInfo)
         val meetsLoAHigh = evaluateLoAHighCompliance(deviceInfo)
-        
+
         return EnhancedDeviceInfo(
             deviceModel = deviceInfo.deviceModel,
             osVersion = deviceInfo.deviceOs,
@@ -198,14 +194,14 @@ class WalletActivationRepositoryImpl(
     private fun assessDeviceSecurityLevel(deviceInfo: DeviceInfo): String {
         return when {
             // HIGH: StrongBox + Hardware attestation + Verified boot
-            deviceInfo.hasStrongBox && 
-            deviceInfo.attestationSupported && 
+            deviceInfo.hasStrongBox &&
+            deviceInfo.attestationSupported &&
             deviceInfo.deviceVerifiedBoot -> "HIGH"
-            
+
             // MEDIUM: Hardware security + some verification
             (deviceInfo.hasSecureElement || deviceInfo.hasHardwareKeystore) &&
             (deviceInfo.attestationSupported || deviceInfo.deviceVerifiedBoot) -> "MEDIUM"
-            
+
             // LOW: Limited hardware security
             else -> "LOW"
         }
@@ -213,7 +209,7 @@ class WalletActivationRepositoryImpl(
 
     /**
      * Evaluates if device meets LoA High requirements for EUDI wallet compliance.
-     * 
+     *
      * LoA High requires:
      * - Hardware-backed key storage
      * - Device integrity verification
@@ -225,10 +221,10 @@ class WalletActivationRepositoryImpl(
         val hasIntegrityVerification = deviceInfo.deviceVerifiedBoot && deviceInfo.playProtectVerified
         val hasAuthenticationCapabilities = deviceInfo.hasBiometricHardware || deviceInfo.attestationSupported
         val hasRecentPatches = isSecurityPatchRecent(deviceInfo.securityPatchLevel)
-        
-        return hasHardwareSecurity && 
-               hasIntegrityVerification && 
-               hasAuthenticationCapabilities && 
+
+        return hasHardwareSecurity &&
+               hasIntegrityVerification &&
+               hasAuthenticationCapabilities &&
                hasRecentPatches
     }
 
@@ -245,7 +241,7 @@ class WalletActivationRepositoryImpl(
                 val patchMonth = patchParts[1].toInt()
                 val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
                 val currentMonth = java.util.Calendar.getInstance().get(java.util.Calendar.MONTH) + 1
-                
+
                 // Calculate months difference
                 val monthsDiff = (currentYear - patchYear) * 12 + (currentMonth - patchMonth)
                 monthsDiff <= 6 // Within 6 months
@@ -253,7 +249,7 @@ class WalletActivationRepositoryImpl(
                 false
             }
         } catch (e: Exception) {
-            logController.w("WalletActivation",) { "Could not parse security patch level: $securityPatchLevel"}
+            logController.w("WalletActivation") { "Could not parse security patch level: $securityPatchLevel" }
             false
         }
     }
@@ -287,36 +283,19 @@ class WalletActivationRepositoryImpl(
 
     /**
      * Parses HTTP error response into a typed WalletActivationError.
-     * Extracts retry-after header for rate limiting and parses error body for context.
+     * Extracts error body for context from the ApiResponse.
      */
     private fun <T> parseHttpError(
-        response: Response<T>,
+        response: ApiResponse<T>,
         challengeId: String? = null
     ): WalletActivationError {
-        val errorBody = try {
-            response.errorBody()?.string()
-        } catch (e: Exception) {
-            null
-        }
-
-        // Extract Retry-After header for rate limiting
-        val retryAfter = response.headers()["Retry-After"]?.toIntOrNull()
-            ?: response.headers()["X-RateLimit-Reset"]?.let { resetTime ->
-                // Convert Unix timestamp to seconds from now
-                try {
-                    val resetTimestamp = resetTime.toLong()
-                    val now = System.currentTimeMillis() / 1000
-                    (resetTimestamp - now).toInt().coerceAtLeast(1)
-                } catch (e: Exception) {
-                    null
-                }
-            }
+        val errorBody = response.errorBody()
 
         val httpError = HttpErrorResponse(
             code = response.code(),
             message = response.message(),
             errorBody = errorBody,
-            retryAfterSeconds = retryAfter
+            retryAfterSeconds = null
         )
 
         // For challenge-related errors, inject the challenge ID if available
@@ -331,4 +310,4 @@ class WalletActivationRepositoryImpl(
             else -> httpError.toWalletActivationError()
         }
     }
-} 
+}

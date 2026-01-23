@@ -16,9 +16,11 @@
 
 package eu.europa.ec.networklogic.model.response
 
-import com.google.gson.annotations.SerializedName
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class CheckHandleResponse(
-    @SerializedName("available")
+    @SerialName("available")
     val available: Boolean
-) 
+)

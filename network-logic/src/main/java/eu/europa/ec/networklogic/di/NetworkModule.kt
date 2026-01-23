@@ -18,13 +18,13 @@ package eu.europa.ec.networklogic.di
 
 import eu.europa.ec.businesslogic.config.AppBuildType
 import eu.europa.ec.businesslogic.config.ConfigLogic
-import eu.europa.ec.networklogic.api.Api
 import eu.europa.ec.networklogic.api.ApiClient
-import eu.europa.ec.networklogic.api.ApiClientImpl
+import eu.europa.ec.networklogic.api.KtorApiClient
 import eu.europa.ec.networklogic.repository.WalletAttestationRepository
 import eu.europa.ec.networklogic.repository.WalletAttestationRepositoryImpl
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.android.Android
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.logging.DEFAULT
 import io.ktor.client.plugins.logging.LogLevel
@@ -33,22 +33,16 @@ import io.ktor.client.plugins.logging.Logging
 import io.ktor.http.ContentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
-import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
 import org.koin.core.annotation.ComponentScan
-import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Module
 import org.koin.core.annotation.Single
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
-import java.util.concurrent.TimeUnit
 
 @Module
 @ComponentScan("eu.europa.ec.networklogic")
 class LogicNetworkModule
 
 // ============================================================================
-// Ktor HttpClient (for EUDI core / WalletAttestationRepository)
+// JSON Configuration
 // ============================================================================
 
 @Single
@@ -58,9 +52,21 @@ fun provideJson(): Json = Json {
     isLenient = true
 }
 
+// ============================================================================
+// Ktor HttpClient (unified client for all HTTP operations)
+// ============================================================================
+
 @Single
 fun provideHttpClient(json: Json, configLogic: ConfigLogic): HttpClient {
+    val readTimeout = configLogic.environmentConfig.readTimeoutSeconds * 1000
+    val connectTimeout = configLogic.environmentConfig.connectTimeoutSeconds * 1000
+
     return HttpClient(Android) {
+        install(HttpTimeout) {
+            connectTimeoutMillis = connectTimeout
+            requestTimeoutMillis = readTimeout
+            socketTimeoutMillis = readTimeout
+        }
 
         install(Logging) {
             logger = Logger.DEFAULT
@@ -79,53 +85,21 @@ fun provideHttpClient(json: Json, configLogic: ConfigLogic): HttpClient {
     }
 }
 
+// ============================================================================
+// Repositories
+// ============================================================================
+
 @Single
 fun provideWalletAttestationRepository(httpClient: HttpClient): WalletAttestationRepository =
     WalletAttestationRepositoryImpl(httpClient)
 
 // ============================================================================
-// OkHttp + Retrofit (for Authbound REST API)
+// API Client (Ktor-based, replaces Retrofit)
 // ============================================================================
 
-@Factory
-fun providesHttpLoggingInterceptor(configLogic: ConfigLogic) = HttpLoggingInterceptor()
-    .apply {
-        level = when (configLogic.appBuildType) {
-            AppBuildType.DEBUG -> HttpLoggingInterceptor.Level.BODY
-            AppBuildType.RELEASE -> HttpLoggingInterceptor.Level.NONE
-        }
-    }
-
-@Factory
-fun provideOkHttpClient(
-    httpLoggingInterceptor: HttpLoggingInterceptor,
-    configLogic: ConfigLogic
-): OkHttpClient {
-
-    val client = OkHttpClient().newBuilder()
-        .readTimeout(configLogic.environmentConfig.readTimeoutSeconds, TimeUnit.SECONDS)
-        .connectTimeout(configLogic.environmentConfig.connectTimeoutSeconds, TimeUnit.SECONDS)
-        .addInterceptor(httpLoggingInterceptor)
-
-    return client.build()
-}
-
-@Factory
-fun provideApi(retrofit: Retrofit): Api = retrofit.create(Api::class.java)
-
-@Factory
-fun provideConverterFactory(): GsonConverterFactory = GsonConverterFactory.create()
-
 @Single
-fun provideApiClient(api: Api): ApiClient = ApiClientImpl(api)
-
-@Single
-fun provideRetrofit(
-    okHttpClient: OkHttpClient,
-    converterFactory: GsonConverterFactory,
-    configLogic: ConfigLogic
-): Retrofit {
-    return Retrofit.Builder().baseUrl(configLogic.environmentConfig.getServerHost())
-        .client(okHttpClient)
-        .addConverterFactory(converterFactory).build()
-}
+fun provideApiClient(httpClient: HttpClient, configLogic: ConfigLogic): ApiClient =
+    KtorApiClient(
+        httpClient = httpClient,
+        baseUrl = configLogic.environmentConfig.getServerHost()
+    )

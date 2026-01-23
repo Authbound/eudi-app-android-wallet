@@ -15,6 +15,9 @@
  */
 package eu.europa.ec.networklogic.model.request
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class MaisaExchangeRequest(
     val code: String,
     val state: String,

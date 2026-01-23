@@ -16,7 +16,8 @@
 
 package eu.europa.ec.networklogic.model.response
 
-import com.google.gson.annotations.SerializedName
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 /**
  * Response from the attestation challenge endpoint.
@@ -25,16 +26,17 @@ import com.google.gson.annotations.SerializedName
  * The challenge is embedded in the Android Keystore key attestation extension and verified
  * by the backend to prevent replay attacks.
  */
+@Serializable
 data class AttestationChallengeResponse(
-    @SerializedName("challenge_id")
+    @SerialName("challenge_id")
     val challengeId: String,
 
-    @SerializedName("challenge")
+    @SerialName("challenge")
     val challenge: String,  // Hex-encoded 32 bytes
 
-    @SerializedName("expires_at")
+    @SerialName("expires_at")
     val expiresAt: String,
 
-    @SerializedName("ttl_seconds")
+    @SerialName("ttl_seconds")
     val ttlSeconds: Int
 )

@@ -15,6 +15,9 @@
  */
 package eu.europa.ec.networklogic.model.request
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class MaisaIssueRequest(
     val subjectRef: String,
     val accessToken: String,

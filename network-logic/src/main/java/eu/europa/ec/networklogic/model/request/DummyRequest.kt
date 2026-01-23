@@ -16,9 +16,11 @@
 
 package eu.europa.ec.networklogic.model.request
 
-import com.google.gson.annotations.SerializedName
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class DummyRequest(
-    @SerializedName("id")
+    @SerialName("id")
     val clientId: String?
 )

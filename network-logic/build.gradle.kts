@@ -42,11 +42,6 @@ dependencies {
     implementation(libs.supabase.postgrest.kt)
     implementation(libs.supabase.auth.kt)
 
-    api(libs.retrofit.core)
-    implementation(libs.retrofit.gson)
-    implementation(libs.okhttp.logging)
-    implementation(libs.okhttp.mockwebserver)
-
     testImplementation(project(LibraryModule.TestLogic.path))
 }
 
