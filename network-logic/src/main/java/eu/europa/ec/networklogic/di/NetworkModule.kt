@@ -21,6 +21,18 @@ import eu.europa.ec.businesslogic.config.ConfigLogic
 import eu.europa.ec.networklogic.api.Api
 import eu.europa.ec.networklogic.api.ApiClient
 import eu.europa.ec.networklogic.api.ApiClientImpl
+import eu.europa.ec.networklogic.repository.WalletAttestationRepository
+import eu.europa.ec.networklogic.repository.WalletAttestationRepositoryImpl
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.android.Android
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.logging.DEFAULT
+import io.ktor.client.plugins.logging.LogLevel
+import io.ktor.client.plugins.logging.Logger
+import io.ktor.client.plugins.logging.Logging
+import io.ktor.http.ContentType
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import org.koin.core.annotation.ComponentScan
@@ -34,6 +46,46 @@ import java.util.concurrent.TimeUnit
 @Module
 @ComponentScan("eu.europa.ec.networklogic")
 class LogicNetworkModule
+
+// ============================================================================
+// Ktor HttpClient (for EUDI core / WalletAttestationRepository)
+// ============================================================================
+
+@Single
+fun provideJson(): Json = Json {
+    ignoreUnknownKeys = true
+    prettyPrint = true
+    isLenient = true
+}
+
+@Single
+fun provideHttpClient(json: Json, configLogic: ConfigLogic): HttpClient {
+    return HttpClient(Android) {
+
+        install(Logging) {
+            logger = Logger.DEFAULT
+            level = when (configLogic.appBuildType) {
+                AppBuildType.DEBUG -> LogLevel.BODY
+                AppBuildType.RELEASE -> LogLevel.NONE
+            }
+        }
+
+        install(ContentNegotiation) {
+            json(
+                json = json,
+                contentType = ContentType.Application.Json
+            )
+        }
+    }
+}
+
+@Single
+fun provideWalletAttestationRepository(httpClient: HttpClient): WalletAttestationRepository =
+    WalletAttestationRepositoryImpl(httpClient)
+
+// ============================================================================
+// OkHttp + Retrofit (for Authbound REST API)
+// ============================================================================
 
 @Factory
 fun providesHttpLoggingInterceptor(configLogic: ConfigLogic) = HttpLoggingInterceptor()
@@ -55,8 +107,6 @@ fun provideOkHttpClient(
         .connectTimeout(configLogic.environmentConfig.connectTimeoutSeconds, TimeUnit.SECONDS)
         .addInterceptor(httpLoggingInterceptor)
 
-    
-
     return client.build()
 }
 
@@ -75,9 +125,6 @@ fun provideRetrofit(
     converterFactory: GsonConverterFactory,
     configLogic: ConfigLogic
 ): Retrofit {
-
-
-
     return Retrofit.Builder().baseUrl(configLogic.environmentConfig.getServerHost())
         .client(okHttpClient)
         .addConverterFactory(converterFactory).build()

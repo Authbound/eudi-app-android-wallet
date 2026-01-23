@@ -208,7 +208,7 @@ private fun DocumentOfferCodeScreenEmptyPreview() {
                 screenTitle = "Demo Issuer requires verification",
                 screenSubtitle = "Type the 5-digit transaction code you received.",
                 offerCodeUiConfig = OfferCodeUiConfig(
-                    offerURI = "https://offer.uri.com",
+                    offerUri = "https://offer.uri.com",
                     txCodeLength = 5,
                     issuerName = "Demo Issuer",
                     onSuccessNavigation = ConfigNavigation(

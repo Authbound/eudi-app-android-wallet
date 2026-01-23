@@ -200,4 +200,9 @@ interface WalletCoreConfig {
                 ),
             )
         )
+
+    /**
+     * Host for the Wallet Provider.
+     */
+    val walletProviderHost: String
 }

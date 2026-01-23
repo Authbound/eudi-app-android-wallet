@@ -51,7 +51,8 @@ internal class WalletCoreConfigImpl(
                             listOf(
                                 BuildConfig.OPENID4VP_SCHEME,
                                 BuildConfig.EUDI_OPENID4VP_SCHEME,
-                                BuildConfig.MDOC_OPENID4VP_SCHEME
+                                BuildConfig.MDOC_OPENID4VP_SCHEME,
+                                BuildConfig.HAIP_OPENID4VP_SCHEME
                             )
                         )
                         withFormats(
@@ -68,7 +69,8 @@ internal class WalletCoreConfigImpl(
                         R.raw.pidissuerca02_nl,
                         R.raw.pidissuerca02_pt,
                         R.raw.pidissuerca02_ut,
-                        R.raw.dc4eu
+                        R.raw.dc4eu,
+                        R.raw.r45_staging
                     )
                 }
             }
@@ -79,14 +81,14 @@ internal class WalletCoreConfigImpl(
         get() = listOf(
             OpenId4VciManager.Config.Builder()
                 .withIssuerUrl(issuerUrl = "https://ec.dev.issuer.eudiw.dev")
-                .withClientId(clientId = "wallet-dev")
+                .withClientAuthenticationType(OpenId4VciManager.ClientAuthenticationType.AttestationBased)
                 .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
                 .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
                 .withDPoPUsage(OpenId4VciManager.Config.DPoPUsage.IfSupported())
                 .build(),
             OpenId4VciManager.Config.Builder()
                 .withIssuerUrl(issuerUrl = "https://dev.issuer-backend.eudiw.dev")
-                .withClientId(clientId = "wallet-dev")
+                .withClientAuthenticationType(OpenId4VciManager.ClientAuthenticationType.AttestationBased)
                 .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
                 .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
                 .withDPoPUsage(OpenId4VciManager.Config.DPoPUsage.IfSupported())
@@ -95,10 +97,13 @@ internal class WalletCoreConfigImpl(
                 .withIssuerUrl(
                     issuerUrl = "https://oid4vc.igrant.io/organisation/cc8f6303-c49f-468c-ad3c-ce93a865f963/service/draft-13"
                 )
-                .withClientId(clientId = "wallet-dev")
+                .withClientAuthenticationType(OpenId4VciManager.ClientAuthenticationType.AttestationBased)
                 .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
                 .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
                 .withDPoPUsage(OpenId4VciManager.Config.DPoPUsage.IfSupported())
                 .build()
         )
+
+    override val walletProviderHost: String
+        get() = "https://dev.wallet-provider.eudiw.dev"
 }

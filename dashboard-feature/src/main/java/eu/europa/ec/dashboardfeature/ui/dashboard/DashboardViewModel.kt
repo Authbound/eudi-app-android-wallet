@@ -23,6 +23,7 @@ import eu.europa.ec.commonfeature.config.PresentationMode
 import eu.europa.ec.commonfeature.config.QrScanFlow
 import eu.europa.ec.commonfeature.config.QrScanUiConfig
 import eu.europa.ec.commonfeature.config.RequestUriConfig
+import eu.europa.ec.commonfeature.di.getOrCreateCredentialOfferScope
 import eu.europa.ec.commonfeature.model.PinFlow
 import eu.europa.ec.corelogic.di.getOrCreatePresentationScope
 import eu.europa.ec.corelogic.model.RevokedDocumentDataDomain
@@ -362,24 +363,27 @@ class DashboardViewModel(
                         )
                     }
 
-                    DeepLinkType.CREDENTIAL_OFFER -> generateComposableArguments(
-                        mapOf(
-                            OfferUiConfig.serializedKeyName to uiSerializer.toBase64(
-                                OfferUiConfig(
-                                    offerURI = it.link.toString(),
-                                    onSuccessNavigation = ConfigNavigation(
-                                        navigationType = NavigationType.PopTo(
-                                            screen = DashboardScreens.Dashboard
+                    DeepLinkType.CREDENTIAL_OFFER -> {
+                        getOrCreateCredentialOfferScope()
+                        generateComposableArguments(
+                            mapOf(
+                                OfferUiConfig.serializedKeyName to uiSerializer.toBase64(
+                                    OfferUiConfig(
+                                        offerUri = it.link.toString(),
+                                        onSuccessNavigation = ConfigNavigation(
+                                            navigationType = NavigationType.PopTo(
+                                                screen = DashboardScreens.Dashboard
+                                            )
+                                        ),
+                                        onCancelNavigation = ConfigNavigation(
+                                            navigationType = NavigationType.Pop
                                         )
                                     ),
-                                    onCancelNavigation = ConfigNavigation(
-                                        navigationType = NavigationType.Pop
-                                    )
-                                ),
-                                OfferUiConfig.Parser
+                                    OfferUiConfig.Parser
+                                )
                             )
                         )
-                    )
+                    }
 
                     else -> null
                 }

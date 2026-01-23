@@ -55,6 +55,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -63,6 +64,7 @@ import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import eu.europa.ec.dashboardfeature.util.TestTag
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.IconDataUi
@@ -149,6 +151,11 @@ fun BottomNavigationBar(
                     } == true
 
                     FloatingNavItem(
+                        modifier = Modifier.testTag(
+                            TestTag.DashboardScreen.bottomNavigationItem(
+                                navItem = screen.route.lowercase()
+                            )
+                        ),
                         icon = screen.icon,
                         label = stringResource(screen.titleRes),
                         selected = selected,
@@ -177,6 +184,11 @@ fun BottomNavigationBar(
                     } == true
 
                     FloatingNavItem(
+                        modifier = Modifier.testTag(
+                            TestTag.DashboardScreen.bottomNavigationItem(
+                                navItem = screen.route.lowercase()
+                            )
+                        ),
                         icon = screen.icon,
                         label = stringResource(screen.titleRes),
                         selected = selected,
@@ -247,6 +259,7 @@ fun BottomNavigationBar(
 
 @Composable
 fun FloatingNavItem(
+    modifier: Modifier = Modifier,
     icon: IconDataUi,
     label: String,
     selected: Boolean,
@@ -289,7 +302,7 @@ fun FloatingNavItem(
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
+        modifier = modifier
             .clickable(
                 interactionSource = interactionSource,
                 indication = null

@@ -26,20 +26,14 @@ plugins {
 
 android {
     namespace = "eu.europa.ec.uilogic"
-    
-    kotlinOptions {
-        freeCompilerArgs += listOf(
-            "-opt-in=androidx.compose.ui.ExperimentalComposeUiApi",
-            "-opt-in=androidx.compose.foundation.ExperimentalFoundationApi",
-            "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api"
-        )
-    }
 }
 
 kotlin {
     sourceSets.all {
         languageSettings {
             optIn("androidx.compose.ui.ExperimentalComposeUiApi")
+            optIn("androidx.compose.foundation.ExperimentalFoundationApi")
+            optIn("androidx.compose.material3.ExperimentalMaterial3Api")
         }
     }
 }

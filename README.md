@@ -102,7 +102,7 @@ You will also need to download the EUDI Verifier app. More information can be fo
 ### Issuance flow (Credential Offer - Issuer-initiated)
 
 1. Go to the "Dashboard" screen, navigate to the "Documents" tab, and tap the "+" icon (top-right of the screen). Select "Scan QR".
-2. Scan the QR code from the issuer's website [EUDI Issuer](https://issuer.eudiw.dev/credential_offer_choice)
+2. Scan the QR code from the issuer's website [EUDI Issuer](https://issuer.eudiw.dev/credential_offer)
 3. Review the documents included in the credential offer and tap "Add".
 4. In the web view that appears, select "Country Selection", then "FormEU", and tap "Submit".
 5. Fill in the form. Any data will suffice, but selecting a birth date over 18 is recommended, as it is required for certain app functionalities (e.g., RQES).
@@ -198,30 +198,30 @@ graph TD;
   common-feature --> proximity-feature
   common-feature --> issuance-feature
 
-  business-logic -->common-feature
-  ui-logic -->common-feature
-  network-logic -->common-feature
-  resources-logic -->common-feature
-  analytics-logic -->common-feature 
-  authentication-logic -->common-feature 
-  core-logic -->common-feature
-  storage-logic -->common-feature 
+  business-logic --> common-feature
+  ui-logic --> common-feature
+  network-logic --> common-feature
+  resources-logic --> common-feature
+  analytics-logic --> common-feature 
+  authentication-logic --> common-feature 
+  core-logic --> common-feature
+  storage-logic --> common-feature 
 
-  business-logic -->core-logic
-  resources-logic -->core-logic
-  authentication-logic -->core-logic
+  business-logic --> core-logic
+  resources-logic --> core-logic
+  authentication-logic --> core-logic
 
-  business-logic -->ui-logic
-  resources-logic -->ui-logic
-  analytics-logic -->ui-logic
+  business-logic --> ui-logic
+  resources-logic --> ui-logic
+  analytics-logic --> ui-logic
 
-  business-logic -->network-logic
+  business-logic --> network-logic
   
-  business-logic -->storage-logic
+  business-logic --> storage-logic
 
-  resources-logic -->storage-logic
+  resources-logic --> storage-logic
 
-  resources-logic -->business-logic
+  resources-logic --> business-logic
 
   resources-logic --> authentication-logic
   business-logic --> authentication-logic

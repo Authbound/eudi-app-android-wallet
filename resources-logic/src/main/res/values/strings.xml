@@ -326,6 +326,7 @@
     <string name="documents_screen_filters_filter_by_issuer">Filter by Issuer</string>
     <string name="documents_screen_filters_filter_by_category">Filter by Category</string>
     <string name="documents_screen_filters_filter_by_all">All</string>
+    <string name="documents_screen_filters_unknown_issuer">Unknown Issuer</string>
     <string name="documents_screen_filters_filter_by_state">Filter by State</string>
     <string name="documents_screen_filters_filter_by_state_revoked">Revoked</string>
     <string name="documents_screen_filters_filter_by_state_valid">Valid</string>
