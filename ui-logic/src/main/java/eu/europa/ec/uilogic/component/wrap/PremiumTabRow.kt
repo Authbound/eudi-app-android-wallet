@@ -192,6 +192,10 @@ fun PremiumTabRow(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 tabs.forEachIndexed { index, tab ->
+                    // Dynamic weight: give more space to longer tabs (Documents) and less to shorter ones (Health)
+                    // Adding a base value (e.g. 6) ensures reasonable minimum width for icon/padding
+                    val weight = (tab.label.length + 6).toFloat()
+
                     PremiumTabItem(
                         tab = tab,
                         isSelected = index == selectedTabIndex,
@@ -209,7 +213,7 @@ fun PremiumTabRow(
                                 tabOffsets[index] = offset
                             }
                         },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(weight)
                     )
                 }
             }
@@ -256,8 +260,7 @@ private fun PremiumTabItem(
                 onMeasured(coordinates.size.width, coordinates.parentCoordinates?.let {
                     coordinates.positionInParent().x.toInt()
                 } ?: 0)
-            }
-            .padding(horizontal = 8.dp),
+            },
         contentAlignment = Alignment.Center
     ) {
         Row(
@@ -270,15 +273,15 @@ private fun PremiumTabItem(
                     iconData = tab.icon,
                     customTint = textColor,
                     modifier = Modifier
-                        .padding(end = 6.dp)
-                        .size(18.dp)
+                        .padding(end = 2.dp)
+                        .size(17.dp)
                 )
             }
 
             // Label
             Text(
                 text = tab.label,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelMedium,
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                 color = textColor,
                 textAlign = TextAlign.Center,
