@@ -23,6 +23,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -156,7 +157,11 @@ fun PremiumTabRow(
             .onGloballyPositioned { containerWidth = it.size.width },
         shape = RoundedCornerShape(26.dp),
         color = containerColor,
-        shadowElevation = 2.dp
+        shadowElevation = 2.dp,
+        border = BorderStroke(
+            width = 0.5.dp,
+            color = Color.White.copy(alpha = 0.12f)
+        )
     ) {
         Box(
             modifier = Modifier

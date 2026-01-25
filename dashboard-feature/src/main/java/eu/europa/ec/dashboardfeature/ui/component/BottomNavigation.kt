@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -321,14 +322,16 @@ fun FloatingNavItem(
             ) {
                 onItemClick()
             }
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .padding(horizontal = 4.dp, vertical = 8.dp)
     ) {
-        // Icon container with fixed size to prevent overflow
+        // Icon container with fixed size - requiredSize ensures it won't be constrained
         Box(
             modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.activeHighlight.copy(alpha = backgroundAlpha)),
+                .requiredSize(48.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.activeHighlight.copy(alpha = backgroundAlpha),
+                    shape = CircleShape
+                ),
             contentAlignment = Alignment.Center
         ) {
             // Inner icon box with explicit constraints to prevent clipping

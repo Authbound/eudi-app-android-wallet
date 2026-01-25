@@ -16,14 +16,22 @@
 
 package eu.europa.ec.uilogic.component.wrap
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -38,11 +46,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -69,7 +81,6 @@ import eu.europa.ec.uilogic.component.utils.HSpacer
 import eu.europa.ec.uilogic.component.utils.OneTimeLaunchedEffect
 import eu.europa.ec.uilogic.component.utils.SIZE_SMALL
 import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
-import eu.europa.ec.uilogic.util.TestTag
 
 @Composable
 fun WrapPinTextField(
@@ -159,7 +170,6 @@ fun WrapPinTextField(
                     DisableSelection {
                         OutlinedTextField(
                             modifier = Modifier
-                                .testTag(TestTag.pinTextField(currentTextField))
                                 .focusRequester(focusRequesters[currentTextField])
                                 .then(pinWidth?.let { dp ->
                                     Modifier
@@ -297,9 +307,170 @@ private fun PreviewWrapPinTextField() {
         WrapPinTextField(
             modifier = Modifier.wrapContentSize(),
             onPinUpdate = {},
-            length = 4,
+            length = 6,
             visualTransformation = PasswordVisualTransformation(),
             pinWidth = 42.dp,
+        )
+    }
+}
+
+@ThemeModePreviews
+@Composable
+private fun PreviewWrapPinTextFieldFilled() {
+    PreviewTheme {
+        WrapPinTextField(
+            modifier = Modifier.wrapContentSize(),
+            controlledCode = "123",
+            onPinUpdate = {},
+            length = 6,
+            visualTransformation = PasswordVisualTransformation(),
+            pinWidth = 42.dp,
+        )
+    }
+}
+
+@ThemeModePreviews
+@Composable
+private fun PreviewWrapPinTextFieldError() {
+    PreviewTheme {
+        WrapPinTextField(
+            modifier = Modifier.wrapContentSize(),
+            controlledCode = "123456",
+            onPinUpdate = {},
+            length = 6,
+            hasError = true,
+            errorMessage = "Incorrect PIN",
+            visualTransformation = PasswordVisualTransformation(),
+            pinWidth = 42.dp,
+        )
+    }
+}
+
+/**
+ * Modern circle-based PIN indicator component.
+ * Shows empty circles for unfilled positions and filled circles for entered digits.
+ * Includes smooth scale animations when digits are entered.
+ */
+@Composable
+fun PinIndicator(
+    modifier: Modifier = Modifier,
+    pinLength: Int,
+    filledCount: Int,
+    hasError: Boolean = false,
+    errorMessage: String? = null,
+    circleSize: Dp = 16.dp,
+    circleSpacing: Dp = 16.dp,
+    filledColor: Color = MaterialTheme.colorScheme.primary,
+    emptyColor: Color = MaterialTheme.colorScheme.outlineVariant,
+    errorColor: Color = MaterialTheme.colorScheme.error,
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(
+            modifier = Modifier.wrapContentWidth(),
+            horizontalArrangement = Arrangement.spacedBy(circleSpacing),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            for (index in 0 until pinLength) {
+                val isFilled = index < filledCount
+
+                // Animate scale when filling
+                val scale by animateFloatAsState(
+                    targetValue = if (isFilled) 1f else 0.85f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow
+                    ),
+                    label = "pinIndicatorScale"
+                )
+
+                // Determine color based on state
+                val circleColor = when {
+                    hasError -> errorColor
+                    isFilled -> filledColor
+                    else -> emptyColor
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(circleSize)
+                        .graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                        }
+                        .then(
+                            if (isFilled) {
+                                Modifier.background(circleColor, CircleShape)
+                            } else {
+                                Modifier
+                                    .background(Color.Transparent, CircleShape)
+                                    .background(
+                                        color = circleColor.copy(alpha = 0.3f),
+                                        shape = CircleShape
+                                    )
+                            }
+                        )
+                        .testTag("pin_indicator_$index")
+                )
+            }
+        }
+
+        errorMessage?.let {
+            Text(
+                modifier = Modifier.padding(top = SPACING_SMALL.dp),
+                text = it,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@ThemeModePreviews
+@Composable
+private fun PreviewPinIndicatorEmpty() {
+    PreviewTheme {
+        PinIndicator(
+            pinLength = 6,
+            filledCount = 0
+        )
+    }
+}
+
+@ThemeModePreviews
+@Composable
+private fun PreviewPinIndicatorPartiallyFilled() {
+    PreviewTheme {
+        PinIndicator(
+            pinLength = 6,
+            filledCount = 3
+        )
+    }
+}
+
+@ThemeModePreviews
+@Composable
+private fun PreviewPinIndicatorFilled() {
+    PreviewTheme {
+        PinIndicator(
+            pinLength = 6,
+            filledCount = 6
+        )
+    }
+}
+
+@ThemeModePreviews
+@Composable
+private fun PreviewPinIndicatorError() {
+    PreviewTheme {
+        PinIndicator(
+            pinLength = 6,
+            filledCount = 6,
+            hasError = true,
+            errorMessage = "Incorrect PIN"
         )
     }
 }

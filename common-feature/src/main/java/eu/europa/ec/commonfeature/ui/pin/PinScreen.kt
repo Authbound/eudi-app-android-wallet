@@ -17,14 +17,24 @@
 package eu.europa.ec.commonfeature.ui.pin
 
 import android.content.Context
+import android.view.HapticFeedbackConstants
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -34,15 +44,21 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import eu.europa.ec.commonfeature.model.PinFlow
@@ -57,15 +73,10 @@ import eu.europa.ec.uilogic.component.utils.OneTimeLaunchedEffect
 import eu.europa.ec.uilogic.component.utils.SPACING_LARGE
 import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
 import eu.europa.ec.uilogic.component.wrap.BottomSheetTextDataUi
-import eu.europa.ec.uilogic.component.wrap.ButtonConfig
-import eu.europa.ec.uilogic.component.wrap.ButtonType
 import eu.europa.ec.uilogic.component.wrap.DialogBottomSheet
-import eu.europa.ec.uilogic.component.wrap.StickyBottomConfig
-import eu.europa.ec.uilogic.component.wrap.StickyBottomType
 import eu.europa.ec.uilogic.component.wrap.WrapModalBottomSheet
+import eu.europa.ec.uilogic.component.wrap.PinIndicator
 import eu.europa.ec.uilogic.component.wrap.WrapPinKeypad
-import eu.europa.ec.uilogic.component.wrap.WrapPinTextField
-import eu.europa.ec.uilogic.component.wrap.WrapStickyBottomContent
 import eu.europa.ec.uilogic.extension.finish
 import eu.europa.ec.uilogic.navigation.CommonScreens
 import kotlinx.coroutines.CoroutineScope
@@ -97,24 +108,17 @@ fun PinScreen(
         onBack = { viewModel.setEvent(state.onBackEvent) },
         imePaddingConfig = ImePaddingConfig.ONLY_CONTENT,
         stickyBottom = { paddingValues ->
-            WrapStickyBottomContent(
+            ModernVerifyButton(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(paddingValues),
-                stickyBottomConfig = StickyBottomConfig(
-                    type = StickyBottomType.OneButton(
-                        config = ButtonConfig(
-                            type = ButtonType.PRIMARY,
-                            enabled = state.isButtonEnabled,
-                            onClick = {
-                                viewModel.setEvent(Event.NextButtonPressed(pin = state.pin))
-                            }
-                        )
-                    )
-                )
-            ) {
-                Text(text = state.buttonText)
-            }
+                    .padding(paddingValues)
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                text = state.buttonText,
+                enabled = state.isButtonEnabled,
+                onClick = {
+                    viewModel.setEvent(Event.NextButtonPressed(pin = state.pin))
+                }
+            )
         }
     ) { paddingValues ->
         Content(
@@ -200,54 +204,30 @@ private fun Content(
             .fillMaxSize()
             .padding(paddingValues)
     ) {
+        // Top section with logo - takes remaining space
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.Center
         ) {
             AppIconAndText(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .scale(1.12f)  // 5% larger logo
                     .padding(bottom = SPACING_LARGE.dp),
                 appIconAndTextData = AppIconAndTextData(),
             )
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = SPACING_LARGE.dp),
-                verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp, Alignment.Top)
-            ) {
-                Text(
-                    text = state.title,
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                )
-                Text(
-                    text = state.subtitle,
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                )
-            }
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = SPACING_LARGE.dp),
-                verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp, Alignment.Top)
-            ) {
-                PinFieldLayout(
-                    modifier = Modifier.fillMaxWidth(),
-                    state = state,
-                    onPinInput = { quickPin ->
-                        onEventSend(Event.OnQuickPinEntered(quickPin))
-                    }
-                )
-            }
         }
+
+        // PIN indicators - positioned directly above keypad
+        PinFieldLayout(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 24.dp),
+            state = state
+        )
 
         WrapPinKeypad(
             modifier = Modifier
@@ -314,22 +294,79 @@ private fun SheetContent(
 private fun PinFieldLayout(
     modifier: Modifier = Modifier,
     state: State,
-    onPinInput: (String) -> Unit,
 ) {
-    WrapPinTextField(
+    PinIndicator(
         modifier = modifier,
-        controlledCode = state.pin,
-        onPinUpdate = onPinInput,
-        length = state.quickPinSize,
+        pinLength = state.quickPinSize,
+        filledCount = state.pin.length,
         hasError = !state.quickPinError.isNullOrEmpty(),
         errorMessage = state.quickPinError,
-        visualTransformation = PasswordVisualTransformation(),
-        pinWidth = 42.dp,
-        clearCode = state.resetPin,
-        focusOnCreate = false,
-        enabled = false,
-        shouldHideKeyboardOnCompletion = true
+        circleSize = 16.dp,
+        circleSpacing = 20.dp
     )
+}
+
+/**
+ * Modern verify button with clean solid background and subtle press animation.
+ * Designed to feel premium and distinctive without the divider line.
+ */
+@Composable
+private fun ModernVerifyButton(
+    modifier: Modifier = Modifier,
+    text: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val view = LocalView.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    // Smooth scale animation on press
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed && enabled) 0.97f else 1f,
+        animationSpec = tween(durationMillis = 100),
+        label = "verifyButtonScale"
+    )
+
+    val backgroundColor = if (enabled) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+    }
+
+    Box(
+        modifier = modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clip(RoundedCornerShape(16.dp))
+            .background(backgroundColor)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                enabled = enabled,
+                onClick = {
+                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    onClick()
+                }
+            )
+            .height(56.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.5.sp
+            ),
+            color = if (enabled) {
+                MaterialTheme.colorScheme.onPrimary
+            } else {
+                MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f)
+            }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -358,6 +395,36 @@ private fun SheetContentCancelPreview() {
     PreviewTheme {
         SheetContent(
             onEventSent = {}
+        )
+    }
+}
+
+@ThemeModePreviews
+@Composable
+private fun ModernVerifyButtonEnabledPreview() {
+    PreviewTheme {
+        ModernVerifyButton(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            text = "Verify",
+            enabled = true,
+            onClick = {}
+        )
+    }
+}
+
+@ThemeModePreviews
+@Composable
+private fun ModernVerifyButtonDisabledPreview() {
+    PreviewTheme {
+        ModernVerifyButton(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            text = "Verify",
+            enabled = false,
+            onClick = {}
         )
     }
 }

@@ -16,6 +16,11 @@
 
 package eu.europa.ec.uilogic.component.wrap
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -26,14 +31,22 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ripple
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.IconDataUi
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
@@ -44,9 +57,9 @@ import eu.europa.ec.uilogic.component.utils.SPACING_LARGE
 fun WrapPinKeypad(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    keyShape: Shape = MaterialTheme.shapes.extraLarge,
-    keySpacing: Dp = 12.dp,
-    maxKeySize: Dp = 82.dp,
+    keyShape: Shape = CircleShape,
+    keySpacing: Dp = 16.dp,
+    maxKeySize: Dp = 76.dp,
     leadingIconData: IconDataUi? = null,
     onLeadingPressed: (() -> Unit)? = null,
     onDigitPressed: (Int) -> Unit,
@@ -92,25 +105,20 @@ fun WrapPinKeypad(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (leadingIconData != null && onLeadingPressed != null) {
-                    WrapButton(
+                    ModernKeyButton(
                         modifier = Modifier.size(keySize),
-                        buttonConfig = ButtonConfig(
-                            type = ButtonType.SECONDARY,
-                            enabled = enabled,
-                            onClick = onLeadingPressed,
-                            shape = keyShape,
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
-                        )
-                    ) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        keyShape = keyShape,
+                        enabled = enabled,
+                        onClick = onLeadingPressed,
+                        content = {
                             WrapIcon(iconData = leadingIconData)
                         }
-                    }
+                    )
                 } else {
                     Spacer(modifier = Modifier.size(keySize))
                 }
 
-                KeyButton(
+                ModernKeyButton(
                     modifier = Modifier.size(keySize),
                     keyShape = keyShape,
                     enabled = enabled,
@@ -118,20 +126,18 @@ fun WrapPinKeypad(
                     onClick = { onDigitPressed(0) }
                 )
 
-                WrapButton(
+                ModernKeyButton(
                     modifier = Modifier.size(keySize),
-                    buttonConfig = ButtonConfig(
-                        type = ButtonType.SECONDARY,
-                        enabled = enabled,
-                        onClick = onBackspacePressed,
-                        shape = keyShape,
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
-                    )
-                ) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        WrapIcon(iconData = AppIcons.ArrowBack)
+                    keyShape = keyShape,
+                    enabled = enabled,
+                    onClick = onBackspacePressed,
+                    content = {
+                        WrapIcon(
+                            iconData = AppIcons.ArrowBack,
+                            customTint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
                     }
-                }
+                )
             }
         }
     }
@@ -152,9 +158,8 @@ private fun KeypadRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         keys.forEach { digit ->
-            KeyButton(
-                modifier = Modifier
-                    .size(keySize),
+            ModernKeyButton(
+                modifier = Modifier.size(keySize),
                 keyShape = keyShape,
                 enabled = enabled,
                 label = digit.toString(),
@@ -165,27 +170,49 @@ private fun KeypadRow(
 }
 
 @Composable
-private fun KeyButton(
+private fun ModernKeyButton(
     modifier: Modifier,
     keyShape: Shape,
     enabled: Boolean,
-    label: String,
+    label: String? = null,
     onClick: () -> Unit,
+    content: (@Composable () -> Unit)? = null,
 ) {
-    WrapButton(
-        modifier = modifier,
-        buttonConfig = ButtonConfig(
-            type = ButtonType.SECONDARY,
-            enabled = enabled,
-            onClick = onClick,
-            shape = keyShape,
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
-        )
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    
+    // Subtle scale animation on press
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.92f else 1f,
+        animationSpec = tween(durationMillis = 100),
+        label = "keyScale"
+    )
+    
+    Box(
+        modifier = modifier
+            .scale(scale)
+            .clip(keyShape)
+            .clickable(
+                enabled = enabled,
+                interactionSource = interactionSource,
+            indication = ripple(
+                    bounded = true,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                ),
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
     ) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        if (content != null) {
+            content()
+        } else if (label != null) {
             Text(
                 text = label,
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Normal,
+                    letterSpacing = 0.sp
+                ),
                 color = MaterialTheme.colorScheme.onSurface
             )
         }
@@ -202,5 +229,3 @@ private fun PreviewWrapPinKeypad() {
         )
     }
 }
-
-
