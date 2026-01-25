@@ -24,15 +24,17 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CardDefaults
@@ -48,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import eu.europa.ec.dashboardfeature.ui.dashboard.Event
@@ -62,10 +65,6 @@ import eu.europa.ec.uilogic.component.ListItemLeadingContentDataUi
 import eu.europa.ec.uilogic.component.ListItemMainContentDataUi
 import eu.europa.ec.uilogic.component.ListItemTrailingContentDataUi
 import eu.europa.ec.uilogic.component.SectionTitle
-import eu.europa.ec.uilogic.component.content.ContentScreen
-import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
-import eu.europa.ec.uilogic.component.content.ToolbarActionUi
-import eu.europa.ec.uilogic.component.content.ToolbarConfig
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
 import eu.europa.ec.uilogic.component.utils.SPACING_LARGE
@@ -86,41 +85,18 @@ internal fun SideMenuScreen(
     state: State,
     onEventSent: (Event) -> Unit,
 ) {
-    ContentScreen(
-        navigatableAction = ScreenNavigateAction.NONE,
-        toolBarConfig = ToolbarConfig(
-            title = state.sideMenuTitle,
-            actions = listOf(
-                ToolbarActionUi(
-                    icon = AppIcons.Close,
-                    onClick = {
-                        onEventSent(
-                            Event.SideMenu.Close
-                        )
-                    }
-                )
-            )
-        ),
-        isLoading = false,
-        onBack = {
-            onEventSent(
-                Event.SideMenu.Close
-            )
-        }
-    ) { paddingValues ->
-        Content(
-            state = state,
-            paddingValues = paddingValues,
-            onEventSent = onEventSent
-        )
-    }
+    Content(
+        state = state,
+        onEventSent = onEventSent,
+        onClose = { onEventSent(Event.SideMenu.Close) }
+    )
 }
 
 @Composable
 private fun Content(
     state: State,
     onEventSent: (Event) -> Unit,
-    paddingValues: PaddingValues
+    onClose: () -> Unit = {}
 ) {
     // Staggered animation states
     var showProfile by remember { mutableStateOf(false) }
@@ -143,25 +119,66 @@ private fun Content(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
+            .statusBarsPadding()
     ) {
-        // Profile Header (no padding, full bleed)
-        AnimatedVisibility(
-            visible = showProfile,
-            enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { -it / 4 }
-        ) {
-            ProfileHeader(
-                config = ProfileHeaderConfig(
-                    displayName = state.userProfile?.displayName ?: "User",
-                    email = state.userProfile?.email,
-                    avatarUrl = state.userProfile?.avatarUrl,
-                    onEditClick = {
+        // Profile Header with floating close button
+        Box(modifier = Modifier.fillMaxWidth()) {
+            androidx.compose.animation.AnimatedVisibility(
+                visible = showProfile,
+                enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { -it / 4 }
+            ) {
+                ProfileHeader(
+                    config = ProfileHeaderConfig(
+                        displayName = state.userProfile?.displayName ?: "User",
+                        email = state.userProfile?.email,
+                        avatarUrl = state.userProfile?.avatarUrl,
+                        onEditClick = {
+                            onEventSent(Event.SideMenu.ItemClicked(SideMenuTypeUi.PROFILE))
+                        }
+                    ),
+                    onProfileClick = {
                         onEventSent(Event.SideMenu.ItemClicked(SideMenuTypeUi.PROFILE))
                     }
-                ),
-                onProfileClick = {
-                    onEventSent(Event.SideMenu.ItemClicked(SideMenuTypeUi.PROFILE))
+                )
+            }
+
+            // Floating close button in top-right corner - elevated above profile
+            Surface(
+                onClick = onClose,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(SPACING_MEDIUM.dp)
+                    .zIndex(10f)
+                    .size(48.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                shadowElevation = 4.dp
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    val icon = AppIcons.Close
+                    val imageVector = icon.imageVector
+                    val resourceId = icon.resourceId
+                    
+                    if (imageVector != null) {
+                        androidx.compose.material3.Icon(
+                            imageVector = imageVector,
+                            contentDescription = stringResource(icon.contentDescriptionId),
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    } else if (resourceId != null) {
+                        androidx.compose.material3.Icon(
+                            painter = androidx.compose.ui.res.painterResource(resourceId),
+                            contentDescription = stringResource(icon.contentDescriptionId),
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
-            )
+            }
         }
 
         // Scrollable content area
@@ -376,7 +393,7 @@ private fun SideMenuContentPreview() {
                 ),
             ),
             onEventSent = {},
-            paddingValues = PaddingValues(SPACING_MEDIUM.dp)
+            onClose = {}
         )
     }
 }

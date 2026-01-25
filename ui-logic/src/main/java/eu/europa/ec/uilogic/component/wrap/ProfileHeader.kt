@@ -88,24 +88,25 @@ fun ProfileHeader(
         label = "profile_header_scale"
     )
 
+    // Navy gradient background
+    val gradient = Brush.linearGradient(
+        colors = listOf(
+            Color(0xFF0A1A36), // Navy Primary
+            Color(0xFF1E3A5F)  // Navy Medium
+        )
+    )
+
     Box(
         modifier = modifier
             .fillMaxWidth()
             .scale(scale)
-            .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.primary,
-                        MaterialTheme.colorScheme.primaryContainer
-                    )
-                )
-            )
+            .clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
+            .background(gradient)
             .then(
                 if (onProfileClick != null) {
                     Modifier.clickable(
                         interactionSource = interactionSource,
-                        indication = ripple(bounded = true, color = Color.White.copy(alpha = 0.3f)),
+                        indication = ripple(bounded = true, color = Color.White),
                         onClick = {
                             view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                             onProfileClick()
@@ -116,6 +117,7 @@ fun ProfileHeader(
                 }
             )
             .padding(24.dp)
+            .padding(top = 24.dp) // Extra top padding for close button space
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -155,7 +157,7 @@ fun ProfileHeader(
 
                 // Edit Profile link
                 if (config.onEditClick != null) {
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     EditProfileButton(onClick = config.onEditClick)
                 }
             }
@@ -171,7 +173,7 @@ fun ProfileAvatar(
     displayName: String,
     avatarUrl: String?,
     modifier: Modifier = Modifier,
-    size: Int = 64
+    size: Int = 72
 ) {
     // Get initials from display name
     val initials = remember(displayName) {
@@ -186,22 +188,20 @@ fun ProfileAvatar(
         modifier = modifier
             .size(size.dp)
             .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+            .background(Color.White.copy(alpha = 0.1f)),
         contentAlignment = Alignment.Center
     ) {
-        // White border
+        // Inner circle
         Box(
             modifier = Modifier
-                .size((size - 6).dp)
+                .size((size - 8).dp)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primary),
+                .background(Color(0xFF3B82F6)), // Blue Accent
             contentAlignment = Alignment.Center
         ) {
-            // If we have an avatar URL, we could load it here with Coil/Glide
-            // For now, show initials
-            Text(
+             Text(
                 text = initials,
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
@@ -220,7 +220,9 @@ private fun EditProfileButton(
     val view = LocalView.current
     val interactionSource = remember { MutableInteractionSource() }
 
-    Row(
+    Surface(
+        color = Color.White.copy(alpha = 0.15f),
+        shape = RoundedCornerShape(100.dp),
         modifier = modifier
             .clickable(
                 interactionSource = interactionSource,
@@ -229,21 +231,25 @@ private fun EditProfileButton(
                     view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                     onClick()
                 }
-            ),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+            )
     ) {
-        WrapIcon(
-            iconData = AppIcons.Edit,
-            customTint = Color.White.copy(alpha = 0.9f),
-            modifier = Modifier.size(14.dp)
-        )
-        Text(
-            text = "Edit Profile",
-            style = MaterialTheme.typography.labelMedium,
-            color = Color.White.copy(alpha = 0.9f),
-            textDecoration = TextDecoration.Underline
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            WrapIcon(
+                iconData = AppIcons.Edit,
+                customTint = Color.White,
+                modifier = Modifier.size(12.dp)
+            )
+            Text(
+                text = "Edit Profile",
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.White,
+                fontWeight = FontWeight.Medium
+            )
+        }
     }
 }
 
