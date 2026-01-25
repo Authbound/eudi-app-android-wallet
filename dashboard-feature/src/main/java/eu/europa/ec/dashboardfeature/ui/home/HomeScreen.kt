@@ -290,6 +290,9 @@ private fun Content(
             },
             onAddCredentialClick = {
                 onEventSent(Event.AddCredentialPressed)
+            },
+            onGetAuthboundIdClick = {
+                onEventSent(Event.GetAuthboundIdPressed)
             }
         )
 
@@ -1043,7 +1046,8 @@ private fun HeroCredentialSection(
     heroCredential: HeroCredentialUi?,
     isLoading: Boolean,
     onCredentialClick: () -> Unit,
-    onAddCredentialClick: () -> Unit
+    onAddCredentialClick: () -> Unit,
+    onGetAuthboundIdClick: (() -> Unit)? = null
 ) {
     Column(
         modifier = Modifier
@@ -1084,8 +1088,12 @@ private fun HeroCredentialSection(
             }
 
             else -> {
-                // Empty state - invite user to add first credential
-                EmptyHeroCard(onAddCredentialClick = onAddCredentialClick)
+                // Empty state - show Authbound ID promo if callback is available
+                if (onGetAuthboundIdClick != null) {
+                    AuthboundIdPromoCard(onGetAuthboundIdClick = onGetAuthboundIdClick)
+                } else {
+                    EmptyHeroCard(onAddCredentialClick = onAddCredentialClick)
+                }
             }
         }
     }
@@ -1221,6 +1229,206 @@ private fun EmptyHeroCard(
 }
 
 /**
+ * Premium Authbound ID promotional card - shown to encourage identity verification.
+ * Features a stunning emerald-to-teal gradient with trust-inducing visual design.
+ * This card is designed to be eye-catching and encourage users to complete verification.
+ */
+@Composable
+fun AuthboundIdPromoCard(
+    onGetAuthboundIdClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val view = LocalView.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = tween(durationMillis = 100),
+        label = "scale"
+    )
+
+    // Entrance animation
+    var isVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(150)
+        isVisible = true
+    }
+
+    // Premium gradient colors - Emerald for trust & verification
+    val gradientStart = Color(0xFF047857) // Emerald dark
+    val gradientEnd = Color(0xFF0D9488)   // Teal
+    val accentColor = Color(0xFF34D399)   // Light green accent
+
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = fadeIn(tween(300)) + slideInVertically(
+            animationSpec = tween(300),
+            initialOffsetY = { it / 4 }
+        )
+    ) {
+        Surface(
+            modifier = modifier
+                .fillMaxWidth()
+                .height(180.dp)
+                .scale(scale)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = ripple(color = accentColor)
+                ) {
+                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    onGetAuthboundIdClick()
+                },
+            shape = RoundedCornerShape(24.dp),
+            color = Color.Transparent,
+            shadowElevation = 12.dp
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(gradientStart, gradientEnd),
+                            start = Offset(0f, 0f),
+                            end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+                        )
+                    )
+            ) {
+                // Decorative circles (top-right, brand element)
+                AuthboundIdDecorativeElements(
+                    modifier = Modifier.align(Alignment.TopEnd),
+                    color = accentColor
+                )
+
+                // Large background icon (subtle)
+                WrapIcon(
+                    iconData = AppIcons.Verified,
+                    customTint = Color.White.copy(alpha = 0.05f),
+                    modifier = Modifier
+                        .size(200.dp)
+                        .align(Alignment.BottomEnd)
+                        .offset(x = 40.dp, y = 40.dp)
+                        .rotate(-15f)
+                )
+
+                // Main content
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Top section: Badge + Title
+                    Column {
+                        // Premium badge
+                        Surface(
+                            color = Color.White.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(50)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                WrapIcon(
+                                    iconData = AppIcons.Verified,
+                                    customTint = Color.White,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = stringResource(R.string.quickid_authbound_id_promo_badge),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 1.sp
+                                    ),
+                                    color = Color.White
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Title
+                        Text(
+                            text = stringResource(R.string.quickid_authbound_id_promo_title),
+                            style = MaterialTheme.typography.headlineSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = (-0.5).sp
+                            ),
+                            color = Color.White
+                        )
+                    }
+
+                    // Bottom section: Description + Arrow
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        Text(
+                            text = stringResource(R.string.quickid_authbound_id_promo_description),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White.copy(alpha = 0.85f),
+                            lineHeight = 20.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        // Animated arrow button
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            WrapIcon(
+                                iconData = AppIcons.KeyboardArrowRight,
+                                customTint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Decorative elements for the Authbound ID promo card.
+ */
+@Composable
+private fun AuthboundIdDecorativeElements(
+    modifier: Modifier = Modifier,
+    color: Color
+) {
+    Canvas(
+        modifier = modifier
+            .size(140.dp)
+            .padding(12.dp)
+    ) {
+        // Large ring
+        drawCircle(
+            color = color.copy(alpha = 0.12f),
+            radius = 50.dp.toPx(),
+            center = Offset(size.width * 0.65f, size.height * 0.35f),
+            style = Stroke(width = 2.dp.toPx())
+        )
+        // Medium filled circle
+        drawCircle(
+            color = color.copy(alpha = 0.15f),
+            radius = 18.dp.toPx(),
+            center = Offset(size.width * 0.3f, size.height * 0.55f)
+        )
+        // Small dot
+        drawCircle(
+            color = color.copy(alpha = 0.2f),
+            radius = 6.dp.toPx(),
+            center = Offset(size.width * 0.85f, size.height * 0.75f)
+        )
+    }
+}
+
+/**
  * Decorative circular pattern for premium card backgrounds.
  * Creates subtle brand-aligned visual interest with varying circle sizes and opacities.
  */
@@ -1327,9 +1535,10 @@ private fun CredentialsSection(
 }
 
 /**
- * Soft invitation empty state for credentials section.
- * Differentiated from hero card with light surface treatment and dashed border.
- * Creates visual hierarchy: Hero (bold) > Quick Actions (medium) > Empty States (soft)
+ * Minimalist invitation empty state for credentials section.
+ * Deliberately understated design to contrast with bold hero card.
+ * Uses line art illustration and subtle depth instead of gradients.
+ * Creates visual hierarchy: Hero (bold) > Quick Actions (medium) > Empty States (minimal)
  */
 @Composable
 private fun CredentialsEmptyState(
@@ -1339,164 +1548,213 @@ private fun CredentialsEmptyState(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = tween(durationMillis = 100),
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = tween(durationMillis = 150),
         label = "scale"
     )
 
-    // Entrance animation
+    // Entrance animation - staggered fade
     var isVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        delay(100)
+        delay(200)
         isVisible = true
     }
 
+    // Colors
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val outlineColor = MaterialTheme.colorScheme.outlineVariant
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+
     AnimatedVisibility(
         visible = isVisible,
-        enter = fadeIn(tween(300)) + slideInVertically(
-            animationSpec = tween(300),
-            initialOffsetY = { it / 4 }
+        enter = fadeIn(tween(400)) + slideInVertically(
+            animationSpec = tween(400, easing = androidx.compose.animation.core.EaseOutCubic),
+            initialOffsetY = { it / 6 }
         )
     ) {
-        Surface(
+        // Card with inset shadow effect (appears recessed, not raised)
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .scale(scale)
+                .clip(RoundedCornerShape(24.dp))
+                .background(surfaceColor)
                 .clickable(
                     interactionSource = interactionSource,
-                    indication = ripple(color = MaterialTheme.colorScheme.primary)
+                    indication = ripple(color = primaryColor.copy(alpha = 0.08f))
                 ) {
                     view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                     onAddCredentialClick()
-                },
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            border = BorderStroke(
-                width = 1.5.dp,
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                    )
-                )
-            ),
-            shadowElevation = 2.dp
+                }
         ) {
-            Column(
+            // Subtle inset border - creates depth without elevation
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 32.dp, horizontal = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .padding(1.dp)
+                    .clip(RoundedCornerShape(23.dp))
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                outlineColor.copy(alpha = 0.15f),
+                                outlineColor.copy(alpha = 0.05f)
+                            )
+                        )
+                    )
             ) {
-                // Animated wallet illustration with floating + badge
+                // Inner content area
                 Box(
-                    modifier = Modifier.size(80.dp),
-                    contentAlignment = Alignment.Center
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(1.dp)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(surfaceColor)
                 ) {
-                    // Soft glow background
-                    Box(
+                    // Decorative corner accent (top-right) - subtle geometric element
+                    Canvas(
                         modifier = Modifier
-                            .size(80.dp)
-                            .clip(CircleShape)
-                            .background(
-                                brush = Brush.radialGradient(
-                                    colors = listOf(
-                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f),
-                                        Color.Transparent
+                            .align(Alignment.TopEnd)
+                            .size(100.dp)
+                    ) {
+                        // Minimal line art - two intersecting arcs
+                        drawArc(
+                            color = outlineColor.copy(alpha = 0.12f),
+                            startAngle = 90f,
+                            sweepAngle = 90f,
+                            useCenter = false,
+                            topLeft = Offset(size.width * 0.3f, -size.height * 0.5f),
+                            size = androidx.compose.ui.geometry.Size(size.width, size.height),
+                            style = Stroke(width = 1.5.dp.toPx())
+                        )
+                        drawArc(
+                            color = primaryColor.copy(alpha = 0.08f),
+                            startAngle = 90f,
+                            sweepAngle = 90f,
+                            useCenter = false,
+                            topLeft = Offset(size.width * 0.5f, -size.height * 0.3f),
+                            size = androidx.compose.ui.geometry.Size(size.width * 0.8f, size.height * 0.8f),
+                            style = Stroke(width = 1.dp.toPx())
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 40.dp, horizontal = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Line art illustration - stacked cards outline
+                        Box(
+                            modifier = Modifier.size(72.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            // Back card (offset)
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp, 32.dp)
+                                    .offset(x = 6.dp, y = (-4).dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(outlineColor.copy(alpha = 0.08f))
+                            )
+                            // Front card with dashed outline
+                            Canvas(
+                                modifier = Modifier
+                                    .size(52.dp, 36.dp)
+                                    .offset(x = (-2).dp, y = 4.dp)
+                            ) {
+                                val path = androidx.compose.ui.graphics.Path().apply {
+                                    addRoundRect(
+                                        androidx.compose.ui.geometry.RoundRect(
+                                            0f, 0f, size.width, size.height,
+                                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(8.dp.toPx())
+                                        )
+                                    )
+                                }
+                                drawPath(
+                                    path = path,
+                                    color = primaryColor.copy(alpha = 0.5f),
+                                    style = Stroke(
+                                        width = 1.5.dp.toPx(),
+                                        pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(
+                                            floatArrayOf(8.dp.toPx(), 6.dp.toPx())
+                                        )
                                     )
                                 )
-                            )
-                    )
+                            }
+                            // Plus icon in center
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .offset(x = (-2).dp, y = 4.dp)
+                                    .clip(CircleShape)
+                                    .background(primaryColor.copy(alpha = 0.1f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                WrapIcon(
+                                    iconData = AppIcons.Add,
+                                    customTint = primaryColor,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
 
-                    // Main icon container
-                    Box(
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        WrapIcon(
-                            iconData = AppIcons.WalletOutline,
-                            customTint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
+                        Spacer(modifier = Modifier.height(24.dp))
 
-                    // Floating + badge
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .offset(x = 4.dp, y = 4.dp)
-                            .size(24.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        WrapIcon(
-                            iconData = AppIcons.Add,
-                            customTint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Title
-                Text(
-                    text = stringResource(R.string.dashboard_home_screen_no_credentials_title),
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Description
-                Text(
-                    text = stringResource(R.string.dashboard_home_screen_no_credentials),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Ghost-style CTA button (outlined)
-                Surface(
-                    onClick = {
-                        view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                        onAddCredentialClick()
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color.Transparent,
-                    border = BorderStroke(
-                        width = 1.5.dp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        WrapIcon(
-                            iconData = AppIcons.Add,
-                            customTint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
-                        )
+                        // Title - understated
                         Text(
-                            text = stringResource(R.string.dashboard_quick_action_add_credential),
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontWeight = FontWeight.SemiBold
+                            text = stringResource(R.string.dashboard_home_screen_no_credentials_title),
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontWeight = FontWeight.Medium,
+                                letterSpacing = 0.5.sp
                             ),
-                            color = MaterialTheme.colorScheme.primary
+                            color = onSurfaceColor,
+                            textAlign = TextAlign.Center
                         )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Description - muted
+                        Text(
+                            text = stringResource(R.string.dashboard_home_screen_no_credentials),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = onSurfaceVariant.copy(alpha = 0.8f),
+                            textAlign = TextAlign.Center,
+                            lineHeight = 18.sp,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(28.dp))
+
+                        // Text link CTA - minimal, no button chrome
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = ripple(bounded = true, color = primaryColor)
+                                ) {
+                                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                                    onAddCredentialClick()
+                                }
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.dashboard_quick_action_add_credential),
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                color = primaryColor
+                            )
+                            WrapIcon(
+                                iconData = AppIcons.KeyboardArrowRight,
+                                customTint = primaryColor,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
                 }
             }

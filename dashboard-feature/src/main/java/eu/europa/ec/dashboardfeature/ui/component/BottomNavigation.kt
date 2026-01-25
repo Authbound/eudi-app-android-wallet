@@ -66,6 +66,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import eu.europa.ec.dashboardfeature.util.TestTag
 import eu.europa.ec.resourceslogic.R
+import eu.europa.ec.resourceslogic.theme.values.activeHighlight
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.IconDataUi
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
@@ -141,70 +142,81 @@ fun BottomNavigationBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // First two nav items (Home, Wallet)
-                navItems.take(2).forEach { screen ->
-                    val selected = currentDestination?.hierarchy?.any {
-                        it.route?.substringBefore("?") == screen.route
-                    } == true
+                // Left side nav items (Home, Wallet) - takes equal weight
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    navItems.take(2).forEach { screen ->
+                        val selected = currentDestination?.hierarchy?.any {
+                            it.route?.substringBefore("?") == screen.route
+                        } == true
 
-                    FloatingNavItem(
-                        modifier = Modifier.testTag(
-                            TestTag.DashboardScreen.bottomNavigationItem(
-                                navItem = screen.route.lowercase()
-                            )
-                        ),
-                        icon = screen.icon,
-                        label = stringResource(screen.titleRes),
-                        selected = selected,
-                        iconSize = screen.iconSize,
-                        onItemClick = {
-                            if (!selected) {
-                                navController.navigate(screen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
+                        FloatingNavItem(
+                            modifier = Modifier.testTag(
+                                TestTag.DashboardScreen.bottomNavigationItem(
+                                    navItem = screen.route.lowercase()
+                                )
+                            ),
+                            icon = screen.icon,
+                            label = stringResource(screen.titleRes),
+                            selected = selected,
+                            iconSize = screen.iconSize,
+                            onItemClick = {
+                                if (!selected) {
+                                    navController.navigate(screen.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
                                     }
-                                    launchSingleTop = true
-                                    restoreState = true
                                 }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
 
-                // Spacer for center FAB
-                Spacer(modifier = Modifier.width(56.dp))
+                // Center spacer for FAB - fixed width
+                Spacer(modifier = Modifier.width(64.dp))
 
-                // Last two nav items (Verify, Settings)
-                navItems.drop(2).forEach { screen ->
-                    val selected = currentDestination?.hierarchy?.any {
-                        it.route?.substringBefore("?") == screen.route
-                    } == true
+                // Right side nav items (Verify, Settings) - takes equal weight
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    navItems.drop(2).forEach { screen ->
+                        val selected = currentDestination?.hierarchy?.any {
+                            it.route?.substringBefore("?") == screen.route
+                        } == true
 
-                    FloatingNavItem(
-                        modifier = Modifier.testTag(
-                            TestTag.DashboardScreen.bottomNavigationItem(
-                                navItem = screen.route.lowercase()
-                            )
-                        ),
-                        icon = screen.icon,
-                        label = stringResource(screen.titleRes),
-                        selected = selected,
-                        iconSize = screen.iconSize,
-                        onItemClick = {
-                            if (!selected) {
-                                navController.navigate(screen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
+                        FloatingNavItem(
+                            modifier = Modifier.testTag(
+                                TestTag.DashboardScreen.bottomNavigationItem(
+                                    navItem = screen.route.lowercase()
+                                )
+                            ),
+                            icon = screen.icon,
+                            label = stringResource(screen.titleRes),
+                            selected = selected,
+                            iconSize = screen.iconSize,
+                            onItemClick = {
+                                if (!selected) {
+                                    navController.navigate(screen.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
                                     }
-                                    launchSingleTop = true
-                                    restoreState = true
                                 }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
             }
         }
@@ -286,9 +298,9 @@ fun FloatingNavItem(
         label = "backgroundAlpha"
     )
 
-    // Animated icon tint
+    // Animated icon tint - uses activeHighlight for proper dark theme contrast
     val iconTint by animateColorAsState(
-        targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+        targetValue = if (selected) MaterialTheme.colorScheme.activeHighlight else MaterialTheme.colorScheme.outline,
         animationSpec = tween(durationMillis = 200),
         label = "iconTint"
     )
@@ -316,7 +328,7 @@ fun FloatingNavItem(
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = backgroundAlpha)),
+                .background(MaterialTheme.colorScheme.activeHighlight.copy(alpha = backgroundAlpha)),
             contentAlignment = Alignment.Center
         ) {
             // Inner icon box with explicit constraints to prevent clipping
@@ -349,7 +361,7 @@ fun FloatingNavItem(
                         .background(
                             brush = Brush.radialGradient(
                                 colors = listOf(
-                                    MaterialTheme.colorScheme.tertiary.copy(alpha = 0.35f),
+                                    MaterialTheme.colorScheme.activeHighlight.copy(alpha = 0.35f),
                                     Color.Transparent
                                 ),
                                 radius = 32f
@@ -369,8 +381,8 @@ fun FloatingNavItem(
                         if (selected) {
                             Brush.horizontalGradient(
                                 listOf(
-                                    MaterialTheme.colorScheme.primary,
-                                    MaterialTheme.colorScheme.tertiary
+                                    MaterialTheme.colorScheme.activeHighlight,
+                                    MaterialTheme.colorScheme.activeHighlight.copy(alpha = 0.7f)
                                 )
                             )
                         } else {

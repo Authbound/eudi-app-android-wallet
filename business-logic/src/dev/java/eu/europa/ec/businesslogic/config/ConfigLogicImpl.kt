@@ -17,6 +17,7 @@
 package eu.europa.ec.businesslogic.config
 
 import android.content.Context
+import eu.europa.ec.businesslogic.util.EmulatorDetector
 import eu.europa.ec.eudi.rqesui.infrastructure.config.EudiRQESUiConfig
 
 class ConfigLogicImpl(val context: Context) : ConfigLogic {
@@ -31,11 +32,21 @@ class ConfigLogicImpl(val context: Context) : ConfigLogic {
 
     override val changelogUrl: String?
         get() = null
+
+    /**
+     * DEV ONLY: Allows testing QuickID flow with expired passports.
+     * The expiry date will be overridden to a future date before sending to backend.
+     */
+    override val skipPassportExpiryValidation: Boolean
+        get() = true
 }
 
 private class DevEnvironmentConfig : EnvironmentConfig() {
     override fun getServerHost(): String = when (environment) {
-        ServerConfig.Debug -> "http://10.0.2.2:3008"
+        ServerConfig.Debug -> {
+            val host = EmulatorDetector.getLocalhostAddress()
+            "http://$host:3008"
+        }
         ServerConfig.Release -> "https://api.authbound.io"
     }
 }

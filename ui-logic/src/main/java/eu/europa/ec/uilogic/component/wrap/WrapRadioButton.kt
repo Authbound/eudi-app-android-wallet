@@ -28,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
+import eu.europa.ec.resourceslogic.theme.values.activeHighlight
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
 
@@ -68,7 +69,8 @@ fun WrapRadioButton(
             onClick = radioButtonData.onCheckedChange,
             enabled = radioButtonData.enabled,
             colors = RadioButtonDefaults.colors(
-                unselectedColor = MaterialTheme.colorScheme.primary
+                selectedColor = MaterialTheme.colorScheme.activeHighlight,
+                unselectedColor = MaterialTheme.colorScheme.activeHighlight
             )
         )
     }

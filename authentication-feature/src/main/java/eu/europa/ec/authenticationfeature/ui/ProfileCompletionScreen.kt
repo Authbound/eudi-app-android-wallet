@@ -57,16 +57,8 @@ fun ProfileCompletionScreen(
 
     ContentScreen(
         isLoading = state.isLoading,
-        navigatableAction = if (state.lastError != null) {
-            ScreenNavigateAction.BACKABLE
-        } else {
-            ScreenNavigateAction.NONE
-        },
-        onBack = if (state.lastError != null) {
-            { viewModel.setEvent(ProfileCompletionEvent.SignOut) }
-        } else {
-            null
-        },
+        navigatableAction = ScreenNavigateAction.BACKABLE,
+        onBack = { viewModel.setEvent(ProfileCompletionEvent.SignOut) },
     ) { paddingValues ->
         ProfileCompletionContent(
             state = state,
@@ -162,6 +154,23 @@ private fun ProfileCompletionContent(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
+        // Show error message if present
+        if (state.error != null) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                )
+            ) {
+                Text(
+                    text = state.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.padding(12.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
         // Main action button - handles both initial activation and retry
         Button(
@@ -194,21 +203,17 @@ private fun ProfileCompletionContent(
             }
         }
         
-        // Show sign out button when there's an error
-        if (state.lastError != null) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = { onEvent(ProfileCompletionEvent.SignOut) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                enabled = !state.isLoading,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondary
-                )
-            ) {
-                Text("Sign Out")
-            }
+        // Always show sign out button as escape route
+        Spacer(modifier = Modifier.height(16.dp))
+        TextButton(
+            onClick = { onEvent(ProfileCompletionEvent.SignOut) },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !state.isLoading,
+        ) {
+            Text(
+                text = "Sign Out",
+                color = MaterialTheme.colorScheme.error
+            )
         }
     }
 } 

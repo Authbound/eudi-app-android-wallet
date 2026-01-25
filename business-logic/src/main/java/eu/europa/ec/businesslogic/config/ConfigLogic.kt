@@ -58,6 +58,17 @@ interface ConfigLogic {
      *   changelog is maintained for development builds.
      */
     val changelogUrl: String?
+
+    /**
+     * Enables testing with expired passports by overriding the expiry date
+     * sent to the backend with a future date.
+     *
+     * **WARNING:** This is for DEVELOPMENT/TESTING purposes ONLY.
+     * Must NEVER be enabled in production builds.
+     *
+     * @return true to bypass passport expiry validation, false otherwise
+     */
+    val skipPassportExpiryValidation: Boolean get() = false
 }
 
 enum class AppFlavor {

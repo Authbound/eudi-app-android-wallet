@@ -120,6 +120,11 @@ class ThemeColors {
         // HSL: --border: 222 17% 44% -> #5F6A85
         internal const val eudiw_theme_light_divider: Long = 0xFF5F6A85
 
+        // Active/selection highlight color - separate from primary for dark theme contrast
+        // Light: Navy (matches primary) | Dark: Off-white (high contrast)
+        internal const val eudiw_theme_light_activeHighlight: Long = 0xFF0A1A36
+        internal const val eudiw_theme_light_onActiveHighlight: Long = 0xFFFFFFFF
+
         // Premium effect colors (light mode) - Authbound brand
         internal const val eudiw_theme_light_shadow_navy: Long = 0x2E0A1A36      // 18% opacity navy shadow
         internal const val eudiw_theme_light_glow_accent: Long = 0x403B82F6      // 25% opacity accent glow
@@ -210,6 +215,11 @@ class ThemeColors {
         internal const val eudiw_theme_dark_pending: Long = 0xFF3B82F6
         // HSL: --border: 222 17% 44% -> #5F6A85
         internal const val eudiw_theme_dark_divider: Long = 0xFF5F6A85
+
+        // Active/selection highlight color - separate from primary for dark theme contrast
+        // Light: Navy (matches primary) | Dark: Off-white (high contrast)
+        internal const val eudiw_theme_dark_activeHighlight: Long = 0xFFFAFAFA
+        internal const val eudiw_theme_dark_onActiveHighlight: Long = 0xFF0A1A36
 
         // Premium effect colors (dark mode) - Authbound brand
         internal const val eudiw_theme_dark_shadow_navy: Long = 0x1A000000       // 10% opacity black shadow
@@ -386,6 +396,22 @@ class ThemeColors {
             } else {
                 Color(eudiw_theme_light_glow_primary)
             }
+
+        // Semantic color for selection/active states (nav icons, checkboxes, radio buttons)
+        // Separate from primary to allow different colors in dark mode
+        val activeHighlight: Color
+            get() = if (isInDarkMode) {
+                Color(eudiw_theme_dark_activeHighlight)
+            } else {
+                Color(eudiw_theme_light_activeHighlight)
+            }
+
+        val onActiveHighlight: Color
+            get() = if (isInDarkMode) {
+                Color(eudiw_theme_dark_onActiveHighlight)
+            } else {
+                Color(eudiw_theme_light_onActiveHighlight)
+            }
     }
 }
 
@@ -437,4 +463,20 @@ val ColorScheme.glowPrimary: Color
         Color(ThemeColors.eudiw_theme_dark_glow_primary)
     } else {
         Color(ThemeColors.eudiw_theme_light_glow_primary)
+    }
+
+// Semantic color for selection/active states (nav icons, checkboxes, radio buttons)
+// Separate from primary to allow different colors in dark mode
+val ColorScheme.activeHighlight: Color
+    @Composable get() = if (isSystemInDarkTheme()) {
+        Color(ThemeColors.eudiw_theme_dark_activeHighlight)
+    } else {
+        Color(ThemeColors.eudiw_theme_light_activeHighlight)
+    }
+
+val ColorScheme.onActiveHighlight: Color
+    @Composable get() = if (isSystemInDarkTheme()) {
+        Color(ThemeColors.eudiw_theme_dark_onActiveHighlight)
+    } else {
+        Color(ThemeColors.eudiw_theme_light_onActiveHighlight)
     }

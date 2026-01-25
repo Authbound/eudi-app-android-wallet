@@ -28,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
+import eu.europa.ec.resourceslogic.theme.values.activeHighlight
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
 
@@ -52,7 +53,9 @@ fun WrapCheckbox(
             modifier = modifier,
             enabled = checkboxData.enabled,
             colors = CheckboxDefaults.colors(
-                uncheckedColor = MaterialTheme.colorScheme.primary
+                checkedColor = MaterialTheme.colorScheme.activeHighlight,
+                uncheckedColor = MaterialTheme.colorScheme.activeHighlight,
+                checkmarkColor = MaterialTheme.colorScheme.surface
             )
         )
     }

@@ -115,17 +115,29 @@ class ProfileCompletionViewModel(
 
     private fun checkHandleAvailability(handle: String) {
         if (handle.length < 3) {
-            setState { copy(isHandleAvailable = false) }
+            logController.d("ProfileCompletion", "Handle too short (< 3 chars): '$handle'")
+            setState { copy(isHandleAvailable = false, error = null) }
             return
         }
         viewModelScope.launch {
-            setState { copy(isLoading = true) }
+            logController.d("ProfileCompletion", "Checking handle availability for: '$handle'")
+            setState { copy(isLoading = true, error = null) }
             checkHandleAvailabilityUseCase(handle)
                 .onSuccess { isAvailable ->
-                    setState { copy(isLoading = false, isHandleAvailable = isAvailable) }
+                    logController.d("ProfileCompletion", "Handle '$handle' check success: available=$isAvailable")
+                    setState { copy(isLoading = false, isHandleAvailable = isAvailable, error = null) }
                 }
-                .onFailure {
-                    setState { copy(isLoading = false, error = it.message) }
+                .onFailure { error ->
+                    logController.e("ProfileCompletion") { "Handle check failed: ${error.message}" }
+                    // Show error but don't block - user can still see what went wrong
+                    setState {
+                        copy(
+                            isLoading = false,
+                            isHandleAvailable = null,
+                            error = "Handle check failed: ${error.message}"
+                        )
+                    }
+                    setEffect { ProfileCompletionEffect.ShowError("Handle check failed: ${error.message}") }
                 }
         }
     }

@@ -85,6 +85,7 @@ sealed class WalletSetupEvent : ViewEvent {
     data object SignOut : WalletSetupEvent() // If user wants to cancel from error state
     data object CancelSetup : WalletSetupEvent() // For back button during loading
     data object BackToLogin : WalletSetupEvent() // For back button during error
+    data object ContinueToHome : WalletSetupEvent() // Navigate to home when wallet already activated
     data object ConfirmCancelSetup : WalletSetupEvent() // Confirm cancellation
     data object DismissConfirmationDialog : WalletSetupEvent() // Dismiss confirmation
     data object DeleteWallet : WalletSetupEvent() // Delete wallet activation
@@ -145,6 +146,7 @@ class WalletSetupViewModel(
             is WalletSetupEvent.SignOut -> signOut()
             is WalletSetupEvent.CancelSetup -> handleCancelSetup()
             is WalletSetupEvent.BackToLogin -> handleBackToLogin()
+            is WalletSetupEvent.ContinueToHome -> continueToHome()
             is WalletSetupEvent.ConfirmCancelSetup -> confirmCancelSetup()
             is WalletSetupEvent.DismissConfirmationDialog -> dismissConfirmationDialog()
             is WalletSetupEvent.DeleteWallet -> handleDeleteWallet()
@@ -227,6 +229,13 @@ class WalletSetupViewModel(
                 logController.e("WalletSetupViewModel", e)
                 handleActivationError(e)
             }
+        }
+    }
+
+    private fun continueToHome() {
+        logController.d("WalletSetupViewModel", "Continue to home requested")
+        viewModelScope.launch {
+            setEffect { WalletSetupEffect.NavigateToHome }
         }
     }
 

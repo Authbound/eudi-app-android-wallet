@@ -30,6 +30,8 @@ import eu.europa.ec.networklogic.di.LogicNetworkModule
 import eu.europa.ec.notificationlogic.di.LogicNotificationModule
 import eu.europa.ec.presentationfeature.di.FeaturePresentationModule
 import eu.europa.ec.proximityfeature.di.FeatureProximityModule
+import eu.europa.ec.quickidfeature.di.FeatureQuickIdModule
+import eu.europa.ec.quickidlogic.di.LogicQuickIdModule
 import eu.europa.ec.resourceslogic.di.LogicResourceModule
 import eu.europa.ec.startupfeature.di.FeatureStartupModule
 import eu.europa.ec.storagelogic.di.LogicStorageModule
@@ -55,7 +57,7 @@ private val assembledModules = listOf(
     LogicCoreModule().module,
     LogicStorageModule().module,
     LogicNotificationModule().module,
-
+    LogicQuickIdModule().module,
 
     // Feature Modules
     FeatureCommonModule().module,
@@ -65,7 +67,8 @@ private val assembledModules = listOf(
     FeatureProximityModule().module,
     FeatureIssuanceModule().module,
     FeatureAuthenticationModule().module,
-    FeatureWalletActivationModule().module
+    FeatureWalletActivationModule().module,
+    FeatureQuickIdModule().module
 
 )
 

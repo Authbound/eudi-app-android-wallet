@@ -16,11 +16,15 @@
 
 package eu.europa.ec.uilogic.component
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.unit.dp
 import eu.europa.ec.uilogic.component.AppIcons.AuthboundLogoAndText
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
@@ -37,8 +41,19 @@ data class AppIconAndTextData(
 fun AppIconAndText(
     modifier: Modifier = Modifier,
     appIconAndTextData: AppIconAndTextData,
-    iconModifier: Modifier = Modifier
+    iconModifier: Modifier = Modifier,
+    useDarkModeAwareTint: Boolean = true
 ) {
+    val isDarkTheme = isSystemInDarkTheme()
+
+    // Apply white tint in dark mode for better visibility on dark backgrounds
+    // Using BlendMode.SrcIn to replace all non-transparent pixels with white
+    val colorFilter = if (useDarkModeAwareTint && isDarkTheme) {
+        ColorFilter.tint(Color.White, BlendMode.SrcIn)
+    } else {
+        null
+    }
+
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(
@@ -49,7 +64,8 @@ fun AppIconAndText(
     ) {
         WrapImage(
             iconData = appIconAndTextData.appIcon,
-            modifier = iconModifier
+            modifier = iconModifier,
+            colorFilter = colorFilter
         )
         //WrapImage(iconData = appIconAndTextData.appText)
     }

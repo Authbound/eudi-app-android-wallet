@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
+import eu.europa.ec.resourceslogic.theme.values.activeHighlight
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.IconDataUi
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
@@ -50,7 +51,7 @@ fun WrapChip(
     border: BorderStroke? = InputChipDefaults.inputChipBorder(
         enabled = enabled,
         selected = selected,
-        borderColor = MaterialTheme.colorScheme.primary,
+        borderColor = MaterialTheme.colorScheme.activeHighlight,
         borderWidth = 1.dp
     ),
 ) {
@@ -84,10 +85,10 @@ fun WrapChip(
         },
         shape = shape,
         colors = colors ?: InputChipDefaults.inputChipColors(
-            labelColor = MaterialTheme.colorScheme.primary,
+            labelColor = MaterialTheme.colorScheme.activeHighlight,
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
-            trailingIconColor = MaterialTheme.colorScheme.primary,
-            leadingIconColor = MaterialTheme.colorScheme.primary
+            trailingIconColor = MaterialTheme.colorScheme.activeHighlight,
+            leadingIconColor = MaterialTheme.colorScheme.activeHighlight
         ),
         border = border
     )

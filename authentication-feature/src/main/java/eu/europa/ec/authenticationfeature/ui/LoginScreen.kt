@@ -69,6 +69,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -234,6 +235,54 @@ private fun LoginFormContent(
         label = "logoScale"
     )
 
+    // Use darker navy in dark mode, primary (deep navy) in light mode
+    val isDarkTheme = isSystemInDarkTheme()
+    val headerBackground = if (isDarkTheme) {
+        // Dark mode: Use subtle dark navy gradient that blends with the dark background
+        // Avoid bright blues - use muted, sophisticated tones
+        Brush.linearGradient(
+            colors = listOf(
+                Color(0xFF0F2142), // Slightly lighter than background for subtle contrast
+                Color(0xFF0A1A36)  // Match background color for seamless blend
+            ),
+            start = Offset(0f, 0f),
+            end = Offset(0f, Float.POSITIVE_INFINITY)
+        )
+    } else {
+        // Light mode: Keep the original deep navy
+        Brush.linearGradient(
+            colors = listOf(
+                MaterialTheme.colorScheme.primary,
+                MaterialTheme.colorScheme.primary
+            )
+        )
+    }
+
+    // Dark mode button colors - use softer, less saturated colors
+    val primaryButtonColor = if (isDarkTheme) {
+        Color(0xFF60A5FA) // Lighter, softer blue for dark mode
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
+
+    val primaryButtonTextColor = if (isDarkTheme) {
+        Color(0xFF0A1A36) // Dark text on light button in dark mode
+    } else {
+        MaterialTheme.colorScheme.onPrimary
+    }
+
+    val secondaryButtonBorderColor = if (isDarkTheme) {
+        Color(0xFF60A5FA).copy(alpha = 0.5f) // Softer border in dark mode
+    } else {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+    }
+
+    val linkTextColor = if (isDarkTheme) {
+        Color(0xFF93C5FD) // Light blue for links in dark mode - high contrast
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -245,7 +294,7 @@ private fun LoginFormContent(
                 .fillMaxWidth()
                 .height(500.dp)
                 .clip(CustomWaveShape())
-                .background(MaterialTheme.colorScheme.primary)
+                .background(headerBackground)
         )
 
         Column(
@@ -277,11 +326,12 @@ private fun LoginFormContent(
                         )
                         .padding(16.dp)
                 ) {
+                    // Use white tint in dark mode for better visibility
                     Icon(
                         painter = painterResource(id = R.drawable.ic_authbound_logo),
                         contentDescription = null,
                         modifier = Modifier.size(148.dp),
-                        tint = Color.Unspecified
+                        tint = if (isDarkTheme) Color.White else Color.Unspecified
                     )
                 }
 
@@ -333,14 +383,18 @@ private fun LoginFormContent(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = if (isDarkTheme) {
+                        Color(0xFF0F2142) // Slightly elevated surface for card in dark mode
+                    } else {
+                        MaterialTheme.colorScheme.surface
+                    }
                 ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isDarkTheme) 8.dp else 16.dp),
                 border = BorderStroke(
                     width = 1.dp,
                     brush = Brush.linearGradient(
                         colors = listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                            secondaryButtonBorderColor,
                             Color.Transparent
                         )
                     )
@@ -373,7 +427,15 @@ private fun LoginFormContent(
                         )
                     }
 
-                    // Input fields
+                    // Input fields with dark mode optimized colors
+                    val textFieldColors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = if (isDarkTheme) Color(0xFF60A5FA) else MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = if (isDarkTheme) Color(0xFF5F6A85) else MaterialTheme.colorScheme.outline.copy(alpha = 0.6f),
+                        focusedLabelColor = if (isDarkTheme) Color(0xFF93C5FD) else MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = if (isDarkTheme) Color(0xFF9CA3AF) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        cursorColor = if (isDarkTheme) Color(0xFF60A5FA) else MaterialTheme.colorScheme.primary
+                    )
+
                     OutlinedTextField(
                         value = state.email,
                         onValueChange = { onEvent(Event.OnEmailChanged(it)) },
@@ -381,10 +443,7 @@ private fun LoginFormContent(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
                         singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
-                        )
+                        colors = textFieldColors
                     )
 
                     OutlinedTextField(
@@ -395,10 +454,7 @@ private fun LoginFormContent(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
                         singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
-                        )
+                        colors = textFieldColors
                     )
 
                     if (state.isSignUpMode) {
@@ -411,10 +467,7 @@ private fun LoginFormContent(
                             shape = RoundedCornerShape(16.dp),
                             singleLine = true,
                             isError = state.error != null,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
-                            )
+                            colors = textFieldColors
                         )
                     }
 
@@ -501,13 +554,14 @@ private fun LoginFormContent(
                                 painter = painterResource(id = R.drawable.baseline_person_24),
                                 contentDescription = null,
                                 modifier = Modifier.size(24.dp),
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = linkTextColor
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 text = stringResource(id = R.string.login_with_google),
                                 fontWeight = FontWeight.Medium,
-                                style = MaterialTheme.typography.titleMedium
+                                style = MaterialTheme.typography.titleMedium,
+                                color = if (isDarkTheme) Color.White else MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -526,7 +580,7 @@ private fun LoginFormContent(
                     text = stringResource(
                         id = if (state.isSignUpMode) R.string.already_have_account else R.string.dont_have_account
                     ),
-                    color = MaterialTheme.colorScheme.primary,
+                    color = linkTextColor,
                     fontWeight = FontWeight.Medium
                 )
             }

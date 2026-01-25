@@ -15,6 +15,7 @@
  */
 package eu.europa.ec.authenticationlogic.repository
 
+import android.util.Log
 import eu.europa.ec.authenticationlogic.model.Profile
 import eu.europa.ec.networklogic.api.ApiClient
 import eu.europa.ec.networklogic.model.request.CompleteProfileRequest
@@ -31,6 +32,10 @@ class ProfileRepositoryImpl(
     private val apiClient: ApiClient,
     private val supabaseClient: SupabaseClient
 ) : ProfileRepository {
+
+    companion object {
+        private const val TAG = "ProfileRepository"
+    }
 
     override suspend fun completeProfile(request: CompleteProfileRequest): Result<Unit> {
         return try {
@@ -50,16 +55,33 @@ class ProfileRepositoryImpl(
 
     override suspend fun checkHandle(handle: String): Result<Boolean> {
         return try {
-            val token = supabaseClient.auth.currentSessionOrNull()?.accessToken
-                ?: return Result.failure(Exception("User not authenticated"))
-            
+            Log.d(TAG, "checkHandle: Starting handle check for '$handle'")
+
+            val session = supabaseClient.auth.currentSessionOrNull()
+            val token = session?.accessToken
+
+            if (token == null) {
+                Log.e(TAG, "checkHandle: No auth token available. Session: ${session != null}")
+                return Result.failure(Exception("User not authenticated - no access token"))
+            }
+
+            Log.d(TAG, "checkHandle: Got auth token (${token.take(20)}...), calling API")
+
             val response = apiClient.checkHandleAvailability(handle, token)
+
+            Log.d(TAG, "checkHandle: Response - isSuccessful=${response.isSuccessful}, code=${response.code()}")
+
             if (response.isSuccessful) {
-                Result.success(response.body()?.available ?: false)
+                val available = response.body()?.available ?: false
+                Log.d(TAG, "checkHandle: Handle '$handle' available=$available")
+                Result.success(available)
             } else {
-                Result.failure(Exception("HTTP ${response.code()}: ${response.message()}"))
+                val errorMsg = "HTTP ${response.code()}: ${response.message()}"
+                Log.e(TAG, "checkHandle: API error - $errorMsg, errorBody=${response.errorBody()}")
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "checkHandle: Exception - ${e.javaClass.simpleName}: ${e.message}", e)
             Result.failure(e)
         }
     }

@@ -122,6 +122,23 @@ sealed class IssuanceScreens {
     )
 }
 
+sealed class QuickIdScreens {
+    data object Intro : Screen(name = "QUICKID_INTRO")
+
+    data object MrzScan : Screen(name = "QUICKID_MRZ_SCAN")
+
+    data object NfcReading : Screen(name = "QUICKID_NFC_READING")
+
+    data object Liveness : Screen(name = "QUICKID_LIVENESS")
+
+    data object Processing : Screen(name = "QUICKID_PROCESSING")
+
+    data object Result : Screen(
+        name = "QUICKID_RESULT",
+        parameters = "?success={success}"
+    )
+}
+
 sealed class ModuleRoute(val route: String) : NavigatableItem {
     data object StartupModule : ModuleRoute("STARTUP_MODULE")
     data object CommonModule : ModuleRoute("COMMON_MODULE")
@@ -129,6 +146,7 @@ sealed class ModuleRoute(val route: String) : NavigatableItem {
     data object PresentationModule : ModuleRoute("PRESENTATION_MODULE")
     data object ProximityModule : ModuleRoute("PROXIMITY_MODULE")
     data object IssuanceModule : ModuleRoute("ISSUANCE_MODULE")
+    data object QuickIdModule : ModuleRoute("QUICKID_MODULE")
 }
 
 sealed class AuthenticationScreens(name: String, parameters: String = "") : Screen(name, parameters) {

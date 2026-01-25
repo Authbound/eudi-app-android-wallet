@@ -17,15 +17,21 @@
 package eu.europa.ec.assemblylogic
 
 import android.app.Application
+import android.util.Log
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequest
 import androidx.work.WorkManager
+import com.amplifyframework.AmplifyException
+import com.amplifyframework.auth.cognito.AWSCognitoAuthPlugin
+import com.amplifyframework.core.Amplify
 import eu.europa.ec.analyticslogic.controller.AnalyticsController
 import eu.europa.ec.assemblylogic.di.setupKoin
 import eu.europa.ec.businesslogic.config.ConfigLogic
 import eu.europa.ec.corelogic.config.WalletCoreConfig
 import eu.europa.ec.corelogic.worker.RevocationWorkManager
 import eu.europa.ec.eudi.rqesui.infrastructure.EudiRQESUi
+import eu.europa.ec.quickidlogic.repository.QuickIdRepository
 import org.koin.android.ext.android.inject
 import org.koin.core.KoinApplication
 
@@ -34,12 +40,65 @@ class Application : Application() {
     private val analyticsController: AnalyticsController by inject()
     private val configLogic: ConfigLogic by inject()
     private val walletCoreConfig: WalletCoreConfig by inject()
+    private val quickIdRepository: QuickIdRepository by inject()
 
     override fun onCreate() {
         super.onCreate()
         initializeKoin().initializeRqes()
         initializeReporting()
         initializeRevocationWorkManager()
+        initializeQuickIdLifecycleObserver()
+        initializeAmplify()
+    }
+
+    /**
+     * Registers the QuickID repository as a lifecycle observer to clear
+     * sensitive session data when the app goes to background.
+     */
+    private fun initializeQuickIdLifecycleObserver() {
+        ProcessLifecycleOwner.get().lifecycle.addObserver(quickIdRepository)
+    }
+
+    /**
+     * Initializes AWS Amplify for Face Liveness verification.
+     *
+     * Note: Update amplifyconfiguration.json in quickid-feature/src/main/res/raw/
+     * with your Cognito Identity Pool ID before using Face Liveness.
+     */
+    private fun initializeAmplify() {
+        try {
+            Amplify.addPlugin(AWSCognitoAuthPlugin())
+            Amplify.configure(this)
+            _isAmplifyInitialized = true
+            Log.i(TAG, "Amplify initialized successfully")
+        } catch (e: AmplifyException) {
+            _isAmplifyInitialized = false
+            _amplifyInitError = e.message
+            Log.e(TAG, "Failed to initialize Amplify: ${e.message}")
+        } catch (e: Exception) {
+            _isAmplifyInitialized = false
+            _amplifyInitError = e.message
+            Log.e(TAG, "Amplify initialization error: ${e.message}")
+        }
+    }
+
+    companion object {
+        private const val TAG = "AuthboundApp"
+
+        /**
+         * Indicates whether AWS Amplify was successfully initialized.
+         * Check this before using Face Liveness features.
+         */
+        private var _isAmplifyInitialized: Boolean = false
+        val isAmplifyInitialized: Boolean
+            get() = _isAmplifyInitialized
+
+        /**
+         * Error message if Amplify initialization failed, null otherwise.
+         */
+        private var _amplifyInitError: String? = null
+        val amplifyInitError: String?
+            get() = _amplifyInitError
     }
 
     private fun KoinApplication.initializeRqes() {

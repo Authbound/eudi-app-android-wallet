@@ -822,4 +822,24 @@
     <string name="content_description_vaccination_icon">Vaccination</string>
     <string name="content_description_share_icon">Share</string>
     <string name="content_description_refresh_icon">Refresh</string>
+
+    <!-- QuickID / Authbound ID -->
+    <string name="quickid_authbound_id_promo_badge">VERIFIED IDENTITY</string>
+    <string name="quickid_authbound_id_promo_title">Get your Authbound ID</string>
+    <string name="quickid_authbound_id_promo_description">Verify with your passport\nand a quick selfie</string>
+    <string name="quickid_camera_access_required_title">Camera Access Required</string>
+    <string name="quickid_camera_access_required_description">We need camera access to scan your passport\'s data page and extract your information automatically.</string>
+    <string name="quickid_camera_enable_button">Enable Camera</string>
+    <string name="quickid_passport_position_instruction">Position passport data page within the frame</string>
+    <string name="quickid_mrz_visible_instruction">Ensure the MRZ code at the bottom is visible</string>
+    <string name="quickid_tap_to_scan">Tap to scan passport</string>
+    <string name="quickid_reading_passport">Reading passport…</string>
+    <string name="quickid_passport_scanned">Passport scanned successfully</string>
+    <string name="quickid_continue_to_nfc">Continue to NFC Reading</string>
+    <string name="quickid_analyzing_passport">Analyzing passport…</string>
+    <string name="quickid_nfc_hold_phone">Hold your phone to your passport</string>
+    <string name="quickid_nfc_authenticating">Authenticating with passport…</string>
+    <string name="quickid_nfc_success">Passport read successfully!</string>
+    <string name="quickid_mrz_not_found">MRZ data not found. Please scan your passport first.</string>
+    <string name="quickid_liveness_not_found">Liveness session not found. Please try again.</string>
 </resources>

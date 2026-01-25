@@ -106,17 +106,25 @@ fun WalletSetupScreen(
         state.activationError != null -> Triple(
             ScreenNavigateAction.CANCELABLE,
             ToolbarConfig(title = "Wallet Setup Failed"),
-            { 
+            {
                 logController.d("WalletSetupScreen", "Toolbar back button pressed (error state)")
-                viewModel.setEvent(WalletSetupEvent.BackToLogin) 
+                viewModel.setEvent(WalletSetupEvent.BackToLogin)
+            }
+        )
+        state.isWalletAlreadyActivated -> Triple(
+            ScreenNavigateAction.CANCELABLE,
+            ToolbarConfig(title = "Wallet Ready"),
+            {
+                logController.d("WalletSetupScreen", "Toolbar back button pressed (already activated state)")
+                viewModel.setEvent(WalletSetupEvent.SignOut)
             }
         )
         else -> Triple(
             ScreenNavigateAction.CANCELABLE,
             ToolbarConfig(title = "Setting up Wallet"),
-            { 
+            {
                 logController.d("WalletSetupScreen", "Toolbar back button pressed (loading state)")
-                viewModel.setEvent(WalletSetupEvent.CancelSetup) 
+                viewModel.setEvent(WalletSetupEvent.CancelSetup)
             }
         )
     }
@@ -136,7 +144,7 @@ fun WalletSetupScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (state.isWalletAlreadyActivated) {
-                // Wallet already activated - show success message
+                // Wallet already activated - show success message with action buttons
                 Icon(
                     painter = painterResource(id = R.drawable.ic_success),
                     contentDescription = null,
@@ -157,6 +165,34 @@ fun WalletSetupScreen(
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Spacer(modifier = Modifier.height(32.dp))
+                // Continue button to navigate to home
+                WrapButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    buttonConfig = ButtonConfig(
+                        type = ButtonType.PRIMARY,
+                        onClick = {
+                            logController.d("WalletSetupScreen", "Continue to Home button pressed")
+                            viewModel.setEvent(WalletSetupEvent.ContinueToHome)
+                        },
+                    )
+                ) {
+                    Text(text = "Continue to Home")
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                // Sign out button as fallback escape
+                WrapButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    buttonConfig = ButtonConfig(
+                        type = ButtonType.SECONDARY,
+                        onClick = {
+                            logController.d("WalletSetupScreen", "Sign Out button pressed (already activated)")
+                            viewModel.setEvent(WalletSetupEvent.SignOut)
+                        },
+                    )
+                ) {
+                    Text(text = "Sign Out")
+                }
             } else {
                 // Capture error in local val for smart cast
                 val activationError = state.activationError
