@@ -31,6 +31,12 @@ private const val TAG = "KeyGateV2"
  *
  * Works with PrefsControllerV2 which automatically derives user context
  * from Supabase session. No more race conditions or manual context management.
+ *
+ * Includes two in-memory lock mechanisms for app security:
+ * 1. [processAuthenticated] - volatile flag that resets on process death,
+ *    ensuring PIN is always required after the app is killed from recents.
+ * 2. [backgroundedAtMs] - tracks when the app went to background. If the app
+ *    returns after [BACKGROUND_TIMEOUT_MS], the session is locked.
  */
 class KeyGateV2Impl(
     private val prefs: PrefsControllerV2,
@@ -38,6 +44,33 @@ class KeyGateV2Impl(
     private val pinStorage: PinStorageController,
     private val logController: LogController
 ) : KeyGate, LocalUnlockTracker {
+
+    /**
+     * In-memory flag that tracks whether the user has authenticated in the current process.
+     * Resets to `false` when the process is killed (volatile, not persisted).
+     */
+    @Volatile
+    private var processAuthenticated = false
+
+    /**
+     * Timestamp (epoch ms) of when the app last went to background.
+     * Used to enforce [BACKGROUND_TIMEOUT_MS]. Set by [onAppBackgrounded].
+     */
+    @Volatile
+    private var backgroundedAtMs = 0L
+
+    companion object {
+        /** Lock the app if it has been in the background for longer than this duration. */
+        const val BACKGROUND_TIMEOUT_MS: Long = 2 * 60 * 1000L // 2 minutes
+    }
+
+    /**
+     * Called by [AppLockLifecycleObserver] when the app goes to background.
+     * Records the timestamp so [isUnlocked] can calculate background duration.
+     */
+    fun onAppBackgrounded() {
+        backgroundedAtMs = System.currentTimeMillis()
+    }
 
     override suspend fun isKeyLocked(): Boolean = withContext(Dispatchers.IO) {
         // CRITICAL: Check wallet activation first (must be activated for unlock to make sense)
@@ -51,6 +84,17 @@ class KeyGateV2Impl(
         val hasPin = safe { pinStorage.retrievePin().isNotBlank() } ?: false
         if (!hasPin) {
             // PIN not set - key is considered locked until PIN is created
+            return@withContext true
+        }
+
+        // Process must have been authenticated (survives background, not process death)
+        if (!processAuthenticated) {
+            return@withContext true
+        }
+
+        // Check background timeout (app was in background too long)
+        if (isBackgroundTimeoutExpired()) {
+            processAuthenticated = false
             return@withContext true
         }
 
@@ -74,11 +118,14 @@ class KeyGateV2Impl(
         // This will only work if user is authenticated (throws otherwise)
         // That's correct behavior - you can't unlock if not authenticated
         safe { prefs.setLong(PREF_LAST_UNLOCK_AT, System.currentTimeMillis()) }
+        processAuthenticated = true
+        backgroundedAtMs = 0L
         Unit
     }
 
     override suspend fun lockNow(): Unit = withContext(Dispatchers.IO) {
         safe { prefs.setLong(PREF_LAST_UNLOCK_AT, 0L) }
+        processAuthenticated = false
         Unit
     }
 
@@ -87,11 +134,24 @@ class KeyGateV2Impl(
      *
      * This is a synchronous check using safe accessors for use in startup flow.
      * Returns false if:
+     * - Process has not been authenticated (cold start / process killed)
+     * - App was in background longer than [BACKGROUND_TIMEOUT_MS]
      * - No unlock timestamp recorded
      * - TTL has expired
      * - Error reading timestamp
      */
     override fun isUnlocked(): Boolean {
+        // Process must have been authenticated in this session
+        if (!processAuthenticated) {
+            return false
+        }
+
+        // Check background timeout
+        if (isBackgroundTimeoutExpired()) {
+            processAuthenticated = false
+            return false
+        }
+
         val last = prefs.safeLong(PREF_LAST_UNLOCK_AT, 0L)
         if (last == 0L) {
             // Never unlocked - not unlocked
@@ -101,6 +161,15 @@ class KeyGateV2Impl(
         val ttl = LocalUnlockTracker.DEFAULT_TTL_MS
         val timeSinceUnlock = System.currentTimeMillis() - last
         return timeSinceUnlock <= ttl
+    }
+
+    /**
+     * Returns true if the app has been in the background longer than [BACKGROUND_TIMEOUT_MS].
+     */
+    private fun isBackgroundTimeoutExpired(): Boolean {
+        val bgAt = backgroundedAtMs
+        if (bgAt == 0L) return false
+        return System.currentTimeMillis() - bgAt > BACKGROUND_TIMEOUT_MS
     }
 
     /**

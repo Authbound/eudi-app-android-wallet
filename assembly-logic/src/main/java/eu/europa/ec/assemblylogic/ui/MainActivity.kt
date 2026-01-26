@@ -27,6 +27,7 @@ import eu.europa.ec.issuancefeature.router.featureIssuanceGraph
 import eu.europa.ec.presentationfeature.router.presentationGraph
 import eu.europa.ec.proximityfeature.router.featureProximityGraph
 import eu.europa.ec.quickidfeature.router.featureQuickIdGraph
+import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import eu.europa.ec.startupfeature.router.featureStartupGraph
 import eu.europa.ec.uilogic.component.utils.NfcTagHandler
 import eu.europa.ec.uilogic.container.EudiComponentActivity
@@ -35,6 +36,14 @@ import org.koin.android.ext.android.inject
 class MainActivity : EudiComponentActivity() {
 
     private val nfcTagHandler: NfcTagHandler by inject()
+    private val localUnlockTracker: LocalUnlockTracker by inject()
+
+    /**
+     * Tracks whether the Activity was stopped (app went to background).
+     * Used to decide if we need to re-check the lock state on [onStart].
+     * Resets to false on new Activity instances (e.g., after recreate or config change).
+     */
+    private var wasBackgrounded = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,6 +61,23 @@ class MainActivity : EudiComponentActivity() {
                 featureQuickIdGraph(it)
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (wasBackgrounded) {
+            wasBackgrounded = false
+            if (!localUnlockTracker.isUnlocked()) {
+                // Lock expired or process flag reset — restart to trigger splash → PIN flow
+                recreate()
+                return
+            }
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        wasBackgrounded = true
     }
 
     override fun onResume() {

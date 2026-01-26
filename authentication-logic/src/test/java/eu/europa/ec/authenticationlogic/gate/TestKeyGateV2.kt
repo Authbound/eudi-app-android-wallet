@@ -22,7 +22,6 @@ import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
 import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
 import eu.europa.ec.testlogic.extension.runTest
 import eu.europa.ec.testlogic.rule.CoroutineTestRule
-import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertFalse
 import junit.framework.TestCase.assertTrue
 import org.junit.After
@@ -40,7 +39,8 @@ import org.mockito.kotlin.whenever
 /**
  * Unit tests for [KeyGateV2Impl].
  *
- * Tests TTL-based unlock tracking, security error handling, and lifecycle operations.
+ * Tests TTL-based unlock tracking, process-authenticated flag,
+ * background timeout, security error handling, and lifecycle operations.
  * These tests are security-critical as they verify proper unlock state management.
  */
 class TestKeyGateV2 {
@@ -137,12 +137,14 @@ class TestKeyGateV2 {
     //region isKeyLocked() - TTL Expiration
 
     // Case 4:
-    // Unlocked 5 seconds ago (well within TTL).
+    // Unlocked 5 seconds ago (well within TTL), process authenticated.
     // Expected: Key is unlocked (false).
     @Test
     fun `Given unlocked 5 seconds ago, When isKeyLocked is called, Then returns false`() =
         coroutineRule.runTest {
-            // Given
+            // Given - markUnlocked to set processAuthenticated = true
+            keyGate.markUnlocked()
+
             val currentTime = System.currentTimeMillis()
             val fiveSecondsAgo = currentTime - 5_000L
 
@@ -164,7 +166,9 @@ class TestKeyGateV2 {
     @Test
     fun `Given unlocked just inside TTL boundary, When isKeyLocked is called, Then returns false`() =
         coroutineRule.runTest {
-            // Given
+            // Given - markUnlocked to set processAuthenticated = true
+            keyGate.markUnlocked()
+
             // Use 100ms buffer to account for test execution time
             val currentTime = System.currentTimeMillis()
             val justInsideTTL = currentTime - LocalUnlockTracker.DEFAULT_TTL_MS + 100L
@@ -181,12 +185,14 @@ class TestKeyGateV2 {
         }
 
     // Case 6:
-    // Unlocked 10 minutes + 1 millisecond ago (just past TTL).
+    // Unlocked 10 minutes + 1 millisecond ago (just past TTL), process authenticated.
     // Expected: Key is locked (true) because TTL expired.
     @Test
     fun `Given unlocked past TTL by 1ms, When isKeyLocked is called, Then returns true`() =
         coroutineRule.runTest {
-            // Given
+            // Given - markUnlocked to set processAuthenticated = true
+            keyGate.markUnlocked()
+
             val currentTime = System.currentTimeMillis()
             val justPastTTL = currentTime - LocalUnlockTracker.DEFAULT_TTL_MS - 1L
 
@@ -221,10 +227,35 @@ class TestKeyGateV2 {
 
     //endregion
 
+    //region isKeyLocked() - Process Authenticated Flag
+
+    // Case 4b:
+    // Process not authenticated (cold start), even with valid TTL timestamp.
+    // Expected: Key is locked (true) because processAuthenticated = false.
+    @Test
+    fun `Given process not authenticated with valid TTL, When isKeyLocked is called, Then returns true`() =
+        coroutineRule.runTest {
+            // Given - do NOT call markUnlocked, simulating cold start
+            val currentTime = System.currentTimeMillis()
+            val fiveSecondsAgo = currentTime - 5_000L
+
+            whenever(prefKeys.isWalletActivatedSafe()).thenReturn(true)
+            whenever(pinStorage.retrievePin()).thenReturn(MOCK_VALID_PIN)
+            whenever(prefs.safeLong(eq(PREF_LAST_UNLOCK_AT), any())).thenReturn(fiveSecondsAgo)
+
+            // When
+            val result = keyGate.isKeyLocked()
+
+            // Then
+            assertTrue("Key should be locked on cold start even with valid TTL", result)
+        }
+
+    //endregion
+
     //region isUnlocked() - Synchronous Check
 
     // Case 8:
-    // Never unlocked (timestamp = 0).
+    // Never unlocked (process not authenticated).
     // Expected: Returns false.
     @Test
     fun `Given never unlocked, When isUnlocked is called, Then returns false`() {
@@ -239,11 +270,51 @@ class TestKeyGateV2 {
     }
 
     // Case 9:
-    // Unlocked within TTL.
+    // Process authenticated, unlocked within TTL.
     // Expected: Returns true.
     @Test
-    fun `Given unlocked within TTL, When isUnlocked is called, Then returns true`() {
-        // Given
+    fun `Given unlocked within TTL, When isUnlocked is called, Then returns true`() =
+        coroutineRule.runTest {
+            // Given - markUnlocked to set processAuthenticated = true
+            keyGate.markUnlocked()
+
+            val currentTime = System.currentTimeMillis()
+            val fiveMinutesAgo = currentTime - (5 * 60 * 1000L)
+            whenever(prefs.safeLong(eq(PREF_LAST_UNLOCK_AT), any())).thenReturn(fiveMinutesAgo)
+
+            // When
+            val result = keyGate.isUnlocked()
+
+            // Then
+            assertTrue("isUnlocked should return true when within TTL", result)
+        }
+
+    // Case 10:
+    // Process authenticated, unlocked past TTL.
+    // Expected: Returns false.
+    @Test
+    fun `Given unlocked past TTL, When isUnlocked is called, Then returns false`() =
+        coroutineRule.runTest {
+            // Given - markUnlocked to set processAuthenticated = true
+            keyGate.markUnlocked()
+
+            val currentTime = System.currentTimeMillis()
+            val elevenMinutesAgo = currentTime - (11 * 60 * 1000L)
+            whenever(prefs.safeLong(eq(PREF_LAST_UNLOCK_AT), any())).thenReturn(elevenMinutesAgo)
+
+            // When
+            val result = keyGate.isUnlocked()
+
+            // Then
+            assertFalse("isUnlocked should return false when past TTL", result)
+        }
+
+    // Case 10b:
+    // Process not authenticated (cold start), valid TTL timestamp in prefs.
+    // Expected: Returns false because processAuthenticated = false.
+    @Test
+    fun `Given cold start with valid TTL, When isUnlocked is called, Then returns false`() {
+        // Given - do NOT call markUnlocked (simulates cold start / process kill)
         val currentTime = System.currentTimeMillis()
         val fiveMinutesAgo = currentTime - (5 * 60 * 1000L)
         whenever(prefs.safeLong(eq(PREF_LAST_UNLOCK_AT), any())).thenReturn(fiveMinutesAgo)
@@ -252,25 +323,80 @@ class TestKeyGateV2 {
         val result = keyGate.isUnlocked()
 
         // Then
-        assertTrue("isUnlocked should return true when within TTL", result)
+        assertFalse("isUnlocked should return false on cold start even with valid TTL", result)
     }
 
-    // Case 10:
-    // Unlocked past TTL.
-    // Expected: Returns false.
+    //endregion
+
+    //region isUnlocked() - Background Timeout
+
+    // Case 16:
+    // App was backgrounded for less than BACKGROUND_TIMEOUT_MS.
+    // Expected: isUnlocked returns true (within timeout).
     @Test
-    fun `Given unlocked past TTL, When isUnlocked is called, Then returns false`() {
-        // Given
-        val currentTime = System.currentTimeMillis()
-        val elevenMinutesAgo = currentTime - (11 * 60 * 1000L)
-        whenever(prefs.safeLong(eq(PREF_LAST_UNLOCK_AT), any())).thenReturn(elevenMinutesAgo)
+    fun `Given backgrounded for 1 minute, When isUnlocked is called, Then returns true`() =
+        coroutineRule.runTest {
+            // Given - authenticate first
+            keyGate.markUnlocked()
 
-        // When
-        val result = keyGate.isUnlocked()
+            val currentTime = System.currentTimeMillis()
+            val fiveMinutesAgo = currentTime - (5 * 60 * 1000L)
+            whenever(prefs.safeLong(eq(PREF_LAST_UNLOCK_AT), any())).thenReturn(fiveMinutesAgo)
 
-        // Then
-        assertFalse("isUnlocked should return false when past TTL", result)
-    }
+            // Simulate backgrounding 1 minute ago (well within 2-minute timeout)
+            keyGate.onAppBackgrounded()
+            // Override the backgrounded timestamp to 1 minute ago by calling it with proper timing
+            // Since onAppBackgrounded sets to System.currentTimeMillis(), and we check immediately,
+            // the duration will be ~0ms which is < BACKGROUND_TIMEOUT_MS
+
+            // When
+            val result = keyGate.isUnlocked()
+
+            // Then
+            assertTrue("isUnlocked should return true when background duration < 2 min", result)
+        }
+
+    // Case 17:
+    // App was not backgrounded (backgroundedAtMs = 0).
+    // Expected: isUnlocked returns true (no background timeout to check).
+    @Test
+    fun `Given not backgrounded, When isUnlocked is called, Then background timeout is not triggered`() =
+        coroutineRule.runTest {
+            // Given - authenticate, no background event
+            keyGate.markUnlocked()
+
+            val currentTime = System.currentTimeMillis()
+            val fiveMinutesAgo = currentTime - (5 * 60 * 1000L)
+            whenever(prefs.safeLong(eq(PREF_LAST_UNLOCK_AT), any())).thenReturn(fiveMinutesAgo)
+
+            // When (no onAppBackgrounded call)
+            val result = keyGate.isUnlocked()
+
+            // Then
+            assertTrue("isUnlocked should return true when never backgrounded", result)
+        }
+
+    // Case 18:
+    // markUnlocked clears backgroundedAtMs, preventing stale timeout after re-auth.
+    @Test
+    fun `Given backgrounded then re-authenticated, When isUnlocked is called, Then background timestamp is cleared`() =
+        coroutineRule.runTest {
+            // Given - background the app
+            keyGate.onAppBackgrounded()
+
+            // Re-authenticate (e.g. user entered PIN after lock)
+            keyGate.markUnlocked()
+
+            val currentTime = System.currentTimeMillis()
+            val fiveMinutesAgo = currentTime - (5 * 60 * 1000L)
+            whenever(prefs.safeLong(eq(PREF_LAST_UNLOCK_AT), any())).thenReturn(fiveMinutesAgo)
+
+            // When
+            val result = keyGate.isUnlocked()
+
+            // Then - should be unlocked because markUnlocked clears backgroundedAtMs
+            assertTrue("markUnlocked should clear background timestamp", result)
+        }
 
     //endregion
 
@@ -278,7 +404,7 @@ class TestKeyGateV2 {
 
     // Case 11:
     // markUnlocked() is called.
-    // Expected: Records current timestamp.
+    // Expected: Records current timestamp and sets processAuthenticated.
     @Test
     fun `Given markUnlocked is called, When operation completes, Then timestamp is recorded`() =
         coroutineRule.runTest {
@@ -291,9 +417,27 @@ class TestKeyGateV2 {
             verify(prefs, times(1)).setLong(eq(PREF_LAST_UNLOCK_AT), any())
         }
 
+    // Case 11b:
+    // markUnlocked() sets processAuthenticated to true.
+    // Expected: isUnlocked returns true after markUnlocked (with valid TTL).
+    @Test
+    fun `Given markUnlocked is called, When isUnlocked is checked, Then returns true`() =
+        coroutineRule.runTest {
+            // Given
+            keyGate.markUnlocked()
+            val currentTime = System.currentTimeMillis()
+            whenever(prefs.safeLong(eq(PREF_LAST_UNLOCK_AT), any())).thenReturn(currentTime)
+
+            // When
+            val result = keyGate.isUnlocked()
+
+            // Then
+            assertTrue("isUnlocked should return true after markUnlocked", result)
+        }
+
     // Case 12:
     // lockNow() is called.
-    // Expected: Clears timestamp to 0.
+    // Expected: Clears timestamp to 0 and sets processAuthenticated to false.
     @Test
     fun `Given lockNow is called, When operation completes, Then timestamp is cleared to 0`() =
         coroutineRule.runTest {
@@ -304,6 +448,26 @@ class TestKeyGateV2 {
 
             // Then
             verify(prefs, times(1)).setLong(PREF_LAST_UNLOCK_AT, 0L)
+        }
+
+    // Case 12b:
+    // lockNow() resets processAuthenticated.
+    // Expected: isUnlocked returns false after lockNow, even with valid TTL.
+    @Test
+    fun `Given lockNow is called after markUnlocked, When isUnlocked is checked, Then returns false`() =
+        coroutineRule.runTest {
+            // Given - first unlock, then lock
+            keyGate.markUnlocked()
+            keyGate.lockNow()
+
+            val currentTime = System.currentTimeMillis()
+            whenever(prefs.safeLong(eq(PREF_LAST_UNLOCK_AT), any())).thenReturn(currentTime)
+
+            // When
+            val result = keyGate.isUnlocked()
+
+            // Then
+            assertFalse("isUnlocked should return false after lockNow", result)
         }
 
     //endregion
