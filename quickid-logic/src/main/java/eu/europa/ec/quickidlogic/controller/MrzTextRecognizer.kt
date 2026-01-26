@@ -17,12 +17,12 @@
 package eu.europa.ec.quickidlogic.controller
 
 import android.graphics.BitmapFactory
+import android.util.Log
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.TextRecognizer
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import eu.europa.ec.quickidlogic.model.MrzData
-import eu.europa.ec.quickidlogic.util.MrzParseException
 import eu.europa.ec.quickidlogic.util.MrzParser
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
@@ -60,28 +60,35 @@ class MrzTextRecognizerImpl : MrzTextRecognizer {
     }
 
     override suspend fun recognizeMrz(imageBytes: ByteArray): Result<MrzData> {
+        Log.d(TAG, "Starting MRZ recognition, image size: ${imageBytes.size} bytes")
+
         // Decode image bytes to Bitmap
         val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-            ?: return Result.failure(MrzRecognitionException("Failed to decode image"))
+        if (bitmap == null) {
+            Log.e(TAG, "Failed to decode image bytes to bitmap")
+            return Result.failure(MrzRecognitionException("Failed to decode image"))
+        }
+        Log.d(TAG, "Bitmap decoded: ${bitmap.width}x${bitmap.height}")
 
         // Create InputImage for ML Kit
         val inputImage = InputImage.fromBitmap(bitmap, 0)
 
         // Run text recognition
         val rawText = recognizeText(inputImage)
-            ?: return Result.failure(MrzRecognitionException("No text detected in image"))
-
-        if (rawText.isBlank()) {
+        if (rawText == null) {
+            Log.e(TAG, "ML Kit returned null - recognition failed or was cancelled")
             return Result.failure(MrzRecognitionException("No text detected in image"))
         }
 
-        // Parse MRZ from recognized text
-        return MrzParser.parse(rawText).mapError { error ->
-            when (error) {
-                is MrzParseException -> MrzRecognitionException(error.message ?: "MRZ parsing failed")
-                else -> MrzRecognitionException("Unexpected error: ${error.message}")
-            }
+        if (rawText.isBlank()) {
+            Log.w(TAG, "ML Kit returned empty text")
+            return Result.failure(MrzRecognitionException("No text detected in image"))
         }
+
+        Log.d(TAG, "ML Kit recognized ${rawText.length} chars of text")
+
+        // Parse MRZ from recognized text - let MrzParseException propagate as-is
+        return MrzParser.parse(rawText)
     }
 
     /**
@@ -111,17 +118,6 @@ class MrzTextRecognizerImpl : MrzTextRecognizer {
 
     companion object {
         private const val TAG = "MrzTextRecognizer"
-    }
-}
-
-/**
- * Maps a Result error to a different exception type.
- */
-private inline fun <T> Result<T>.mapError(transform: (Throwable) -> Throwable): Result<T> {
-    return if (isFailure) {
-        Result.failure(transform(exceptionOrNull()!!))
-    } else {
-        this
     }
 }
 

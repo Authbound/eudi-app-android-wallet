@@ -1299,17 +1299,6 @@ fun AuthboundIdPromoCard(
                     color = accentColor
                 )
 
-                // Large background icon (subtle)
-                WrapIcon(
-                    iconData = AppIcons.Verified,
-                    customTint = Color.White.copy(alpha = 0.05f),
-                    modifier = Modifier
-                        .size(200.dp)
-                        .align(Alignment.BottomEnd)
-                        .offset(x = 40.dp, y = 40.dp)
-                        .rotate(-15f)
-                )
-
                 // Main content
                 Column(
                     modifier = Modifier

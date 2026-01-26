@@ -411,7 +411,7 @@ internal fun DocumentsContent(
 
 /**
  * A redesigned document category section with premium visual credential cards.
- * Features Apple Wallet-style cards with gradient backgrounds and staggered animations.
+ * Features Apple Wallet-style cards with gradient backgrounds and clear visual hierarchy.
  */
 @Composable
 private fun DocumentCategorySection(
@@ -495,6 +495,7 @@ private fun DocumentCategorySection(
                     hasPhoto = hasPhoto
                 ),
                 animationDelay = (categoryIndex * 100) + (docIndex * 50),
+                enableAnimations = false,
                 onClick = {
                     val onItemClickEvent = if (
                         documentItem.documentIssuanceState == DocumentIssuanceStateUi.Pending

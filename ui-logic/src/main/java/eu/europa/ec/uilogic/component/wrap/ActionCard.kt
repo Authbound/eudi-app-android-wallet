@@ -106,6 +106,7 @@ fun ActionCard(
     config: InboxActionCardConfig,
     modifier: Modifier = Modifier,
     animationDelay: Int = 0,
+    enableAnimations: Boolean = true,
     onAccept: () -> Unit = {},
     onDecline: () -> Unit = {},
     onClick: () -> Unit = {}
@@ -113,23 +114,16 @@ fun ActionCard(
     val view = LocalView.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-
-    // Entrance animation
-    var isVisible by remember { mutableStateOf(animationDelay == 0) }
-    LaunchedEffect(Unit) {
-        if (animationDelay > 0) {
-            delay(animationDelay.toLong())
-            isVisible = true
-        }
+    val scale: Float = if (enableAnimations) {
+        val animatedScale by animateFloatAsState(
+            targetValue = if (isPressed) 0.98f else 1f,
+            animationSpec = tween(durationMillis = 100),
+            label = "action_card_scale"
+        )
+        animatedScale
+    } else {
+        1f
     }
-
-    // Scale animation
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = tween(durationMillis = 100),
-        label = "action_card_scale"
-    )
-
     // Type-based accent color
     val accentColor = when (config.type) {
         ActionType.SIGN_REQUEST -> MaterialTheme.colorScheme.tertiary
@@ -144,13 +138,7 @@ fun ActionCard(
         ActionType.DATA_REQUEST -> AppIcons.IdCards
     }
 
-    AnimatedVisibility(
-        visible = isVisible,
-        enter = fadeIn(tween(300)) + slideInVertically(
-            animationSpec = tween(300),
-            initialOffsetY = { it / 4 }
-        )
-    ) {
+    val content: @Composable () -> Unit = {
         Surface(
             modifier = modifier
                 .fillMaxWidth()
@@ -295,6 +283,26 @@ fun ActionCard(
                 }
             }
         }
+    }
+    if (enableAnimations) {
+        var isVisible by remember { mutableStateOf(animationDelay == 0) }
+        LaunchedEffect(Unit) {
+            if (animationDelay > 0) {
+                delay(animationDelay.toLong())
+                isVisible = true
+            }
+        }
+        AnimatedVisibility(
+            visible = isVisible,
+            enter = fadeIn(tween(300)) + slideInVertically(
+                animationSpec = tween(300),
+                initialOffsetY = { it / 4 }
+            )
+        ) {
+            content()
+        }
+    } else {
+        content()
     }
 }
 

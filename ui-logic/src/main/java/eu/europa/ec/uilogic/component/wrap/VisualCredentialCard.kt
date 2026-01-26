@@ -171,36 +171,24 @@ fun VisualCredentialCard(
     config: VisualCredentialConfig,
     modifier: Modifier = Modifier,
     animationDelay: Int = 0,
+    enableAnimations: Boolean = true,
     onClick: () -> Unit = {}
 ) {
     val view = LocalView.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val colors = getCredentialColors(config.visualType)
-
-    // Entrance animation
-    var isVisible by remember { mutableStateOf(animationDelay == 0) }
-    LaunchedEffect(Unit) {
-        if (animationDelay > 0) {
-            delay(animationDelay.toLong())
-            isVisible = true
-        }
-    }
-
-    // Scale animation
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = tween(durationMillis = 100),
-        label = "credential_card_scale"
-    )
-
-    AnimatedVisibility(
-        visible = isVisible,
-        enter = fadeIn(tween(300)) + slideInVertically(
-            animationSpec = tween(300),
-            initialOffsetY = { it / 4 }
+    val scale: Float = if (enableAnimations) {
+        val animatedScale by animateFloatAsState(
+            targetValue = if (isPressed) 0.97f else 1f,
+            animationSpec = tween(durationMillis = 100),
+            label = "credential_card_scale"
         )
-    ) {
+        animatedScale
+    } else {
+        1f
+    }
+    val content: @Composable () -> Unit = {
         Surface(
             modifier = modifier
                 .fillMaxWidth()
@@ -226,9 +214,7 @@ fun VisualCredentialCard(
                     )
                     .padding(20.dp)
             ) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     // Header row: Type icon/flag + Title
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -384,6 +370,26 @@ fun VisualCredentialCard(
                 }
             }
         }
+    }
+    if (enableAnimations) {
+        var isVisible by remember { mutableStateOf(animationDelay == 0) }
+        LaunchedEffect(Unit) {
+            if (animationDelay > 0) {
+                delay(animationDelay.toLong())
+                isVisible = true
+            }
+        }
+        AnimatedVisibility(
+            visible = isVisible,
+            enter = fadeIn(tween(300)) + slideInVertically(
+                animationSpec = tween(300),
+                initialOffsetY = { it / 4 }
+            )
+        ) {
+            content()
+        }
+    } else {
+        content()
     }
 }
 

@@ -334,20 +334,15 @@ fun FloatingNavItem(
                 ),
             contentAlignment = Alignment.Center
         ) {
-            // Inner icon box with explicit constraints to prevent clipping
-            Box(
+            // Scaled icon
+            WrapIcon(
+                iconData = icon,
+                enabled = true,
+                customTint = iconTint,
                 modifier = Modifier
                     .size(iconSize)
-                    .scale(scale),
-                contentAlignment = Alignment.Center
-            ) {
-                WrapIcon(
-                    iconData = icon,
-                    enabled = true,
-                    customTint = iconTint,
-                    modifier = Modifier.size(iconSize)
-                )
-            }
+                    .scale(scale)
+            )
         }
 
         // Premium pill-shaped indicator with glow

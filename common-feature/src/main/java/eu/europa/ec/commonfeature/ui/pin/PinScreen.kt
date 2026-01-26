@@ -199,6 +199,7 @@ private fun Content(
         keyboardController?.hide()
     }
 
+    // Standard PIN screen layout: Top branding, Middle content (flexible), Bottom keypad (fixed)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -232,8 +233,7 @@ private fun Content(
         WrapPinKeypad(
             modifier = Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(bottom = SPACING_SMALL.dp),
+                .navigationBarsPadding(),
             onDigitPressed = { digit ->
                 val current = state.pin
                 val next = if (!state.quickPinError.isNullOrEmpty()) {

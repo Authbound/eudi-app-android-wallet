@@ -99,7 +99,8 @@ fun PremiumTabRow(
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
     indicatorColor: Color = MaterialTheme.colorScheme.surface,
     selectedTextColor: Color = MaterialTheme.colorScheme.onSurface,
-    unselectedTextColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
+    unselectedTextColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    enableAnimations: Boolean = true
 ) {
     val density = LocalDensity.current
     val view = LocalView.current
@@ -120,35 +121,56 @@ fun PremiumTabRow(
     }
 
     // Calculate indicator position and width
-    val indicatorOffset by animateDpAsState(
-        targetValue = with(density) {
+    val indicatorOffset: Dp = if (enableAnimations) {
+        val animatedOffset by animateDpAsState(
+            targetValue = with(density) {
+                if (selectedTabIndex < tabOffsets.size && tabOffsets[selectedTabIndex] > 0) {
+                    tabOffsets[selectedTabIndex].toDp()
+                } else {
+                    0.dp
+                }
+            },
+            animationSpec = spring(
+                dampingRatio = 0.8f,
+                stiffness = 400f
+            ),
+            label = "indicatorOffset"
+        )
+        animatedOffset
+    } else {
+        with(density) {
             if (selectedTabIndex < tabOffsets.size && tabOffsets[selectedTabIndex] > 0) {
                 tabOffsets[selectedTabIndex].toDp()
             } else {
                 0.dp
             }
-        },
-        animationSpec = spring(
-            dampingRatio = 0.8f,
-            stiffness = 400f
-        ),
-        label = "indicatorOffset"
-    )
-
-    val indicatorWidth by animateDpAsState(
-        targetValue = with(density) {
+        }
+    }
+    val indicatorWidth: Dp = if (enableAnimations) {
+        val animatedWidth by animateDpAsState(
+            targetValue = with(density) {
+                if (selectedTabIndex < tabWidths.size && tabWidths[selectedTabIndex] > 0) {
+                    tabWidths[selectedTabIndex].toDp()
+                } else {
+                    0.dp
+                }
+            },
+            animationSpec = spring(
+                dampingRatio = 0.8f,
+                stiffness = 400f
+            ),
+            label = "indicatorWidth"
+        )
+        animatedWidth
+    } else {
+        with(density) {
             if (selectedTabIndex < tabWidths.size && tabWidths[selectedTabIndex] > 0) {
                 tabWidths[selectedTabIndex].toDp()
             } else {
                 0.dp
             }
-        },
-        animationSpec = spring(
-            dampingRatio = 0.8f,
-            stiffness = 400f
-        ),
-        label = "indicatorWidth"
-    )
+        }
+    }
 
     Surface(
         modifier = modifier
@@ -201,6 +223,7 @@ fun PremiumTabRow(
                         isSelected = index == selectedTabIndex,
                         selectedTextColor = selectedTextColor,
                         unselectedTextColor = unselectedTextColor,
+                        enableAnimations = enableAnimations,
                         onClick = {
                             if (index != selectedTabIndex) {
                                 view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
@@ -227,24 +250,33 @@ private fun PremiumTabItem(
     isSelected: Boolean,
     selectedTextColor: Color,
     unselectedTextColor: Color,
+    enableAnimations: Boolean,
     onClick: () -> Unit,
     onMeasured: (width: Int, offset: Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
-        animationSpec = tween(100),
-        label = "tabScale"
-    )
-
-    val textColor by animateColorAsState(
-        targetValue = if (isSelected) selectedTextColor else unselectedTextColor,
-        animationSpec = tween(200),
-        label = "tabTextColor"
-    )
+    val scale: Float = if (enableAnimations) {
+        val animatedScale by animateFloatAsState(
+            targetValue = if (isPressed) 0.95f else 1f,
+            animationSpec = tween(100),
+            label = "tabScale"
+        )
+        animatedScale
+    } else {
+        1f
+    }
+    val textColor: Color = if (enableAnimations) {
+        val animatedColor by animateColorAsState(
+            targetValue = if (isSelected) selectedTextColor else unselectedTextColor,
+            animationSpec = tween(200),
+            label = "tabTextColor"
+        )
+        animatedColor
+    } else {
+        if (isSelected) selectedTextColor else unselectedTextColor
+    }
 
     Box(
         modifier = modifier

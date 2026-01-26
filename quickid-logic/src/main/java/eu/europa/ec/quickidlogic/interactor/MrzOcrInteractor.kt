@@ -82,6 +82,10 @@ class MrzOcrInteractorImpl(
     private val resourceProvider: ResourceProvider
 ) : MrzOcrInteractor {
 
+    companion object {
+        private const val TAG = "MrzOcrInteractor"
+    }
+
     private val genericErrorMsg: String
         get() = resourceProvider.genericErrorMessage()
 
@@ -90,6 +94,11 @@ class MrzOcrInteractorImpl(
 
         mrzTextRecognizer.recognizeMrz(imageBytes)
             .onSuccess { mrzData ->
+                android.util.Log.d(TAG, "MRZ OCR Success - storing data for NFC:")
+                android.util.Log.d(TAG, "  Document number: '${mrzData.documentNumber}'")
+                android.util.Log.d(TAG, "  DOB (YYMMDD): '${mrzData.dateOfBirth}'")
+                android.util.Log.d(TAG, "  Expiry (YYMMDD): '${mrzData.dateOfExpiry}'")
+                android.util.Log.d(TAG, "  Name: ${mrzData.firstName} ${mrzData.lastName}")
                 // Store MRZ data for the NFC step
                 quickIdRepository.setMrzData(mrzData)
                 emit(MrzOcrPartialState.Success(mrzData))

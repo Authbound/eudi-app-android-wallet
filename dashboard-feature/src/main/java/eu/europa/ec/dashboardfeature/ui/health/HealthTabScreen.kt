@@ -20,13 +20,8 @@ import android.net.Uri
 import android.view.HapticFeedbackConstants
 import android.widget.Toast
 import androidx.browser.customtabs.CustomTabsIntent
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -57,7 +52,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -67,7 +61,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -87,7 +80,6 @@ import eu.europa.ec.uilogic.component.wrap.PremiumActionButton
 import eu.europa.ec.uilogic.component.wrap.PremiumEmptyState
 import eu.europa.ec.uilogic.component.wrap.EmptyStateIllustration
 import eu.europa.ec.uilogic.component.wrap.WrapIcon
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
 
@@ -228,7 +220,8 @@ private fun HealthEmptyState(
             )
         ),
         actionLabel = stringResource(R.string.health_import_button),
-        onActionClick = onImportClick
+        onActionClick = onImportClick,
+        enableAnimations = false
     )
 }
 
@@ -243,24 +236,6 @@ private fun HealthDataContent(
     onRefresh: () -> Unit,
     onImportMore: () -> Unit,
 ) {
-    // Single animation controller - tracks how many items should be visible
-    // This prevents N coroutines with individual delays causing frame drops
-    val totalItems = state.medications.size + state.prescriptions.size +
-            state.healthRecords.size + state.vaccinations.size
-    var animatedItemCount by remember { mutableIntStateOf(0) }
-
-    // Single coroutine that progressively reveals items
-    LaunchedEffect(totalItems) {
-        animatedItemCount = 0
-        repeat(totalItems) { index ->
-            delay(35) // Faster than 50ms for smoother feel
-            animatedItemCount = index + 1
-        }
-    }
-
-    // Track global item index across all sections
-    var globalIndex = 0
-
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = SPACING_MEDIUM.dp, vertical = SPACING_SMALL.dp),
@@ -289,13 +264,11 @@ private fun HealthDataContent(
             itemsIndexed(
                 items = state.medications,
                 key = { _, item -> "med_${item.id}" }
-            ) { index, medication ->
-                val itemIndex = index
+            ) { _, medication ->
                 MedicationItem(
                     medication = medication,
                     onClick = { onMedicationClick(medication.id) },
-                    onShareClick = { onShareClick(medication.id, HealthCategoryUi.Medications) },
-                    isVisible = itemIndex < animatedItemCount
+                    onShareClick = { onShareClick(medication.id, HealthCategoryUi.Medications) }
                 )
             }
         }
@@ -310,17 +283,14 @@ private fun HealthDataContent(
                     icon = AppIcons.Prescription
                 )
             }
-            val medicationOffset = state.medications.size
             itemsIndexed(
                 items = state.prescriptions,
                 key = { _, item -> "presc_${item.id}" }
-            ) { index, prescription ->
-                val itemIndex = medicationOffset + index
+            ) { _, prescription ->
                 PrescriptionItem(
                     prescription = prescription,
                     onClick = { onPrescriptionClick(prescription.id) },
-                    onShareClick = { onShareClick(prescription.id, HealthCategoryUi.Prescriptions) },
-                    isVisible = itemIndex < animatedItemCount
+                    onShareClick = { onShareClick(prescription.id, HealthCategoryUi.Prescriptions) }
                 )
             }
         }
@@ -335,17 +305,14 @@ private fun HealthDataContent(
                     icon = AppIcons.HealthRecord
                 )
             }
-            val recordOffset = state.medications.size + state.prescriptions.size
             itemsIndexed(
                 items = state.healthRecords,
                 key = { _, item -> "record_${item.id}" }
-            ) { index, record ->
-                val itemIndex = recordOffset + index
+            ) { _, record ->
                 HealthRecordItem(
                     record = record,
                     onClick = { onRecordClick(record.id) },
-                    onShareClick = { onShareClick(record.id, HealthCategoryUi.HealthRecords) },
-                    isVisible = itemIndex < animatedItemCount
+                    onShareClick = { onShareClick(record.id, HealthCategoryUi.HealthRecords) }
                 )
             }
         }
@@ -360,17 +327,14 @@ private fun HealthDataContent(
                     icon = AppIcons.Vaccination
                 )
             }
-            val vaccineOffset = state.medications.size + state.prescriptions.size + state.healthRecords.size
             itemsIndexed(
                 items = state.vaccinations,
                 key = { _, item -> "vacc_${item.id}" }
-            ) { index, vaccination ->
-                val itemIndex = vaccineOffset + index
+            ) { _, vaccination ->
                 VaccinationItem(
                     vaccination = vaccination,
                     onClick = { onVaccinationClick(vaccination.id) },
-                    onShareClick = { onShareClick(vaccination.id, HealthCategoryUi.Vaccinations) },
-                    isVisible = itemIndex < animatedItemCount
+                    onShareClick = { onShareClick(vaccination.id, HealthCategoryUi.Vaccinations) }
                 )
             }
         }
@@ -490,53 +454,12 @@ private fun MedicationItem(
     medication: MedicationUi,
     onClick: () -> Unit,
     onShareClick: () -> Unit,
-    isVisible: Boolean = true,
 ) {
     val view = LocalView.current
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    // Use spring animation for smoother press feedback
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessHigh
-        ),
-        label = "medicationScale"
-    )
-
-    // Smooth spring-based entrance animation
-    val alpha by animateFloatAsState(
-        targetValue = if (isVisible) 1f else 0f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
-        label = "medicationAlpha"
-    )
-    val translationY by animateFloatAsState(
-        targetValue = if (isVisible) 0f else 24f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
-        label = "medicationTranslationY"
-    )
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .graphicsLayer {
-                this.alpha = alpha
-                this.translationY = translationY
-                this.scaleX = scale
-                this.scaleY = scale
-            }
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null
-            ) {
+            .clickable {
                 view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 onClick()
             },
@@ -627,53 +550,12 @@ private fun PrescriptionItem(
     prescription: PrescriptionUi,
     onClick: () -> Unit,
     onShareClick: () -> Unit,
-    isVisible: Boolean = true,
 ) {
     val view = LocalView.current
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    // Use spring animation for smoother press feedback
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessHigh
-        ),
-        label = "prescriptionScale"
-    )
-
-    // Smooth spring-based entrance animation
-    val alpha by animateFloatAsState(
-        targetValue = if (isVisible) 1f else 0f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
-        label = "prescriptionAlpha"
-    )
-    val translationY by animateFloatAsState(
-        targetValue = if (isVisible) 0f else 24f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
-        label = "prescriptionTranslationY"
-    )
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .graphicsLayer {
-                this.alpha = alpha
-                this.translationY = translationY
-                this.scaleX = scale
-                this.scaleY = scale
-            }
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null
-            ) {
+            .clickable {
                 view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 onClick()
             },
@@ -746,53 +628,12 @@ private fun HealthRecordItem(
     record: HealthRecordUi,
     onClick: () -> Unit,
     onShareClick: () -> Unit,
-    isVisible: Boolean = true,
 ) {
     val view = LocalView.current
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    // Use spring animation for smoother press feedback
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessHigh
-        ),
-        label = "recordScale"
-    )
-
-    // Smooth spring-based entrance animation
-    val alpha by animateFloatAsState(
-        targetValue = if (isVisible) 1f else 0f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
-        label = "recordAlpha"
-    )
-    val translationY by animateFloatAsState(
-        targetValue = if (isVisible) 0f else 24f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
-        label = "recordTranslationY"
-    )
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .graphicsLayer {
-                this.alpha = alpha
-                this.translationY = translationY
-                this.scaleX = scale
-                this.scaleY = scale
-            }
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null
-            ) {
+            .clickable {
                 view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 onClick()
             },
@@ -863,53 +704,12 @@ private fun VaccinationItem(
     vaccination: VaccinationUi,
     onClick: () -> Unit,
     onShareClick: () -> Unit,
-    isVisible: Boolean = true,
 ) {
     val view = LocalView.current
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    // Use spring animation for smoother press feedback
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessHigh
-        ),
-        label = "vaccinationScale"
-    )
-
-    // Smooth spring-based entrance animation
-    val alpha by animateFloatAsState(
-        targetValue = if (isVisible) 1f else 0f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
-        label = "vaccinationAlpha"
-    )
-    val translationY by animateFloatAsState(
-        targetValue = if (isVisible) 0f else 24f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
-        label = "vaccinationTranslationY"
-    )
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .graphicsLayer {
-                this.alpha = alpha
-                this.translationY = translationY
-                this.scaleX = scale
-                this.scaleY = scale
-            }
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null
-            ) {
+            .clickable {
                 view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 onClick()
             },

@@ -153,6 +153,7 @@ fun WalletScreen(
                 ),
                 selectedTabIndex = currentTab.ordinal,
                 onTabSelected = { currentTab = WalletTab.entries[it] },
+                enableAnimations = false,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = SPACING_MEDIUM.dp, vertical = SPACING_SMALL.dp)

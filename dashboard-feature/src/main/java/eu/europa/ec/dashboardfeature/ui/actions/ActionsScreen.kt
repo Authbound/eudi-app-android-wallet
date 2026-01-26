@@ -19,20 +19,10 @@ package eu.europa.ec.dashboardfeature.ui.actions
 import android.content.Context
 import android.view.HapticFeedbackConstants
 import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -96,6 +86,7 @@ import eu.europa.ec.dashboardfeature.ui.actions.model.ActionUi
 import eu.europa.ec.dashboardfeature.ui.actions.model.DeviceLinkStatus
 import eu.europa.ec.dashboardfeature.ui.actions.model.LinkedDeviceInfo
 import eu.europa.ec.resourceslogic.R
+import eu.europa.ec.resourceslogic.theme.values.activeHighlight
 import eu.europa.ec.resourceslogic.theme.values.success
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.IconDataUi
@@ -115,7 +106,6 @@ import eu.europa.ec.uilogic.component.wrap.WrapIcon
 import eu.europa.ec.uilogic.component.wrap.WrapModalBottomSheet
 import eu.europa.ec.uilogic.component.wrap.ActionStatus as WrapActionStatus
 import eu.europa.ec.uilogic.component.wrap.ActionType as WrapActionType
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
 
@@ -289,24 +279,6 @@ private fun DeviceNotLinkedContent(
     onLinkDevice: () -> Unit
 ) {
     val view = LocalView.current
-
-    // Staggered animation states
-    var showIcon by remember { mutableStateOf(false) }
-    var showTitle by remember { mutableStateOf(false) }
-    var showFeatures by remember { mutableStateOf(false) }
-    var showButton by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        delay(100)
-        showIcon = true
-        delay(150)
-        showTitle = true
-        delay(150)
-        showFeatures = true
-        delay(150)
-        showButton = true
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -316,91 +288,63 @@ private fun DeviceNotLinkedContent(
     ) {
         Spacer(modifier = Modifier.weight(0.15f))
 
-        // Illustrated header with animated icon
-        AnimatedVisibility(
-            visible = showIcon,
-            enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { -it / 4 }
-        ) {
-            DeviceLinkIllustration()
-        }
+        DeviceLinkIllustration()
 
         VSpacer.Large()
 
-        // Title and subtitle
-        AnimatedVisibility(
-            visible = showTitle,
-            enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { it / 4 }
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = stringResource(R.string.actions_device_not_linked_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center
-                )
-
-                VSpacer.Medium()
-
-                Text(
-                    text = stringResource(R.string.actions_device_not_linked_subtitle),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 24.sp
-                )
-            }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = stringResource(R.string.actions_device_not_linked_title),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
+            )
+            VSpacer.Medium()
+            Text(
+                text = stringResource(R.string.actions_device_not_linked_subtitle),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                lineHeight = 24.sp
+            )
         }
 
         VSpacer.ExtraLarge()
 
-        // Feature highlight cards
-        AnimatedVisibility(
-            visible = showFeatures,
-            enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { it / 4 }
+        val featureIconColor = MaterialTheme.colorScheme.activeHighlight
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                FeatureHighlightCard(
-                    modifier = Modifier.weight(1f),
-                    icon = AppIcons.Verified,
-                    title = stringResource(R.string.actions_device_feature_verify_title),
-                    accentColor = MaterialTheme.colorScheme.primary,
-                    animationDelay = 0
-                )
-                FeatureHighlightCard(
-                    modifier = Modifier.weight(1f),
-                    icon = AppIcons.Sign,
-                    title = stringResource(R.string.actions_device_feature_sign_title),
-                    accentColor = MaterialTheme.colorScheme.tertiary,
-                    animationDelay = 50
-                )
-                FeatureHighlightCard(
-                    modifier = Modifier.weight(1f),
-                    icon = AppIcons.WalletSecured,
-                    title = stringResource(R.string.actions_device_feature_share_title),
-                    accentColor = MaterialTheme.colorScheme.secondary,
-                    animationDelay = 100
-                )
-            }
+            FeatureHighlightCard(
+                modifier = Modifier.weight(1f),
+                icon = AppIcons.Verified,
+                title = stringResource(R.string.actions_device_feature_verify_title),
+                accentColor = featureIconColor
+            )
+            FeatureHighlightCard(
+                modifier = Modifier.weight(1f),
+                icon = AppIcons.Sign,
+                title = stringResource(R.string.actions_device_feature_sign_title),
+                accentColor = featureIconColor
+            )
+            FeatureHighlightCard(
+                modifier = Modifier.weight(1f),
+                icon = AppIcons.WalletSecured,
+                title = stringResource(R.string.actions_device_feature_share_title),
+                accentColor = featureIconColor
+            )
         }
 
         Spacer(modifier = Modifier.weight(0.3f))
 
-        // Link Device CTA button
-        AnimatedVisibility(
-            visible = showButton,
-            enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { it / 2 }
-        ) {
-            LinkDeviceButton(
-                onClick = {
-                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                    onLinkDevice()
-                }
-            )
-        }
+        LinkDeviceButton(
+            onClick = {
+                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                onLinkDevice()
+            }
+        )
 
         VSpacer.ExtraLarge()
     }
@@ -408,26 +352,10 @@ private fun DeviceNotLinkedContent(
 
 @Composable
 private fun DeviceLinkIllustration() {
-    // Animated floating effect
-    var isAnimating by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        isAnimating = true
-    }
-
-    val scale by animateFloatAsState(
-        targetValue = if (isAnimating) 1f else 0.9f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "illustration_scale"
-    )
-
+    val highlightColor = MaterialTheme.colorScheme.activeHighlight
     Box(
         modifier = Modifier
-            .size(140.dp)
-            .scale(scale),
+            .size(140.dp),
         contentAlignment = Alignment.Center
     ) {
         // Outer glow ring
@@ -438,8 +366,8 @@ private fun DeviceLinkIllustration() {
                 .background(
                     Brush.radialGradient(
                         colors = listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+                            highlightColor.copy(alpha = 0.15f),
+                            highlightColor.copy(alpha = 0.05f),
                             Color.Transparent
                         )
                     )
@@ -454,8 +382,8 @@ private fun DeviceLinkIllustration() {
                 .background(
                     Brush.linearGradient(
                         colors = listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f)
+                            highlightColor.copy(alpha = 0.2f),
+                            highlightColor.copy(alpha = 0.1f)
                         )
                     )
                 ),
@@ -471,13 +399,13 @@ private fun DeviceLinkIllustration() {
             ) {
                 WrapIcon(
                     iconData = AppIcons.Id,
-                    customTint = MaterialTheme.colorScheme.primary,
+                    customTint = highlightColor,
                     modifier = Modifier.size(32.dp)
                 )
             }
         }
 
-        // Floating plus badge
+        // Floating plus badge - keeps primary color as it's a CTA indicator
         Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
@@ -501,58 +429,41 @@ private fun FeatureHighlightCard(
     modifier: Modifier = Modifier,
     icon: IconDataUi,
     title: String,
-    accentColor: Color,
-    animationDelay: Int = 0
+    accentColor: Color
 ) {
-    var isVisible by remember { mutableStateOf(animationDelay == 0) }
-
-    LaunchedEffect(Unit) {
-        if (animationDelay > 0) {
-            delay(animationDelay.toLong())
-            isVisible = true
-        }
-    }
-
-    AnimatedVisibility(
-        visible = isVisible,
-        enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 4 }
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        border = BorderStroke(1.dp, accentColor.copy(alpha = 0.2f))
     ) {
-        Surface(
-            modifier = modifier,
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-            border = BorderStroke(1.dp, accentColor.copy(alpha = 0.2f))
+        Column(
+            modifier = Modifier
+                .padding(vertical = 16.dp, horizontal = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
+            Box(
                 modifier = Modifier
-                    .padding(vertical = 16.dp, horizontal = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(accentColor.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(accentColor.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    WrapIcon(
-                        iconData = icon,
-                        customTint = accentColor,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-
-                VSpacer.Small()
-
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center,
-                    maxLines = 2
+                WrapIcon(
+                    iconData = icon,
+                    customTint = accentColor,
+                    modifier = Modifier.size(22.dp)
                 )
             }
+            VSpacer.Small()
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+                maxLines = 2
+            )
         }
     }
 }
@@ -561,26 +472,15 @@ private fun FeatureHighlightCard(
 private fun LinkDeviceButton(
     onClick: () -> Unit
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.96f else 1f,
-        animationSpec = tween(100),
-        label = "button_scale"
-    )
-
     Button(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .height(56.dp)
-            .scale(scale),
+            .height(56.dp),
         shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.primary
-        ),
-        interactionSource = interactionSource
+        )
     ) {
         WrapIcon(
             iconData = AppIcons.Add,
@@ -606,27 +506,15 @@ private fun LinkedDeviceContent(
     paddingValues: PaddingValues,
     onEventSent: (Event) -> Unit
 ) {
-    var showContent by remember { mutableStateOf(false) }
-
-    LaunchedEffect(state.isLoading) {
-        if (!state.isLoading) {
-            delay(50)
-            showContent = true
-        }
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
     ) {
         // Device status bar
-        AnimatedVisibility(
-            visible = showContent && state.linkedDeviceInfo != null,
-            enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { -it }
-        ) {
+        if (state.linkedDeviceInfo != null) {
             DeviceStatusBar(
-                deviceName = state.linkedDeviceInfo?.deviceName ?: "",
+                deviceName = state.linkedDeviceInfo.deviceName,
                 isConnected = true
             )
         }
@@ -634,31 +522,25 @@ private fun LinkedDeviceContent(
         if (state.showEmptyState) {
             EmptyActionsState()
         } else {
-            AnimatedVisibility(
-                visible = showContent,
-                enter = fadeIn(tween(300))
-            ) {
-                Column {
-                    // Management bar with filter, mass actions, and history
-                    ActionsManagementBar(
-                        selectedFilter = state.selectedFilter,
-                        pendingCount = state.pendingCount,
-                        isProcessingBatch = state.isProcessingBatch,
-                        onFilterSelected = { onEventSent(Event.OnFilterSelected(it)) },
-                        onAcceptAll = { onEventSent(Event.AcceptAllPending) },
-                        onDeclineAll = { onEventSent(Event.DeclineAllPending) },
-                        onHistoryClick = { onEventSent(Event.ViewHistory) }
+            Column {
+                // Management bar with filter, mass actions, and history
+                ActionsManagementBar(
+                    selectedFilter = state.selectedFilter,
+                    pendingCount = state.pendingCount,
+                    isProcessingBatch = state.isProcessingBatch,
+                    onFilterSelected = { onEventSent(Event.OnFilterSelected(it)) },
+                    onAcceptAll = { onEventSent(Event.AcceptAllPending) },
+                    onDeclineAll = { onEventSent(Event.DeclineAllPending) },
+                    onHistoryClick = { onEventSent(Event.ViewHistory) }
+                )
+                if (state.showNoResultsState) {
+                    NoResultsState()
+                } else {
+                    EventsList(
+                        groupedActions = state.filteredGroupedActions,
+                        processingActionId = state.isProcessingAction,
+                        onEventSent = onEventSent
                     )
-
-                    if (state.showNoResultsState) {
-                        NoResultsState()
-                    } else {
-                        EventsList(
-                            groupedActions = state.filteredGroupedActions,
-                            processingActionId = state.isProcessingAction,
-                            onEventSent = onEventSent
-                        )
-                    }
                 }
             }
         }
@@ -758,45 +640,27 @@ private fun EventsList(
             itemsIndexed(
                 items = actions,
                 key = { _, action -> action.id }
-            ) { index, action ->
-                // Use slide-in from left for real-time effect
-                var isVisible by remember { mutableStateOf(false) }
-
-                LaunchedEffect(Unit) {
-                    delay((index * 30).toLong())
-                    isVisible = true
-                }
-
-                    AnimatedVisibility(
-                        visible = isVisible,
-                        enter = fadeIn(tween(200)) + slideInHorizontally(
-                            animationSpec = tween(250),
-                            initialOffsetX = { -it / 3 }
-                        )
-                    ) {
-
-                    Column {
-                        ActionCard(
-                            config = action.toActionCardConfig(),
-                            animationDelay = 0, // Animation handled here
-                            onAccept = { onEventSent(Event.AcceptAction(action.id)) },
-                            onDecline = { onEventSent(Event.DeclineAction(action.id)) },
-                            onClick = { onEventSent(Event.ActionItemClicked(action.id)) }
-                        )
-
-                        // Show loading indicator if this action is being processed
-                        if (processingActionId == action.id) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(8.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    strokeWidth = 2.dp
-                                )
-                            }
+            ) { _, action ->
+                Column {
+                    ActionCard(
+                        config = action.toActionCardConfig(),
+                        enableAnimations = false,
+                        onAccept = { onEventSent(Event.AcceptAction(action.id)) },
+                        onDecline = { onEventSent(Event.DeclineAction(action.id)) },
+                        onClick = { onEventSent(Event.ActionItemClicked(action.id)) }
+                    )
+                    // Show loading indicator if this action is being processed
+                    if (processingActionId == action.id) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp
+                            )
                         }
                     }
                 }
@@ -1048,49 +912,33 @@ private fun NoResultsState() {
 
 @Composable
 private fun EmptyActionsState() {
-    var showContent by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        delay(200)
-        showContent = true
-    }
-
-    AnimatedVisibility(
-        visible = showContent,
-        enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { it / 4 }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = SPACING_LARGE.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = SPACING_LARGE.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            WrapIcon(
-                iconData = AppIcons.Inbox,
-                customTint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.size(80.dp)
-            )
-
-            VSpacer.Large()
-
-            Text(
-                text = stringResource(R.string.actions_screen_empty_title),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center
-            )
-
-            VSpacer.Small()
-
-            Text(
-                text = stringResource(R.string.actions_screen_empty_description),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
-        }
+        WrapIcon(
+            iconData = AppIcons.Inbox,
+            customTint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            modifier = Modifier.size(80.dp)
+        )
+        VSpacer.Large()
+        Text(
+            text = stringResource(R.string.actions_screen_empty_title),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center
+        )
+        VSpacer.Small()
+        Text(
+            text = stringResource(R.string.actions_screen_empty_description),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
     }
 }
 
@@ -1105,6 +953,7 @@ private fun DeviceManagementSheetContent(
 ) {
     val view = LocalView.current
     val successColor = MaterialTheme.colorScheme.success
+    val highlightColor = MaterialTheme.colorScheme.activeHighlight
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1134,12 +983,12 @@ private fun DeviceManagementSheetContent(
                         modifier = Modifier
                             .size(48.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                            .background(highlightColor.copy(alpha = 0.1f)),
                         contentAlignment = Alignment.Center
                     ) {
                         WrapIcon(
                             iconData = AppIcons.Id,
-                            customTint = MaterialTheme.colorScheme.primary,
+                            customTint = highlightColor,
                             modifier = Modifier.size(24.dp)
                         )
                     }
