@@ -16,16 +16,22 @@
 
 package eu.europa.ec.uilogic.component.wrap
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -369,7 +375,9 @@ fun PinIndicator(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Row(
-            modifier = Modifier.wrapContentWidth(),
+            modifier = Modifier
+                .wrapContentWidth()
+                .height(circleSize), // Fixed height to prevent layout shifts during animations
             horizontalArrangement = Arrangement.spacedBy(circleSpacing),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -417,14 +425,21 @@ fun PinIndicator(
             }
         }
 
-        errorMessage?.let {
-            Text(
-                modifier = Modifier.padding(top = SPACING_SMALL.dp),
-                text = it,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-                textAlign = TextAlign.Center
-            )
+        // Use AnimatedVisibility to prevent layout shifts when error message appears/disappears
+        AnimatedVisibility(
+            visible = !errorMessage.isNullOrEmpty(),
+            enter = fadeIn(animationSpec = tween(200)) + expandVertically(animationSpec = tween(200)),
+            exit = fadeOut(animationSpec = tween(200)) + shrinkVertically(animationSpec = tween(200))
+        ) {
+            errorMessage?.let {
+                Text(
+                    modifier = Modifier.padding(top = SPACING_SMALL.dp),
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }

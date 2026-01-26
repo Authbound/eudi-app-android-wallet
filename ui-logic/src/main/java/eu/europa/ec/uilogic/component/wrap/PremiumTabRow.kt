@@ -273,7 +273,7 @@ private fun PremiumTabItem(
                     iconData = tab.icon,
                     customTint = textColor,
                     modifier = Modifier
-                        .padding(end = 2.dp)
+                        .padding(end = 6.dp)
                         .size(17.dp)
                 )
             }
