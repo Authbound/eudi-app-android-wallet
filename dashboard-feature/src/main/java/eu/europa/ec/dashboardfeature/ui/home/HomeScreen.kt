@@ -324,7 +324,7 @@ private fun Content(
         )
 
         // Bottom spacer for navigation bar clearance
-        Spacer(modifier = Modifier.height(75.dp))
+        Spacer(modifier = Modifier.height(90.dp))
     }
 
     if (state.bleAvailability == BleAvailability.NO_PERMISSION) {

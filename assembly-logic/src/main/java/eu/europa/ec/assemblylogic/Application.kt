@@ -27,6 +27,7 @@ import com.amplifyframework.auth.cognito.AWSCognitoAuthPlugin
 import com.amplifyframework.core.Amplify
 import eu.europa.ec.analyticslogic.controller.AnalyticsController
 import eu.europa.ec.assemblylogic.di.setupKoin
+import eu.europa.ec.authenticationlogic.gate.AppLockLifecycleObserver
 import eu.europa.ec.businesslogic.config.ConfigLogic
 import eu.europa.ec.corelogic.config.WalletCoreConfig
 import eu.europa.ec.corelogic.worker.RevocationWorkManager
@@ -41,6 +42,7 @@ class Application : Application() {
     private val configLogic: ConfigLogic by inject()
     private val walletCoreConfig: WalletCoreConfig by inject()
     private val quickIdRepository: QuickIdRepository by inject()
+    private val appLockLifecycleObserver: AppLockLifecycleObserver by inject()
 
     override fun onCreate() {
         super.onCreate()
@@ -48,6 +50,7 @@ class Application : Application() {
         initializeReporting()
         initializeRevocationWorkManager()
         initializeQuickIdLifecycleObserver()
+        initializeAppLockLifecycleObserver()
         initializeAmplify()
     }
 
@@ -57,6 +60,14 @@ class Application : Application() {
      */
     private fun initializeQuickIdLifecycleObserver() {
         ProcessLifecycleOwner.get().lifecycle.addObserver(quickIdRepository)
+    }
+
+    /**
+     * Registers the app lock lifecycle observer to record when the app goes to background.
+     * This enables the background timeout check in KeyGateV2Impl.isUnlocked.
+     */
+    private fun initializeAppLockLifecycleObserver() {
+        ProcessLifecycleOwner.get().lifecycle.addObserver(appLockLifecycleObserver)
     }
 
     /**

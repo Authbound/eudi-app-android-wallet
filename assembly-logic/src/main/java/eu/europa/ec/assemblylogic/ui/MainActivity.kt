@@ -18,6 +18,7 @@ package eu.europa.ec.assemblylogic.ui
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import eu.europa.ec.authenticationfeature.router.featureAuthenticationGraph
@@ -27,6 +28,7 @@ import eu.europa.ec.issuancefeature.router.featureIssuanceGraph
 import eu.europa.ec.presentationfeature.router.presentationGraph
 import eu.europa.ec.proximityfeature.router.featureProximityGraph
 import eu.europa.ec.quickidfeature.router.featureQuickIdGraph
+import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import eu.europa.ec.startupfeature.router.featureStartupGraph
 import eu.europa.ec.uilogic.component.utils.NfcTagHandler
 import eu.europa.ec.uilogic.container.EudiComponentActivity
@@ -35,9 +37,18 @@ import org.koin.android.ext.android.inject
 class MainActivity : EudiComponentActivity() {
 
     private val nfcTagHandler: NfcTagHandler by inject()
+    private val localUnlockTracker: LocalUnlockTracker by inject()
+
+    /**
+     * Tracks whether the Activity was stopped (app went to background).
+     * Used to decide if we need to re-check the lock state on [onStart].
+     * Resets to false on new Activity instances (e.g., after recreate or config change).
+     */
+    private var wasBackgrounded = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.d(TAG, ">>> onCreate() — wasBackgrounded=$wasBackgrounded, savedInstanceState=${savedInstanceState != null}")
         nfcTagHandler.initialize(this)
         enableEdgeToEdge()
         setContent {
@@ -52,6 +63,42 @@ class MainActivity : EudiComponentActivity() {
                 featureQuickIdGraph(it)
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        Log.d(TAG, ">>> onStart() — wasBackgrounded=$wasBackgrounded")
+        if (wasBackgrounded) {
+            wasBackgrounded = false
+            val unlocked = localUnlockTracker.isUnlocked()
+            Log.d(TAG, "    onStart() — was backgrounded, isUnlocked()=$unlocked")
+            if (!unlocked) {
+                Log.d(TAG, "    onStart() — NOT unlocked, restarting clean (no saved state) to trigger PIN flow")
+                // Must NOT use recreate() — it preserves savedInstanceState which
+                // restores the Compose Navigation back stack to Dashboard.
+                // Instead, launch a fresh MainActivity and finish this one.
+                val intent = Intent(this, MainActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                }
+                startActivity(intent)
+                finish()
+                return
+            } else {
+                Log.d(TAG, "    onStart() — still unlocked, continuing normally")
+            }
+        } else {
+            Log.d(TAG, "    onStart() — NOT backgrounded (fresh start or recreate), skipping lock check")
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        wasBackgrounded = true
+        Log.d(TAG, ">>> onStop() — wasBackgrounded=true")
+    }
+
+    companion object {
+        private const val TAG = "MainActivity"
     }
 
     override fun onResume() {

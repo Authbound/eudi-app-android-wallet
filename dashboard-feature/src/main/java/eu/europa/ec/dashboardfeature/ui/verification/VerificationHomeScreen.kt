@@ -246,6 +246,10 @@ private fun ActiveSessionsContent(
                     session = session
                 )
             }
+
+            item {
+                Spacer(modifier = Modifier.height(90.dp))
+            }
         }
     }
 }
@@ -280,6 +284,10 @@ private fun HistorySessionsContent(
                     session = session,
                     isHistoryItem = true
                 )
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(90.dp))
             }
         }
     }

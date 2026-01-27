@@ -348,7 +348,7 @@ private fun HealthDataContent(
                 icon = AppIcons.Add,
                 modifier = Modifier.fillMaxWidth()
             )
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(90.dp))
         }
     }
 }

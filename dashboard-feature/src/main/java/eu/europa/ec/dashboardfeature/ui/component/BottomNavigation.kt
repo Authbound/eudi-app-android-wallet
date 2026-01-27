@@ -51,6 +51,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+qqqimport androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
@@ -129,13 +131,25 @@ fun BottomNavigationBar(
             .padding(horizontal = 25.dp),
         contentAlignment = Alignment.Center
     ) {
+        // Blur background layer for glass effect
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(72.dp)
+                .blur(20.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+                .background(
+                    color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(36.dp)
+                )
+        )
+
         // The floating navigation bar
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(72.dp),
             shape = RoundedCornerShape(36.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.85f),
+            color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.90f),
             shadowElevation = 12.dp,
             tonalElevation = 6.dp
         ) {
