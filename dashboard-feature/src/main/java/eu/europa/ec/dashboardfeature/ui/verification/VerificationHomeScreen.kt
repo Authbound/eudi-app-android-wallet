@@ -253,6 +253,10 @@ private fun ActiveSessionsContent(
                     animationDelay = index * 50
                 )
             }
+
+            item {
+                Spacer(modifier = Modifier.height(90.dp))
+            }
         }
     }
 }
@@ -287,6 +291,10 @@ private fun HistorySessionsContent(
                     animationDelay = index * 50,
                     isHistoryItem = true
                 )
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(90.dp))
             }
         }
     }

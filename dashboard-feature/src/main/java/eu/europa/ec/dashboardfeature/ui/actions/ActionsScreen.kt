@@ -802,6 +802,10 @@ private fun EventsList(
                 }
             }
         }
+
+        item {
+            Spacer(modifier = Modifier.height(90.dp))
+        }
     }
 }
 

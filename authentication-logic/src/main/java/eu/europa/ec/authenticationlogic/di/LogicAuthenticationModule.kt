@@ -26,8 +26,8 @@ import eu.europa.ec.authenticationlogic.controller.storage.BiometryStorageContro
 import eu.europa.ec.authenticationlogic.controller.storage.BiometryStorageControllerImpl
 import eu.europa.ec.authenticationlogic.controller.storage.PinStorageController
 import eu.europa.ec.authenticationlogic.controller.storage.PinStorageControllerImpl
+import eu.europa.ec.authenticationlogic.gate.AppLockLifecycleObserver
 import eu.europa.ec.authenticationlogic.gate.KeyGate
-
 import eu.europa.ec.authenticationlogic.gate.KeyGateV2Impl
 import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import eu.europa.ec.authenticationlogic.policy.DefaultLocalAuthPolicy
@@ -242,3 +242,7 @@ fun provideKeyGate(impl: KeyGateV2Impl): KeyGate = impl
 
 @Factory
 fun provideLocalUnlockTracker(impl: KeyGateV2Impl): LocalUnlockTracker = impl
+
+@Single
+fun provideAppLockLifecycleObserver(impl: KeyGateV2Impl): AppLockLifecycleObserver =
+    AppLockLifecycleObserver(impl)
