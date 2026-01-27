@@ -226,7 +226,7 @@ private fun Content(
         PinFieldLayout(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 24.dp),
+                .padding(bottom = 40.dp),
             state = state
         )
 
