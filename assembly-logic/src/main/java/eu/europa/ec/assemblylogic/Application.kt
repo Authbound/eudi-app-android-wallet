@@ -64,7 +64,7 @@ class Application : Application() {
 
     /**
      * Registers the app lock lifecycle observer to record when the app goes to background.
-     * This enables the background timeout check in [KeyGateV2Impl.isUnlocked].
+     * This enables the background timeout check in KeyGateV2Impl.isUnlocked.
      */
     private fun initializeAppLockLifecycleObserver() {
         ProcessLifecycleOwner.get().lifecycle.addObserver(appLockLifecycleObserver)

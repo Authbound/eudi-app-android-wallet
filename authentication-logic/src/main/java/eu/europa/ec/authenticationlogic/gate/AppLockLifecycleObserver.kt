@@ -16,6 +16,7 @@
 
 package eu.europa.ec.authenticationlogic.gate
 
+import android.util.Log
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 
@@ -32,7 +33,16 @@ class AppLockLifecycleObserver(
     private val keyGateImpl: KeyGateV2Impl
 ) : DefaultLifecycleObserver {
 
+    override fun onStart(owner: LifecycleOwner) {
+        Log.d(TAG, ">>> ProcessLifecycle onStart (app foregrounded)")
+    }
+
     override fun onStop(owner: LifecycleOwner) {
+        Log.d(TAG, ">>> ProcessLifecycle onStop (app backgrounded) — calling onAppBackgrounded()")
         keyGateImpl.onAppBackgrounded()
+    }
+
+    companion object {
+        private const val TAG = "AppLockLifecycle"
     }
 }

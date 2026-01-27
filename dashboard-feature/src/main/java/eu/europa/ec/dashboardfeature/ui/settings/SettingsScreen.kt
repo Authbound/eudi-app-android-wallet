@@ -273,6 +273,8 @@ private fun Content(
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center
             )
+
+            Spacer(modifier = Modifier.height(90.dp))
         }
 
     }
