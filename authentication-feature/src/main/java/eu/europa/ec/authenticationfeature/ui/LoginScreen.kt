@@ -88,6 +88,7 @@ import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.content.ContentScreen
+import eu.europa.ec.uilogic.component.content.ImePaddingConfig
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
 import eu.europa.ec.uilogic.component.content.ToolbarConfig
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
@@ -166,6 +167,7 @@ fun LoginScreen(
 
     ContentScreen(
         isLoading = state.isLoading,
+        imePaddingConfig = ImePaddingConfig.ONLY_CONTENT,
         navigatableAction = ScreenNavigateAction.NONE, // Disable default navigation
         toolBarConfig = null, // Disable default toolbar
         topBar = if (state.isSignUpMode) {

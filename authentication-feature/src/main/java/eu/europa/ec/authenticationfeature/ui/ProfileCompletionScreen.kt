@@ -28,7 +28,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import eu.europa.ec.resourceslogic.R
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import eu.europa.ec.uilogic.component.content.ContentScreen
+import eu.europa.ec.uilogic.component.content.ImePaddingConfig
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
 import kotlinx.coroutines.flow.collectLatest
 
@@ -57,6 +60,7 @@ fun ProfileCompletionScreen(
 
     ContentScreen(
         isLoading = state.isLoading,
+        imePaddingConfig = ImePaddingConfig.ONLY_CONTENT,
         navigatableAction = ScreenNavigateAction.BACKABLE,
         onBack = { viewModel.setEvent(ProfileCompletionEvent.SignOut) },
     ) { paddingValues ->
@@ -78,6 +82,7 @@ private fun ProfileCompletionContent(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
+            .verticalScroll(rememberScrollState())
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
