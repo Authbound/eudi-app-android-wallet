@@ -17,15 +17,8 @@
 package eu.europa.ec.dashboardfeature.ui.verification
 
 import android.view.HapticFeedbackConstants
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +34,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -56,7 +50,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -83,7 +76,6 @@ import eu.europa.ec.uilogic.component.wrap.PremiumTab
 import eu.europa.ec.uilogic.component.wrap.PremiumTabRow
 import eu.europa.ec.uilogic.component.wrap.WrapIcon
 import eu.europa.ec.uilogic.extension.paddingFrom
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
 import java.text.SimpleDateFormat
@@ -139,6 +131,7 @@ fun VerificationHomeScreen(
                 ),
                 selectedTabIndex = selectedTab.ordinal,
                 onTabSelected = { selectedTab = VerificationHomeTab.entries[it] },
+                enableAnimations = false,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = SPACING_MEDIUM.dp, vertical = SPACING_SMALL.dp)
@@ -226,7 +219,8 @@ private fun ActiveSessionsContent(
                 )
             ),
             actionLabel = stringResource(R.string.verification_home_create_button),
-            onActionClick = onCreateClick
+            onActionClick = onCreateClick,
+            enableAnimations = false
         )
     } else {
         // Sessions list with create button at top
@@ -247,10 +241,9 @@ private fun ActiveSessionsContent(
             itemsIndexed(
                 items = sessions,
                 key = { _, session -> session.id }
-            ) { index, session ->
+            ) { _, session ->
                 VerificationSessionCard(
-                    session = session,
-                    animationDelay = index * 50
+                    session = session
                 )
             }
 
@@ -270,7 +263,8 @@ private fun HistorySessionsContent(
         PremiumEmptyState(
             illustration = EmptyStateIllustration.HISTORY,
             title = stringResource(R.string.verification_home_empty_history),
-            description = stringResource(R.string.verification_history_empty_description)
+            description = stringResource(R.string.verification_history_empty_description),
+            enableAnimations = false
         )
     } else {
         // History sessions list
@@ -285,10 +279,9 @@ private fun HistorySessionsContent(
             itemsIndexed(
                 items = sessions,
                 key = { _, session -> session.id }
-            ) { index, session ->
+            ) { _, session ->
                 VerificationSessionCard(
                     session = session,
-                    animationDelay = index * 50,
                     isHistoryItem = true
                 )
             }
@@ -307,18 +300,10 @@ private fun CreateVerificationButton(
 ) {
     val view = LocalView.current
     val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = tween(100),
-        label = "createButtonScale"
-    )
 
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .scale(scale)
             .clickable(
                 interactionSource = interactionSource,
                 indication = ripple(bounded = true)
@@ -356,150 +341,122 @@ private fun CreateVerificationButton(
 @Composable
 private fun VerificationSessionCard(
     session: VerificationSession,
-    animationDelay: Int = 0,
     isHistoryItem: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val view = LocalView.current
     val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    var isVisible by remember { mutableStateOf(animationDelay == 0) }
-    LaunchedEffect(Unit) {
-        if (animationDelay > 0) {
-            delay(animationDelay.toLong())
-            isVisible = true
-        }
-    }
-
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = tween(100),
-        label = "sessionCardScale"
-    )
 
     val statusColor = if (isHistoryItem) {
         MaterialTheme.colorScheme.secondary
     } else {
         MaterialTheme.colorScheme.success
     }
-
-    AnimatedVisibility(
-        visible = isVisible,
-        enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 4 }
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(bounded = true)
+            ) {
+                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            },
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 4.dp
     ) {
-        Surface(
-            modifier = modifier
-                .fillMaxWidth()
-                .scale(scale)
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = ripple(bounded = true)
-                ) {
-                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                },
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 4.dp
-        ) {
-            Column {
-                // Status header strip
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(statusColor.copy(alpha = 0.08f))
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = session.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = stringResource(
-                                R.string.verification_home_session_code,
-                                session.sessionCode
-                            ),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-
-                    // Status pill
-                    Surface(
-                        shape = RoundedCornerShape(100.dp),
-                        color = statusColor.copy(alpha = 0.15f)
-                    ) {
-                        Text(
-                            text = if (isHistoryItem) {
-                                stringResource(R.string.verification_status_completed)
-                            } else {
-                                stringResource(R.string.verification_status_active)
-                            },
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Medium,
-                            color = statusColor,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                        )
-                    }
+        Column {
+            // Status header strip
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(statusColor.copy(alpha = 0.08f))
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = session.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(
+                            R.string.verification_home_session_code,
+                            session.sessionCode
+                        ),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontFamily = FontFamily.Monospace
+                    )
                 }
-
-                // Content
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                // Status pill
+                Surface(
+                    shape = RoundedCornerShape(100.dp),
+                    color = statusColor.copy(alpha = 0.15f)
                 ) {
-                    if (session.description.isNotBlank()) {
-                        Text(
-                            text = session.description,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    // Meta info row
+                    Text(
+                        text = if (isHistoryItem) {
+                            stringResource(R.string.verification_status_completed)
+                        } else {
+                            stringResource(R.string.verification_status_active)
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Medium,
+                        color = statusColor,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+            }
+            // Content
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (session.description.isNotBlank()) {
+                    Text(
+                        text = session.description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                // Meta info row
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    MetaChip(
+                        icon = AppIcons.ClockTimer,
+                        text = formatTimestamp(session.createdAt)
+                    )
+                }
+                // Action buttons (only for active sessions)
+                if (!isHistoryItem) {
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                    )
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        MetaChip(
-                            icon = AppIcons.ClockTimer,
-                            text = formatTimestamp(session.createdAt)
+                        SessionActionButton(
+                            modifier = Modifier.weight(1f),
+                            icon = AppIcons.QrScanner,
+                            text = stringResource(R.string.verification_action_show_qr),
+                            onClick = { }
                         )
-                    }
-
-                    // Action buttons (only for active sessions)
-                    if (!isHistoryItem) {
-                        HorizontalDivider(
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                        SessionActionButton(
+                            modifier = Modifier.weight(1f),
+                            icon = AppIcons.OpenNew,
+                            text = stringResource(R.string.verification_action_copy_link),
+                            onClick = { }
                         )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            SessionActionButton(
-                                modifier = Modifier.weight(1f),
-                                icon = AppIcons.QrScanner,
-                                text = stringResource(R.string.verification_action_show_qr),
-                                onClick = { }
-                            )
-                            SessionActionButton(
-                                modifier = Modifier.weight(1f),
-                                icon = AppIcons.OpenNew,
-                                text = stringResource(R.string.verification_action_copy_link),
-                                onClick = { }
-                            )
-                        }
                     }
                 }
             }
@@ -540,17 +497,8 @@ private fun SessionActionButton(
 ) {
     val view = LocalView.current
     val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
-        animationSpec = tween(100),
-        label = "actionButtonScale"
-    )
-
     Surface(
         modifier = modifier
-            .scale(scale)
             .clip(RoundedCornerShape(12.dp))
             .clickable(
                 interactionSource = interactionSource,

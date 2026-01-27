@@ -18,6 +18,8 @@ package eu.europa.ec.dashboardfeature.interactor
 
 import android.bluetooth.BluetoothManager
 import android.content.Context
+import android.util.Base64
+import eu.europa.ec.businesslogic.extension.encodeToBase64String
 import eu.europa.ec.businesslogic.extension.safeAsync
 import eu.europa.ec.commonfeature.util.DocumentJsonKeys
 
@@ -70,7 +72,7 @@ sealed class HomeInteractorGetCredentialsPartialState {
 
 sealed class HomeInteractorGetHeroCredentialPartialState {
     data class Success(
-        val heroCredential: HeroCredentialUi?
+        val heroCredentials: List<HeroCredentialUi>
     ) : HomeInteractorGetHeroCredentialPartialState()
 
     data class Failure(
@@ -200,73 +202,24 @@ class HomeInteractorImpl(
     override fun getHeroCredential(): Flow<HomeInteractorGetHeroCredentialPartialState> =
         flow {
             try {
-                // Try to get the main PID document first (highest priority)
+                val userLocale = resourceProvider.getLocale()
                 val mainPid = walletCoreDocumentsController.getMainPidDocument()
-
-                val heroDocument = if (mainPid != null) {
-                    mainPid
-                } else {
-                    // If no PID, try to get any issued document (mDL or other)
-                    walletCoreDocumentsController.getAllIssuedDocuments().firstOrNull()
-                }
-
-                if (heroDocument != null) {
-                    val userLocale = resourceProvider.getLocale()
-                    val localizedIssuerMetadata = heroDocument.localizedIssuerMetadata(userLocale)
-                    val issuerName = localizedIssuerMetadata?.name
-
-                    val documentIdentifier = heroDocument.toDocumentIdentifier()
-                    val heroValidUntil = heroDocument.getValidUntil().getOrNull()
-                    val documentHasExpired = heroValidUntil?.let { documentHasExpired(it) } ?: false
-                    val documentIssuanceState = if (documentHasExpired) {
-                        DocumentIssuanceStateUi.Expired
-                    } else {
-                        DocumentIssuanceStateUi.Issued
+                val issuedDocuments = walletCoreDocumentsController.getAllIssuedDocuments()
+                val heroCredentials = mutableListOf<HeroCredentialUi>()
+                for (document in issuedDocuments) {
+                    val heroCredential = buildHeroCredential(document, userLocale)
+                    if (heroCredential != null && heroCredential.isHeroCandidate()) {
+                        heroCredentials.add(heroCredential)
                     }
-
-                    // Format expiry date
-                    val dateFormatter = SimpleDateFormat("dd/MM/yyyy", userLocale)
-                    val expiryDate = heroValidUntil?.let {
-                        dateFormatter.format(Date(it.toEpochMilli()))
-                    }
-
-                    // Extract holder name from document claims
-                    val firstName = extractValueFromDocumentOrEmpty(
-                        document = heroDocument,
-                        key = DocumentJsonKeys.FIRST_NAME
-                    )
-                    val lastName = extractValueFromDocumentOrEmpty(
-                        document = heroDocument,
-                        key = DocumentJsonKeys.LAST_NAME
-                    )
-                    val holderName = listOf(firstName, lastName)
-                        .filter { it.isNotBlank() }
-                        .joinToString(" ")
-                        .takeIf { it.isNotBlank() }
-
-                    // Check if document has portrait/photo
-                    val hasPhoto = extractValueFromDocumentOrEmpty(
-                        document = heroDocument,
-                        key = DocumentJsonKeys.PORTRAIT
-                    ).isNotBlank()
-
-                    val heroCredential = HeroCredentialUi(
-                        documentId = heroDocument.id,
-                        documentIdentifier = documentIdentifier,
-                        title = heroDocument.name,
-                        subtitle = documentIdentifier.getSubtitle(),
-                        holderName = holderName,
-                        issuerName = issuerName,
-                        expiryDate = expiryDate,
-                        status = documentIssuanceState,
-                        hasPhoto = hasPhoto
-                    )
-
-                    emit(HomeInteractorGetHeroCredentialPartialState.Success(heroCredential))
-                } else {
-                    // No documents available
-                    emit(HomeInteractorGetHeroCredentialPartialState.Success(null))
                 }
+                val sortedHeroCredentials = heroCredentials.sortedWith(
+                    compareByDescending<HeroCredentialUi> { heroCredential ->
+                        heroCredential.documentId == mainPid?.id
+                    }.thenBy { heroCredential ->
+                        heroCredential.title.lowercase(Locale.getDefault())
+                    }
+                )
+                emit(HomeInteractorGetHeroCredentialPartialState.Success(sortedHeroCredentials))
             } catch (e: Exception) {
                 emit(
                     HomeInteractorGetHeroCredentialPartialState.Failure(
@@ -275,6 +228,71 @@ class HomeInteractorImpl(
                 )
             }
         }
+
+    private suspend fun buildHeroCredential(
+        document: IssuedDocument,
+        userLocale: Locale
+    ): HeroCredentialUi? {
+        val localizedIssuerMetadata = document.localizedIssuerMetadata(userLocale)
+        val issuerName = localizedIssuerMetadata?.name
+        val documentIdentifier = document.toDocumentIdentifier()
+        val heroValidUntil = document.getValidUntil().getOrNull()
+        val documentHasExpired = heroValidUntil?.let { documentHasExpired(it) } ?: false
+        val documentIssuanceState = if (documentHasExpired) {
+            DocumentIssuanceStateUi.Expired
+        } else {
+            DocumentIssuanceStateUi.Issued
+        }
+        // Format expiry date
+        val dateFormatter = SimpleDateFormat("dd/MM/yyyy", userLocale)
+        val expiryDate = heroValidUntil?.let {
+            dateFormatter.format(Date(it.toEpochMilli()))
+        }
+        // Extract holder name from document claims
+        val firstName = extractValueFromDocumentOrEmpty(
+            document = document,
+            key = DocumentJsonKeys.FIRST_NAME
+        )
+        val lastName = extractValueFromDocumentOrEmpty(
+            document = document,
+            key = DocumentJsonKeys.LAST_NAME
+        )
+        val holderName = listOf(firstName, lastName)
+            .filter { it.isNotBlank() }
+            .joinToString(" ")
+            .takeIf { it.isNotBlank() }
+        val portraitClaimValue: Any? = document.data.claims
+            .firstOrNull { it.identifier == DocumentJsonKeys.PORTRAIT }
+            ?.value
+        val portraitBase64: String? = when (portraitClaimValue) {
+            is ByteArray -> portraitClaimValue.encodeToBase64String(Base64.URL_SAFE)
+            is String -> portraitClaimValue
+            else -> null
+        }
+        val hasPhoto: Boolean = !portraitBase64.isNullOrBlank()
+        return HeroCredentialUi(
+            documentId = document.id,
+            documentIdentifier = documentIdentifier,
+            title = document.name,
+            subtitle = documentIdentifier.getSubtitle(),
+            holderName = holderName,
+            issuerName = issuerName,
+            expiryDate = expiryDate,
+            status = documentIssuanceState,
+            hasPhoto = hasPhoto,
+            portraitBase64 = portraitBase64
+        )
+    }
+
+    private fun HeroCredentialUi.isHeroCandidate(): Boolean {
+        val formatType = documentIdentifier.formatType.lowercase(Locale.getDefault())
+        val isPid = documentIdentifier == DocumentIdentifier.MdocPid
+            || documentIdentifier == DocumentIdentifier.SdJwtPid
+        val isMdoc = formatType.contains("mdoc")
+            || formatType.contains("mdl")
+        val isAuthbound = issuerName?.contains("authbound", ignoreCase = true) == true
+        return isPid || isMdoc || isAuthbound
+    }
 
     private fun DocumentIdentifier.getSubtitle(): String {
         return when (this) {

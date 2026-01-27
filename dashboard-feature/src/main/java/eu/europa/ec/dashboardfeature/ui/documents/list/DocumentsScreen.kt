@@ -411,7 +411,7 @@ internal fun DocumentsContent(
 
 /**
  * A redesigned document category section with premium visual credential cards.
- * Features Apple Wallet-style cards with gradient backgrounds and staggered animations.
+ * Features Apple Wallet-style cards with gradient backgrounds and clear visual hierarchy.
  */
 @Composable
 private fun DocumentCategorySection(
@@ -425,16 +425,16 @@ private fun DocumentCategorySection(
         modifier = modifier.padding(horizontal = SPACING_MEDIUM.dp),
         verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
     ) {
-        // Category header with icon
+        // Category header with icon - each category gets a unique, recognizable icon
         val categoryIcon = when (category) {
-            DocumentCategory.Government -> AppIcons.IdCards
-            DocumentCategory.Finance -> AppIcons.IdCards
-            DocumentCategory.Education -> AppIcons.IdCards
-            DocumentCategory.Health -> AppIcons.IdCards
-            DocumentCategory.Travel -> AppIcons.IdCards
-            DocumentCategory.SocialSecurity -> AppIcons.IdCards
-            DocumentCategory.Retail -> AppIcons.IdCards
-            DocumentCategory.Other -> AppIcons.IdCards
+            DocumentCategory.Government -> AppIcons.Government
+            DocumentCategory.Finance -> AppIcons.Finance
+            DocumentCategory.Education -> AppIcons.Education
+            DocumentCategory.Health -> AppIcons.Health
+            DocumentCategory.Travel -> AppIcons.Travel
+            DocumentCategory.SocialSecurity -> AppIcons.SocialSecurity
+            DocumentCategory.Retail -> AppIcons.Retail
+            DocumentCategory.Other -> AppIcons.Folder
         }
 
         DocumentCategoryHeader(
@@ -469,11 +469,18 @@ private fun DocumentCategorySection(
                 }
             }
 
-            // Extract title from mainContentData
-            val title = when (val content = documentItem.uiData.mainContentData) {
+            // Extract title from mainContentData - prefer user-friendly display names
+            val rawTitle = when (val content = documentItem.uiData.mainContentData) {
                 is ListItemMainContentDataUi.Text -> content.text
                 is ListItemMainContentDataUi.Image -> documentItem.uiData.itemId
             }
+
+            // Get user-friendly display title (maps technical names to readable ones)
+            val displayTitle = getDisplayTitle(
+                documentIdentifier = documentItem.documentIdentifier,
+                issuer = documentItem.uiData.overlineText,
+                fallbackTitle = rawTitle
+            )
 
             // Check if this document should show a photo placeholder
             val hasPhoto = visualType == CredentialVisualType.PID ||
@@ -484,7 +491,7 @@ private fun DocumentCategorySection(
                 config = VisualCredentialConfig(
                     id = documentItem.uiData.itemId,
                     visualType = visualType,
-                    title = title,
+                    title = displayTitle,
                     subtitle = getCredentialSubtitle(visualType),
                     holderName = null, // Will be populated from actual document data
                     issuerName = documentItem.uiData.overlineText,
@@ -495,6 +502,7 @@ private fun DocumentCategorySection(
                     hasPhoto = hasPhoto
                 ),
                 animationDelay = (categoryIndex * 100) + (docIndex * 50),
+                enableAnimations = false,
                 onClick = {
                     val onItemClickEvent = if (
                         documentItem.documentIssuanceState == DocumentIssuanceStateUi.Pending
@@ -523,6 +531,41 @@ private fun getCredentialSubtitle(type: CredentialVisualType): String? {
         CredentialVisualType.DIPLOMA -> "Education Credential"
         CredentialVisualType.HEALTH -> "Health Credential"
         CredentialVisualType.GENERIC -> null
+    }
+}
+
+/**
+ * Get user-friendly display title for a document.
+ * Maps technical document identifiers to human-readable names.
+ * Prioritizes UX over technical accuracy - users see meaningful names.
+ */
+private fun getDisplayTitle(
+    documentIdentifier: DocumentIdentifier,
+    issuer: String?,
+    fallbackTitle: String
+): String {
+    return when (documentIdentifier) {
+        is DocumentIdentifier.MdocPid,
+        is DocumentIdentifier.SdJwtPid -> {
+            // Check if Authbound-issued for special branding
+            if (issuer?.contains("authbound", ignoreCase = true) == true ||
+                issuer?.contains("Authbound", ignoreCase = false) == true) {
+                "Authbound ID"
+            } else {
+                "National ID Card"
+            }
+        }
+        is DocumentIdentifier.OTHER -> {
+            val formatType = documentIdentifier.formatType.lowercase()
+            when {
+                formatType.contains("mdl") || formatType.contains("driving") -> "Driving License"
+                formatType.contains("passport") -> "Passport"
+                formatType.contains("diploma") || formatType.contains("degree") -> "Education Credential"
+                formatType.contains("health") || formatType.contains("medical") -> "Health Credential"
+                // Fallback to the provided title if we can't determine a better one
+                else -> fallbackTitle
+            }
+        }
     }
 }
 

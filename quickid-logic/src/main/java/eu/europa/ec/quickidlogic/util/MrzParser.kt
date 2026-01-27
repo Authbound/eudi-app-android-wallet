@@ -91,30 +91,55 @@ object MrzParser {
      * Extracts potential MRZ lines from raw OCR text.
      *
      * Looks for lines that match MRZ characteristics:
-     * - 44 characters long (allowing some tolerance)
-     * - Contains mostly uppercase letters, digits, and '<' filler
+     * - Contains '<' filler characters (unique to MRZ)
+     * - Starts with P< for line 1, or has document number pattern for line 2
      */
     private fun extractMrzLines(rawText: String): List<String> {
         val lines = rawText.lines()
             .map { it.trim() }
             .filter { it.isNotEmpty() }
 
-        // Find lines that look like MRZ (uppercase, digits, '<' characters)
-        // Allow 'O' since it might be legitimate in names/countries - we'll fix specific positions later
-        val mrzPattern = Regex("^[A-Z0-9<O]{30,}$", RegexOption.IGNORE_CASE)
+        Log.d(TAG, "OCR returned ${lines.size} non-empty lines")
 
-        val potentialMrzLines = lines
-            .map { prepareLineForMatching(it) }
-            .filter { mrzPattern.matches(it) && it.length >= 40 }
-            .sortedByDescending { it.length }
-            .take(TD3_LINE_COUNT)
-
-        // If we found 2 lines, sort them properly (P< line first)
-        return if (potentialMrzLines.size == TD3_LINE_COUNT) {
-            potentialMrzLines.sortedBy { if (it.startsWith("P")) 0 else 1 }
-        } else {
-            potentialMrzLines
+        // Prepare all lines for matching
+        val preparedLines = lines.map { original ->
+            val prepared = prepareLineForMatching(original)
+            prepared
         }
+
+        // MRZ lines have '<' characters - this is the key identifier
+        // Regular text on passports doesn't have '<' characters
+        val mrzCandidates = preparedLines
+            .filter { line ->
+                val hasMrzFillers = line.count { it == '<' } >= 2  // MRZ has multiple < chars
+                val hasMinLength = line.length >= 30  // Allow shorter lines (OCR might truncate)
+                val looksLikeMrz = hasMrzFillers && hasMinLength
+                if (looksLikeMrz) {
+                    Log.d(TAG, "MRZ candidate: '$line' (${line.length} chars, ${line.count { it == '<' }} fillers)")
+                }
+                looksLikeMrz
+            }
+
+        Log.d(TAG, "Found ${mrzCandidates.size} MRZ candidates with '<' characters")
+
+        // If we don't have enough candidates, we can't parse
+        if (mrzCandidates.isEmpty()) {
+            Log.w(TAG, "No lines with MRZ filler characters found")
+            return emptyList()
+        }
+
+        // Sort: Line 1 (starts with P<) first, then by length
+        val sortedCandidates = mrzCandidates.sortedWith(
+            compareBy(
+                { !it.startsWith("P<") && !it.startsWith("P") },  // P< lines first
+                { -it.length }  // Then by length descending
+            )
+        ).take(TD3_LINE_COUNT)
+
+        Log.d(TAG, "Selected ${sortedCandidates.size} MRZ lines: $sortedCandidates")
+
+        // Return sorted candidates - line 1 (P<) should already be first
+        return sortedCandidates
     }
 
     /**
@@ -125,6 +150,9 @@ object MrzParser {
             .uppercase()
             .replace(" ", "")   // Remove spaces
             .replace("«", "<")  // Some OCR reads << as «
+            .replace("‹", "<")  // Another variant
+            .replace("›", "<")  // Another variant
+            .replace("_", "<")  // Sometimes _ is read instead of <
             .filter { it.isLetterOrDigit() || it == '<' }
     }
 
@@ -160,10 +188,26 @@ object MrzParser {
      * Parses TD3 (passport) MRZ format.
      */
     private fun parseTd3(line1: String, line2: String): Result<MrzData> {
+        Log.d(TAG, "=== TD3 PARSING DEBUG ===")
+        Log.d(TAG, "Line 2 raw: '$line2'")
+        Log.d(TAG, "Line 2 char-by-char for positions 0-30:")
+        for (i in 0 until minOf(30, line2.length)) {
+            Log.d(TAG, "  [$i] = '${line2[i]}' (${line2[i].code})")
+        }
         // Line 1 parsing
         val documentType = line1.substring(0, 2)
-        if (!documentType.startsWith("P")) {
+        // Accept P, but also common OCR misreads of P (R, D, B look similar)
+        // The important thing is that we can extract the data
+        val validDocTypes = listOf("P<", "P", "R<", "R", "D<", "D", "B<", "B")
+        val looksLikePassport = validDocTypes.any { documentType.startsWith(it.first()) }
+
+        if (!looksLikePassport) {
+            Log.w(TAG, "Document type '$documentType' doesn't look like a passport (line1: ${line1.take(20)}...)")
             return Result.failure(MrzParseException("Not a passport document type: $documentType"))
+        }
+
+        if (!documentType.startsWith("P")) {
+            Log.w(TAG, "Document type '$documentType' is likely OCR misread of 'P' - proceeding anyway")
         }
 
         val issuingCountry = line1.substring(2, 5).replace("<", "")
@@ -174,19 +218,23 @@ object MrzParser {
         // Note: Document number can contain letters, so don't apply numeric cleaning to it
         val documentNumber = line2.substring(0, 9).replace("<", "")
         val documentNumberCheckDigit = line2[9]
+        Log.d(TAG, "Parsed document number: '$documentNumber' (check: $documentNumberCheckDigit)")
 
         val nationality = line2.substring(10, 13).replace("<", "")
+        Log.d(TAG, "Parsed nationality: '$nationality'")
 
         // Dates are always numeric (YYMMDD) - apply OCR fixes for common mistakes
         val rawDateOfBirth = line2.substring(13, 19)
         val dateOfBirth = cleanNumericSection(rawDateOfBirth)
         val dobCheckDigit = cleanNumericSection(line2.substring(19, 20))[0]
+        Log.d(TAG, "Parsed DOB: raw='$rawDateOfBirth' -> clean='$dateOfBirth' (check: $dobCheckDigit)")
 
         val sex = line2[20]
 
         val rawDateOfExpiry = line2.substring(21, 27)
         val dateOfExpiry = cleanNumericSection(rawDateOfExpiry)
         val expiryCheckDigit = cleanNumericSection(line2.substring(27, 28))[0]
+        Log.d(TAG, "Parsed expiry: raw='$rawDateOfExpiry' -> clean='$dateOfExpiry' (check: $expiryCheckDigit)")
 
         // Validate check digits
         if (!validateCheckDigit(documentNumber, documentNumberCheckDigit)) {

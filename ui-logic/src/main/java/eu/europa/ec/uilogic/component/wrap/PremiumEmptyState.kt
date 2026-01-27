@@ -114,26 +114,29 @@ fun PremiumEmptyState(
     modifier: Modifier = Modifier,
     features: List<FeatureHighlight>? = null,
     actionLabel: String? = null,
-    onActionClick: (() -> Unit)? = null
+    onActionClick: (() -> Unit)? = null,
+    enableAnimations: Boolean = true
 ) {
-    // Staggered animation states
-    var showIllustration by remember { mutableStateOf(false) }
-    var showTitle by remember { mutableStateOf(false) }
-    var showDescription by remember { mutableStateOf(false) }
-    var showFeatures by remember { mutableStateOf(false) }
-    var showAction by remember { mutableStateOf(false) }
+    val shouldAnimate: Boolean = enableAnimations
+    var showIllustration by remember { mutableStateOf(!shouldAnimate) }
+    var showTitle by remember { mutableStateOf(!shouldAnimate) }
+    var showDescription by remember { mutableStateOf(!shouldAnimate) }
+    var showFeatures by remember { mutableStateOf(!shouldAnimate) }
+    var showAction by remember { mutableStateOf(!shouldAnimate) }
 
-    LaunchedEffect(Unit) {
-        delay(100)
-        showIllustration = true
-        delay(150)
-        showTitle = true
-        delay(100)
-        showDescription = true
-        delay(150)
-        showFeatures = true
-        delay(150)
-        showAction = true
+    LaunchedEffect(shouldAnimate) {
+        if (shouldAnimate) {
+            delay(100)
+            showIllustration = true
+            delay(150)
+            showTitle = true
+            delay(100)
+            showDescription = true
+            delay(150)
+            showFeatures = true
+            delay(150)
+            showAction = true
+        }
     }
 
     Column(
@@ -143,21 +146,33 @@ fun PremiumEmptyState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Animated illustration
-        AnimatedVisibility(
-            visible = showIllustration,
-            enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { -it / 4 }
-        ) {
-            EmptyStateIllustrationComponent(illustration = illustration)
+        if (shouldAnimate) {
+            AnimatedVisibility(
+                visible = showIllustration,
+                enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { -it / 4 }
+            ) {
+                EmptyStateIllustrationComponent(illustration = illustration, enableAnimations = true)
+            }
+        } else {
+            EmptyStateIllustrationComponent(illustration = illustration, enableAnimations = false)
         }
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Title
-        AnimatedVisibility(
-            visible = showTitle,
-            enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 4 }
-        ) {
+        if (shouldAnimate) {
+            AnimatedVisibility(
+                visible = showTitle,
+                enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 4 }
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        } else {
             Text(
                 text = title,
                 style = MaterialTheme.typography.headlineSmall,
@@ -169,11 +184,21 @@ fun PremiumEmptyState(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Description
-        AnimatedVisibility(
-            visible = showDescription,
-            enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 4 }
-        ) {
+        if (shouldAnimate) {
+            AnimatedVisibility(
+                visible = showDescription,
+                enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 4 }
+            ) {
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 24.sp,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+        } else {
             Text(
                 text = description,
                 style = MaterialTheme.typography.bodyLarge,
@@ -188,10 +213,24 @@ fun PremiumEmptyState(
         if (!features.isNullOrEmpty()) {
             Spacer(modifier = Modifier.height(32.dp))
 
-            AnimatedVisibility(
-                visible = showFeatures,
-                enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 4 }
-            ) {
+            if (shouldAnimate) {
+                AnimatedVisibility(
+                    visible = showFeatures,
+                    enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 4 }
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        features.forEach { feature ->
+                            FeatureHighlightCard(
+                                feature = feature,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+            } else {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -210,10 +249,18 @@ fun PremiumEmptyState(
         if (actionLabel != null && onActionClick != null) {
             Spacer(modifier = Modifier.height(32.dp))
 
-            AnimatedVisibility(
-                visible = showAction,
-                enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 4 }
-            ) {
+            if (shouldAnimate) {
+                AnimatedVisibility(
+                    visible = showAction,
+                    enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 4 }
+                ) {
+                    PremiumActionButton(
+                        text = actionLabel,
+                        onClick = onActionClick,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            } else {
                 PremiumActionButton(
                     text = actionLabel,
                     onClick = onActionClick,
@@ -227,22 +274,27 @@ fun PremiumEmptyState(
 @Composable
 private fun EmptyStateIllustrationComponent(
     illustration: EmptyStateIllustration,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enableAnimations: Boolean = true
 ) {
-    // Smooth infinite pulse animation for a subtle "breathing" effect
-    val infiniteTransition = rememberInfiniteTransition(label = "illustrationPulse")
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = 1500,
-                easing = FastOutSlowInEasing
+    val pulseScale: Float = if (enableAnimations) {
+        val infiniteTransition = rememberInfiniteTransition(label = "illustrationPulse")
+        val animatedScale by infiniteTransition.animateFloat(
+            initialValue = 1f,
+            targetValue = 1.05f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(
+                    durationMillis = 1500,
+                    easing = FastOutSlowInEasing
+                ),
+                repeatMode = RepeatMode.Reverse
             ),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "illustrationPulseScale"
-    )
+            label = "illustrationPulseScale"
+        )
+        animatedScale
+    } else {
+        1f
+    }
 
     val (mainIcon, accentIcon, primaryColor, secondaryColor) = when (illustration) {
         EmptyStateIllustration.VERIFICATION -> IllustrationColors(
@@ -365,7 +417,7 @@ private fun FeatureHighlightCard(
             ) {
                 WrapIcon(
                     iconData = feature.icon,
-                    customTint = MaterialTheme.colorScheme.primary,
+                    customTint = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.size(20.dp)
                 )
             }
