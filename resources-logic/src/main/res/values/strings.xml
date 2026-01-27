@@ -822,6 +822,13 @@
     <string name="content_description_vaccination_icon">Vaccination</string>
     <string name="content_description_share_icon">Share</string>
     <string name="content_description_refresh_icon">Refresh</string>
+    <string name="content_description_government_icon">Government</string>
+    <string name="content_description_travel_icon">Travel</string>
+    <string name="content_description_finance_icon">Finance</string>
+    <string name="content_description_education_icon">Education</string>
+    <string name="content_description_social_security_icon">Social Security</string>
+    <string name="content_description_retail_icon">Retail</string>
+    <string name="content_description_folder_icon">Folder</string>
 
     <!-- QuickID / Authbound ID -->
     <string name="quickid_authbound_id_promo_badge">VERIFIED IDENTITY</string>

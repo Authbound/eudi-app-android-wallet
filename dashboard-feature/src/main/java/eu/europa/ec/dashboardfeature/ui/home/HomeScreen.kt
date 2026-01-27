@@ -43,6 +43,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -60,10 +61,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalView
@@ -283,7 +284,7 @@ private fun Content(
     ) {
         // Hero Credential Section at the top
         HeroCredentialSection(
-            heroCredential = state.heroCredential,
+            heroCredentials = state.heroCredentials,
             isLoading = state.isLoadingHeroCredential,
             onCredentialClick = {
                 onEventSent(Event.HeroCredentialPressed)
@@ -647,15 +648,8 @@ private fun GradientSectionTitle(
 ) {
     Text(
         text = text,
-        style = MaterialTheme.typography.titleLarge.copy(
-            fontWeight = FontWeight.Bold,
-            brush = Brush.linearGradient(
-                colors = listOf(
-                    MaterialTheme.colorScheme.onSurface,
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-                )
-            )
-        ),
+        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+        color = MaterialTheme.colorScheme.onSurface,
         modifier = modifier
     )
 }
@@ -1043,7 +1037,7 @@ private fun QuickActionsSection(
  */
 @Composable
 private fun HeroCredentialSection(
-    heroCredential: HeroCredentialUi?,
+    heroCredentials: List<HeroCredentialUi>,
     isLoading: Boolean,
     onCredentialClick: () -> Unit,
     onAddCredentialClick: () -> Unit,
@@ -1060,20 +1054,45 @@ private fun HeroCredentialSection(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(172.dp),
+                        .height(180.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator()
                 }
             }
 
-            heroCredential != null -> {
-                // Show the hero credential card
-                VisualCredentialCard(
-                    config = heroCredential.toVisualConfig(),
-                    modifier = Modifier.height(172.dp),
-                    onClick = onCredentialClick
-                )
+            heroCredentials.isNotEmpty() -> {
+                val shouldShowAuthboundPromo = onGetAuthboundIdClick != null
+                    && heroCredentials.none { it.isAuthboundIssued() }
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                    val itemWidth = maxWidth
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp)
+                    ) {
+                        items(
+                            items = heroCredentials,
+                            key = { heroCredential -> heroCredential.documentId }
+                        ) { heroCredential ->
+                            VisualCredentialCard(
+                                config = heroCredential.toVisualConfig(),
+                                modifier = Modifier
+                                    .width(itemWidth)
+                                    .height(180.dp),
+                                showAuthboundBadge = heroCredential.isAuthboundIssued(),
+                                onClick = onCredentialClick
+                            )
+                        }
+                        if (shouldShowAuthboundPromo) {
+                            item {
+                                AuthboundIdPromoCard(
+                                    onGetAuthboundIdClick = onGetAuthboundIdClick,
+                                    modifier = Modifier.width(itemWidth)
+                                )
+                            }
+                        }
+                    }
+                }
 
                 // Tap to share hint
                 Text(
@@ -1088,15 +1107,33 @@ private fun HeroCredentialSection(
             }
 
             else -> {
-                // Empty state - show Authbound ID promo if callback is available
-                if (onGetAuthboundIdClick != null) {
-                    AuthboundIdPromoCard(onGetAuthboundIdClick = onGetAuthboundIdClick)
-                } else {
-                    EmptyHeroCard(onAddCredentialClick = onAddCredentialClick)
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                    val itemWidth = maxWidth
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp)
+                    ) {
+                        if (onGetAuthboundIdClick != null) {
+                            item {
+                                AuthboundIdPromoCard(
+                                    onGetAuthboundIdClick = onGetAuthboundIdClick,
+                                    modifier = Modifier.width(itemWidth)
+                                )
+                            }
+                        } else {
+                            item {
+                                EmptyHeroCard(onAddCredentialClick = onAddCredentialClick)
+                            }
+                        }
+                    }
                 }
             }
         }
     }
+}
+
+private fun HeroCredentialUi.isAuthboundIssued(): Boolean {
+    return issuerName?.contains("authbound", ignoreCase = true) == true
 }
 
 /**

@@ -77,8 +77,8 @@ data class State(
     val bleAvailability: BleAvailability = BleAvailability.UNKNOWN,
     val isBleCentralClientModeEnabled: Boolean = false,
 
-    // Hero credential for the top of the home screen
-    val heroCredential: HeroCredentialUi? = null,
+    // Hero credentials for the top of the home screen
+    val heroCredentials: List<HeroCredentialUi> = emptyList(),
     val isLoadingHeroCredential: Boolean = false,
 
     // Credentials list for the home screen (deprecated - moved to hero card)
@@ -702,7 +702,7 @@ class HomeViewModel(
                         setState {
                             copy(
                                 isLoadingHeroCredential = false,
-                                heroCredential = null
+                                heroCredentials = emptyList()
                             )
                         }
                     }
@@ -711,7 +711,7 @@ class HomeViewModel(
                         setState {
                             copy(
                                 isLoadingHeroCredential = false,
-                                heroCredential = response.heroCredential
+                                heroCredentials = response.heroCredentials
                             )
                         }
                     }
@@ -721,25 +721,11 @@ class HomeViewModel(
     }
 
     private fun handleHeroCredentialPressed() {
-        val heroCredential = viewState.value.heroCredential ?: return
+        if (viewState.value.heroCredentials.isEmpty()) return
 
-        // Navigate to proximity QR screen to share the credential
-        getOrCreatePresentationScope()
-        setEffect {
-            Effect.Navigation.SwitchScreen(
-                screenRoute = generateComposableNavigationLink(
-                    screen = ProximityScreens.QR,
-                    arguments = generateComposableArguments(
-                        mapOf(
-                            RequestUriConfig.serializedKeyName to uiSerializer.toBase64(
-                                RequestUriConfig(PresentationMode.Ble(DashboardScreens.Dashboard.screenRoute)),
-                                RequestUriConfig.Parser
-                            )
-                        )
-                    )
-                )
-            )
-        }
+        // Check Bluetooth permissions before navigating to proximity screen
+        // This triggers the permission request flow if needed
+        checkIfBluetoothIsEnabled()
     }
 
     private fun handleQuickAction(actionId: String) {

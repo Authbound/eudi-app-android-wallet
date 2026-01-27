@@ -27,6 +27,34 @@ import androidx.compose.ui.zIndex
 import eu.europa.ec.uilogic.component.utils.Z_LOADING
 import eu.europa.ec.uilogic.extension.clickableNoRipple
 
+/**
+ * Basic loading indicator with Material Design CircularProgressIndicator.
+ *
+ * @deprecated Use [PremiumLoadingIndicator] for brand-aligned loading UX,
+ * or use [LoadingConfig] with [ContentScreen] for coordinated loading.
+ *
+ * Migration:
+ * ```kotlin
+ * // Old:
+ * if (isLoading) LoadingIndicator()
+ *
+ * // New (in ContentScreen):
+ * ContentScreen(
+ *     isLoading = isLoading,
+ *     loadingConfig = LoadingConfig.fullScreen()
+ * ) { ... }
+ *
+ * // Or standalone:
+ * PremiumLoadingIndicator(visible = isLoading)
+ * ```
+ */
+@Deprecated(
+    message = "Use PremiumLoadingIndicator for brand-aligned loading UX",
+    replaceWith = ReplaceWith(
+        "PremiumLoadingIndicator(visible = true)",
+        "eu.europa.ec.uilogic.component.loader.PremiumLoadingIndicator"
+    )
+)
 @Composable
 fun LoadingIndicator() {
     Box(

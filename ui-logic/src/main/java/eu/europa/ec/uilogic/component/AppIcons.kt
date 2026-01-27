@@ -26,7 +26,14 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.CreditCard
+import androidx.compose.material.icons.outlined.Flight
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.School
+import androidx.compose.material.icons.outlined.Security
+import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -514,5 +521,48 @@ object AppIcons {
         resourceId = R.drawable.ic_refresh,
         contentDescriptionId = R.string.content_description_refresh_icon,
         imageVector = null
+    )
+
+    // Category-specific icons for document organization
+    val Government: IconDataUi = IconDataUi(
+        resourceId = null,
+        contentDescriptionId = R.string.content_description_government_icon,
+        imageVector = Icons.Outlined.AccountBalance
+    )
+
+    val Travel: IconDataUi = IconDataUi(
+        resourceId = null,
+        contentDescriptionId = R.string.content_description_travel_icon,
+        imageVector = Icons.Outlined.Flight
+    )
+
+    val Finance: IconDataUi = IconDataUi(
+        resourceId = null,
+        contentDescriptionId = R.string.content_description_finance_icon,
+        imageVector = Icons.Outlined.CreditCard
+    )
+
+    val Education: IconDataUi = IconDataUi(
+        resourceId = null,
+        contentDescriptionId = R.string.content_description_education_icon,
+        imageVector = Icons.Outlined.School
+    )
+
+    val SocialSecurity: IconDataUi = IconDataUi(
+        resourceId = null,
+        contentDescriptionId = R.string.content_description_social_security_icon,
+        imageVector = Icons.Outlined.Security
+    )
+
+    val Retail: IconDataUi = IconDataUi(
+        resourceId = null,
+        contentDescriptionId = R.string.content_description_retail_icon,
+        imageVector = Icons.Outlined.ShoppingCart
+    )
+
+    val Folder: IconDataUi = IconDataUi(
+        resourceId = null,
+        contentDescriptionId = R.string.content_description_folder_icon,
+        imageVector = Icons.Outlined.Folder
     )
 }

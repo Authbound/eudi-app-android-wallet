@@ -36,7 +36,8 @@ data class HeroCredentialUi(
     val issuerName: String?,
     val expiryDate: String?,
     val status: DocumentIssuanceStateUi,
-    val hasPhoto: Boolean
+    val hasPhoto: Boolean,
+    val portraitBase64: String?
 ) {
     /**
      * Convert to VisualCredentialConfig for the visual credential card component.
@@ -53,7 +54,8 @@ data class HeroCredentialUi(
             secondaryField = null,
             status = status.toCredentialStatus(),
             expiryDate = expiryDate,
-            hasPhoto = hasPhoto
+            hasPhoto = hasPhoto,
+            portraitBase64 = portraitBase64
         )
     }
 }

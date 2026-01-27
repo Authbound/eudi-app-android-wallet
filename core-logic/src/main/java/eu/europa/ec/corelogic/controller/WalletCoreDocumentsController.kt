@@ -243,10 +243,19 @@ class WalletCoreDocumentsControllerImpl(
         return withContext(dispatcher) {
             runCatching {
 
+                // Fetch metadata from each issuer, gracefully handling failures
                 val metadata: Map<String, CredentialIssuerMetadata> =
-                    openId4VciManagers.mapValues { (_, manager) ->
-                        manager.getIssuerMetadata().getOrThrow()
-                    }
+                    openId4VciManagers.mapNotNull { (issuerUrl, manager) ->
+                        manager.getIssuerMetadata()
+                            .onFailure { error ->
+                                Log.w(
+                                    "WalletCoreDocumentsController",
+                                    "Failed to fetch metadata from issuer: $issuerUrl - ${error.message}"
+                                )
+                            }
+                            .getOrNull()
+                            ?.let { issuerUrl to it }
+                    }.toMap()
 
                 val documents: List<ScopedDocumentDomain> =
                     metadata.flatMap { (issuer, meta) ->

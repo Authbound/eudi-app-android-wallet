@@ -38,6 +38,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,7 +54,11 @@ import androidx.compose.ui.zIndex
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.IconDataUi
 import eu.europa.ec.uilogic.component.SystemBroadcastReceiver
-import eu.europa.ec.uilogic.component.loader.LoadingIndicator
+import eu.europa.ec.uilogic.component.loader.LoadingConfig
+import eu.europa.ec.uilogic.component.loader.LoadingType
+import eu.europa.ec.uilogic.component.loader.LocalLoadingCoordinator
+import eu.europa.ec.uilogic.component.loader.PremiumLoadingIndicator
+import eu.europa.ec.uilogic.component.loader.rememberLoadingCoordinator
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
 import eu.europa.ec.uilogic.component.utils.MAX_TOOLBAR_ACTIONS
@@ -88,9 +94,32 @@ enum class ImePaddingConfig {
 
 data class BroadcastAction(val intentFilters: List<String>, val callback: (Intent?) -> Unit)
 
+/**
+ * Main content screen container with toolbar, loading, and error handling.
+ *
+ * @param isLoading Whether to show the loading indicator
+ * @param loadingConfig Optional configuration for the loading indicator.
+ *   If null, uses default full-screen loading when isLoading is true.
+ *   Use [LoadingConfig.fullScreenWithMessage] for messages or
+ *   [LoadingConfig.fullScreenWithProgress] for progress display.
+ * @param toolBarConfig Configuration for the toolbar
+ * @param navigatableAction Navigation action type (back, cancel, none)
+ * @param onBack Callback when back/cancel is pressed
+ * @param topBar Custom top bar composable
+ * @param bottomBar Custom bottom bar composable
+ * @param stickyBottom Content that sticks to the bottom
+ * @param fab Floating action button composable
+ * @param fabPosition Position of the FAB
+ * @param snackbarHost Snackbar host composable
+ * @param contentErrorConfig Error configuration to display
+ * @param broadcastAction Broadcast receiver configuration
+ * @param imePaddingConfig IME padding configuration
+ * @param bodyContent Main content of the screen
+ */
 @Composable
 fun ContentScreen(
     isLoading: Boolean = false,
+    loadingConfig: LoadingConfig? = null,
     toolBarConfig: ToolbarConfig? = null,
     navigatableAction: ScreenNavigateAction = ScreenNavigateAction.BACKABLE,
     onBack: (() -> Unit)? = null,
@@ -107,116 +136,133 @@ fun ContentScreen(
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
 
+    // Loading coordination to prevent duplicate loaders
+    val loadingCoordinator = rememberLoadingCoordinator()
+    val effectiveConfig = loadingConfig ?: LoadingConfig.fullScreen()
+
     val hasToolBar = contentErrorConfig != null
             || navigatableAction != ScreenNavigateAction.NONE
             || topBar != null
             || toolBarConfig?.actions?.isNotEmpty() == true
     val topSpacing = if (hasToolBar) TopSpacing.WithToolbar else TopSpacing.WithoutToolbar
 
-    Scaffold(
-        topBar = {
-            if (topBar != null && contentErrorConfig == null) {
-                Box(
-                    modifier = Modifier
-                        .wrapContentSize()
-                        .statusBarsPadding()
-                ) {
-                    topBar()
-                }
-            } else if (hasToolBar) {
-                DefaultToolBar(
-                    navigatableAction = contentErrorConfig?.let {
-                        ScreenNavigateAction.CANCELABLE
-                    } ?: navigatableAction,
-                    onBack = contentErrorConfig?.onCancel ?: onBack,
-                    keyboardController = keyboardController,
-                    toolbarConfig = toolBarConfig,
-                )
-            }
-        },
-        bottomBar = {
-            bottomBar?.let {
-                Box(
-                    modifier = Modifier
-                        .wrapContentSize()
-                        .then(
-                            if (imePaddingConfig == ImePaddingConfig.WITH_BOTTOM_BAR) {
-                                Modifier.imePadding()
-                            } else {
-                                Modifier
-                            }
-                        )
-                ) {
-                    bottomBar()
-                }
-            }
-        },
-        floatingActionButton = fab,
-        floatingActionButtonPosition = fabPosition,
-        snackbarHost = snackbarHost,
-    ) { padding ->
-
-        val screenPaddingsIgnoringSticky = screenPaddings(
-            hasStickyBottom = false,
-            append = padding,
-            topSpacing = topSpacing
-        )
-
-        Box(
-            modifier = Modifier.fillMaxSize()
-        ) {
-
-            if (contentErrorConfig != null) {
-                ContentError(
-                    config = contentErrorConfig,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(screenPaddingsIgnoringSticky)
-                )
-            } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .then(
-                            if (imePaddingConfig == ImePaddingConfig.ONLY_CONTENT) {
-                                Modifier.imePadding()
-                            } else {
-                                Modifier
-                            }
-                        )
-                ) {
-
-                    Box(modifier = Modifier.weight(1f)) {
-                        bodyContent(
-                            screenPaddings(
-                                hasStickyBottom = stickyBottom != null,
-                                append = padding,
-                                topSpacing = topSpacing
-                            )
-                        )
+    // Provide loading coordinator to child components
+    CompositionLocalProvider(LocalLoadingCoordinator provides loadingCoordinator) {
+        Scaffold(
+            topBar = {
+                if (topBar != null && contentErrorConfig == null) {
+                    Box(
+                        modifier = Modifier
+                            .wrapContentSize()
+                            .statusBarsPadding()
+                    ) {
+                        topBar()
                     }
+                } else if (hasToolBar) {
+                    DefaultToolBar(
+                        navigatableAction = contentErrorConfig?.let {
+                            ScreenNavigateAction.CANCELABLE
+                        } ?: navigatableAction,
+                        onBack = contentErrorConfig?.onCancel ?: onBack,
+                        keyboardController = keyboardController,
+                        toolbarConfig = toolBarConfig,
+                    )
+                }
+            },
+            bottomBar = {
+                bottomBar?.let {
+                    Box(
+                        modifier = Modifier
+                            .wrapContentSize()
+                            .then(
+                                if (imePaddingConfig == ImePaddingConfig.WITH_BOTTOM_BAR) {
+                                    Modifier.imePadding()
+                                } else {
+                                    Modifier
+                                }
+                            )
+                    ) {
+                        bottomBar()
+                    }
+                }
+            },
+            floatingActionButton = fab,
+            floatingActionButtonPosition = fabPosition,
+            snackbarHost = snackbarHost,
+        ) { padding ->
 
-                    stickyBottom?.let { stickyBottomContent ->
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .navigationBarsPadding()
-                                .zIndex(Z_STICKY),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            stickyBottomContent(
-                                stickyBottomPaddings(
-                                    contentScreenPaddings = screenPaddingsIgnoringSticky,
-                                    layoutDirection = LocalLayoutDirection.current
+            val screenPaddingsIgnoringSticky = screenPaddings(
+                hasStickyBottom = false,
+                append = padding,
+                topSpacing = topSpacing
+            )
+
+            Box(
+                modifier = Modifier.fillMaxSize()
+            ) {
+
+                if (contentErrorConfig != null) {
+                    ContentError(
+                        config = contentErrorConfig,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(screenPaddingsIgnoringSticky)
+                    )
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .then(
+                                if (imePaddingConfig == ImePaddingConfig.ONLY_CONTENT) {
+                                    Modifier.imePadding()
+                                } else {
+                                    Modifier
+                                }
+                            )
+                    ) {
+
+                        Box(modifier = Modifier.weight(1f)) {
+                            bodyContent(
+                                screenPaddings(
+                                    hasStickyBottom = stickyBottom != null,
+                                    append = padding,
+                                    topSpacing = topSpacing
                                 )
                             )
                         }
-                    }
-                }
 
-                if (isLoading) LoadingIndicator()
+                        stickyBottom?.let { stickyBottomContent ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .navigationBarsPadding()
+                                    .zIndex(Z_STICKY),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                stickyBottomContent(
+                                    stickyBottomPaddings(
+                                        contentScreenPaddings = screenPaddingsIgnoringSticky,
+                                        layoutDirection = LocalLayoutDirection.current
+                                    )
+                                )
+                            }
+                        }
+                    }
+
+                    // Premium loading indicator (replaces old LoadingIndicator)
+                    val shouldShowLoading = isLoading && effectiveConfig.type != LoadingType.NONE
+                    PremiumLoadingIndicator(
+                        visible = shouldShowLoading,
+                        config = effectiveConfig
+                    )
+                }
             }
         }
+    }
+
+    // Update coordinator state when loading changes
+    LaunchedEffect(isLoading, effectiveConfig) {
+        loadingCoordinator.setLoading(isLoading, effectiveConfig)
     }
 
     BackHandler(enabled = true) {
