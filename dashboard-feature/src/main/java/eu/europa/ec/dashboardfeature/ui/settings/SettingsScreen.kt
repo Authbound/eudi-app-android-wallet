@@ -165,13 +165,6 @@ private fun TopBar(
                 vertical = 4.dp
             )
     ) {
-        Text(
-            modifier = Modifier.align(Alignment.Center),
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.headlineMedium,
-            text = stringResource(R.string.settings_screen_title)
-        )
         NotificationIconButton(
             modifier = Modifier.align(Alignment.CenterEnd),
             badgeCount = notificationCount,
@@ -495,7 +488,6 @@ private fun SettingsScreenPreview() {
 
         Content(
             state = State(
-                screenTitle = stringResource(R.string.settings_screen_title),
                 settingsItems = settingsItems,
                 appVersion = "1.0.0",
                 changelogUrl = "",

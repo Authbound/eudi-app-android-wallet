@@ -59,6 +59,7 @@ fun WalletSetupScreen(
     viewModel: WalletSetupViewModel = koinViewModel(),
     logController: LogController,
     onNavigateToHome: () -> Unit,
+    onNavigateToPinCreate: () -> Unit,
     onNavigateToLogin: () -> Unit,
     onNavigateToDeviceSecurity: () -> Unit,
 ) {
@@ -81,6 +82,7 @@ fun WalletSetupScreen(
         viewModel.effect.collectLatest { effect ->
             when (effect) {
                 is WalletSetupEffect.NavigateToHome -> onNavigateToHome()
+                is WalletSetupEffect.NavigateToPinCreate -> onNavigateToPinCreate()
                 is WalletSetupEffect.NavigateToLogin -> onNavigateToLogin()
                 is WalletSetupEffect.NavigateToDeviceSecurity -> onNavigateToDeviceSecurity()
                 is WalletSetupEffect.ShowError -> {

@@ -373,10 +373,18 @@ class PinViewModel(
     }
 
     private fun calculateButtonText(pinState: PinValidationState): String {
-        return when (pinState) {
-            PinValidationState.ENTER -> resourceProvider.getString(R.string.generic_next_capitalized)
-            PinValidationState.REENTER -> resourceProvider.getString(R.string.generic_confirm_capitalized)
-            PinValidationState.VALIDATE -> resourceProvider.getString(R.string.generic_next_capitalized)
+        return when (pinFlow) {
+            PinFlow.CREATE -> when (pinState) {
+                PinValidationState.ENTER -> resourceProvider.getString(R.string.quick_pin_create_button_continue)
+                PinValidationState.REENTER -> resourceProvider.getString(R.string.quick_pin_create_button_confirm)
+                PinValidationState.VALIDATE -> resourceProvider.getString(R.string.generic_next_capitalized)
+            }
+            PinFlow.VERIFY -> resourceProvider.getString(R.string.quick_pin_verify_button_unlock)
+            PinFlow.UPDATE -> when (pinState) {
+                PinValidationState.ENTER -> resourceProvider.getString(R.string.generic_next_capitalized)
+                PinValidationState.REENTER -> resourceProvider.getString(R.string.generic_confirm_capitalized)
+                PinValidationState.VALIDATE -> resourceProvider.getString(R.string.generic_next_capitalized)
+            }
         }
     }
 
