@@ -24,6 +24,7 @@ import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.businesslogic.controller.device.DeviceController
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
+import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractor
 import eu.europa.ec.startupfeature.interactor.SplashInteractor
 import eu.europa.ec.startupfeature.interactor.SplashInteractorImpl
@@ -39,6 +40,7 @@ class FeatureStartupModule
 fun provideSplashInteractor(
     supabaseAuthRepository: SupabaseAuthRepository,
     prefKeys: PrefKeysV2,
+    prefsController: PrefsControllerV2,
     logController: LogController,
     isWalletActivatedUseCase: IsWalletActivatedUseCase,
     isProfileCompletedUseCase: IsProfileCompletedUseCase,
@@ -49,6 +51,7 @@ fun provideSplashInteractor(
 ): SplashInteractor = SplashInteractorImpl(
     supabaseAuthRepository,
     prefKeys,
+    prefsController,
     logController,
     isWalletActivatedUseCase,
     isProfileCompletedUseCase,

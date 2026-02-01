@@ -483,6 +483,30 @@ class WalletCorePresentationControllerImpl(
         val config = requireInit { _config }
         eudiWallet.addTransferEventListener(listener)
         if (config is PresentationControllerConfig.OpenId4VP) {
+            android.util.Log.d(
+                "WalletPresentation",
+                "Starting remote presentation with URI: ${config.uri}"
+            )
+            // Log decoded URI for debugging query parameters
+            try {
+                val uri = config.uri.toUri()
+                android.util.Log.d("WalletPresentation", "Parsed URI scheme: ${uri.scheme}")
+                android.util.Log.d("WalletPresentation", "Parsed URI host: ${uri.host}")
+                android.util.Log.d("WalletPresentation", "Parsed URI path: ${uri.path}")
+                android.util.Log.d("WalletPresentation", "Parsed URI query: ${uri.query}")
+                uri.queryParameterNames.forEach { param ->
+                    val value = uri.getQueryParameter(param)
+                    // Truncate long values for readability
+                    val displayValue = if ((value?.length ?: 0) > 200) {
+                        "${value?.take(200)}... (truncated, total ${value?.length} chars)"
+                    } else {
+                        value
+                    }
+                    android.util.Log.d("WalletPresentation", "  Query param '$param': $displayValue")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("WalletPresentation", "Failed to parse URI for logging: ${e.message}")
+            }
             eudiWallet.startRemotePresentation(config.uri.toUri())
         }
     }

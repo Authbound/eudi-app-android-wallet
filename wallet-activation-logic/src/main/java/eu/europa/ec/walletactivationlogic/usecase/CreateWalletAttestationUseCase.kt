@@ -61,14 +61,19 @@ class CreateWalletAttestationUseCaseImpl(
 
         // Step 3: Generate WUA key pair with the challenge embedded in attestation
         val certificateChain = try {
-            cryptoController.generateWuaKeyPair(challengeBytes)
-                ?: return Result.failure(
+            cryptoController.generateWuaKeyPair(challengeBytes) ?: run {
+                // Clean up any partial key state on failure
+                cryptoController.deleteWuaKey()
+                return Result.failure(
                     WalletActivationError.CryptographicFailure(
                         operation = "WUA key pair generation",
                         cause = Exception("KeyStore returned null certificate chain")
                     )
                 )
+            }
         } catch (e: Exception) {
+            // Clean up any partial key state on failure
+            cryptoController.deleteWuaKey()
             return Result.failure(
                 WalletActivationError.CryptographicFailure(
                     operation = "WUA key pair generation",
@@ -80,12 +85,19 @@ class CreateWalletAttestationUseCaseImpl(
         val publicKey = certificateChain.first()
 
         // Step 4: Activate wallet with attestation chain and challenge ID
-        return walletActivationRepository.activateWallet(
+        val activationResult = walletActivationRepository.activateWallet(
             publicKey = publicKey,
             attestationChain = certificateChain,
             challengeId = challengeResponse.challengeId,
             deviceInfo = deviceInfo,
             pushToken = pushToken,
         )
+
+        // Clean up WUA key if activation failed so next retry gets fresh attestation
+        if (activationResult.isFailure) {
+            cryptoController.deleteWuaKey()
+        }
+
+        return activationResult
     }
 } 

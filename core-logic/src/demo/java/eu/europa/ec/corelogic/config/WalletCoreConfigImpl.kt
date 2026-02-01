@@ -17,6 +17,7 @@
 package eu.europa.ec.corelogic.config
 
 import android.content.Context
+import android.os.Build
 import eu.europa.ec.corelogic.BuildConfig
 import eu.europa.ec.eudi.wallet.EudiWalletConfig
 import eu.europa.ec.eudi.wallet.issue.openid4vci.OpenId4VciManager
@@ -35,14 +36,43 @@ internal class WalletCoreConfigImpl(
         const val VCI_CLIENT_ID = "Verifier"
         const val AUTHENTICATION_REQUIRED = false
 
-        const val OPENID4VP_LOCAL_VERIFIER_API_URI = "http://10.0.2.2:8080"
         const val OPENID4VP_VERIFIER_LEGAL_NAME = "Authbound.io"
         const val OPENID4VP_VERIFIER_CLIENT_ID = "Verifier"
 
-        const val OPENID4VP_VERIFIER_API_URI = "http://10.0.2.2:3008"
+        /**
+         * Checks if running on an emulator.
+         * Duplicated from EmulatorDetector to avoid cross-module dependency.
+         */
+        fun isEmulator(): Boolean {
+            return (Build.FINGERPRINT.startsWith("generic")
+                    || Build.FINGERPRINT.startsWith("unknown")
+                    || Build.MODEL.contains("google_sdk")
+                    || Build.MODEL.contains("Emulator")
+                    || Build.MODEL.contains("Android SDK built for x86")
+                    || Build.MANUFACTURER.contains("Genymotion")
+                    || (Build.BRAND.startsWith("generic") && Build.DEVICE.startsWith("generic"))
+                    || Build.PRODUCT == "google_sdk"
+                    || Build.HARDWARE.contains("goldfish")
+                    || Build.HARDWARE.contains("ranchu"))
+        }
 
-
+        /**
+         * Returns the appropriate localhost address.
+         * - Emulator: 10.0.2.2 (Android's special alias for host machine loopback)
+         * - Real device: 127.0.0.1 (requires `adb reverse tcp:PORT tcp:PORT`)
+         */
+        fun getLocalhostAddress(): String = if (isEmulator()) "10.0.2.2" else "127.0.0.1"
     }
+
+    // Use local helper to get correct localhost address for physical devices vs emulators
+    private val localhostAddress: String
+        get() = getLocalhostAddress()
+
+    private val openId4vpVerifierApiUri: String
+        get() = "http://$localhostAddress:3008"
+
+    private val openId4vpLocalVerifierApiUri: String
+        get() = "http://$localhostAddress:8080"
 
     private var _config: EudiWalletConfig? = null
 
@@ -64,12 +94,12 @@ internal class WalletCoreConfigImpl(
                                 ClientIdScheme.Preregistered(listOf(
                                     PreregisteredVerifier(
                                         clientId = OPENID4VP_VERIFIER_CLIENT_ID,
-                                        verifierApi = OPENID4VP_VERIFIER_API_URI,
+                                        verifierApi = openId4vpVerifierApiUri,
                                         legalName = OPENID4VP_VERIFIER_LEGAL_NAME
                                     ),
 //                                PreregisteredVerifier(
 //                                    clientId = OPENID4VP_VERIFIER_CLIENT_ID,
-//                                    verifierApi = OPENID4VP_LOCAL_VERIFIER_API_URI,
+//                                    verifierApi = openId4vpLocalVerifierApiUri,
 //                                    legalName = OPENID4VP_VERIFIER_LEGAL_NAME
 //                                )
                                 ))

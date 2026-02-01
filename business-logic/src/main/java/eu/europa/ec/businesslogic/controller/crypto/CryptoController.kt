@@ -40,7 +40,27 @@ interface CryptoController {
      * @return A [String] representing the generated code verifier.
      */
     fun generateCodeVerifier(): String
-    fun generateWuaKeyPair(challenge: ByteArray? = null): Array<Certificate>?
+
+    /**
+     * Generates a WUA (Wallet Unit Attestation) key pair with the server-provided challenge.
+     *
+     * This method always creates a fresh key pair, deleting any existing WUA key first.
+     * The challenge is embedded in the attestation certificate for backend verification.
+     *
+     * @param challenge Server-provided attestation challenge (required, must not be empty)
+     * @return Certificate chain for the generated key pair, or null if generation fails
+     */
+    fun generateWuaKeyPair(challenge: ByteArray): Array<Certificate>?
+
+    /**
+     * Deletes the WUA key pair from the Keystore.
+     *
+     * Use this to clean up after activation failures or when resetting the wallet.
+     *
+     * @return true if deletion succeeded or key didn't exist, false on error
+     */
+    fun deleteWuaKey(): Boolean
+
     fun signData(data: ByteArray): ByteArray?
 
 
@@ -103,8 +123,12 @@ class CryptoControllerImpl(
         return Base64.encodeToString(code, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
     }
 
-    override fun generateWuaKeyPair(challenge: ByteArray?): Array<Certificate>? {
+    override fun generateWuaKeyPair(challenge: ByteArray): Array<Certificate>? {
         return keystoreController.generateWuaKeyPair(challenge)
+    }
+
+    override fun deleteWuaKey(): Boolean {
+        return keystoreController.deleteWuaKey()
     }
 
     override fun signData(data: ByteArray): ByteArray? {

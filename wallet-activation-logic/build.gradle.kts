@@ -38,4 +38,5 @@ dependencies {
 
     implementation(libs.ktor.android)
 
+    testImplementation(project(LibraryModule.TestLogic.path))
 } 
