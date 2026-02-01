@@ -21,6 +21,8 @@ import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
 import eu.europa.ec.dashboardfeature.ui.dashboard.model.SideMenuItemUi
 import eu.europa.ec.dashboardfeature.ui.dashboard.model.SideMenuTypeUi
 import eu.europa.ec.dashboardfeature.ui.dashboard.model.UserProfileUi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.uilogic.component.AppIcons
@@ -139,18 +141,23 @@ class DashboardInteractorImpl(
 
     override suspend fun getUserProfile(): UserProfileUi? {
         return try {
-            val user = getCurrentUserUseCase()
-            val profile = getMyProfileUseCase().getOrNull()
+            coroutineScope {
+                val userDeferred = async { getCurrentUserUseCase() }
+                val profileDeferred = async { getMyProfileUseCase().getOrNull() }
 
-            user?.let {
-                UserProfileUi(
-                    displayName = profile?.displayName
-                        ?: user.email?.substringBefore("@")
-                        ?: "User",
-                    email = user.email,
-                    handle = profile?.handle,
-                    avatarUrl = null
-                )
+                val user = userDeferred.await()
+                val profile = profileDeferred.await()
+
+                user?.let {
+                    UserProfileUi(
+                        displayName = profile?.displayName
+                            ?: user.email?.substringBefore("@")
+                            ?: "User",
+                        email = user.email,
+                        handle = profile?.handle,
+                        avatarUrl = null
+                    )
+                }
             }
         } catch (e: Exception) {
             null

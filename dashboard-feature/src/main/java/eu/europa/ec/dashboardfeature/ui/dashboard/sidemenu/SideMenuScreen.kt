@@ -105,13 +105,12 @@ private fun Content(
     var showFooter by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        delay(100)
         showProfile = true
-        delay(100)
+        delay(50)
         showActions = true
-        delay(100)
+        delay(50)
         showAccount = true
-        delay(100)
+        delay(50)
         showFooter = true
     }
 

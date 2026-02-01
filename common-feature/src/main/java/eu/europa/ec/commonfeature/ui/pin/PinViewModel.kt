@@ -23,6 +23,8 @@ import eu.europa.ec.businesslogic.validator.Rule
 import eu.europa.ec.commonfeature.config.IssuanceFlowType
 import eu.europa.ec.commonfeature.config.IssuanceUiConfig
 import eu.europa.ec.commonfeature.config.SuccessUIConfig
+import eu.europa.ec.authenticationlogic.usecase.SignOutMode
+import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractor
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractorPinValidPartialState
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractorSetPinPartialState
@@ -69,8 +71,13 @@ data class State(
     val resetPin: Boolean = false,
     val pinState: PinValidationState,
     val isBottomSheetOpen: Boolean = false,
-    val quickPinSize: Int = 6
+    val quickPinSize: Int = 6,
+    val showOverflowMenu: Boolean = false,
+    val showResetConfirmation: Boolean = false,
 ) : ViewState {
+
+    val isVerifyFlow: Boolean
+        get() = pinFlow == PinFlow.VERIFY
     val action: ScreenNavigateAction
         get() {
             return when (pinFlow) {
@@ -95,12 +102,19 @@ sealed class Event : ViewEvent {
     data class OnQuickPinEntered(val quickPin: String) : Event()
     data object CancelPressed : Event()
     data object Finish : Event()
+    data class OverflowMenuToggled(val isOpen: Boolean) : Event()
+    data object ForgotPinPressed : Event()
     sealed class BottomSheet : Event() {
         data class UpdateBottomSheetState(val isOpen: Boolean) : BottomSheet()
 
         sealed class Cancel : BottomSheet() {
             data object PrimaryButtonPressed : Cancel()
             data object SecondaryButtonPressed : Cancel()
+        }
+
+        sealed class Reset : BottomSheet() {
+            data object ConfirmPressed : Reset()
+            data object CancelPressed : Reset()
         }
     }
 }
@@ -112,6 +126,7 @@ sealed class Effect : ViewSideEffect {
 
         data object Pop : Navigation()
         data object Finish : Navigation()
+        data object GoToLogin : Navigation()
     }
 
     data object ShowBottomSheet : Effect()
@@ -123,6 +138,7 @@ class PinViewModel(
     private val interactor: QuickPinInteractor,
     private val resourceProvider: ResourceProvider,
     private val uiSerializer: UiSerializer,
+    private val signOutUseCase: SignOutUseCase,
     @InjectedParam private val pinFlow: PinFlow
 ) : MviViewModel<Event, State, Effect>() {
 
@@ -212,6 +228,22 @@ class PinViewModel(
                     delay(200L)
                     setEffect { Effect.Navigation.Pop }
                 }
+            }
+
+            is Event.OverflowMenuToggled -> {
+                setState { copy(showOverflowMenu = event.isOpen) }
+            }
+
+            is Event.ForgotPinPressed -> {
+                setState { copy(showOverflowMenu = false, showResetConfirmation = true) }
+            }
+
+            is Event.BottomSheet.Reset.ConfirmPressed -> {
+                resetPinAndSignOut()
+            }
+
+            is Event.BottomSheet.Reset.CancelPressed -> {
+                setState { copy(showResetConfirmation = false) }
             }
 
             is Event.Finish -> setEffect { Effect.Navigation.Finish }
@@ -462,6 +494,19 @@ class PinViewModel(
                 )
             )
         )
+    }
+
+    private fun resetPinAndSignOut() {
+        setState { copy(isLoading = true, showResetConfirmation = false) }
+        viewModelScope.launch {
+            try {
+                interactor.resetPin()
+                signOutUseCase(SignOutMode.Soft)
+                setEffect { Effect.Navigation.GoToLogin }
+            } catch (_: Exception) {
+                setState { copy(isLoading = false) }
+            }
+        }
     }
 
     private fun showBottomSheet() {
