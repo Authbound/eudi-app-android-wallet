@@ -98,6 +98,7 @@ sealed class WalletSetupEvent : ViewEvent {
 sealed class WalletSetupEffect : ViewSideEffect {
     data object NavigateToHome : WalletSetupEffect()
     data object NavigateToPinCreate : WalletSetupEffect()
+    data object NavigateToPinVerify : WalletSetupEffect()
     data object NavigateToLogin : WalletSetupEffect()
     data object NavigateToDeviceSecurity : WalletSetupEffect()
     data class ShowError(val message: String) : WalletSetupEffect()
@@ -119,7 +120,7 @@ class WalletSetupViewModel(
 
     private var countdownJob: Job? = null
 
-    private suspend fun navigateToHomeOrPinCreate() {
+    private suspend fun navigateToPinCreateOrVerify() {
         val hasPin = try {
             pinStorageController.retrievePin().isNotBlank()
         } catch (e: Exception) {
@@ -127,7 +128,8 @@ class WalletSetupViewModel(
             false
         }
         if (hasPin) {
-            setEffect { WalletSetupEffect.NavigateToHome }
+            // PIN exists — require verification before granting access
+            setEffect { WalletSetupEffect.NavigateToPinVerify }
         } else {
             setEffect { WalletSetupEffect.NavigateToPinCreate }
         }
@@ -140,7 +142,7 @@ class WalletSetupViewModel(
                 logController.i("WalletSetupViewModel", ) {"Wallet already activated for this user, checking PIN status."}
                 // Use a coroutine to navigate after the view is ready
                 viewModelScope.launch {
-                    navigateToHomeOrPinCreate()
+                    navigateToPinCreateOrVerify()
                 }
                 return WalletSetupState(isWalletAlreadyActivated = true)
             }
@@ -188,7 +190,7 @@ class WalletSetupViewModel(
             if (prefKeys.isWalletActivatedSafe()) {
                 logController.i("WalletSetupViewModel") { "Wallet already activated, checking PIN status." }
                 viewModelScope.launch {
-                    navigateToHomeOrPinCreate()
+                    navigateToPinCreateOrVerify()
                 }
                 return
             }
@@ -253,7 +255,7 @@ class WalletSetupViewModel(
     private fun continueToHome() {
         logController.d("WalletSetupViewModel", "Continue to home requested, checking PIN status")
         viewModelScope.launch {
-            navigateToHomeOrPinCreate()
+            navigateToPinCreateOrVerify()
         }
     }
 
@@ -291,7 +293,7 @@ class WalletSetupViewModel(
                         autoRetrying = false
                     )
                 }
-                navigateToHomeOrPinCreate()
+                navigateToPinCreateOrVerify()
             }
 
             // Auto-retry for transient errors (expired/not found challenges)

@@ -60,6 +60,7 @@ fun WalletSetupScreen(
     logController: LogController,
     onNavigateToHome: () -> Unit,
     onNavigateToPinCreate: () -> Unit,
+    onNavigateToPinVerify: () -> Unit,
     onNavigateToLogin: () -> Unit,
     onNavigateToDeviceSecurity: () -> Unit,
 ) {
@@ -83,6 +84,7 @@ fun WalletSetupScreen(
             when (effect) {
                 is WalletSetupEffect.NavigateToHome -> onNavigateToHome()
                 is WalletSetupEffect.NavigateToPinCreate -> onNavigateToPinCreate()
+                is WalletSetupEffect.NavigateToPinVerify -> onNavigateToPinVerify()
                 is WalletSetupEffect.NavigateToLogin -> onNavigateToLogin()
                 is WalletSetupEffect.NavigateToDeviceSecurity -> onNavigateToDeviceSecurity()
                 is WalletSetupEffect.ShowError -> {

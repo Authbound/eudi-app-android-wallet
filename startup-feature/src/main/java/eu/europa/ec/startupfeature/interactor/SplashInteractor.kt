@@ -184,15 +184,14 @@ class SplashInteractorImpl(
         if (!profileCompleted) {
             return StartupState.ProfileIncomplete
         }
-        val securityState = deviceController.getDeviceSecurityState()
-        logController.d(TAG, "Device security ready: ${securityState.isReady}")
-        if (!securityState.isReady) {
-            val walletStatus = isWalletActivatedUseCase()
-            handleMissingDeviceSecurity(walletStatus)
-            return StartupState.DeviceSecurityRequired
-        }
+
+        // Check wallet activation BEFORE device security.
+        // If wallet is already activated, device security was verified during initial
+        // setup — skip re-checking it to avoid false negatives from BiometricManager
+        // on cold start that cause intermediate screens to flash.
         val walletStatus = isWalletActivatedUseCase()
         logController.d(TAG, "Wallet status: ${walletStatus::class.simpleName}")
+
         when (walletStatus) {
             WalletActivationStatus.Activated -> {
                 logController.d(TAG, "Wallet is activated, proceeding to local unlock check")
@@ -207,6 +206,13 @@ class SplashInteractorImpl(
                     } catch (e: Exception) {
                         logController.e(TAG, e)
                     }
+                }
+                // Device security is only relevant for initial setup
+                val securityState = deviceController.getDeviceSecurityState()
+                logController.d(TAG, "Device security ready: ${securityState.isReady}")
+                if (!securityState.isReady) {
+                    handleMissingDeviceSecurity(walletStatus)
+                    return StartupState.DeviceSecurityRequired
                 }
                 return StartupState.WalletNotActivated(walletStatus.reason)
             }

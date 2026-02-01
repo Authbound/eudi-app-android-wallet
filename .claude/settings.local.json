@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git diff HEAD~1 -w -- common-feature/src/main/java/eu/europa/ec/commonfeature/ui/pin/PinViewModel.kt)",
+      "Bash(git diff HEAD~1 -w -- common-feature/src/main/java/eu/europa/ec/commonfeature/ui/pin/PinScreen.kt)",
+      "Bash(git diff HEAD~1 -w -- common-feature/src/main/java/eu/europa/ec/commonfeature/di/FeatureCommonModule.kt)",
+      "Bash(git diff HEAD~1 -w --stat)",
+      "Bash(git diff HEAD~1 -w -- common-feature/src/main/java/eu/europa/ec/commonfeature/interactor/QuickPinInteractor.kt)",
+      "Bash(git diff HEAD~1 -w -- dashboard-feature/src/main/java/eu/europa/ec/dashboardfeature/interactor/DashboardInteractor.kt)",
+      "Bash(git diff HEAD~1 -w --numstat -- '*.kt')",
+      "Bash(git diff HEAD~1 -w -- dashboard-feature/src/main/java/eu/europa/ec/dashboardfeature/ui/dashboard/DashboardViewModel.kt)",
+      "Bash(git diff HEAD~1 -w -- dashboard-feature/src/main/java/eu/europa/ec/dashboardfeature/ui/actions/ActionsScreen.kt)",
+      "Bash(git diff HEAD~1 -w -- dashboard-feature/src/main/java/eu/europa/ec/dashboardfeature/ui/dashboard/sidemenu/SideMenuScreen.kt)",
+      "Bash(git diff HEAD -w -- authentication-feature/src/main/java/eu/europa/ec/authenticationfeature/router/Graph.kt authentication-feature/src/main/java/eu/europa/ec/authenticationfeature/ui/WalletSetupViewModel.kt authentication-feature/src/main/java/eu/europa/ec/authenticationfeature/ui/WalletSetupScreen.kt startup-feature/src/main/java/eu/europa/ec/startupfeature/interactor/SplashInteractor.kt authentication-logic/src/main/java/eu/europa/ec/authenticationlogic/usecase/IsWalletActivatedUseCase.kt)"
+    ]
+  }
+}

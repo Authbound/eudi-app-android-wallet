@@ -128,6 +128,7 @@ fun NavGraphBuilder.featureAuthenticationGraph(navController: NavController) {
                 }
             },
             onNavigateToPinCreate = navigateToPinCreate,
+            onNavigateToPinVerify = navigateToPinVerify,
             onNavigateToLogin = {
                 navController.navigate(AuthenticationScreens.Login.screenRoute) {
                     popUpTo(0) { inclusive = true }

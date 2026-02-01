@@ -153,21 +153,7 @@ class IsWalletActivatedUseCaseImpl(
         return try {
             val keyStore = KeyStore.getInstance("AndroidKeyStore")
             keyStore.load(null)
-            val exists = keyStore.containsAlias(WUA_KEY_ALIAS)
-            
-            if (exists) {
-                // Double-check that we can actually retrieve the key entry
-                val entry = keyStore.getEntry(WUA_KEY_ALIAS, null)
-                val isValid = entry is KeyStore.PrivateKeyEntry
-                
-                if (!isValid) {
-                    logController.w(TAG) { "WUA alias exists but entry is not a PrivateKeyEntry" }
-                }
-                
-                isValid
-            } else {
-                false
-            }
+            keyStore.containsAlias(WUA_KEY_ALIAS)
         } catch (e: Exception) {
             logController.e(TAG, e)
             logController.w(TAG) { "Error checking private key existence: ${e.message}" }
