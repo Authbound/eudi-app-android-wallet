@@ -31,6 +31,7 @@ import org.koin.core.annotation.Single
 import eu.europa.ec.authenticationfeature.ui.AuthenticationViewModel
 import eu.europa.ec.authenticationfeature.ui.DeviceSecurityRequiredViewModel
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricAuthenticationController
+import eu.europa.ec.authenticationlogic.controller.storage.PinStorageController
 import eu.europa.ec.authenticationlogic.usecase.CheckHandleAvailabilityUseCase
 import eu.europa.ec.authenticationlogic.usecase.CompleteProfileUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
@@ -56,7 +57,8 @@ fun provideAuthenticationViewModel(
     observeAuthStateUseCase: ObserveAuthStateUseCase,
     isProfileCompletedUseCase: IsProfileCompletedUseCase,
     prefKeys: PrefKeysV2,
-    logController: LogController
+    logController: LogController,
+    pinStorageController: PinStorageController
 ): AuthenticationViewModel = AuthenticationViewModel(
     signInWithEmailPasswordUseCase,
     signUpWithEmailPasswordUseCase,
@@ -65,7 +67,8 @@ fun provideAuthenticationViewModel(
     observeAuthStateUseCase,
     isProfileCompletedUseCase,
     prefKeys,
-    logController
+    logController,
+    pinStorageController
 )
 
 @Factory
@@ -89,7 +92,8 @@ fun provideWalletSetupViewModel(
     pushNotificationController: PushNotificationController,
     prefKeys: PrefKeysV2,
     prefsController: PrefsControllerV2,
-    logController: LogController
+    logController: LogController,
+    pinStorageController: PinStorageController
 ): WalletSetupViewModel = WalletSetupViewModel(
     createWalletAttestationUseCase,
     deleteWalletActivationUseCase,
@@ -99,7 +103,8 @@ fun provideWalletSetupViewModel(
     pushNotificationController,
     prefKeys,
     prefsController,
-    logController
+    logController,
+    pinStorageController
 )
 
 @Factory

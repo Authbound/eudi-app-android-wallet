@@ -17,6 +17,7 @@ package eu.europa.ec.authenticationfeature.ui
 
 import android.content.Context
 import androidx.lifecycle.viewModelScope
+import eu.europa.ec.authenticationlogic.controller.storage.PinStorageController
 import eu.europa.ec.authenticationlogic.model.EmailPasswordRequest
 import eu.europa.ec.authenticationlogic.model.OAuthProvider
 import eu.europa.ec.authenticationlogic.usecase.ObserveAuthStateUseCase
@@ -34,7 +35,6 @@ import eu.europa.ec.uilogic.mvi.ViewSideEffect
 import eu.europa.ec.uilogic.mvi.ViewState
 import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import org.koin.android.annotation.KoinViewModel
 import kotlin.time.ExperimentalTime
@@ -71,6 +71,8 @@ sealed class Effect : ViewSideEffect {
     sealed class Navigation : Effect() {
         data object NavigateToWalletSetup : Navigation()
         data object NavigateToProfileCompletion : Navigation()
+        data object NavigateToPinCreate : Navigation()
+        data object NavigateToPinVerify : Navigation()
         data object PopBackStack : Navigation()
         data class NavigateToLoginAndClearStack(val replaceCurrentScreen: Boolean = true) : Navigation()
         data object SignOutAndNavigateToLogin : Navigation()
@@ -86,7 +88,8 @@ class AuthenticationViewModel(
     private val observeAuthStateUseCase: ObserveAuthStateUseCase,
     private val isProfileCompletedUseCase: IsProfileCompletedUseCase,
     private val prefKeys: PrefKeysV2,
-    private val logController: LogController
+    private val logController: LogController,
+    private val pinStorageController: PinStorageController
 ) : MviViewModel<Event, State, Effect>() {
     
     private var isInitialized: Boolean = false
@@ -189,11 +192,11 @@ class AuthenticationViewModel(
                 setState { copy(isLoading = true, error = null) }
                 val request = EmailPasswordRequest(viewState.value.email, viewState.value.password)
                 signUpWithEmailPasswordUseCase(request)
-                setEffect { Effect.ShowInfo("Account created. Continue to set up your wallet.") }
+                setEffect { Effect.ShowInfo("Account created. Setting up your profile...") }
+                // Keep loading = true - auth observer will navigate and dismiss loading
+                // Only clear form fields, don't reset isSignUpMode to avoid flash
                 setState {
                     copy(
-                        isLoading = false,
-                        isSignUpMode = false,
                         email = "",
                         password = "",
                         confirmPassword = ""
@@ -283,7 +286,6 @@ class AuthenticationViewModel(
     private fun observeAuthState() {
         viewModelScope.launch {
             observeAuthStateUseCase()
-                .onStart { setState { copy(isLoading = true) } }
                 .catch {
                     setState { copy(isLoading = false, error = it.message) }
                     setEffect { Effect.ShowError(it.message ?: "An unknown error occurred") }
@@ -331,12 +333,24 @@ class AuthenticationViewModel(
                                 }
                                 shouldHandleAuthenticatedNavigation = false
                             } else {
-                                setState { copy(isLoading = false) }
+                                // Keep loading visible until navigation is determined
+                                // to prevent the login form from flashing during async checks
                                 // EUDI-ARF: Wallet is device-bound, check local activation status
                                 try {
                                     if (prefKeys.isWalletActivatedSafe()) {
-                                        logController.d("AuthViewModel", "User authenticated with wallet activated - navigating to home")
-                                        setEffect { Effect.NavigateToHome }
+                                        val hasPin = try {
+                                            pinStorageController.retrievePin().isNotBlank()
+                                        } catch (e: Exception) {
+                                            logController.w("AuthViewModel") { "Failed to check PIN status: ${e.message}" }
+                                            false
+                                        }
+                                        if (hasPin) {
+                                            logController.d("AuthViewModel", "User authenticated with wallet + PIN - navigating to PIN verify")
+                                            setEffect { Effect.Navigation.NavigateToPinVerify }
+                                        } else {
+                                            logController.d("AuthViewModel", "User authenticated with wallet but no PIN - navigating to PIN create")
+                                            setEffect { Effect.Navigation.NavigateToPinCreate }
+                                        }
                                     } else {
                                         // Check if profile is complete
                                         val isProfileCompleted = isProfileCompletedUseCase()
@@ -350,11 +364,12 @@ class AuthenticationViewModel(
                                     }
                                 } catch (e: SecurityException) {
                                     logController.w("AuthViewModel") {
-                                        "Security error checking wallet activation: ${e.message}. Navigating to wallet setup." 
+                                        "Security error checking wallet activation: ${e.message}. Navigating to wallet setup."
                                     }
                                     setEffect { Effect.Navigation.NavigateToWalletSetup }
                                 } catch (e: Exception) {
                                     logController.e("AuthViewModel", e)
+                                    setState { copy(isLoading = false) }
                                     setEffect { Effect.ShowError("Navigation error. Please restart the app.") }
                                 }
                                 shouldHandleAuthenticatedNavigation = false

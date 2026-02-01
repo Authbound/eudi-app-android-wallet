@@ -50,7 +50,7 @@ android {
 
     defaultConfig {
         // App name
-        manifestPlaceholders["appName"] = "Authbound Identity Wallet"
+        manifestPlaceholders["appName"] = "Authbound"
     }
 }
 

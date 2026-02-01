@@ -48,7 +48,6 @@ data class AuthInfoUi(
 )
 
 data class State(
-    val screenTitle: String,
     val settingsItems: List<SettingsItemUi> = emptyList(),
     val appVersion: String = "",
     val changelogUrl: String?,
@@ -95,7 +94,6 @@ class SettingsViewModel(
     }
 
     override fun setInitialState(): State = State(
-        screenTitle = resourceProvider.getString(R.string.settings_screen_title),
         changelogUrl = null
     )
 

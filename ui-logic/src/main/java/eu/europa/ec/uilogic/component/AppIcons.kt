@@ -175,6 +175,12 @@ object AppIcons {
         imageVector = null
     )
 
+    val AuthboundLogoBold: IconDataUi = IconDataUi(
+        resourceId = R.drawable.authbound_logo_bold,
+        contentDescriptionId = R.string.content_description_logo_plain_icon,
+        imageVector = null
+    )
+
     val AuthboundLogoAndText: IconDataUi = IconDataUi(
         resourceId = R.drawable.authbound_new_logo,
         contentDescriptionId = R.string.content_description_logo_text_icon,

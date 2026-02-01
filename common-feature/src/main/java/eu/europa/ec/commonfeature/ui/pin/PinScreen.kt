@@ -49,7 +49,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -205,20 +204,39 @@ private fun Content(
             .fillMaxSize()
             .padding(paddingValues)
     ) {
-        // Top section with logo - takes remaining space
+        // Top section with logo and instructions - takes remaining space
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             AppIconAndText(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .scale(1.12f)  // 5% larger logo
-                    .padding(bottom = SPACING_LARGE.dp),
+                    .fillMaxWidth(0.45f)
+                    .padding(bottom = 24.dp),
                 appIconAndTextData = AppIconAndTextData(),
+            )
+
+            // Title - e.g., "Create Passcode" or "Enter Passcode"
+            Text(
+                text = state.title,
+                style = MaterialTheme.typography.headlineSmall.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            // Subtitle - e.g., "Enter a 6-digit passcode" or "Re-enter to confirm"
+            Text(
+                text = state.subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 32.dp, vertical = 4.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
         }
 
