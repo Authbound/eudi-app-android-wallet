@@ -150,6 +150,10 @@ class DashboardViewModel(
         )
     }
 
+    init {
+        loadUserProfile()
+    }
+
     override fun handleEvents(event: Event) {
         when (event) {
             is Event.Init -> handleDeepLink(event.deepLinkUri)
@@ -180,7 +184,9 @@ class DashboardViewModel(
                         sideMenuAnimation = SideMenuAnimation.SLIDE
                     )
                 }
-                loadUserProfile()
+                if (viewState.value.userProfile == null) {
+                    loadUserProfile()
+                }
             }
 
             is Event.DocumentRevocationNotificationReceived -> {

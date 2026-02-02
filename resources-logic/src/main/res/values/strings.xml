@@ -177,6 +177,13 @@
     <string name="quick_pin_bottom_sheet_cancel_primary_button_text">@string/generic_continue_capitalized</string>
     <string name="quick_pin_bottom_sheet_cancel_secondary_button_text">@string/generic_cancel_capitalized</string>
 
+    <!-- PIN Reset Confirmation -->
+    <string name="quick_pin_forgot_menu_item">Forgot passcode</string>
+    <string name="quick_pin_reset_title">Reset Passcode?</string>
+    <string name="quick_pin_reset_subtitle">You\'ll be signed out and need to log in again to set a new passcode.</string>
+    <string name="quick_pin_reset_primary_button">@string/generic_continue_capitalized</string>
+    <string name="quick_pin_reset_secondary_button">@string/generic_cancel_capitalized</string>
+
     <!-- Request Screen -->
     <string name="request_header_description">The following transaction requires your permission and authentication.</string>
     <string name="request_header_main_text">DATA SHARING REQUEST</string>
@@ -687,11 +694,11 @@
     <!-- Device Linking -->
     <string name="actions_device_not_linked_title">Connect Your Device</string>
     <string name="actions_device_not_linked_subtitle">Link your phone to Authbound to receive identity verification requests and sign documents securely.</string>
-    <string name="actions_device_feature_verify_title">Verify Identity</string>
+    <string name="actions_device_feature_verify_title">Verify\nIdentity</string>
     <string name="actions_device_feature_verify_description">Respond to verification requests from trusted services</string>
-    <string name="actions_device_feature_sign_title">Sign Documents</string>
+    <string name="actions_device_feature_sign_title">Sign\nDocuments</string>
     <string name="actions_device_feature_sign_description">Digitally sign contracts and agreements</string>
-    <string name="actions_device_feature_share_title">Share Securely</string>
+    <string name="actions_device_feature_share_title">Share\nSecurely</string>
     <string name="actions_device_feature_share_description">Control what data you share with services</string>
     <string name="actions_device_link_button">Link Device</string>
     <string name="actions_device_linked_status">Connected</string>

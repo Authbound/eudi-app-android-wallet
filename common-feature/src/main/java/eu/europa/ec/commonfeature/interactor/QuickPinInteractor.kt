@@ -37,7 +37,8 @@ interface QuickPinInteractor : FormValidator {
         newPin: String
     ): Flow<QuickPinInteractorPinValidPartialState>
 
-    suspend fun  hasPin(): Boolean
+    suspend fun hasPin(): Boolean
+    suspend fun resetPin()
 }
 
 class QuickPinInteractorImpl(
@@ -52,6 +53,10 @@ class QuickPinInteractorImpl(
 
     override suspend fun hasPin(): Boolean {
         return pinStorageController.retrievePin().isNotBlank()
+    }
+
+    override suspend fun resetPin() {
+        pinStorageController.setPin("")
     }
 
     override fun setPin(
