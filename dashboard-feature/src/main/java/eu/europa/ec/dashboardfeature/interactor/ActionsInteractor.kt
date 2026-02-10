@@ -16,11 +16,10 @@
 
 package eu.europa.ec.dashboardfeature.interactor
 
-import androidx.annotation.VisibleForTesting
+import eu.europa.ec.dashboardfeature.repository.ActionsRepository
 import eu.europa.ec.dashboardfeature.ui.actions.model.ActionCategoryUi
 import eu.europa.ec.dashboardfeature.ui.actions.model.ActionRequest
 import eu.europa.ec.dashboardfeature.ui.actions.model.ActionStatus
-import eu.europa.ec.dashboardfeature.ui.actions.model.ActionType
 import eu.europa.ec.dashboardfeature.ui.actions.model.ActionUi
 import eu.europa.ec.dashboardfeature.ui.actions.model.DeviceLinkStatus
 import eu.europa.ec.dashboardfeature.ui.actions.model.LinkedDeviceInfo
@@ -58,140 +57,77 @@ interface ActionsInteractor {
 
     // Device linking
     fun getDeviceLinkStatus(): Flow<DeviceLinkPartialState>
+    suspend fun linkDevice(linkingCode: String, fcmToken: String?): Result<LinkedDeviceInfo>
     suspend fun unlinkDevice(): Result<Unit>
+
+    // Get action by ID for VP flow
+    fun getActionById(actionId: String): ActionRequest?
 }
 
 class ActionsInteractorImpl(
     private val resourceProvider: ResourceProvider,
+    private val actionsRepository: ActionsRepository
 ) : ActionsInteractor {
 
-    // Mock data - will be replaced with real API calls
-    private val mockActions = mutableListOf(
-        ActionRequest(
-            id = "action_1",
-            type = ActionType.SIGN_REQUEST,
-            title = resourceProvider.getString(R.string.actions_type_sign_request),
-            requesterName = "Nordic Bank",
-            requesterLogoUrl = null,
-            description = "Request to digitally sign your apartment lease agreement for property at Mannerheimintie 1, Helsinki.",
-            timestamp = Instant.now().minus(Duration.ofHours(2)),
-            expiresAt = Instant.now().plus(Duration.ofDays(7)),
-            status = ActionStatus.PENDING
-        ),
-        ActionRequest(
-            id = "action_2",
-            type = ActionType.VERIFY_REQUEST,
-            title = resourceProvider.getString(R.string.actions_type_verify_request),
-            requesterName = "Tax Authority",
-            requesterLogoUrl = null,
-            description = "Verify your identity for annual tax filing submission.",
-            timestamp = Instant.now().minus(Duration.ofHours(5)),
-            expiresAt = Instant.now().plus(Duration.ofDays(30)),
-            status = ActionStatus.PENDING
-        ),
-        ActionRequest(
-            id = "action_3",
-            type = ActionType.DATA_REQUEST,
-            title = resourceProvider.getString(R.string.actions_type_data_request),
-            requesterName = "Insurance Company",
-            requesterLogoUrl = null,
-            description = "Share your driving license information for auto insurance quote.",
-            timestamp = Instant.now().minus(Duration.ofHours(8)),
-            expiresAt = Instant.now().plus(Duration.ofDays(3)),
-            status = ActionStatus.PENDING
-        ),
-        ActionRequest(
-            id = "action_4",
-            type = ActionType.DATA_REQUEST,
-            title = resourceProvider.getString(R.string.actions_type_data_request),
-            requesterName = "Online Store",
-            requesterLogoUrl = null,
-            description = "Age verification for purchase.",
-            timestamp = Instant.now().minus(Duration.ofDays(1)),
-            expiresAt = null,
-            status = ActionStatus.ACCEPTED
-        ),
-        ActionRequest(
-            id = "action_5",
-            type = ActionType.VERIFY_REQUEST,
-            title = resourceProvider.getString(R.string.actions_type_verify_request),
-            requesterName = "Healthcare Portal",
-            requesterLogoUrl = null,
-            description = "Identity verification for patient portal access.",
-            timestamp = Instant.now().minus(Duration.ofDays(2)),
-            expiresAt = null,
-            status = ActionStatus.ACCEPTED
-        ),
-        ActionRequest(
-            id = "action_6",
-            type = ActionType.SIGN_REQUEST,
-            title = resourceProvider.getString(R.string.actions_type_sign_request),
-            requesterName = "Mobile Operator",
-            requesterLogoUrl = null,
-            description = "Contract signature request.",
-            timestamp = Instant.now().minus(Duration.ofDays(5)),
-            expiresAt = null,
-            status = ActionStatus.DECLINED
-        ),
-        ActionRequest(
-            id = "action_7",
-            type = ActionType.DATA_REQUEST,
-            title = resourceProvider.getString(R.string.actions_type_data_request),
-            requesterName = "Unknown Service",
-            requesterLogoUrl = null,
-            description = "Request for personal data.",
-            timestamp = Instant.now().minus(Duration.ofDays(10)),
-            expiresAt = null,
-            status = ActionStatus.EXPIRED
-        )
-    )
+    companion object {
+        private const val CACHE_TTL_MS = 5 * 60 * 1000L // 5 minutes
+    }
+
+    // Cache of current actions for quick lookup with TTL
+    private var cachedActions: List<ActionRequest> = emptyList()
+    private var actionsCacheTimestamp: Long = 0L
+    private var cachedDeviceInfo: LinkedDeviceInfo? = null
+
+    /**
+     * Checks if the actions cache is still valid (not expired).
+     */
+    private fun isActionsCacheValid(): Boolean =
+        cachedActions.isNotEmpty() &&
+                (System.currentTimeMillis() - actionsCacheTimestamp) < CACHE_TTL_MS
+
+    /**
+     * Invalidates the actions cache, forcing a refresh on next fetch.
+     */
+    fun invalidateActionsCache() {
+        actionsCacheTimestamp = 0L
+    }
 
     override fun getActions(): Flow<ActionsInteractorPartialState> = flow {
         try {
-            val actionUis = mockActions.map { action ->
-                ActionUi(
-                    id = action.id,
-                    type = action.type,
-                    title = action.title,
-                    requesterName = action.requesterName,
-                    description = action.description,
-                    relativeTime = formatRelativeTime(action.timestamp),
-                    status = action.status,
-                    isActionable = action.status == ActionStatus.PENDING
-                )
-            }
+            val result = actionsRepository.fetchActions()
 
-            // Group by category
-            val pendingActions = actionUis.filter { it.status == ActionStatus.PENDING }
-            val completedActions = actionUis.filter { it.status != ActionStatus.PENDING }
+            result.fold(
+                onSuccess = { actions ->
+                    cachedActions = actions
+                    actionsCacheTimestamp = System.currentTimeMillis()
 
-            val grouped = mutableListOf<Pair<ActionCategoryUi, List<ActionUi>>>()
+                    val actionUis = actions.map { action ->
+                        ActionUi(
+                            id = action.id,
+                            type = action.type,
+                            title = action.title,
+                            requesterName = action.requesterName,
+                            description = action.description,
+                            relativeTime = formatRelativeTime(action.timestamp),
+                            status = action.status,
+                            isActionable = action.status == ActionStatus.PENDING
+                        )
+                    }
 
-            if (pendingActions.isNotEmpty()) {
-                grouped.add(ActionCategoryUi.Pending to pendingActions)
-            }
+                    val grouped = groupActionsByCategory(actionUis)
+                    val pendingCount = actionUis.count { it.status == ActionStatus.PENDING }
 
-            // Group completed actions by time
-            val today = completedActions.filter { isToday(it) }
-            val thisWeek = completedActions.filter { isThisWeek(it) && !isToday(it) }
-            val earlier = completedActions.filter { !isThisWeek(it) }
-
-            if (today.isNotEmpty()) {
-                grouped.add(ActionCategoryUi.Today to today)
-            }
-            if (thisWeek.isNotEmpty()) {
-                grouped.add(ActionCategoryUi.ThisWeek to thisWeek)
-            }
-            if (earlier.isNotEmpty()) {
-                grouped.add(ActionCategoryUi.Earlier to earlier)
-            }
-
-            emit(
-                ActionsInteractorPartialState.Success(
-                    pendingCount = pendingActions.size,
-                    allActions = actionUis,
-                    groupedActions = grouped
-                )
+                    emit(
+                        ActionsInteractorPartialState.Success(
+                            pendingCount = pendingCount,
+                            allActions = actionUis,
+                            groupedActions = grouped
+                        )
+                    )
+                },
+                onFailure = { error ->
+                    emit(ActionsInteractorPartialState.Failure(error.message ?: "Unknown error"))
+                }
             )
         } catch (e: Exception) {
             emit(ActionsInteractorPartialState.Failure(e.localizedMessage ?: "Unknown error"))
@@ -199,64 +135,105 @@ class ActionsInteractorImpl(
     }
 
     override suspend fun acceptAction(actionId: String): Result<Unit> {
-        return try {
-            val index = mockActions.indexOfFirst { it.id == actionId }
-            if (index >= 0) {
-                mockActions[index] = mockActions[index].copy(status = ActionStatus.ACCEPTED)
-            }
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+        val action = getActionById(actionId)
+            ?: return Result.failure(IllegalArgumentException("Action not found: $actionId"))
+
+        // For VERIFY_REQUEST, the ViewModel should handle VP token generation
+        // and call the repository directly with the VP token
+        // For now, we just forward to repository without VP token
+        return actionsRepository.acceptAction(actionId)
     }
 
     override suspend fun declineAction(actionId: String): Result<Unit> {
-        return try {
-            val index = mockActions.indexOfFirst { it.id == actionId }
-            if (index >= 0) {
-                mockActions[index] = mockActions[index].copy(status = ActionStatus.DECLINED)
-            }
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+        return actionsRepository.declineAction(actionId)
     }
 
     override fun getPendingActionsCount(): Flow<Int> = flow {
-        emit(mockActions.count { it.status == ActionStatus.PENDING })
+        val result = actionsRepository.fetchActions(status = ActionStatus.PENDING)
+        result.fold(
+            onSuccess = { actions ->
+                emit(actions.size)
+            },
+            onFailure = {
+                emit(0)
+            }
+        )
     }
-
-    // Mock device linking state - will be replaced with real backend integration
-    private var mockLinkedDevice: LinkedDeviceInfo? = null
 
     override fun getDeviceLinkStatus(): Flow<DeviceLinkPartialState> = flow {
         try {
-            // In real implementation, check with backend/local storage
-            val status = if (mockLinkedDevice != null) DeviceLinkStatus.LINKED else DeviceLinkStatus.NOT_LINKED
-            emit(DeviceLinkPartialState.Success(status, mockLinkedDevice))
+            val result = actionsRepository.getDeviceStatus()
+
+            result.fold(
+                onSuccess = { statusResult ->
+                    cachedDeviceInfo = statusResult.deviceInfo
+                    emit(DeviceLinkPartialState.Success(statusResult.status, statusResult.deviceInfo))
+                },
+                onFailure = { error ->
+                    emit(DeviceLinkPartialState.Failure(error.message ?: "Unknown error"))
+                }
+            )
         } catch (e: Exception) {
             emit(DeviceLinkPartialState.Failure(e.localizedMessage ?: "Unknown error"))
         }
     }
 
-    override suspend fun unlinkDevice(): Result<Unit> {
-        return try {
-            // In real implementation, call backend API to unlink
-            mockLinkedDevice = null
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
+    override suspend fun linkDevice(linkingCode: String, fcmToken: String?): Result<LinkedDeviceInfo> {
+        val result = actionsRepository.linkDevice(linkingCode, fcmToken)
+        result.onSuccess { deviceInfo ->
+            cachedDeviceInfo = deviceInfo
         }
+        return result
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
-    internal fun simulateLinkDevice(deviceName: String, deviceModel: String) {
-        mockLinkedDevice = LinkedDeviceInfo(
-            deviceId = "device_${System.currentTimeMillis()}",
-            deviceName = deviceName,
-            deviceModel = deviceModel,
-            linkedAt = Instant.now()
-        )
+    override suspend fun unlinkDevice(): Result<Unit> {
+        val deviceId = cachedDeviceInfo?.deviceId
+            ?: return Result.failure(IllegalStateException("No device linked"))
+
+        // Store previous state for rollback on failure (optimistic update pattern)
+        val previousDeviceInfo = cachedDeviceInfo
+
+        // Clear cache optimistically
+        cachedDeviceInfo = null
+
+        val result = actionsRepository.unlinkDevice(deviceId)
+        result.onFailure {
+            // Restore cache on failure
+            cachedDeviceInfo = previousDeviceInfo
+        }
+        return result
+    }
+
+    override fun getActionById(actionId: String): ActionRequest? {
+        return cachedActions.find { it.id == actionId }
+    }
+
+    private fun groupActionsByCategory(actions: List<ActionUi>): List<Pair<ActionCategoryUi, List<ActionUi>>> {
+        val pendingActions = actions.filter { it.status == ActionStatus.PENDING }
+        val completedActions = actions.filter { it.status != ActionStatus.PENDING }
+
+        val grouped = mutableListOf<Pair<ActionCategoryUi, List<ActionUi>>>()
+
+        if (pendingActions.isNotEmpty()) {
+            grouped.add(ActionCategoryUi.Pending to pendingActions)
+        }
+
+        // Group completed actions by time
+        val today = completedActions.filter { isToday(it) }
+        val thisWeek = completedActions.filter { isThisWeek(it) && !isToday(it) }
+        val earlier = completedActions.filter { !isThisWeek(it) }
+
+        if (today.isNotEmpty()) {
+            grouped.add(ActionCategoryUi.Today to today)
+        }
+        if (thisWeek.isNotEmpty()) {
+            grouped.add(ActionCategoryUi.ThisWeek to thisWeek)
+        }
+        if (earlier.isNotEmpty()) {
+            grouped.add(ActionCategoryUi.Earlier to earlier)
+        }
+
+        return grouped
     }
 
     private fun formatRelativeTime(timestamp: Instant): String {
@@ -286,7 +263,6 @@ class ActionsInteractorImpl(
     }
 
     private fun isToday(action: ActionUi): Boolean {
-        // Simplified check - in real implementation use proper date comparison
         return action.relativeTime.contains("hour") ||
                action.relativeTime.contains("minute") ||
                action.relativeTime.contains("just now")

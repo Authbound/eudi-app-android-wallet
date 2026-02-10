@@ -28,27 +28,50 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import java.time.Instant
+import java.time.format.DateTimeParseException
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
 /**
  * Enhanced push notification controller with user-scoped messaging.
- * Handles credential claims, verification requests, and other wallet notifications.
+ * Handles credential claims, verification requests, action requests, and other wallet notifications.
  */
 interface UserScopedPushNotificationController {
     suspend fun registerForPushNotifications(userId: String): Result<String>
     suspend fun unregisterPushNotifications(userId: String): Result<Unit>
-    
+
     // Notification flows
     fun observeCredentialClaims(): Flow<CredentialClaim>
     fun observeVerificationRequests(): Flow<VerificationRequest>
+    fun observeActionRequests(): Flow<ActionNotification>
     fun observeGeneralNotifications(): Flow<WalletNotification>
-    
+
     // Handle incoming notifications
     fun handleIncomingNotification(data: Map<String, String>)
-    
+
     // Clear notifications for user
     fun clearUserNotifications(userId: String)
+}
+
+/**
+ * Notification for an action request received via FCM.
+ */
+data class ActionNotification(
+    val actionId: String,
+    val type: ActionRequestType,
+    val requesterName: String,
+    val description: String?,
+    val expiresAt: Instant?,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+/**
+ * Types of action requests that can be received via push notification.
+ */
+enum class ActionRequestType {
+    VERIFY_REQUEST,
+    SIGN_REQUEST,
+    DATA_REQUEST
 }
 
 /**
@@ -66,6 +89,7 @@ data class WalletNotification(
 enum class NotificationType {
     CREDENTIAL_CLAIM,
     VERIFICATION_REQUEST,
+    ACTION_REQUEST,
     CREDENTIAL_REVOKED,
     WALLET_UPDATE,
     SECURITY_ALERT,
@@ -76,11 +100,27 @@ class UserScopedPushNotificationControllerImpl(
     private val firebaseMessaging: FirebaseMessaging,
     private val logController: LogController
 ) : UserScopedPushNotificationController {
-    
+
+    companion object {
+        private const val TAG = "UserScopedPush"
+    }
+
     private val gson = Gson()
+
+    /**
+     * Safely parses an ISO timestamp string to Instant.
+     * Returns null if parsing fails, allowing callers to provide a fallback.
+     */
+    private fun String.parseInstantOrNull(): Instant? = try {
+        Instant.parse(this)
+    } catch (e: DateTimeParseException) {
+        logController.w(TAG) { "Failed to parse timestamp: $this - ${e.message}" }
+        null
+    }
     
     private val _credentialClaims = MutableSharedFlow<CredentialClaim>(replay = 10)
     private val _verificationRequests = MutableSharedFlow<VerificationRequest>(replay = 10)
+    private val _actionRequests = MutableSharedFlow<ActionNotification>(replay = 10)
     private val _generalNotifications = MutableSharedFlow<WalletNotification>(replay = 20)
     
     private var currentUserId: String? = null
@@ -134,23 +174,38 @@ class UserScopedPushNotificationControllerImpl(
         val userTopic = "user_$userId"
         val claimsTopic = "claims_$userId"
         val verificationTopic = "verification_$userId"
-        
+        val actionsTopic = "actions_$userId"
+
         firebaseMessaging.subscribeToTopic(userTopic)
             .addOnSuccessListener {
-                logController.d("UserScopedPush", "Subscribed to user topic: $userTopic")
+                logController.d(TAG, "Subscribed to user topic: $userTopic")
             }
             .addOnFailureListener { e ->
-                logController.e("UserScopedPush", e)
+                logController.e(TAG, e)
             }
-        
+
         firebaseMessaging.subscribeToTopic(claimsTopic)
             .addOnSuccessListener {
-                logController.d("UserScopedPush", "Subscribed to claims topic: $claimsTopic")
+                logController.d(TAG, "Subscribed to claims topic: $claimsTopic")
             }
-        
+            .addOnFailureListener { e ->
+                logController.e(TAG, e)
+            }
+
         firebaseMessaging.subscribeToTopic(verificationTopic)
             .addOnSuccessListener {
-                logController.d("UserScopedPush", "Subscribed to verification topic: $verificationTopic")
+                logController.d(TAG, "Subscribed to verification topic: $verificationTopic")
+            }
+            .addOnFailureListener { e ->
+                logController.e(TAG, e)
+            }
+
+        firebaseMessaging.subscribeToTopic(actionsTopic)
+            .addOnSuccessListener {
+                logController.d(TAG, "Subscribed to actions topic: $actionsTopic")
+            }
+            .addOnFailureListener { e ->
+                logController.e(TAG, e)
             }
     }
     
@@ -158,7 +213,8 @@ class UserScopedPushNotificationControllerImpl(
         val topics = listOf(
             "user_$userId",
             "claims_$userId",
-            "verification_$userId"
+            "verification_$userId",
+            "actions_$userId"
         )
         
         topics.forEach { topic ->
@@ -173,9 +229,11 @@ class UserScopedPushNotificationControllerImpl(
     }
     
     override fun observeCredentialClaims(): Flow<CredentialClaim> = _credentialClaims.asSharedFlow()
-    
+
     override fun observeVerificationRequests(): Flow<VerificationRequest> = _verificationRequests.asSharedFlow()
-    
+
+    override fun observeActionRequests(): Flow<ActionNotification> = _actionRequests.asSharedFlow()
+
     override fun observeGeneralNotifications(): Flow<WalletNotification> = _generalNotifications.asSharedFlow()
     
     override fun handleIncomingNotification(data: Map<String, String>) {
@@ -194,6 +252,7 @@ class UserScopedPushNotificationControllerImpl(
             when (notificationType) {
                 "credential_claim" -> handleCredentialClaimNotification(data)
                 "verification_request" -> handleVerificationRequestNotification(data)
+                "action_request" -> handleActionRequestNotification(data)
                 else -> handleGeneralNotification(data)
             }
             
@@ -238,10 +297,10 @@ class UserScopedPushNotificationControllerImpl(
                 issuerName = data["issuer_name"] ?: "",
                 issuerDid = data["issuer_did"] ?: "",
                 claimMessage = data["claim_message"],
-                expiresAt = data["expires_at"]?.let { Instant.parse(it) },
-                createdAt = data["created_at"]?.let { Instant.parse(it) } ?: Instant.now(),
-                status = data["status"]?.let { 
-                    CredentialClaimStatus.valueOf(it.uppercase()) 
+                expiresAt = data["expires_at"]?.let { it.parseInstantOrNull() },
+                createdAt = data["created_at"]?.let { it.parseInstantOrNull() } ?: Instant.now(),
+                status = data["status"]?.let {
+                    CredentialClaimStatus.valueOf(it.uppercase())
                 } ?: CredentialClaimStatus.PENDING
             )
             
@@ -302,16 +361,16 @@ class UserScopedPushNotificationControllerImpl(
                 requestId = data["request_id"] ?: "",
                 requesterHandle = data["requester_handle"] ?: "",
                 targetHandle = data["target_handle"] ?: "",
-                verificationType = data["verification_type"]?.let { 
-                    VerificationType.valueOf(it.uppercase()) 
+                verificationType = data["verification_type"]?.let {
+                    VerificationType.valueOf(it.uppercase())
                 } ?: VerificationType.IDENTITY_CHECK,
                 requestedAttributes = requestedAttributes,
                 message = data["message"],
                 qrCode = data["qr_code"],
-                createdAt = data["created_at"]?.let { Instant.parse(it) } ?: Instant.now(),
-                expiresAt = data["expires_at"]?.let { Instant.parse(it) } ?: Instant.now().plusSeconds(3600), // 1 hour default
-                status = data["status"]?.let { 
-                    VerificationRequestStatus.valueOf(it.uppercase()) 
+                createdAt = data["created_at"]?.let { it.parseInstantOrNull() } ?: Instant.now(),
+                expiresAt = data["expires_at"]?.let { it.parseInstantOrNull() } ?: Instant.now().plusSeconds(3600), // 1 hour default
+                status = data["status"]?.let {
+                    VerificationRequestStatus.valueOf(it.uppercase())
                 } ?: VerificationRequestStatus.PENDING
             )
             
@@ -337,6 +396,53 @@ class UserScopedPushNotificationControllerImpl(
         logController.d("UserScopedPush", "Created fallback notification for verification request")
     }
     
+    private fun handleActionRequestNotification(data: Map<String, String>) {
+        logController.d(TAG, "Processing action request notification")
+
+        try {
+            // Validate actionId is present and not empty
+            val actionId = data["action_id"]
+            if (actionId.isNullOrBlank()) {
+                logController.w(TAG) { "Received action notification without valid actionId, skipping" }
+                return
+            }
+
+            val rawActionType = data["action_type"]?.uppercase()
+            val actionType = when (rawActionType) {
+                "VERIFY_REQUEST" -> ActionRequestType.VERIFY_REQUEST
+                "SIGN_REQUEST" -> ActionRequestType.SIGN_REQUEST
+                "DATA_REQUEST" -> ActionRequestType.DATA_REQUEST
+                else -> {
+                    logController.w(TAG) { "Unknown action type: $rawActionType, defaulting to VERIFY_REQUEST" }
+                    ActionRequestType.VERIFY_REQUEST
+                }
+            }
+
+            val actionNotification = ActionNotification(
+                actionId = actionId,
+                type = actionType,
+                requesterName = data["requester_name"] ?: "Unknown",
+                description = data["description"],
+                expiresAt = data["expires_at"]?.let { it.parseInstantOrNull() }
+            )
+
+            _actionRequests.tryEmit(actionNotification)
+            logController.d(TAG, "Emitted ActionNotification: ${actionNotification.actionId}")
+
+        } catch (e: Exception) {
+            logController.e(TAG, e)
+            // Create a general notification as fallback
+            val notification = WalletNotification(
+                id = data["action_id"] ?: System.currentTimeMillis().toString(),
+                type = NotificationType.ACTION_REQUEST,
+                title = "New Action Request",
+                message = "${data["requester_name"] ?: "Someone"} requests your action",
+                data = data
+            )
+            _generalNotifications.tryEmit(notification)
+        }
+    }
+
     private fun handleGeneralNotification(data: Map<String, String>) {
         val notification = WalletNotification(
             id = data["id"] ?: System.currentTimeMillis().toString(),
@@ -345,7 +451,7 @@ class UserScopedPushNotificationControllerImpl(
             message = data["message"] ?: "",
             data = data
         )
-        
+
         _generalNotifications.tryEmit(notification)
     }
     

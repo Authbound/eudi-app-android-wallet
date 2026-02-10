@@ -26,6 +26,7 @@ sealed interface QrScanFlow {
     data object Presentation : QrScanFlow
     data class Issuance(val issuanceFlowType: IssuanceFlowType) : QrScanFlow
     data object Signature : QrScanFlow
+    data object DeviceLinking : QrScanFlow
 }
 
 data class QrScanUiConfig(

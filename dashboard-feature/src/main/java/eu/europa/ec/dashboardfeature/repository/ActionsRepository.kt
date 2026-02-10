@@ -35,7 +35,9 @@ import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
+import org.json.JSONObject
 import java.time.Instant
+import java.time.format.DateTimeParseException
 
 /**
  * Repository for Actions feature backend integration.
@@ -105,6 +107,17 @@ open class ActionsRepositoryImpl(
 
     companion object {
         private const val TAG = "ActionsRepository"
+    }
+
+    /**
+     * Safely parses an ISO timestamp string to Instant.
+     * Returns null if parsing fails, allowing callers to provide a fallback.
+     */
+    private fun String.parseInstantOrNull(): Instant? = try {
+        Instant.parse(this)
+    } catch (e: DateTimeParseException) {
+        logController.w(TAG) { "Failed to parse timestamp: $this - ${e.message}" }
+        null
     }
 
     /**
@@ -267,7 +280,7 @@ open class ActionsRepositoryImpl(
                 deviceId = body.deviceId,
                 deviceName = deviceInfo.deviceName,
                 deviceModel = deviceInfo.deviceModel,
-                linkedAt = Instant.parse(body.linkedAt)
+                linkedAt = body.linkedAt.parseInstantOrNull() ?: Instant.now()
             )
 
             logController.d(TAG, "Successfully linked device: ${body.deviceId}")
@@ -322,7 +335,7 @@ open class ActionsRepositoryImpl(
                     deviceId = dto.deviceId,
                     deviceName = dto.deviceName,
                     deviceModel = dto.deviceModel,
-                    linkedAt = Instant.parse(dto.linkedAt)
+                    linkedAt = dto.linkedAt.parseInstantOrNull() ?: Instant.now()
                 )
             }
 
@@ -344,8 +357,9 @@ open class ActionsRepositoryImpl(
     /**
      * Creates a WUA signature for action responses.
      *
-     * The signature payload format: "actionId:decision:timestamp"
-     * This allows the backend to verify the response came from this device's WUA key.
+     * The signature payload is a JSON object containing actionId, decision, and timestamp.
+     * Using JSON encoding ensures special characters in actionId (like colons) don't
+     * corrupt the payload structure.
      *
      * @param actionId The action being responded to
      * @param decision Either "accept" or "decline"
@@ -353,7 +367,11 @@ open class ActionsRepositoryImpl(
      */
     private fun createWuaSignature(actionId: String, decision: String): WuaSignatureResult? {
         val timestamp = System.currentTimeMillis()
-        val signaturePayload = "$actionId:$decision:$timestamp"
+        val signaturePayload = JSONObject().apply {
+            put("actionId", actionId)
+            put("decision", decision)
+            put("timestamp", timestamp)
+        }.toString()
         val signatureBytes = cryptoController.signData(signaturePayload.toByteArray())
         if (signatureBytes == null) {
             logController.w(TAG) { "WUA signing failed - key may not exist (wallet not activated)" }
@@ -392,8 +410,8 @@ open class ActionsRepositoryImpl(
             requesterName = dto.requester.name,
             requesterLogoUrl = dto.requester.logoUrl,
             description = dto.description,
-            timestamp = Instant.parse(dto.createdAt),
-            expiresAt = dto.expiresAt?.let { Instant.parse(it) },
+            timestamp = dto.createdAt.parseInstantOrNull() ?: Instant.now(),
+            expiresAt = dto.expiresAt?.let { it.parseInstantOrNull() },
             status = status,
             metadata = buildMap {
                 dto.openId4VpRequestUri?.let { put("openId4VpRequestUri", it) }

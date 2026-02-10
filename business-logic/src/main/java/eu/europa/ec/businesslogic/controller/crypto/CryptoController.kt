@@ -17,6 +17,7 @@
 package eu.europa.ec.businesslogic.controller.crypto
 
 import android.util.Base64
+import android.util.Log
 import java.security.KeyStore
 import java.security.Signature
 import java.security.cert.Certificate
@@ -63,7 +64,15 @@ interface CryptoController {
 
     fun signData(data: ByteArray): ByteArray?
 
-
+    /**
+     * Retrieves the WUA public key from the Android Keystore.
+     *
+     * This method fetches the public key from an already-generated WUA key pair
+     * and returns it as a Base64-encoded string suitable for sending to the backend.
+     *
+     * @return Base64-encoded public key, or null if the key doesn't exist or an error occurs
+     */
+    fun getWuaPublicKey(): String?
 
     /**
      * Retrieves a [Cipher] instance configured for either encryption or decryption.
@@ -109,6 +118,7 @@ class CryptoControllerImpl(
 ) : CryptoController {
 
     companion object {
+        private const val TAG = "CryptoController"
         private const val AES_EXTERNAL_TRANSFORMATION = "AES/GCM/NoPadding"
         private const val IV_SIZE = 128
         const val MAX_GUID_LENGTH = 64
@@ -132,13 +142,31 @@ class CryptoControllerImpl(
     }
 
     override fun signData(data: ByteArray): ByteArray? {
-        val keyStore = KeyStore.getInstance("AndroidKeyStore")
-        keyStore.load(null)
-        val entry = keyStore.getEntry(WUA_KEY_ALIAS, null) as KeyStore.PrivateKeyEntry
-        val signature = Signature.getInstance("SHA256withECDSA")
-        signature.initSign(entry.privateKey)
-        signature.update(data)
-        return signature.sign()
+        return try {
+            val keyStore = KeyStore.getInstance("AndroidKeyStore")
+            keyStore.load(null)
+            val entry = keyStore.getEntry(WUA_KEY_ALIAS, null) as? KeyStore.PrivateKeyEntry
+                ?: return null
+            val signature = Signature.getInstance("SHA256withECDSA")
+            signature.initSign(entry.privateKey)
+            signature.update(data)
+            signature.sign()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to sign data: ${e.message}")
+            null
+        }
+    }
+
+    override fun getWuaPublicKey(): String? {
+        return try {
+            val keyStore = KeyStore.getInstance("AndroidKeyStore")
+            keyStore.load(null)
+            val certificate = keyStore.getCertificate(WUA_KEY_ALIAS) ?: return null
+            Base64.encodeToString(certificate.publicKey.encoded, Base64.NO_WRAP)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to get WUA public key: ${e.message}")
+            null
+        }
     }
 
     override fun getCipher(
@@ -161,7 +189,8 @@ class CryptoControllerImpl(
                     )
                 }
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to get cipher (encrypt=$encrypt): ${e.message}")
             null
         }
 
