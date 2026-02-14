@@ -19,6 +19,7 @@ package eu.europa.ec.uilogic.component.wrap
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -28,6 +29,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -49,14 +51,18 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.europa.ec.uilogic.component.AppIcons
+import eu.europa.ec.uilogic.component.ImageOrPlaceholder
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
 import androidx.compose.ui.unit.sp
+import eu.europa.ec.resourceslogic.R
 
 /**
  * Configuration data for the profile header.
@@ -65,6 +71,7 @@ data class ProfileHeaderConfig(
     val displayName: String,
     val email: String?,
     val avatarUrl: String? = null,
+    val portraitBase64: String? = null,
     val onEditClick: (() -> Unit)? = null
 )
 
@@ -126,7 +133,8 @@ fun ProfileHeader(
             // Avatar with initials
             ProfileAvatar(
                 displayName = config.displayName,
-                avatarUrl = config.avatarUrl
+                avatarUrl = config.avatarUrl,
+                portraitBase64 = config.portraitBase64
             )
 
             Spacer(modifier = Modifier.width(16.dp))
@@ -172,6 +180,7 @@ fun ProfileHeader(
 fun ProfileAvatar(
     displayName: String,
     avatarUrl: String?,
+    portraitBase64: String?,
     modifier: Modifier = Modifier,
     size: Int = 72
 ) {
@@ -191,20 +200,32 @@ fun ProfileAvatar(
             .background(Color.White.copy(alpha = 0.1f)),
         contentAlignment = Alignment.Center
     ) {
-        // Inner circle
-        Box(
-            modifier = Modifier
-                .size((size - 8).dp)
-                .clip(CircleShape)
-                .background(Color(0xFF3B82F6)), // Blue Accent
-            contentAlignment = Alignment.Center
-        ) {
-             Text(
-                text = initials,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
+        val safePortraitBase64: String = portraitBase64.orEmpty()
+
+        // PID portrait if available; otherwise fall back to the app's existing mascot placeholder.
+        if (safePortraitBase64.isNotBlank()) {
+            ImageOrPlaceholder(
+                modifier = Modifier
+                    .size((size - 8).dp)
+                    .clip(CircleShape),
+                base64Image = safePortraitBase64,
             )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size((size - 8).dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF3B82F6)), // Blue Accent
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.authbound_avatar_placeholder_mascot),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+            }
         }
     }
 }

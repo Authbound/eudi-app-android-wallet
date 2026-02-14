@@ -23,7 +23,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
+import eu.europa.ec.resourceslogic.theme.ThemeManager
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -98,7 +98,7 @@ private fun Content(
         }
     }
     
-    val isDark = isSystemInDarkTheme()
+    val isDark = ThemeManager.instance.set.isInDarkMode
     
     // Modern gradient background colors based on theme
     val gradientStart = MaterialTheme.colorScheme.surface

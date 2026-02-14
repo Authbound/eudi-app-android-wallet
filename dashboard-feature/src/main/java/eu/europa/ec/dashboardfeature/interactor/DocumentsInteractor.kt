@@ -16,11 +16,14 @@
 
 package eu.europa.ec.dashboardfeature.interactor
 
+import android.util.Base64
+import eu.europa.ec.businesslogic.extension.encodeToBase64String
 import eu.europa.ec.businesslogic.extension.isBeyondNextDays
 import eu.europa.ec.businesslogic.extension.isExpired
 import eu.europa.ec.businesslogic.extension.isValid
 import eu.europa.ec.businesslogic.extension.isWithinNextDays
 import eu.europa.ec.businesslogic.extension.safeAsync
+import eu.europa.ec.commonfeature.util.DocumentJsonKeys
 import eu.europa.ec.businesslogic.util.formatInstant
 import eu.europa.ec.businesslogic.validator.FilterValidator
 import eu.europa.ec.businesslogic.validator.FilterValidatorPartialState
@@ -382,6 +385,15 @@ class DocumentsInteractorImpl(
                                 }
                             }
 
+                            val portraitClaimValue: Any? = document.data.claims
+                                .firstOrNull { it.identifier == DocumentJsonKeys.PORTRAIT }
+                                ?.value
+                            val portraitBase64: String? = when (portraitClaimValue) {
+                                is ByteArray -> portraitClaimValue.encodeToBase64String(Base64.URL_SAFE)
+                                is String -> portraitClaimValue
+                                else -> null
+                            }
+
                             FilterableItem(
                                 payload = DocumentUi(
                                     documentIssuanceState = documentIssuanceState,
@@ -399,6 +411,7 @@ class DocumentsInteractorImpl(
                                     ),
                                     documentIdentifier = documentIdentifier,
                                     documentCategory = documentCategory,
+                                    portraitBase64 = portraitBase64,
                                 ),
                                 attributes = DocumentsFilterableAttributes(
                                     searchTags = documentSearchTags,

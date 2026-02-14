@@ -23,7 +23,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
+import eu.europa.ec.resourceslogic.theme.ThemeManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -188,7 +188,7 @@ private fun LoginFormContent(
     onEvent: (Event) -> Unit
 ) {
     val context = LocalContext.current
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = ThemeManager.instance.set.isInDarkMode
 
     // Brand colors matching HomeScreen's navy spectrum
     val navyDeep = Color(0xFF0A1A36)

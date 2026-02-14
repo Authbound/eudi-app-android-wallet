@@ -17,9 +17,12 @@
 package eu.europa.ec.dashboardfeature.interactor
 
 import android.net.Uri
+import android.util.Base64
 import eu.europa.ec.businesslogic.config.AppBuildType
 import eu.europa.ec.businesslogic.config.ConfigLogic
 import eu.europa.ec.businesslogic.controller.log.LogController
+import eu.europa.ec.businesslogic.extension.encodeToBase64String
+import eu.europa.ec.commonfeature.util.DocumentJsonKeys
 import eu.europa.ec.dashboardfeature.ui.settings.model.SettingsItemUi
 import eu.europa.ec.dashboardfeature.ui.settings.model.SettingsMenuItemType
 import eu.europa.ec.resourceslogic.R
@@ -41,7 +44,9 @@ import eu.europa.ec.authenticationlogic.usecase.SignOutMode
 import eu.europa.ec.businesslogic.controller.storage.PrefKeys
 import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
+import eu.europa.ec.corelogic.extension.localizedIssuerMetadata
 import eu.europa.ec.corelogic.model.DocumentCategory
+import eu.europa.ec.corelogic.model.DocumentIdentifier
 import eu.europa.ec.corelogic.model.toDocumentCategory
 import eu.europa.ec.corelogic.model.toDocumentIdentifier
 import io.github.jan.supabase.auth.user.UserInfo
@@ -60,7 +65,16 @@ interface SettingsInteractor {
     suspend fun getCurrentUser(): UserInfo?
     suspend fun getMyProfile(): Result<Profile>
     suspend fun resetHealthData(): Result<Unit>
+    fun getCredentialCount(): Int
+    fun getCredentialSummaries(): List<CredentialSummaryUi>
+    fun getMainPidPortraitBase64(): String?
 }
+
+data class CredentialSummaryUi(
+    val documentId: String,
+    val name: String,
+    val issuerName: String?,
+)
 
 class SettingsInteractorImpl(
     private val configLogic: ConfigLogic,
@@ -105,25 +119,6 @@ class SettingsInteractorImpl(
 
             add(
                 SettingsItemUi(
-                    type = SettingsMenuItemType.MY_DATA,
-                    data = ListItemDataUi(
-                        itemId = "my_data",
-                        mainContentData = ListItemMainContentDataUi.Text(
-                            text = resourceProvider.getString(R.string.settings_my_data_title)
-                        ),
-                        supportingText = resourceProvider.getString(R.string.settings_my_data_description),
-                        leadingContentData = ListItemLeadingContentDataUi.Icon(
-                            iconData = AppIcons.Id
-                        ),
-                        trailingContentData = ListItemTrailingContentDataUi.Icon(
-                            iconData = AppIcons.KeyboardArrowRight
-                        )
-                    )
-                )
-            )
-
-            add(
-                SettingsItemUi(
                     type = SettingsMenuItemType.CHANGE_PIN,
                     data = ListItemDataUi(
                         itemId = resourceProvider.getString(R.string.dashboard_side_menu_option_change_pin_id),
@@ -158,24 +153,25 @@ class SettingsInteractorImpl(
                 )
             )
 
-            add(
-                SettingsItemUi(
-                    type = SettingsMenuItemType.RESET_HEALTH_DATA,
-                    data = ListItemDataUi(
-                        itemId = resourceProvider.getString(R.string.settings_reset_health_data_id),
-                        mainContentData = ListItemMainContentDataUi.Text(
-                            text = resourceProvider.getString(R.string.settings_reset_health_data_title)
-                        ),
-                        supportingText = resourceProvider.getString(R.string.settings_reset_health_data_description),
-                        leadingContentData = ListItemLeadingContentDataUi.Icon(
-                            iconData = AppIcons.Refresh
-                        ),
-                        trailingContentData = ListItemTrailingContentDataUi.Icon(
-                            iconData = AppIcons.KeyboardArrowRight
-                        )
-                    )
-                )
-            )
+            // Hidden for now — keep underlying functionality for future use
+            // add(
+            //     SettingsItemUi(
+            //         type = SettingsMenuItemType.RESET_HEALTH_DATA,
+            //         data = ListItemDataUi(
+            //             itemId = resourceProvider.getString(R.string.settings_reset_health_data_id),
+            //             mainContentData = ListItemMainContentDataUi.Text(
+            //                 text = resourceProvider.getString(R.string.settings_reset_health_data_title)
+            //             ),
+            //             supportingText = resourceProvider.getString(R.string.settings_reset_health_data_description),
+            //             leadingContentData = ListItemLeadingContentDataUi.Icon(
+            //                 iconData = AppIcons.Refresh
+            //             ),
+            //             trailingContentData = ListItemTrailingContentDataUi.Icon(
+            //                 iconData = AppIcons.KeyboardArrowRight
+            //             )
+            //         )
+            //     )
+            // )
 
             /* if (changelogUrl != null) {
                 add(
@@ -220,6 +216,43 @@ class SettingsInteractorImpl(
         }
     }
 
+    override fun getMainPidPortraitBase64(): String? {
+        val mainPid = walletCoreDocumentsController.getMainPidDocument()
+        val pidDocs = walletCoreDocumentsController.getAllDocumentsByType(
+            documentIdentifiers = listOf(
+                DocumentIdentifier.MdocPid,
+                DocumentIdentifier.SdJwtPid
+            )
+        )
+
+        // Prefer PID portrait first; if not available, fall back to mDL portrait.
+        val candidates = buildList {
+            mainPid?.let { add(it) }
+            addAll(pidDocs.filterNot { it.id == mainPid?.id })
+
+            val mdlDocs = walletCoreDocumentsController.getAllIssuedDocuments()
+                .filter { doc ->
+                    val identifier = doc.toDocumentIdentifier()
+                    identifier is DocumentIdentifier.OTHER && (
+                        identifier.formatType.contains("mdl", ignoreCase = true)
+                            || identifier.formatType.contains("driving", ignoreCase = true)
+                    )
+                }
+            addAll(mdlDocs)
+        }
+
+        return candidates.firstNotNullOfOrNull { doc ->
+            when (val value: Any? = doc.data.claims
+                .firstOrNull { it.identifier == DocumentJsonKeys.PORTRAIT }
+                ?.value
+            ) {
+                is ByteArray -> value.encodeToBase64String(Base64.URL_SAFE)
+                is String -> value
+                else -> null
+            }?.takeIf { it.isNotBlank() }
+        }
+    }
+
     override fun getShowBatchIssuanceCounter(): Boolean {
         return getCurrentShowBatchIssuanceCounter()
     }
@@ -253,6 +286,21 @@ class SettingsInteractorImpl(
 
     override suspend fun getMyProfile(): Result<Profile> {
         return getMyProfileUseCase()
+    }
+
+    override fun getCredentialCount(): Int {
+        return walletCoreDocumentsController.getAllIssuedDocuments().size
+    }
+
+    override fun getCredentialSummaries(): List<CredentialSummaryUi> {
+        val userLocale = resourceProvider.getLocale()
+        return walletCoreDocumentsController.getAllIssuedDocuments().map { document ->
+            CredentialSummaryUi(
+                documentId = document.id,
+                name = document.name,
+                issuerName = document.localizedIssuerMetadata(userLocale)?.name
+            )
+        }
     }
 
     override suspend fun resetHealthData(): Result<Unit> {

@@ -20,6 +20,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.viewModelScope
 import eu.europa.ec.businesslogic.extension.toUri
+import eu.europa.ec.dashboardfeature.interactor.CredentialSummaryUi
 import eu.europa.ec.dashboardfeature.interactor.SettingsInteractor
 import eu.europa.ec.walletactivationlogic.usecase.DeleteWalletActivationUseCase
 import eu.europa.ec.dashboardfeature.ui.settings.model.SettingsItemUi
@@ -55,6 +56,9 @@ data class State(
     val showDeleteWalletConfirmation: Boolean = false,
     val isDeleting: Boolean = false,
     val authInfo: AuthInfoUi = AuthInfoUi(),
+    val credentialCount: Int = 0,
+    val credentials: List<CredentialSummaryUi> = emptyList(),
+    val pidPortraitBase64: String? = null,
 ) : ViewState
 
 sealed class Event : ViewEvent {
@@ -63,6 +67,7 @@ sealed class Event : ViewEvent {
     data object Logout : Event()
     data object ConfirmDeleteWallet : Event()
     data object DismissDeleteConfirmation : Event()
+    data object RefreshPidPortrait : Event()
 }
 
 sealed class Effect : ViewSideEffect {
@@ -104,8 +109,11 @@ class SettingsViewModel(
                 val isAuthenticated = settingsInteractor.isUserAuthenticated()
                 val user = settingsInteractor.getCurrentUser()
                 val profile = settingsInteractor.getMyProfile().getOrNull()
+                val pidPortraitBase64 = settingsInteractor.getMainPidPortraitBase64()
                 val settingsItems = settingsInteractor.getSettingsItemsUi(changelogUrl)
                 val appVersion = settingsInteractor.getAppVersion()
+                val credentialCount = settingsInteractor.getCredentialCount()
+                val credentials = settingsInteractor.getCredentialSummaries()
 
                 setState {
                     copy(
@@ -113,6 +121,9 @@ class SettingsViewModel(
                         settingsItems = settingsItems,
                         appVersion = appVersion,
                         userEmail = user?.email,
+                        credentialCount = credentialCount,
+                        credentials = credentials,
+                        pidPortraitBase64 = pidPortraitBase64,
                         authInfo = AuthInfoUi(
                             isAuthenticated = isAuthenticated,
                             userInfo = user,
@@ -136,6 +147,14 @@ class SettingsViewModel(
             is Event.Logout -> logout()
             is Event.ConfirmDeleteWallet -> deleteWalletActivation()
             is Event.DismissDeleteConfirmation -> dismissDeleteConfirmation()
+            is Event.RefreshPidPortrait -> refreshPidPortrait()
+        }
+    }
+
+    private fun refreshPidPortrait() {
+        viewModelScope.launch {
+            val pidPortraitBase64 = settingsInteractor.getMainPidPortraitBase64()
+            setState { copy(pidPortraitBase64 = pidPortraitBase64) }
         }
     }
 

@@ -73,12 +73,16 @@ class FeatureDashboardModule
 @Factory
 fun provideDashboardInteractor(
     resourceProvider: ResourceProvider,
+    configLogic: ConfigLogic,
     getCurrentUserUseCase: GetCurrentUserUseCase,
     getMyProfileUseCase: GetMyProfileUseCase,
+    walletCoreDocumentsController: WalletCoreDocumentsController,
 ): DashboardInteractor = DashboardInteractorImpl(
     resourceProvider,
+    configLogic,
     getCurrentUserUseCase,
     getMyProfileUseCase,
+    walletCoreDocumentsController,
 )
 
 @Single

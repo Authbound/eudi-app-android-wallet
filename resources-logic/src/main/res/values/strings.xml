@@ -626,6 +626,22 @@
     <string name="settings_change_pin_success_message">Your PIN has been updated. Use your new PIN for future logins.</string>
     <string name="settings_change_pin_success_button">Done</string>
 
+    <!-- Account Details -->
+    <string name="account_details_title">Account</string>
+    <string name="account_details_credentials_count">%d credentials</string>
+    <string name="account_details_credential_count_single">1 credential</string>
+    <string name="account_details_section_contact">Contact</string>
+    <string name="account_details_email">Email</string>
+    <string name="account_details_phone">Phone</string>
+    <string name="account_details_phone_not_set">Not set</string>
+    <string name="account_details_section_activity">Security &amp; Activity</string>
+    <string name="account_details_status">Status</string>
+    <string name="account_details_status_verified">Verified</string>
+    <string name="account_details_status_unverified">Not verified</string>
+    <string name="account_details_member_since">Member since</string>
+    <string name="account_details_last_active">Last active</string>
+    <string name="account_details_section_credentials">Credentials</string>
+
     <!-- Authentication -->
     <string name="login_with_google">Sign in with Google</string>
     <string name="login_with_microsoft">Sign in with Microsoft</string>

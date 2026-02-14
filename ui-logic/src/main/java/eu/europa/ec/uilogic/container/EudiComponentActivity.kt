@@ -57,7 +57,7 @@ open class EudiComponentActivity : FragmentActivity() {
         intent: Intent?,
         builder: NavGraphBuilder.(NavController) -> Unit,
     ) {
-        ThemeManager.instance.Theme {
+        ThemeManager.instance.Theme(darkTheme = true) {
             Surface(
                 modifier = Modifier.fillMaxSize(),
                 color = MaterialTheme.colorScheme.surface
