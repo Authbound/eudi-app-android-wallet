@@ -69,6 +69,7 @@ import eu.europa.ec.uilogic.component.utils.SPACING_LARGE
 import eu.europa.ec.uilogic.component.utils.SPACING_MEDIUM
 import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
 import eu.europa.ec.uilogic.component.utils.VSpacer
+import eu.europa.ec.uilogic.extension.exposeTestTagsAsResourceId
 import eu.europa.ec.uilogic.extension.optionalTestTag
 import eu.europa.ec.uilogic.extension.throttledClickable
 import eu.europa.ec.uilogic.mvi.ViewEvent
@@ -128,7 +129,9 @@ fun WrapModalBottomSheet(
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        modifier = modifier,
+        modifier = Modifier
+            .exposeTestTagsAsResourceId()
+            .then(modifier),
         sheetState = sheetState,
         shape = shape,
         dragHandle = dragHandle,

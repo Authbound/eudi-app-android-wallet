@@ -1036,9 +1036,10 @@ class TestDocumentOfferInteractor {
     @Test
     fun `Given Case 3, When handleUserAuthentication is called, Then Case 3 expected result is returned`() {
         // Given
-        val mockedOnAuthenticationFailure: () -> Unit = {}
-        whenever(resultHandler.onAuthenticationFailure)
-            .thenReturn(mockedOnAuthenticationFailure)
+        val onFailure = mock<() -> Unit>()
+        val resultHandler = DeviceAuthenticationResult(
+            onAuthenticationFailure = onFailure
+        )
 
         mockBiometricsAvailabilityResponse(
             response = BiometricsAvailability.Failure(
@@ -1055,8 +1056,7 @@ class TestDocumentOfferInteractor {
         )
 
         // Then
-        verify(resultHandler, times(1))
-            .onAuthenticationFailure
+        verify(onFailure).invoke()
     }
 
     //endregion
