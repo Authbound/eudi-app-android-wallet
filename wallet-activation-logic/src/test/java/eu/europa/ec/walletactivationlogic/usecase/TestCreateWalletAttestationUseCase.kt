@@ -17,6 +17,7 @@
 package eu.europa.ec.walletactivationlogic.usecase
 
 import eu.europa.ec.businesslogic.controller.crypto.CryptoController
+import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.model.DeviceInfo
 import eu.europa.ec.businesslogic.model.error.WalletActivationError
 import eu.europa.ec.networklogic.model.response.AttestationChallengeResponse
@@ -35,6 +36,7 @@ import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.never
+import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.security.cert.Certificate
@@ -63,6 +65,9 @@ class TestCreateWalletAttestationUseCase {
     private lateinit var walletActivationRepository: WalletActivationRepository
 
     @Mock
+    private lateinit var logController: LogController
+
+    @Mock
     private lateinit var mockCertificate: Certificate
 
     private lateinit var useCase: CreateWalletAttestationUseCaseImpl
@@ -73,7 +78,8 @@ class TestCreateWalletAttestationUseCase {
         closeable = MockitoAnnotations.openMocks(this)
         useCase = CreateWalletAttestationUseCaseImpl(
             cryptoController = cryptoController,
-            walletActivationRepository = walletActivationRepository
+            walletActivationRepository = walletActivationRepository,
+            logController = logController
         )
     }
 
@@ -433,6 +439,123 @@ class TestCreateWalletAttestationUseCase {
 
             // Then - Verify [72, 101, 108, 108, 111] was passed (H=72, e=101, l=108, l=108, o=111)
             verify(cryptoController).generateWuaKeyPair(eq(byteArrayOf(72, 101, 108, 108, 111)))
+        }
+
+    // endregion
+
+    // region 409 Conflict Auto-Recovery
+
+    @Test
+    fun `Given activation returns 409, When invoke is called, Then deletes old WUA and retries successfully`() =
+        coroutineRule.runTest {
+            // Given
+            val challenge1 = AttestationChallengeResponse(
+                challengeId = "challenge-1",
+                challenge = "aabbccdd",
+                expiresAt = "2025-12-31T23:59:59Z",
+                ttlSeconds = 300
+            )
+            val challenge2 = AttestationChallengeResponse(
+                challengeId = "challenge-2",
+                challenge = "eeff0011",
+                expiresAt = "2025-12-31T23:59:59Z",
+                ttlSeconds = 300
+            )
+            whenever(walletActivationRepository.getAttestationChallenge())
+                .thenReturn(Result.success(challenge1))
+                .thenReturn(Result.success(challenge2))
+
+            val certChain = arrayOf(mockCertificate)
+            whenever(cryptoController.generateWuaKeyPair(any())).thenReturn(certChain)
+            whenever(cryptoController.deleteWuaKey()).thenReturn(true)
+
+            val conflictError = WalletActivationError.WalletAlreadyExists()
+            val successResponse = WalletActivationResponse(wua = "wua-token-123")
+            whenever(walletActivationRepository.activateWallet(any(), any(), any(), any(), any()))
+                .thenReturn(Result.failure(conflictError))
+                .thenReturn(Result.success(successResponse))
+
+            whenever(walletActivationRepository.deleteWalletActivation())
+                .thenReturn(Result.success(Unit))
+
+            // When
+            val result = useCase.invoke(MOCK_DEVICE_INFO, MOCK_PUSH_TOKEN)
+
+            // Then
+            assertTrue("Result should be success after conflict recovery", result.isSuccess)
+            assertEquals(successResponse, result.getOrNull())
+            verify(walletActivationRepository).deleteWalletActivation()
+            verify(walletActivationRepository, times(2)).activateWallet(any(), any(), any(), any(), any())
+        }
+
+    @Test
+    fun `Given activation returns 409 and delete fails, When invoke is called, Then propagates original error`() =
+        coroutineRule.runTest {
+            // Given
+            setupValidChallengeResponse()
+            val certChain = arrayOf(mockCertificate)
+            whenever(cryptoController.generateWuaKeyPair(any())).thenReturn(certChain)
+            whenever(cryptoController.deleteWuaKey()).thenReturn(true)
+
+            val conflictError = WalletActivationError.WalletAlreadyExists()
+            whenever(walletActivationRepository.activateWallet(any(), any(), any(), any(), any()))
+                .thenReturn(Result.failure(conflictError))
+
+            whenever(walletActivationRepository.deleteWalletActivation())
+                .thenReturn(Result.failure(WalletActivationError.ServerError(500, "Internal error")))
+
+            // When
+            val result = useCase.invoke(MOCK_DEVICE_INFO, MOCK_PUSH_TOKEN)
+
+            // Then
+            assertTrue("Result should be failure", result.isFailure)
+            assertTrue("Should be WalletAlreadyExists", result.exceptionOrNull() is WalletActivationError.WalletAlreadyExists)
+            // Should not retry activation since delete failed
+            verify(walletActivationRepository, times(1)).activateWallet(any(), any(), any(), any(), any())
+        }
+
+    @Test
+    fun `Given activation returns 409 twice, When invoke is called, Then does not retry more than once`() =
+        coroutineRule.runTest {
+            // Given
+            val challenge1 = AttestationChallengeResponse(
+                challengeId = "challenge-1",
+                challenge = "aabbccdd",
+                expiresAt = "2025-12-31T23:59:59Z",
+                ttlSeconds = 300
+            )
+            val challenge2 = AttestationChallengeResponse(
+                challengeId = "challenge-2",
+                challenge = "eeff0011",
+                expiresAt = "2025-12-31T23:59:59Z",
+                ttlSeconds = 300
+            )
+            whenever(walletActivationRepository.getAttestationChallenge())
+                .thenReturn(Result.success(challenge1))
+                .thenReturn(Result.success(challenge2))
+
+            val certChain = arrayOf(mockCertificate)
+            whenever(cryptoController.generateWuaKeyPair(any())).thenReturn(certChain)
+            whenever(cryptoController.deleteWuaKey()).thenReturn(true)
+
+            val conflictError = WalletActivationError.WalletAlreadyExists()
+            // Both activate calls return 409
+            whenever(walletActivationRepository.activateWallet(any(), any(), any(), any(), any()))
+                .thenReturn(Result.failure(conflictError))
+
+            whenever(walletActivationRepository.deleteWalletActivation())
+                .thenReturn(Result.success(Unit))
+
+            // When
+            val result = useCase.invoke(MOCK_DEVICE_INFO, MOCK_PUSH_TOKEN)
+
+            // Then
+            assertTrue("Result should be failure", result.isFailure)
+            assertTrue("Should be WalletAlreadyExists", result.exceptionOrNull() is WalletActivationError.WalletAlreadyExists)
+            // Should have tried activation exactly twice (initial + one retry)
+            verify(walletActivationRepository, times(2)).activateWallet(any(), any(), any(), any(), any())
+            // Should have deleted old WUA only once (on first 409)
+            verify(walletActivationRepository, times(1)).deleteWalletActivation()
         }
 
     // endregion

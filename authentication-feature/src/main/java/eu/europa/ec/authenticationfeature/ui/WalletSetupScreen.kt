@@ -68,7 +68,7 @@ fun WalletSetupScreen(
 
     // Only trigger wallet activation if wallet is not already activated on device
     // This prevents unnecessary activation attempts and error screens
-    LaunchedEffect(viewModel, state.isWalletAlreadyActivated, state.isActivating) {
+    LaunchedEffect(viewModel, state.isWalletAlreadyActivated, state.isActivating, state.activationError) {
         if (!state.isWalletAlreadyActivated && !state.isActivating && state.activationError == null) {
             logController.d("WalletSetupScreen", "Wallet not activated on device, triggering activation.")
             viewModel.setEvent(WalletSetupEvent.ActivateWallet)

@@ -52,15 +52,23 @@ interface WalletActivationRepository {
     suspend fun deleteWalletActivation(): Result<Unit>
 }
 
-class WalletActivationRepositoryImpl(
+open class WalletActivationRepositoryImpl(
     private val supabaseClient: SupabaseClient,
     private val api: ApiClient,
     private val logController: LogController
 ) : WalletActivationRepository {
 
+    /**
+     * Returns the current Supabase auth token.
+     * Protected and open to allow overriding in tests.
+     */
+    protected open suspend fun getAuthToken(): String? {
+        return supabaseClient.auth.currentSessionOrNull()?.accessToken
+    }
+
     override suspend fun getAttestationChallenge(): Result<AttestationChallengeResponse> {
         return try {
-            val token = supabaseClient.auth.currentSessionOrNull()?.accessToken
+            val token = getAuthToken()
                 ?: return Result.failure(
                     WalletActivationError.AuthenticationFailure("User not authenticated")
                 )
@@ -104,7 +112,7 @@ class WalletActivationRepositoryImpl(
         pushToken: String,
     ): Result<WalletActivationResponse> {
         return try {
-            val token = supabaseClient.auth.currentSessionOrNull()?.accessToken
+            val token = getAuthToken()
                 ?: return Result.failure(
                     WalletActivationError.AuthenticationFailure("User not authenticated")
                 )
@@ -256,7 +264,7 @@ class WalletActivationRepositoryImpl(
 
     override suspend fun deleteWalletActivation(): Result<Unit> {
         return try {
-            val token = supabaseClient.auth.currentSessionOrNull()?.accessToken
+            val token = getAuthToken()
                 ?: return Result.failure(
                     WalletActivationError.AuthenticationFailure("User not authenticated")
                 )
@@ -300,6 +308,9 @@ class WalletActivationRepositoryImpl(
 
         // For challenge-related errors, inject the challenge ID if available
         return when {
+            response.code() == 409 -> {
+                WalletActivationError.WalletAlreadyExists(httpCode = 409)
+            }
             response.code() == 410 && challengeId != null -> {
                 WalletActivationError.ChallengeExpired(challengeId)
             }

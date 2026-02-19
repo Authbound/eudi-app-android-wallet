@@ -264,36 +264,7 @@ class WalletSetupViewModel(
             exception.toWalletActivationError()
         }
 
-        val errorMessage = exception.message ?: "Wallet activation failed"
-
-        // Check if this is a "wallet already exists" error from backend
-        val isAlreadyExistsError = errorMessage.contains("already exists", ignoreCase = true) ||
-                errorMessage.contains("already activated", ignoreCase = true) ||
-                errorMessage.contains("duplicate", ignoreCase = true) ||
-                errorMessage.contains("409", ignoreCase = true)
-
         when {
-            isAlreadyExistsError -> {
-                logController.i("WalletSetupViewModel") {
-                    "Wallet already exists on backend, marking as activated and navigating to home."
-                }
-                try {
-                    prefKeys.setWalletActivated(true)
-                } catch (securityException: SecurityException) {
-                    logController.w("WalletSetupViewModel") {
-                        "Failed to save wallet activation status: ${securityException.message}"
-                    }
-                }
-                setState {
-                    copy(
-                        isActivating = false,
-                        canNavigateBack = false,
-                        autoRetrying = false
-                    )
-                }
-                navigateToHomeOrPinCreate()
-            }
-
             // Auto-retry for transient errors (expired/not found challenges)
             error.shouldAutoRetry() && viewState.value.autoRetryAttempt < WalletSetupState.MAX_AUTO_RETRY_ATTEMPTS -> {
                 val attempt = viewState.value.autoRetryAttempt + 1

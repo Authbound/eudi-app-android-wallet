@@ -213,6 +213,21 @@ class TestWalletActivationError {
         assertEquals(503, (error as WalletActivationError.ServerError).httpCode)
     }
 
+    @Test
+    fun `Given 409 response, When toWalletActivationError, Then returns WalletAlreadyExists`() {
+        val response = HttpErrorResponse(
+            code = 409,
+            message = "Conflict",
+            errorBody = null,
+            retryAfterSeconds = null
+        )
+
+        val error = response.toWalletActivationError()
+
+        assertTrue(error is WalletActivationError.WalletAlreadyExists)
+        assertEquals(409, (error as WalletActivationError.WalletAlreadyExists).httpCode)
+    }
+
     // endregion
 
     // region isRetryable()
@@ -244,6 +259,12 @@ class TestWalletActivationError {
     @Test
     fun `Given CryptographicFailure, When isRetryable, Then returns true`() {
         val error = WalletActivationError.CryptographicFailure("key gen", Exception())
+        assertTrue(error.isRetryable())
+    }
+
+    @Test
+    fun `Given WalletAlreadyExists, When isRetryable, Then returns true`() {
+        val error = WalletActivationError.WalletAlreadyExists()
         assertTrue(error.isRetryable())
     }
 
@@ -311,6 +332,12 @@ class TestWalletActivationError {
         assertFalse(error.shouldAutoRetry())
     }
 
+    @Test
+    fun `Given WalletAlreadyExists, When shouldAutoRetry, Then returns false`() {
+        val error = WalletActivationError.WalletAlreadyExists()
+        assertFalse(error.shouldAutoRetry())
+    }
+
     // endregion
 
     // region isPermanent()
@@ -348,6 +375,12 @@ class TestWalletActivationError {
     @Test
     fun `Given ServerError, When isPermanent, Then returns false`() {
         val error = WalletActivationError.ServerError(500, "Error")
+        assertFalse(error.isPermanent())
+    }
+
+    @Test
+    fun `Given WalletAlreadyExists, When isPermanent, Then returns false`() {
+        val error = WalletActivationError.WalletAlreadyExists()
         assertFalse(error.isPermanent())
     }
 

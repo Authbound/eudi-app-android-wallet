@@ -47,10 +47,12 @@ fun provideWalletActivationRepository(
 @Factory
 fun provideCreateWalletAttestationUseCase(
     cryptoController: CryptoController,
-    walletActivationRepository: WalletActivationRepository
+    walletActivationRepository: WalletActivationRepository,
+    logController: LogController
 ): CreateWalletAttestationUseCase = CreateWalletAttestationUseCaseImpl(
     cryptoController,
-    walletActivationRepository
+    walletActivationRepository,
+    logController
 )
 
 @Factory
