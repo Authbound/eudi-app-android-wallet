@@ -19,32 +19,29 @@ package eu.europa.ec.networklogic.api
 import eu.europa.ec.networklogic.model.ApiResponse
 import eu.europa.ec.networklogic.model.request.CompleteProfileRequest
 import eu.europa.ec.networklogic.model.request.CreateAuthboundPidSessionRequest
-import eu.europa.ec.networklogic.model.request.CreateLivenessSessionRequest
-import eu.europa.ec.networklogic.model.request.CreateQuickIdSessionRequest
 import eu.europa.ec.networklogic.model.request.DummyRequest
-import eu.europa.ec.networklogic.model.request.IssueAuthboundIdRequest
 import eu.europa.ec.networklogic.model.request.ActionRespondRequest
 import eu.europa.ec.networklogic.model.request.DeviceLinkRequest
 import eu.europa.ec.networklogic.model.request.MaisaExchangeRequest
 import eu.europa.ec.networklogic.model.request.MaisaIssueRequest
 import eu.europa.ec.networklogic.model.request.WalletActivationRequest
 import eu.europa.ec.networklogic.model.response.AttestationChallengeResponse
-import eu.europa.ec.networklogic.model.response.AuthboundIdCredentialResponse
+
 import eu.europa.ec.networklogic.model.response.AuthboundPidSessionStatus
 import eu.europa.ec.networklogic.model.response.CheckHandleResponse
 import eu.europa.ec.networklogic.model.response.CreateAuthboundPidSessionResponse
 import eu.europa.ec.networklogic.model.response.DummyResponse
-import eu.europa.ec.networklogic.model.response.LivenessSessionResponse
+
 import eu.europa.ec.networklogic.model.response.MaisaAuthorizeResponse
 import eu.europa.ec.networklogic.model.response.MaisaExchangeResponse
 import eu.europa.ec.networklogic.model.response.MaisaIssueResponse
 import eu.europa.ec.networklogic.model.response.ProfileResponse
-import eu.europa.ec.networklogic.model.response.QuickIdSessionResponse
+
 import eu.europa.ec.networklogic.model.response.ActionRespondResponse
 import eu.europa.ec.networklogic.model.response.ActionsListResponse
 import eu.europa.ec.networklogic.model.response.DeviceLinkResponse
 import eu.europa.ec.networklogic.model.response.DeviceStatusResponse
-import eu.europa.ec.networklogic.model.response.VerificationResponse
+
 import eu.europa.ec.networklogic.model.response.WalletActivationResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -56,10 +53,7 @@ import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
-import io.ktor.client.request.forms.MultiPartFormDataContent
-import io.ktor.client.request.forms.formData
 import io.ktor.http.ContentType
-import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
@@ -86,18 +80,6 @@ interface ApiClient {
     suspend fun startMaisaAuth(bearerToken: String?): ApiResponse<MaisaAuthorizeResponse>
     suspend fun exchangeMaisaCode(body: MaisaExchangeRequest, bearerToken: String?): ApiResponse<MaisaExchangeResponse>
     suspend fun issueMaisaCredential(body: MaisaIssueRequest, bearerToken: String?): ApiResponse<MaisaIssueResponse>
-
-    // QuickID endpoints
-    suspend fun createQuickIdSession(body: CreateQuickIdSessionRequest, bearerToken: String): ApiResponse<QuickIdSessionResponse>
-    suspend fun createLivenessSession(body: CreateLivenessSessionRequest, bearerToken: String): ApiResponse<LivenessSessionResponse>
-    suspend fun verifyNfcLiveness(
-        bearerToken: String,
-        nfcFaceImage: ByteArray,
-        nfcMrzData: String,
-        passportExpiry: String,
-        livenessSessionId: String
-    ): ApiResponse<VerificationResponse>
-    suspend fun issueAuthboundIdCredential(body: IssueAuthboundIdRequest, bearerToken: String): ApiResponse<AuthboundIdCredentialResponse>
 
     // Actions endpoints
     suspend fun getActions(
@@ -331,76 +313,6 @@ class KtorApiClient(
             httpClient.post("$baseUrl/api/mobile/maisa/issue") {
                 contentType(ContentType.Application.Json)
                 bearerToken?.let { header(HttpHeaders.Authorization, "Bearer $it") }
-                setBody(body)
-            }
-        }
-    }
-
-    // ============================================================================
-    // QuickID endpoints
-    // ============================================================================
-
-    override suspend fun createQuickIdSession(
-        body: CreateQuickIdSessionRequest,
-        bearerToken: String
-    ): ApiResponse<QuickIdSessionResponse> {
-        return executeRequest {
-            httpClient.post("$baseUrl/api/quickid/sessions") {
-                contentType(ContentType.Application.Json)
-                header(HttpHeaders.Authorization, "Bearer $bearerToken")
-                setBody(body)
-            }
-        }
-    }
-
-    override suspend fun createLivenessSession(
-        body: CreateLivenessSessionRequest,
-        bearerToken: String
-    ): ApiResponse<LivenessSessionResponse> {
-        return executeRequest {
-            httpClient.post("$baseUrl/api/v1/liveness/session") {
-                contentType(ContentType.Application.Json)
-                header(HttpHeaders.Authorization, "Bearer $bearerToken")
-                setBody(body)
-            }
-        }
-    }
-
-    override suspend fun verifyNfcLiveness(
-        bearerToken: String,
-        nfcFaceImage: ByteArray,
-        nfcMrzData: String,
-        passportExpiry: String,
-        livenessSessionId: String
-    ): ApiResponse<VerificationResponse> {
-        return executeRequest {
-            httpClient.post("$baseUrl/api/v1/verify/nfc-liveness") {
-                header(HttpHeaders.Authorization, "Bearer $bearerToken")
-                setBody(
-                    MultiPartFormDataContent(
-                        formData {
-                            append("face_image", nfcFaceImage, Headers.build {
-                                append(HttpHeaders.ContentType, "image/jpeg")
-                                append(HttpHeaders.ContentDisposition, "filename=\"face.jpg\"")
-                            })
-                            append("mrz_data", nfcMrzData)
-                            append("passport_expiry", passportExpiry)
-                            append("liveness_session_id", livenessSessionId)
-                        }
-                    )
-                )
-            }
-        }
-    }
-
-    override suspend fun issueAuthboundIdCredential(
-        body: IssueAuthboundIdRequest,
-        bearerToken: String
-    ): ApiResponse<AuthboundIdCredentialResponse> {
-        return executeRequest {
-            httpClient.post("$baseUrl/api/quickid/issue") {
-                contentType(ContentType.Application.Json)
-                header(HttpHeaders.Authorization, "Bearer $bearerToken")
                 setBody(body)
             }
         }

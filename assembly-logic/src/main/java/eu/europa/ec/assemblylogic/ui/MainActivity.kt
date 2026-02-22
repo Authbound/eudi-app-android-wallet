@@ -28,7 +28,7 @@ import eu.europa.ec.issuancefeature.router.featureIssuanceGraph
 import eu.europa.ec.presentationfeature.router.presentationGraph
 import eu.europa.ec.proximityfeature.router.featureProximityGraph
 import eu.europa.ec.authboundpidfeature.router.featureAuthboundPidGraph
-import eu.europa.ec.quickidfeature.router.featureQuickIdGraph
+
 import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import eu.europa.ec.startupfeature.router.featureStartupGraph
 import eu.europa.ec.uilogic.component.utils.NfcTagHandler
@@ -61,7 +61,6 @@ class MainActivity : EudiComponentActivity() {
                 featureProximityGraph(it)
                 featureIssuanceGraph(it)
                 featureAuthenticationGraph(it)
-                featureQuickIdGraph(it)
                 featureAuthboundPidGraph(it)
             }
         }

@@ -34,8 +34,7 @@ import project.convention.logic.config.LibraryModule.UiLogic
 import project.convention.logic.config.LibraryModule.AuthenticationFeature
 import project.convention.logic.config.LibraryModule.WalletActivationLogic
 import project.convention.logic.config.LibraryModule.NotificationLogic
-import project.convention.logic.config.LibraryModule.QuickIdLogic
-import project.convention.logic.config.LibraryModule.QuickIdFeature
+
 import project.convention.logic.config.LibraryModule.AuthboundPidLogic
 import project.convention.logic.config.LibraryModule.AuthboundPidFeature
 import project.convention.logic.kover.KoverExclusionRules
@@ -66,10 +65,6 @@ dependencies {
     // Lifecycle process for app lifecycle observation
     implementation(libs.androidx.lifecycle.process)
 
-    // AWS Amplify for Face Liveness initialization
-    implementation("com.amplifyframework:core:2.33.0")
-    implementation("com.amplifyframework:aws-auth-cognito:2.33.0")
-
     // Logic Modules
     api(project(ResourcesLogic.path))
     api(project(BusinessLogic.path))
@@ -90,8 +85,6 @@ dependencies {
     api(project(ProximityFeature.path))
     api(project(IssuanceFeature.path))
     api(project(AuthenticationFeature.path))
-    api(project(QuickIdLogic.path))
-    api(project(QuickIdFeature.path))
     api(project(AuthboundPidLogic.path))
     api(project(AuthboundPidFeature.path))
 

@@ -1306,29 +1306,33 @@ fun AuthboundIdPromoCard(
     val gradientEnd = Color(0xFF0D9488)   // Teal
     val accentColor = Color(0xFF34D399)   // Light green accent
 
-    AnimatedVisibility(
-        visible = isVisible,
-        enter = fadeIn(tween(300)) + slideInVertically(
-            animationSpec = tween(300),
-            initialOffsetY = { it / 4 }
-        )
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(180.dp)
     ) {
-        Surface(
-            modifier = modifier
-                .fillMaxWidth()
-                .height(180.dp)
-                .scale(scale)
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = ripple(color = accentColor)
-                ) {
-                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                    onGetAuthboundIdClick()
-                },
-            shape = RoundedCornerShape(24.dp),
-            color = Color.Transparent,
-            shadowElevation = 0.dp
+        AnimatedVisibility(
+            visible = isVisible,
+            enter = fadeIn(tween(300)) + slideInVertically(
+                animationSpec = tween(300),
+                initialOffsetY = { it / 4 }
+            )
         ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .scale(scale)
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = ripple(color = accentColor)
+                    ) {
+                        view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                        onGetAuthboundIdClick()
+                    },
+                shape = RoundedCornerShape(24.dp),
+                color = Color.Transparent,
+                shadowElevation = 0.dp
+            ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -1371,7 +1375,7 @@ fun AuthboundIdPromoCard(
                                     modifier = Modifier.size(14.dp)
                                 )
                                 Text(
-                                    text = stringResource(R.string.quickid_authbound_id_promo_badge),
+                                    text = stringResource(R.string.authboundpid_promo_badge),
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.Bold,
                                         letterSpacing = 1.sp
@@ -1385,7 +1389,7 @@ fun AuthboundIdPromoCard(
 
                         // Title
                         Text(
-                            text = stringResource(R.string.quickid_authbound_id_promo_title),
+                            text = stringResource(R.string.authboundpid_promo_title),
                             style = MaterialTheme.typography.headlineSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = (-0.5).sp
@@ -1401,7 +1405,7 @@ fun AuthboundIdPromoCard(
                         verticalAlignment = Alignment.Bottom
                     ) {
                         Text(
-                            text = stringResource(R.string.quickid_authbound_id_promo_description),
+                            text = stringResource(R.string.authboundpid_promo_description),
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color.White.copy(alpha = 0.85f),
                             lineHeight = 20.sp,
@@ -1427,6 +1431,7 @@ fun AuthboundIdPromoCard(
             }
         }
     }
+}
 }
 
 /**

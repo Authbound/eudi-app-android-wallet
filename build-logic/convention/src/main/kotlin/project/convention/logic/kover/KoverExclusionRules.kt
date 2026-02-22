@@ -41,8 +41,6 @@ val koverModules: Map<LibraryModule, KoverExclusionRules> = mapOf(
     LibraryModule.PresentationFeature to KoverExclusionRules.PresentationFeature,
     LibraryModule.ProximityFeature to KoverExclusionRules.ProximityFeature,
     LibraryModule.IssuanceFeature to KoverExclusionRules.IssuanceFeature,
-    LibraryModule.QuickIdLogic to KoverExclusionRules.QuickIdLogic,
-    LibraryModule.QuickIdFeature to KoverExclusionRules.QuickIdFeature
 )
 
 sealed interface KoverExclusionRules {
@@ -205,21 +203,4 @@ sealed interface KoverExclusionRules {
             )
     }
 
-    object QuickIdLogic : LogicModule {
-        override val classes: List<String>
-            get() = commonClasses
-
-        override val packages: List<String>
-            get() = commonPackages + listOf(
-                "eu.europa.ec.quickidlogic"
-            )
-    }
-
-    object QuickIdFeature : FeatureModule {
-        override val classes: List<String>
-            get() = commonClasses
-
-        override val packages: List<String>
-            get() = commonPackages
-    }
 }

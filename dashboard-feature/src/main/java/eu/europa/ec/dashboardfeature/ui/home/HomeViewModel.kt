@@ -51,7 +51,7 @@ import eu.europa.ec.uilogic.navigation.CommonScreens
 import eu.europa.ec.uilogic.navigation.DashboardScreens
 import eu.europa.ec.uilogic.navigation.IssuanceScreens
 import eu.europa.ec.uilogic.navigation.ProximityScreens
-import eu.europa.ec.uilogic.navigation.QuickIdScreens
+
 import eu.europa.ec.uilogic.navigation.helper.generateComposableArguments
 import eu.europa.ec.uilogic.navigation.helper.generateComposableNavigationLink
 import eu.europa.ec.uilogic.serializer.UiSerializer
@@ -116,7 +116,7 @@ sealed class Event : ViewEvent {
     // Verification events
     data object VerificationPressed : Event()
 
-    // QuickID / Authbound ID events
+    // Authbound PID events
     data object GetAuthboundIdPressed : Event()
 
     sealed class BottomSheet : Event() {
@@ -417,7 +417,7 @@ class HomeViewModel(
             }
 
             is Event.GetAuthboundIdPressed -> {
-                navigateToQuickId()
+                navigateToAuthboundPid()
             }
         }
     }
@@ -757,21 +757,9 @@ class HomeViewModel(
                 showBottomSheet(sheetContent = HomeScreenBottomSheetContent.AddDocument)
             }
 
-            "authbound_id" -> {
-                navigateToQuickId()
-            }
-
             "authboundpid" -> {
                 navigateToAuthboundPid()
             }
-        }
-    }
-
-    private fun navigateToQuickId() {
-        setEffect {
-            Effect.Navigation.SwitchScreen(
-                screenRoute = QuickIdScreens.Intro.screenRoute
-            )
         }
     }
 
