@@ -219,8 +219,10 @@ private fun HealthEmptyState(
                 description = stringResource(R.string.health_maisa_short_description)
             )
         ),
-        actionLabel = stringResource(R.string.health_import_button),
-        onActionClick = onImportClick,
+        // actionLabel = stringResource(R.string.health_import_button),
+        // onActionClick = onImportClick,
+        actionLabel = stringResource(R.string.coming_soon_badge),
+        onActionClick = { },
         enableAnimations = false
     )
 }
@@ -342,9 +344,15 @@ private fun HealthDataContent(
         // Import more button at the bottom
         item {
             Spacer(modifier = Modifier.height(16.dp))
+            // PremiumActionButton(
+            //     text = stringResource(R.string.health_import_more),
+            //     onClick = onImportMore,
+            //     icon = AppIcons.Add,
+            //     modifier = Modifier.fillMaxWidth()
+            // )
             PremiumActionButton(
-                text = stringResource(R.string.health_import_more),
-                onClick = onImportMore,
+                text = stringResource(R.string.coming_soon_badge),
+                onClick = { },
                 icon = AppIcons.Add,
                 modifier = Modifier.fillMaxWidth()
             )

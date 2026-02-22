@@ -71,6 +71,7 @@ import eu.europa.ec.dashboardfeature.ui.settings.model.SettingsMenuItemType
 import eu.europa.ec.dashboardfeature.ui.component.NotificationIconButton
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.uilogic.component.AppIcons
+import eu.europa.ec.uilogic.component.ImageOrPlaceholder
 import eu.europa.ec.uilogic.component.ListItemDataUi
 import eu.europa.ec.uilogic.component.ListItemLeadingContentDataUi
 import eu.europa.ec.uilogic.component.ListItemMainContentDataUi
@@ -107,6 +108,10 @@ fun SettingsScreen(
 ) {
     val state: State by viewModel.viewState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        viewModel.setEvent(Event.RefreshPidPortrait)
+    }
 
     ContentScreen(
         navigatableAction = ScreenNavigateAction.NONE,
@@ -165,13 +170,6 @@ private fun TopBar(
                 vertical = 4.dp
             )
     ) {
-        Text(
-            modifier = Modifier.align(Alignment.Center),
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.headlineMedium,
-            text = stringResource(R.string.settings_screen_title)
-        )
         NotificationIconButton(
             modifier = Modifier.align(Alignment.CenterEnd),
             badgeCount = notificationCount,
@@ -210,7 +208,8 @@ private fun Content(
             ProfileHeader(
                 email = state.userEmail,
                 phone = state.authInfo.userInfo?.phone,
-                profile = state.authInfo.profile
+                profile = state.authInfo.profile,
+                pidPortraitBase64 = state.pidPortraitBase64
             )
 
             // Section separator (top, full width to minimize visual gap)
@@ -328,7 +327,7 @@ private fun Content(
 }
 
 @Composable
-private fun ProfileHeader(email: String?, phone: String?, profile: Profile?) {
+private fun ProfileHeader(email: String?, phone: String?, profile: Profile?, pidPortraitBase64: String?) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -351,14 +350,25 @@ private fun ProfileHeader(email: String?, phone: String?, profile: Profile?) {
                 color = MaterialTheme.colorScheme.secondaryContainer,
             ) {
                 // Using local avatar resource
-                Image(
-                    painter = painterResource(id = R.drawable.authbound_avatar_placeholder_mascot),
-                    contentDescription = "User Avatar",
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
+                if (!pidPortraitBase64.isNullOrBlank()) {
+                    ImageOrPlaceholder(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape),
+                        base64Image = pidPortraitBase64,
+                        contentScale = ContentScale.Crop,
+                        fallbackIcon = AppIcons.User,
+                    )
+                } else {
+                    Image(
+                        painter = painterResource(id = R.drawable.authbound_avatar_placeholder_mascot),
+                        contentDescription = "User Avatar",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                }
             }
         }
         VSpacer.Medium()
@@ -495,7 +505,6 @@ private fun SettingsScreenPreview() {
 
         Content(
             state = State(
-                screenTitle = stringResource(R.string.settings_screen_title),
                 settingsItems = settingsItems,
                 appVersion = "1.0.0",
                 changelogUrl = "",

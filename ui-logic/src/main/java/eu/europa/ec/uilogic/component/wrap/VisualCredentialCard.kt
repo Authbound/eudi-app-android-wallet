@@ -212,11 +212,17 @@ fun VisualCredentialCard(
     } else {
         1f
     }
+    val cardShape = RoundedCornerShape(20.dp)
     val content: @Composable () -> Unit = {
         Surface(
             modifier = modifier
                 .fillMaxWidth()
                 .heightIn(min = 200.dp)  // Minimum height for breathing room
+                .border(
+                    width = 1.dp,
+                    color = Color.White.copy(alpha = 0.1f),
+                    shape = cardShape
+                )
                 .scale(scale)
                 .clickable(
                     interactionSource = interactionSource,
@@ -226,7 +232,7 @@ fun VisualCredentialCard(
                         onClick()
                     }
                 ),
-            shape = RoundedCornerShape(20.dp),
+            shape = cardShape,
             shadowElevation = 12.dp
         ) {
             Box(

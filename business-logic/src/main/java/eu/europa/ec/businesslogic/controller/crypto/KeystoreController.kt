@@ -35,13 +35,31 @@ interface KeystoreController {
     /**
      * Generates a WUA (Wallet Unit Attestation) key pair in the Android Keystore.
      *
-     * @param challenge The attestation challenge from the backend server. This should be a
+     * This method always generates a fresh key pair with the provided challenge, deleting
+     * any existing WUA key first. This ensures the attestation certificate always contains
+     * the current server-provided challenge, which is required for ARF compliance.
+     *
+     * @param challenge The attestation challenge from the backend server. This MUST be a
      *                  unique, server-provided nonce for each WUA generation to prevent
-     *                  replay attacks. If null, uses a default challenge (NOT recommended
-     *                  for production - backend should always provide a fresh challenge).
+     *                  replay attacks. Required parameter - attestation without a fresh
+     *                  server challenge violates EUDI-ARF security requirements.
      * @return The certificate chain for the generated key pair, or null if generation fails.
+     * @throws IllegalArgumentException if challenge is null or empty
      */
-    fun generateWuaKeyPair(challenge: ByteArray? = null): Array<Certificate>?
+    fun generateWuaKeyPair(challenge: ByteArray): Array<Certificate>?
+
+    /**
+     * Deletes the WUA key pair from the Android Keystore.
+     *
+     * Call this method to clean up the WUA key when:
+     * - Wallet activation fails and needs to be retried
+     * - User resets the wallet
+     * - Key needs to be regenerated with a new challenge
+     *
+     * @return true if the key was deleted or didn't exist, false if deletion failed
+     */
+    fun deleteWuaKey(): Boolean
+
     fun deleteBiometricSecretKey(alias: String)
 }
 
@@ -54,8 +72,6 @@ class KeystoreControllerImpl(
     companion object {
         private const val STORE_TYPE = "AndroidKeyStore"
         private const val WUA_KEY_ALIAS = "wua_key_alias"
-        // Default challenge - should be replaced with server-provided nonce for ARF compliance
-        private const val DEFAULT_ATTESTATION_CHALLENGE = "authbound"
     }
 
     private var androidKeyStore: KeyStore? = null
@@ -104,44 +120,64 @@ class KeystoreControllerImpl(
         }
     }
 
-    override fun generateWuaKeyPair(challenge: ByteArray?): Array<Certificate>? {
-        return androidKeyStore?.let {
-            if (!it.containsAlias(WUA_KEY_ALIAS)) {
-                val keyPairGenerator =
-                    KeyPairGenerator.getInstance(
-                        KeyProperties.KEY_ALGORITHM_EC,
-                        STORE_TYPE
-                    )
+    override fun generateWuaKeyPair(challenge: ByteArray): Array<Certificate>? {
+        require(challenge.isNotEmpty()) { "Attestation challenge is required and cannot be empty" }
 
-                // Use server-provided challenge or fallback to default
-                // NOTE: For ARF compliance, backend should always provide a unique challenge
-                val attestationChallenge = challenge ?: DEFAULT_ATTESTATION_CHALLENGE.toByteArray()
-
-                val parameterSpec = KeyGenParameterSpec.Builder(
-                    WUA_KEY_ALIAS,
-                    KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY
-                ).run {
-                    setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
-                    setDigests(
-                        KeyProperties.DIGEST_SHA256,
-                        KeyProperties.DIGEST_SHA512
-                    )
-                    // ARF Compliance: WUA keys must require user authentication
-                    setUserAuthenticationRequired(true)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        // Auth valid for 5 minutes, requires strong biometric or device credential
-                        setUserAuthenticationParameters(
-                            300, // 5 minutes
-                            KeyProperties.AUTH_BIOMETRIC_STRONG or KeyProperties.AUTH_DEVICE_CREDENTIAL
-                        )
-                    }
-                    setAttestationChallenge(attestationChallenge)
-                    build()
-                }
-                keyPairGenerator.initialize(parameterSpec)
-                keyPairGenerator.generateKeyPair()
+        return androidKeyStore?.let { keyStore ->
+            // Always delete existing key to ensure fresh attestation with the new challenge.
+            // This is critical for ARF compliance: each attestation must contain the
+            // current server-provided challenge. Reusing an old key would send a stale
+            // attestation that the backend would reject.
+            if (keyStore.containsAlias(WUA_KEY_ALIAS)) {
+                logController.d(javaClass.simpleName, "Deleting existing WUA key for fresh attestation")
+                keyStore.deleteEntry(WUA_KEY_ALIAS)
             }
-            it.getCertificateChain(WUA_KEY_ALIAS)
+
+            val keyPairGenerator = KeyPairGenerator.getInstance(
+                KeyProperties.KEY_ALGORITHM_EC,
+                STORE_TYPE
+            )
+
+            val parameterSpec = KeyGenParameterSpec.Builder(
+                WUA_KEY_ALIAS,
+                KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY
+            ).run {
+                setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
+                setDigests(
+                    KeyProperties.DIGEST_SHA256,
+                    KeyProperties.DIGEST_SHA512
+                )
+                // ARF Compliance: WUA keys must require user authentication
+                setUserAuthenticationRequired(true)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    // Auth valid for 5 minutes, requires strong biometric or device credential
+                    setUserAuthenticationParameters(
+                        300, // 5 minutes
+                        KeyProperties.AUTH_BIOMETRIC_STRONG or KeyProperties.AUTH_DEVICE_CREDENTIAL
+                    )
+                }
+                setAttestationChallenge(challenge)
+                build()
+            }
+            keyPairGenerator.initialize(parameterSpec)
+            keyPairGenerator.generateKeyPair()
+
+            keyStore.getCertificateChain(WUA_KEY_ALIAS)
+        }
+    }
+
+    override fun deleteWuaKey(): Boolean {
+        return try {
+            androidKeyStore?.let { keyStore ->
+                if (keyStore.containsAlias(WUA_KEY_ALIAS)) {
+                    keyStore.deleteEntry(WUA_KEY_ALIAS)
+                    logController.d(javaClass.simpleName, "WUA key deleted successfully")
+                }
+            }
+            true
+        } catch (e: Exception) {
+            logController.e(javaClass.simpleName, e)
+            false
         }
     }
 

@@ -291,6 +291,7 @@ class HomeViewModel(
             }
 
             is Event.GetCredentials -> {
+                getHeroCredential()
                 getCredentials()
             }
 

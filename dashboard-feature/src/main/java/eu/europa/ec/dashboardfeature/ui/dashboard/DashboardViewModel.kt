@@ -66,6 +66,8 @@ data class State(
     // user profile for side menu
     val userProfile: UserProfileUi? = null,
 
+    val appVersion: String = "",
+
     val isBottomSheetOpen: Boolean = false,
     val sheetContent: DashboardBottomSheetContent = DashboardBottomSheetContent.DocumentRevocation(
         options = emptyList()
@@ -147,7 +149,12 @@ class DashboardViewModel(
         return State(
             sideMenuTitle = "",
             sideMenuOptions = dashboardInteractor.getSideMenuOptions(),
+            appVersion = dashboardInteractor.getAppVersion(),
         )
+    }
+
+    init {
+        loadUserProfile()
     }
 
     override fun handleEvents(event: Event) {
@@ -180,7 +187,9 @@ class DashboardViewModel(
                         sideMenuAnimation = SideMenuAnimation.SLIDE
                     )
                 }
-                loadUserProfile()
+                if (viewState.value.userProfile?.portraitBase64.isNullOrBlank()) {
+                    loadUserProfile()
+                }
             }
 
             is Event.DocumentRevocationNotificationReceived -> {

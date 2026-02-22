@@ -16,6 +16,7 @@
 package eu.europa.ec.walletactivationlogic.usecase
 
 import eu.europa.ec.businesslogic.controller.crypto.CryptoController
+import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.model.error.WalletActivationError
 import eu.europa.ec.businesslogic.extension.hexToByteArray
 import eu.europa.ec.businesslogic.model.DeviceInfo
@@ -32,11 +33,20 @@ interface CreateWalletAttestationUseCase {
 class CreateWalletAttestationUseCaseImpl(
     private val cryptoController: CryptoController,
     private val walletActivationRepository: WalletActivationRepository,
+    private val logController: LogController,
 ) : CreateWalletAttestationUseCase {
 
     override suspend fun invoke(
         deviceInfo: DeviceInfo,
         pushToken: String,
+    ): Result<WalletActivationResponse> {
+        return invokeInternal(deviceInfo, pushToken, isConflictRetry = false)
+    }
+
+    private suspend fun invokeInternal(
+        deviceInfo: DeviceInfo,
+        pushToken: String,
+        isConflictRetry: Boolean,
     ): Result<WalletActivationResponse> {
         // Step 1: Get attestation challenge from backend
         val challengeResponse = walletActivationRepository.getAttestationChallenge()
@@ -61,14 +71,19 @@ class CreateWalletAttestationUseCaseImpl(
 
         // Step 3: Generate WUA key pair with the challenge embedded in attestation
         val certificateChain = try {
-            cryptoController.generateWuaKeyPair(challengeBytes)
-                ?: return Result.failure(
+            cryptoController.generateWuaKeyPair(challengeBytes) ?: run {
+                // Clean up any partial key state on failure
+                cryptoController.deleteWuaKey()
+                return Result.failure(
                     WalletActivationError.CryptographicFailure(
                         operation = "WUA key pair generation",
                         cause = Exception("KeyStore returned null certificate chain")
                     )
                 )
+            }
         } catch (e: Exception) {
+            // Clean up any partial key state on failure
+            cryptoController.deleteWuaKey()
             return Result.failure(
                 WalletActivationError.CryptographicFailure(
                     operation = "WUA key pair generation",
@@ -80,12 +95,42 @@ class CreateWalletAttestationUseCaseImpl(
         val publicKey = certificateChain.first()
 
         // Step 4: Activate wallet with attestation chain and challenge ID
-        return walletActivationRepository.activateWallet(
+        val activationResult = walletActivationRepository.activateWallet(
             publicKey = publicKey,
             attestationChain = certificateChain,
             challengeId = challengeResponse.challengeId,
             deviceInfo = deviceInfo,
             pushToken = pushToken,
         )
+
+        if (activationResult.isFailure) {
+            val error = activationResult.exceptionOrNull()
+
+            // Auto-recover from 409 Conflict: delete old WUA from server and retry once
+            if (error is WalletActivationError.WalletAlreadyExists && !isConflictRetry) {
+                logController.i("CreateWalletAttestation") {
+                    "409 Conflict: WUA already exists on server. Deleting old WUA and retrying..."
+                }
+                cryptoController.deleteWuaKey()
+
+                val deleteResult = walletActivationRepository.deleteWalletActivation()
+                if (deleteResult.isFailure) {
+                    logController.e("CreateWalletAttestation") {
+                        "Failed to delete old WUA: ${deleteResult.exceptionOrNull()?.message}"
+                    }
+                    return Result.failure(error)
+                }
+
+                logController.i("CreateWalletAttestation") {
+                    "Old WUA deleted successfully, retrying activation with fresh key..."
+                }
+                return invokeInternal(deviceInfo, pushToken, isConflictRetry = true)
+            }
+
+            // For all other errors (or failed conflict retry): clean up key and propagate
+            cryptoController.deleteWuaKey()
+        }
+
+        return activationResult
     }
 } 

@@ -36,7 +36,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
@@ -49,7 +55,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -78,6 +83,7 @@ import eu.europa.ec.uilogic.component.wrap.WrapModalBottomSheet
 import eu.europa.ec.uilogic.component.wrap.PinIndicator
 import eu.europa.ec.uilogic.component.wrap.WrapPinKeypad
 import eu.europa.ec.uilogic.extension.finish
+import eu.europa.ec.uilogic.navigation.AuthenticationScreens
 import eu.europa.ec.uilogic.navigation.CommonScreens
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
@@ -155,6 +161,19 @@ fun PinScreen(
                 )
             }
         }
+
+        if (state.showResetConfirmation) {
+            WrapModalBottomSheet(
+                onDismissRequest = {
+                    viewModel.setEvent(Event.BottomSheet.Reset.CancelPressed)
+                },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            ) {
+                ResetConfirmationSheetContent(
+                    onEventSent = { viewModel.setEvent(it) }
+                )
+            }
+        }
     }
 }
 
@@ -176,6 +195,13 @@ private fun handleNavigationEffect(
 
         is Effect.Navigation.Pop -> navController.popBackStack()
         is Effect.Navigation.Finish -> context.finish()
+
+        is Effect.Navigation.GoToLogin -> {
+            navController.navigate(AuthenticationScreens.Login.screenRoute) {
+                popUpTo(0) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
     }
 }
 
@@ -200,25 +226,47 @@ private fun Content(
     }
 
     // Standard PIN screen layout: Top branding, Middle content (flexible), Bottom keypad (fixed)
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
     ) {
-        // Top section with logo - takes remaining space
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+        // Top section with logo and instructions - takes remaining space
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             AppIconAndText(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .scale(1.12f)  // 5% larger logo
-                    .padding(bottom = SPACING_LARGE.dp),
+                    .fillMaxWidth(0.45f)
+                    .padding(bottom = 24.dp),
                 appIconAndTextData = AppIconAndTextData(),
+            )
+
+            // Title - e.g., "Create Passcode" or "Enter Passcode"
+            Text(
+                text = state.title,
+                style = MaterialTheme.typography.headlineSmall.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            // Subtitle - e.g., "Enter a 6-digit passcode" or "Re-enter to confirm"
+            Text(
+                text = state.subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 32.dp, vertical = 4.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
         }
 
@@ -249,7 +297,39 @@ private fun Content(
                 onEventSend(Event.OnQuickPinEntered(next))
             }
         )
-    }
+        } // end inner Column
+
+        // Overflow menu — only visible during VERIFY flow
+        if (state.isVerifyFlow) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 4.dp, end = 4.dp)
+            ) {
+                IconButton(
+                    onClick = { onEventSend(Event.OverflowMenuToggled(true)) }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = stringResource(id = R.string.quick_pin_forgot_menu_item),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = state.showOverflowMenu,
+                    onDismissRequest = { onEventSend(Event.OverflowMenuToggled(false)) }
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(text = stringResource(id = R.string.quick_pin_forgot_menu_item))
+                        },
+                        onClick = { onEventSend(Event.ForgotPinPressed) }
+                    )
+                }
+            }
+        }
+    } // end outer Box
 
     LaunchedEffect(Unit) {
         effectFlow.onEach { effect ->
@@ -287,6 +367,22 @@ private fun SheetContent(
         ),
         onPositiveClick = { onEventSent(Event.BottomSheet.Cancel.PrimaryButtonPressed) },
         onNegativeClick = { onEventSent(Event.BottomSheet.Cancel.SecondaryButtonPressed) }
+    )
+}
+
+@Composable
+private fun ResetConfirmationSheetContent(
+    onEventSent: (event: Event) -> Unit
+) {
+    DialogBottomSheet(
+        textData = BottomSheetTextDataUi(
+            title = stringResource(id = R.string.quick_pin_reset_title),
+            message = stringResource(id = R.string.quick_pin_reset_subtitle),
+            positiveButtonText = stringResource(id = R.string.quick_pin_reset_primary_button),
+            negativeButtonText = stringResource(id = R.string.quick_pin_reset_secondary_button),
+        ),
+        onPositiveClick = { onEventSent(Event.BottomSheet.Reset.ConfirmPressed) },
+        onNegativeClick = { onEventSent(Event.BottomSheet.Reset.CancelPressed) }
     )
 }
 

@@ -16,7 +16,6 @@
 
 package eu.europa.ec.resourceslogic.theme.values
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -416,28 +415,28 @@ class ThemeColors {
 }
 
 val ColorScheme.success: Color
-    @Composable get() = if (isSystemInDarkTheme()) {
+    @Composable get() = if (isInDarkMode) {
         Color(ThemeColors.eudiw_theme_dark_success)
     } else {
         Color(ThemeColors.eudiw_theme_light_success)
     }
 
 val ColorScheme.warning: Color
-    @Composable get() = if (isSystemInDarkTheme()) {
+    @Composable get() = if (isInDarkMode) {
         Color(ThemeColors.eudiw_theme_dark_warning)
     } else {
         Color(ThemeColors.eudiw_theme_light_warning)
     }
 
 val ColorScheme.pending: Color
-    @Composable get() = if (isSystemInDarkTheme()) {
+    @Composable get() = if (isInDarkMode) {
         Color(ThemeColors.eudiw_theme_dark_pending)
     } else {
         Color(ThemeColors.eudiw_theme_light_pending)
     }
 
 val ColorScheme.divider: Color
-    @Composable get() = if (isSystemInDarkTheme()) {
+    @Composable get() = if (isInDarkMode) {
         Color(ThemeColors.eudiw_theme_dark_divider)
     } else {
         Color(ThemeColors.eudiw_theme_light_divider)
@@ -445,21 +444,21 @@ val ColorScheme.divider: Color
 
 // Premium effect colors - Authbound brand
 val ColorScheme.shadowNavy: Color
-    @Composable get() = if (isSystemInDarkTheme()) {
+    @Composable get() = if (isInDarkMode) {
         Color(ThemeColors.eudiw_theme_dark_shadow_navy)
     } else {
         Color(ThemeColors.eudiw_theme_light_shadow_navy)
     }
 
 val ColorScheme.glowAccent: Color
-    @Composable get() = if (isSystemInDarkTheme()) {
+    @Composable get() = if (isInDarkMode) {
         Color(ThemeColors.eudiw_theme_dark_glow_accent)
     } else {
         Color(ThemeColors.eudiw_theme_light_glow_accent)
     }
 
 val ColorScheme.glowPrimary: Color
-    @Composable get() = if (isSystemInDarkTheme()) {
+    @Composable get() = if (isInDarkMode) {
         Color(ThemeColors.eudiw_theme_dark_glow_primary)
     } else {
         Color(ThemeColors.eudiw_theme_light_glow_primary)
@@ -468,14 +467,14 @@ val ColorScheme.glowPrimary: Color
 // Semantic color for selection/active states (nav icons, checkboxes, radio buttons)
 // Separate from primary to allow different colors in dark mode
 val ColorScheme.activeHighlight: Color
-    @Composable get() = if (isSystemInDarkTheme()) {
+    @Composable get() = if (isInDarkMode) {
         Color(ThemeColors.eudiw_theme_dark_activeHighlight)
     } else {
         Color(ThemeColors.eudiw_theme_light_activeHighlight)
     }
 
 val ColorScheme.onActiveHighlight: Color
-    @Composable get() = if (isSystemInDarkTheme()) {
+    @Composable get() = if (isInDarkMode) {
         Color(ThemeColors.eudiw_theme_dark_onActiveHighlight)
     } else {
         Color(ThemeColors.eudiw_theme_light_onActiveHighlight)

@@ -144,7 +144,6 @@ fun PremiumEmptyState(
             .fillMaxSize()
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
     ) {
         if (shouldAnimate) {
             AnimatedVisibility(

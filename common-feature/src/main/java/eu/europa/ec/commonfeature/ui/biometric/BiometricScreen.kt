@@ -19,7 +19,6 @@ package eu.europa.ec.commonfeature.ui.biometric
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -38,7 +37,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.unit.dp
@@ -62,9 +60,8 @@ import eu.europa.ec.uilogic.component.utils.OneTimeLaunchedEffect
 import eu.europa.ec.uilogic.component.utils.SIZE_MEDIUM
 import eu.europa.ec.uilogic.component.utils.SPACING_LARGE
 import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
-import eu.europa.ec.uilogic.component.wrap.WrapIconButton
+import eu.europa.ec.uilogic.component.wrap.PinIndicator
 import eu.europa.ec.uilogic.component.wrap.WrapPinKeypad
-import eu.europa.ec.uilogic.component.wrap.WrapPinTextField
 import eu.europa.ec.uilogic.config.ConfigNavigation
 import eu.europa.ec.uilogic.config.FlowCompletion
 import eu.europa.ec.uilogic.config.NavigationType
@@ -208,67 +205,43 @@ private fun Body(
             )
         }
 
-        if (state.config.mode is BiometricMode.Login) {
-            // This screen uses an in-app keypad. Ensure the system keyboard stays hidden.
-            OneTimeLaunchedEffect {
-                focusManager.clearFocus(force = true)
-                keyboardController?.hide()
-            }
+        // This screen uses an in-app keypad. Ensure the system keyboard stays hidden.
+        OneTimeLaunchedEffect {
+            focusManager.clearFocus(force = true)
+            keyboardController?.hide()
+        }
 
-            WrapPinKeypad(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(bottom = SPACING_SMALL.dp),
-                leadingIconData = if (state.userBiometricsAreEnabled) AppIcons.TouchId else null,
-                onLeadingPressed = if (state.userBiometricsAreEnabled) {
-                    {
-                        onEventSent(
-                            Event.OnBiometricsClicked(
-                                context = context,
-                                shouldThrowErrorIfNotAvailable = true
-                            )
+        WrapPinKeypad(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(bottom = SPACING_SMALL.dp),
+            leadingIconData = if (state.userBiometricsAreEnabled) AppIcons.TouchId else null,
+            onLeadingPressed = if (state.userBiometricsAreEnabled) {
+                {
+                    onEventSent(
+                        Event.OnBiometricsClicked(
+                            context = context,
+                            shouldThrowErrorIfNotAvailable = true
                         )
-                    }
-                } else null,
-                onDigitPressed = { digit ->
-                    val current = state.quickPin
-                    val next = if (!state.quickPinError.isNullOrEmpty()) {
-                        digit.toString()
-                    } else {
-                        (current + digit.toString())
-                    }.take(state.quickPinSize)
-                    onEventSent(Event.OnQuickPinEntered(next))
-                },
-                onBackspacePressed = {
-                    val current = state.quickPin
-                    val next = if (current.isNotEmpty()) current.dropLast(1) else current
-                    onEventSent(Event.OnQuickPinEntered(next))
+                    )
                 }
-            )
-        }
-
-        if (state.userBiometricsAreEnabled) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(bottom = 5.dp),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                WrapIconButton(
-                    iconData = AppIcons.TouchId,
-                    onClick = {
-                        onEventSent(
-                            Event.OnBiometricsClicked(
-                                context = context,
-                                shouldThrowErrorIfNotAvailable = true
-                            )
-                        )
-                    }
-                )
+            } else null,
+            onDigitPressed = { digit ->
+                val current = state.quickPin
+                val next = if (!state.quickPinError.isNullOrEmpty()) {
+                    digit.toString()
+                } else {
+                    (current + digit.toString())
+                }.take(state.quickPinSize)
+                onEventSent(Event.OnQuickPinEntered(next))
+            },
+            onBackspacePressed = {
+                val current = state.quickPin
+                val next = if (current.isNotEmpty()) current.dropLast(1) else current
+                onEventSent(Event.OnQuickPinEntered(next))
             }
-        }
+        )
     }
 
     LaunchedEffect(Unit) {
@@ -325,10 +298,7 @@ private fun MainContent(
 
                 PinFieldLayout(
                     modifier = Modifier.fillMaxWidth(),
-                    state = state,
-                    onPinInput = { quickPin ->
-                        onEventSent(Event.OnQuickPinEntered(quickPin))
-                    }
+                    state = state
                 )
             }
         }
@@ -379,10 +349,7 @@ private fun MainContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = SPACING_LARGE.dp),
-                state = state,
-                onPinInput = { quickPin ->
-                    onEventSent(Event.OnQuickPinEntered(quickPin))
-                }
+                state = state
             )
         }
     }
@@ -392,20 +359,15 @@ private fun MainContent(
 private fun PinFieldLayout(
     modifier: Modifier = Modifier,
     state: State,
-    onPinInput: (String) -> Unit,
 ) {
-    WrapPinTextField(
+    PinIndicator(
         modifier = modifier,
-        controlledCode = state.quickPin,
-        onPinUpdate = onPinInput,
-        length = state.quickPinSize,
+        pinLength = state.quickPinSize,
+        filledCount = state.quickPin.length,
         hasError = !state.quickPinError.isNullOrEmpty(),
         errorMessage = state.quickPinError,
-        visualTransformation = PasswordVisualTransformation(),
-        pinWidth = 42.dp,
-        focusOnCreate = false,
-        enabled = false,
-        shouldHideKeyboardOnCompletion = true
+        circleSize = 16.dp,
+        circleSpacing = 20.dp
     )
 }
 

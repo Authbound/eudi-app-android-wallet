@@ -654,7 +654,7 @@ class DocumentsViewModel(
             && viewState.value.shouldRevertFilterChanges
         ) {
             interactor.revertFilters()
-            setState { copy(shouldRevertFilterChanges = true) }
+            setState { copy(shouldRevertFilterChanges = false) }
         }
 
         setState {

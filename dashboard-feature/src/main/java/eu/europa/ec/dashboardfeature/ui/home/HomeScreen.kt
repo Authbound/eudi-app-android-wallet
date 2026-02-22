@@ -95,6 +95,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -126,6 +128,7 @@ import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
 import eu.europa.ec.uilogic.component.utils.HSpacer
+import eu.europa.ec.uilogic.component.utils.LifecycleEffect
 import eu.europa.ec.uilogic.component.utils.OneTimeLaunchedEffect
 import eu.europa.ec.uilogic.component.utils.SPACING_LARGE
 import eu.europa.ec.uilogic.component.utils.SPACING_MEDIUM
@@ -223,6 +226,13 @@ fun HomeScreen(
 
     OneTimeLaunchedEffect {
         viewModel.setEvent(Event.Init)
+    }
+
+    LifecycleEffect(
+        lifecycleOwner = LocalLifecycleOwner.current,
+        lifecycleEvent = Lifecycle.Event.ON_RESUME
+    ) {
+        viewModel.setEvent(Event.GetCredentials)
     }
 }
 
@@ -1054,7 +1064,7 @@ private fun HeroCredentialSection(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(180.dp),
+                        .height(200.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator()
@@ -1078,7 +1088,7 @@ private fun HeroCredentialSection(
                                 config = heroCredential.toVisualConfig(),
                                 modifier = Modifier
                                     .width(itemWidth)
-                                    .height(180.dp),
+                                    .height(200.dp),
                                 showAuthboundBadge = heroCredential.isAuthboundIssued(),
                                 onClick = onCredentialClick
                             )
@@ -1185,7 +1195,7 @@ private fun EmptyHeroCard(
                 },
             shape = RoundedCornerShape(20.dp),
             color = Color.Transparent,
-            shadowElevation = 8.dp
+            shadowElevation = 0.dp
         ) {
             Box(
                 modifier = Modifier
@@ -1317,7 +1327,7 @@ fun AuthboundIdPromoCard(
                 },
             shape = RoundedCornerShape(24.dp),
             color = Color.Transparent,
-            shadowElevation = 12.dp
+            shadowElevation = 0.dp
         ) {
             Box(
                 modifier = Modifier

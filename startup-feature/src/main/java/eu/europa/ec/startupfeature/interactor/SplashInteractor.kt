@@ -26,9 +26,11 @@ import eu.europa.ec.authenticationlogic.usecase.WalletActivationStatus
 import eu.europa.ec.businesslogic.controller.device.DeviceController
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
+import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractor
 import eu.europa.ec.startupfeature.model.StartupState
 import io.github.jan.supabase.auth.status.SessionStatus
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -59,6 +61,7 @@ interface SplashInteractor {
 class SplashInteractorImpl(
     private val supabaseAuthRepository: SupabaseAuthRepository,
     private val prefKeys: PrefKeysV2,
+    private val prefsController: PrefsControllerV2,
     private val logController: LogController,
     private val isWalletActivatedUseCase: IsWalletActivatedUseCase,
     private val isProfileCompletedUseCase: IsProfileCompletedUseCase,
@@ -71,6 +74,8 @@ class SplashInteractorImpl(
     companion object {
         private const val TAG = "SplashInteractor"
         private const val SESSION_RESTORE_GRACE_MS = 2_000L
+        private const val SESSION_DATA_READY_TIMEOUT_MS = 2_000L
+        private const val SESSION_DATA_POLL_INTERVAL_MS = 100L
     }
 
     override suspend fun determineStartupState(): StartupState {
@@ -112,7 +117,14 @@ class SplashInteractorImpl(
     /**
      * Level 1: Check authentication status.
      *
-     * @return StartupState if not authenticated, null if authenticated
+     * Verifies both:
+     * 1. SessionStatus is Authenticated (auth state flow)
+     * 2. Session data is actually accessible (currentSessionOrNull returns data)
+     *
+     * This prevents race conditions where the auth state flow emits Authenticated
+     * before the session data is fully available for user-scoped storage access.
+     *
+     * @return StartupState if not authenticated, null if authenticated and session data ready
      */
     private suspend fun checkAuthenticationState(): StartupState? {
         logController.d(TAG, "Level 1: Checking authentication status...")
@@ -124,8 +136,40 @@ class SplashInteractorImpl(
             return StartupState.NotAuthenticated
         }
 
-        logController.d(TAG, "User is authenticated, proceeding to onboarding check")
+        // Wait for session data to be accessible (fixes race condition with user-scoped storage)
+        val sessionDataReady = waitForSessionDataReady()
+        if (!sessionDataReady) {
+            logController.w(TAG) { "Session authenticated but data not accessible, treating as not authenticated" }
+            return StartupState.NotAuthenticated
+        }
+
+        logController.d(TAG, "User is authenticated and session data ready, proceeding to onboarding check")
         return null // Continue to next level
+    }
+
+    /**
+     * Wait for session data to be accessible via currentSessionOrNull().
+     *
+     * There can be a brief delay between SessionStatus.Authenticated being emitted
+     * and the session data being available through currentSessionOrNull(). This
+     * causes issues with user-scoped storage (PrefsControllerV2) which relies on
+     * the user ID from the session.
+     *
+     * @return true if session data became accessible within timeout, false otherwise
+     */
+    private suspend fun waitForSessionDataReady(): Boolean {
+        val startTime = System.currentTimeMillis()
+
+        while (System.currentTimeMillis() - startTime < SESSION_DATA_READY_TIMEOUT_MS) {
+            if (prefsController.hasAuthenticatedUser()) {
+                logController.d(TAG, "Session data ready after ${System.currentTimeMillis() - startTime}ms")
+                return true
+            }
+            delay(SESSION_DATA_POLL_INTERVAL_MS)
+        }
+
+        logController.w(TAG) { "Timeout waiting for session data to be accessible" }
+        return false
     }
 
     /**

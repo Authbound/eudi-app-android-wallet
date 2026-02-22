@@ -16,11 +16,20 @@
 
 package eu.europa.ec.dashboardfeature.interactor
 
+import android.util.Base64
 import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
+import eu.europa.ec.businesslogic.config.ConfigLogic
+import eu.europa.ec.businesslogic.extension.encodeToBase64String
+import eu.europa.ec.commonfeature.util.DocumentJsonKeys
+import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
+import eu.europa.ec.corelogic.model.DocumentIdentifier
+import eu.europa.ec.corelogic.model.toDocumentIdentifier
 import eu.europa.ec.dashboardfeature.ui.dashboard.model.SideMenuItemUi
 import eu.europa.ec.dashboardfeature.ui.dashboard.model.SideMenuTypeUi
 import eu.europa.ec.dashboardfeature.ui.dashboard.model.UserProfileUi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.uilogic.component.AppIcons
@@ -31,14 +40,19 @@ import eu.europa.ec.uilogic.component.ListItemTrailingContentDataUi
 
 interface DashboardInteractor {
     fun getSideMenuOptions(): List<SideMenuItemUi>
+    fun getAppVersion(): String
     suspend fun getUserProfile(): UserProfileUi?
 }
 
 class DashboardInteractorImpl(
     private val resourceProvider: ResourceProvider,
+    private val configLogic: ConfigLogic,
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
     private val getMyProfileUseCase: GetMyProfileUseCase,
+    private val walletCoreDocumentsController: WalletCoreDocumentsController,
 ) : DashboardInteractor {
+
+    override fun getAppVersion(): String = configLogic.appVersion
 
     override fun getSideMenuOptions(): List<SideMenuItemUi> {
         return buildList {
@@ -139,21 +153,66 @@ class DashboardInteractorImpl(
 
     override suspend fun getUserProfile(): UserProfileUi? {
         return try {
-            val user = getCurrentUserUseCase()
-            val profile = getMyProfileUseCase().getOrNull()
+            coroutineScope {
+                val userDeferred = async { getCurrentUserUseCase() }
+                val profileDeferred = async { getMyProfileUseCase().getOrNull() }
+                val pidPortraitDeferred = async { getPidPortraitBase64() }
 
-            user?.let {
-                UserProfileUi(
-                    displayName = profile?.displayName
-                        ?: user.email?.substringBefore("@")
-                        ?: "User",
-                    email = user.email,
-                    handle = profile?.handle,
-                    avatarUrl = null
-                )
+                val user = userDeferred.await()
+                val profile = profileDeferred.await()
+                val pidPortraitBase64 = pidPortraitDeferred.await()
+
+                user?.let {
+                    UserProfileUi(
+                        displayName = profile?.displayName
+                            ?: user.email?.substringBefore("@")
+                            ?: "User",
+                        email = user.email,
+                        handle = profile?.handle,
+                        avatarUrl = null,
+                        portraitBase64 = pidPortraitBase64
+                    )
+                }
             }
         } catch (e: Exception) {
             null
+        }
+    }
+
+    private fun getPidPortraitBase64(): String? {
+        val mainPid = walletCoreDocumentsController.getMainPidDocument()
+        val pidDocs = walletCoreDocumentsController.getAllDocumentsByType(
+            documentIdentifiers = listOf(
+                DocumentIdentifier.MdocPid,
+                DocumentIdentifier.SdJwtPid
+            )
+        )
+
+        // Prefer PID portrait first; if not available, fall back to mDL portrait.
+        val candidates = buildList {
+            mainPid?.let { add(it) }
+            addAll(pidDocs.filterNot { it.id == mainPid?.id })
+
+            val mdlDocs = walletCoreDocumentsController.getAllIssuedDocuments()
+                .filter { doc ->
+                    val identifier = doc.toDocumentIdentifier()
+                    identifier is DocumentIdentifier.OTHER && (
+                        identifier.formatType.contains("mdl", ignoreCase = true)
+                            || identifier.formatType.contains("driving", ignoreCase = true)
+                    )
+                }
+            addAll(mdlDocs)
+        }
+
+        return candidates.firstNotNullOfOrNull { doc ->
+            when (val value: Any? = doc.data.claims
+                .firstOrNull { it.identifier == DocumentJsonKeys.PORTRAIT }
+                ?.value
+            ) {
+                is ByteArray -> value.encodeToBase64String(Base64.URL_SAFE)
+                is String -> value
+                else -> null
+            }?.takeIf { it.isNotBlank() }
         }
     }
 }

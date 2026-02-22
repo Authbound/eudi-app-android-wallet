@@ -23,5 +23,6 @@ data class UserProfileUi(
     val displayName: String,
     val email: String?,
     val handle: String?,
-    val avatarUrl: String?
+    val avatarUrl: String?,
+    val portraitBase64: String? = null,
 )

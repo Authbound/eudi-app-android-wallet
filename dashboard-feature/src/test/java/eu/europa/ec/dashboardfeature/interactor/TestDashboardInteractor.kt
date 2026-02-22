@@ -18,6 +18,8 @@ package eu.europa.ec.dashboardfeature.interactor
 
 import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
+import eu.europa.ec.businesslogic.config.ConfigLogic
+import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
 import eu.europa.ec.dashboardfeature.ui.dashboard.model.SideMenuItemUi
 import eu.europa.ec.dashboardfeature.ui.dashboard.model.SideMenuTypeUi
 import eu.europa.ec.resourceslogic.R
@@ -42,10 +44,16 @@ class TestDashboardInteractor {
     private lateinit var resourceProvider: ResourceProvider
 
     @Mock
+    private lateinit var configLogic: ConfigLogic
+
+    @Mock
     private lateinit var getCurrentUserUseCase: GetCurrentUserUseCase
 
     @Mock
     private lateinit var getMyProfileUseCase: GetMyProfileUseCase
+
+    @Mock
+    private lateinit var walletCoreDocumentsController: WalletCoreDocumentsController
 
     private lateinit var interactor: DashboardInteractor
 
@@ -56,8 +64,10 @@ class TestDashboardInteractor {
         closeable = MockitoAnnotations.openMocks(this)
         interactor = DashboardInteractorImpl(
             resourceProvider = resourceProvider,
+            configLogic = configLogic,
             getCurrentUserUseCase = getCurrentUserUseCase,
             getMyProfileUseCase = getMyProfileUseCase,
+            walletCoreDocumentsController = walletCoreDocumentsController,
         )
     }
 

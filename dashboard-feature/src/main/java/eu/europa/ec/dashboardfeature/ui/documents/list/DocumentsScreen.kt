@@ -482,9 +482,10 @@ private fun DocumentCategorySection(
                 fallbackTitle = rawTitle
             )
 
-            // Check if this document should show a photo placeholder
+            // Check if this document should show a photo (PID/mDL can have portrait)
             val hasPhoto = visualType == CredentialVisualType.PID ||
-                           visualType == CredentialVisualType.MDL
+                           visualType == CredentialVisualType.MDL ||
+                           !documentItem.portraitBase64.isNullOrBlank()
 
             VisualCredentialCard(
                 modifier = Modifier.fillMaxWidth(),
@@ -499,7 +500,8 @@ private fun DocumentCategorySection(
                     secondaryField = null,
                     status = status,
                     expiryDate = documentItem.uiData.supportingText?.removePrefix("Valid until: "),
-                    hasPhoto = hasPhoto
+                    hasPhoto = hasPhoto,
+                    portraitBase64 = documentItem.portraitBase64
                 ),
                 animationDelay = (categoryIndex * 100) + (docIndex * 50),
                 enableAnimations = false,

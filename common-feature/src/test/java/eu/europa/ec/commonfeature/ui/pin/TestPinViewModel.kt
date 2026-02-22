@@ -16,6 +16,7 @@
 
 package eu.europa.ec.commonfeature.ui.pin
 
+import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.businesslogic.validator.Form
 import eu.europa.ec.businesslogic.validator.FormValidationResult
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractor
@@ -71,6 +72,9 @@ class TestPinViewModel {
 
     @Mock
     private lateinit var uiSerializer: UiSerializer
+
+    @Mock
+    private lateinit var signOutUseCase: SignOutUseCase
 
     private lateinit var closeable: AutoCloseable
 
@@ -385,6 +389,7 @@ class TestPinViewModel {
             interactor = interactor,
             resourceProvider = resourceProvider,
             uiSerializer = uiSerializer,
+            signOutUseCase = signOutUseCase,
             pinFlow = pinFlow
         )
     }

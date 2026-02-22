@@ -18,6 +18,7 @@ package eu.europa.ec.commonfeature.ui.qr_scan
 
 import android.content.Context
 import androidx.lifecycle.viewModelScope
+import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.validator.Form
 import eu.europa.ec.businesslogic.validator.Rule
 import eu.europa.ec.commonfeature.config.IssuanceFlowType
@@ -49,6 +50,8 @@ import org.koin.android.annotation.KoinViewModel
 import org.koin.core.annotation.InjectedParam
 
 private const val MAX_ALLOWED_FAILED_SCANS = 5
+private const val MIN_LINKING_CODE_LENGTH = 6
+private const val TAG = "QrScanViewModel"
 
 data class State(
     val hasCameraPermission: Boolean = false,
@@ -82,6 +85,7 @@ class QrScanViewModel(
     private val interactor: QrScanInteractor,
     private val uiSerializer: UiSerializer,
     private val resourceProvider: ResourceProvider,
+    private val logController: LogController,
     @InjectedParam private val qrScannedConfig: String,
 ) : MviViewModel<Event, State, Effect>() {
 
@@ -190,8 +194,70 @@ class QrScanViewModel(
                 scanResult = scanResult,
                 issuanceFlowType = qrScanFlow.issuanceFlowType
             )
-
             is QrScanFlow.Signature -> navigateToRqesSdk(context, scanResult)
+            is QrScanFlow.DeviceLinking -> handleDeviceLinking(scanResult)
+        }
+    }
+
+    private fun handleDeviceLinking(scanResult: String) {
+        // Parse authbound://link?code=xxx format
+        val linkingCode = parseLinkingCode(scanResult)
+        if (linkingCode != null) {
+            setEffect {
+                Effect.Navigation.SwitchScreen(
+                    screenRoute = generateComposableNavigationLink(
+                        screen = DashboardScreens.Dashboard,
+                        arguments = generateComposableArguments(
+                            mapOf("linkingCode" to linkingCode)
+                        )
+                    )
+                )
+            }
+        } else {
+            // Invalid linking code format
+            setState {
+                copy(
+                    failedScanAttempts = failedScanAttempts + 1,
+                    showInformativeText = true,
+                    finishedScanning = false,
+                )
+            }
+        }
+    }
+
+    /**
+     * Parses a device linking QR code in the format: authbound://link?code=xxx
+     *
+     * Validates that:
+     * - The URI uses the correct scheme and host
+     * - The linking code is present and not empty
+     * - The linking code has minimum length (prevents malformed codes)
+     *
+     * @return The linking code if valid, null otherwise
+     */
+    private fun parseLinkingCode(scanResult: String): String? {
+        return try {
+            val uri = android.net.Uri.parse(scanResult)
+            if (uri.scheme != "authbound" || uri.host != "link") {
+                logController.w(TAG) { "Invalid linking URI scheme/host: ${uri.scheme}://${uri.host}" }
+                return null
+            }
+
+            val code = uri.getQueryParameter("code")
+            when {
+                code.isNullOrBlank() -> {
+                    logController.w(TAG) { "Linking code is empty or missing" }
+                    null
+                }
+                code.length < MIN_LINKING_CODE_LENGTH -> {
+                    logController.w(TAG) { "Linking code too short: ${code.length} chars (min: $MIN_LINKING_CODE_LENGTH)" }
+                    null
+                }
+                else -> code
+            }
+        } catch (e: Exception) {
+            logController.w(TAG) { "Failed to parse linking QR code: ${e.message}" }
+            null
         }
     }
 
@@ -203,6 +269,7 @@ class QrScanViewModel(
                 is QrScanFlow.Presentation -> getString(R.string.qr_scan_informative_text_presentation_flow)
                 is QrScanFlow.Issuance -> getString(R.string.qr_scan_informative_text_issuance_flow)
                 is QrScanFlow.Signature -> getString(R.string.qr_scan_informative_text_signature_flow)
+                is QrScanFlow.DeviceLinking -> getString(R.string.qr_scan_informative_text_device_linking_flow)
             }
         }
     }

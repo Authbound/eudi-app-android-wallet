@@ -286,7 +286,7 @@ private fun DeviceNotLinkedContent(
             .padding(horizontal = SPACING_LARGE.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.weight(0.15f))
+        Spacer(modifier = Modifier.height(16.dp))
 
         DeviceLinkIllustration()
 
@@ -337,7 +337,7 @@ private fun DeviceNotLinkedContent(
             )
         }
 
-        Spacer(modifier = Modifier.weight(0.3f))
+        VSpacer.ExtraLarge()
 
         LinkDeviceButton(
             onClick = {
@@ -345,8 +345,6 @@ private fun DeviceNotLinkedContent(
                 onLinkDevice()
             }
         )
-
-        VSpacer.ExtraLarge()
     }
 }
 
@@ -462,6 +460,7 @@ private fun FeatureHighlightCard(
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
+                minLines = 2,
                 maxLines = 2
             )
         }

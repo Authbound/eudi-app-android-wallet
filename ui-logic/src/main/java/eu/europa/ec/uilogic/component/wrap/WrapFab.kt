@@ -16,7 +16,7 @@
 
 package eu.europa.ec.uilogic.component.wrap
 
-import androidx.compose.foundation.isSystemInDarkTheme
+import eu.europa.ec.resourceslogic.theme.ThemeManager
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.MaterialTheme
@@ -36,14 +36,14 @@ private val primaryFabContainerColor: Color
     @Composable get() = MaterialTheme.colorScheme.primary
 
 private val primaryFabContentColor: Color
-    @Composable get() = if (isSystemInDarkTheme()) {
+    @Composable get() = if (ThemeManager.instance.set.isInDarkMode) {
         Color.White
     } else {
         MaterialTheme.colorScheme.surface
     }
 
 private val secondaryFabContainerColor: Color
-    @Composable get() = if (isSystemInDarkTheme()) {
+    @Composable get() = if (ThemeManager.instance.set.isInDarkMode) {
         Color.DarkGray
     } else {
         MaterialTheme.colorScheme.surface

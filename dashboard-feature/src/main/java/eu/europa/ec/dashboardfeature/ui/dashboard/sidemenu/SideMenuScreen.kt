@@ -105,13 +105,12 @@ private fun Content(
     var showFooter by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        delay(100)
         showProfile = true
-        delay(100)
+        delay(50)
         showActions = true
-        delay(100)
+        delay(50)
         showAccount = true
-        delay(100)
+        delay(50)
         showFooter = true
     }
 
@@ -132,6 +131,7 @@ private fun Content(
                         displayName = state.userProfile?.displayName ?: "User",
                         email = state.userProfile?.email,
                         avatarUrl = state.userProfile?.avatarUrl,
+                        portraitBase64 = state.userProfile?.portraitBase64,
                         onEditClick = {
                             onEventSent(Event.SideMenu.ItemClicked(SideMenuTypeUi.PROFILE))
                         }
@@ -233,7 +233,7 @@ private fun Content(
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
             )
             MenuFooter(
-                appVersion = "1.0.0", // TODO: Get from BuildConfig
+                appVersion = state.appVersion,
                 copyrightText = stringResource(R.string.app_copyright)
             )
         }

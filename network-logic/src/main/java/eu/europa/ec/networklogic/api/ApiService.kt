@@ -23,6 +23,8 @@ import eu.europa.ec.networklogic.model.request.CreateLivenessSessionRequest
 import eu.europa.ec.networklogic.model.request.CreateQuickIdSessionRequest
 import eu.europa.ec.networklogic.model.request.DummyRequest
 import eu.europa.ec.networklogic.model.request.IssueAuthboundIdRequest
+import eu.europa.ec.networklogic.model.request.ActionRespondRequest
+import eu.europa.ec.networklogic.model.request.DeviceLinkRequest
 import eu.europa.ec.networklogic.model.request.MaisaExchangeRequest
 import eu.europa.ec.networklogic.model.request.MaisaIssueRequest
 import eu.europa.ec.networklogic.model.request.WalletActivationRequest
@@ -38,6 +40,10 @@ import eu.europa.ec.networklogic.model.response.MaisaExchangeResponse
 import eu.europa.ec.networklogic.model.response.MaisaIssueResponse
 import eu.europa.ec.networklogic.model.response.ProfileResponse
 import eu.europa.ec.networklogic.model.response.QuickIdSessionResponse
+import eu.europa.ec.networklogic.model.response.ActionRespondResponse
+import eu.europa.ec.networklogic.model.response.ActionsListResponse
+import eu.europa.ec.networklogic.model.response.DeviceLinkResponse
+import eu.europa.ec.networklogic.model.response.DeviceStatusResponse
 import eu.europa.ec.networklogic.model.response.VerificationResponse
 import eu.europa.ec.networklogic.model.response.WalletActivationResponse
 import io.ktor.client.HttpClient
@@ -92,6 +98,34 @@ interface ApiClient {
         livenessSessionId: String
     ): ApiResponse<VerificationResponse>
     suspend fun issueAuthboundIdCredential(body: IssueAuthboundIdRequest, bearerToken: String): ApiResponse<AuthboundIdCredentialResponse>
+
+    // Actions endpoints
+    suspend fun getActions(
+        bearerToken: String,
+        status: String? = null,
+        type: String? = null
+    ): ApiResponse<ActionsListResponse>
+
+    suspend fun respondToAction(
+        actionId: String,
+        body: ActionRespondRequest,
+        bearerToken: String
+    ): ApiResponse<ActionRespondResponse>
+
+    // Device linking endpoints
+    suspend fun linkDevice(
+        body: DeviceLinkRequest,
+        bearerToken: String
+    ): ApiResponse<DeviceLinkResponse>
+
+    suspend fun unlinkDevice(
+        deviceId: String,
+        bearerToken: String
+    ): ApiResponse<Unit>
+
+    suspend fun getDeviceStatus(
+        bearerToken: String
+    ): ApiResponse<DeviceStatusResponse>
 
     // AuthboundPID Identity endpoints
     suspend fun createAuthboundPidSession(body: CreateAuthboundPidSessionRequest, bearerToken: String): ApiResponse<CreateAuthboundPidSessionResponse>
@@ -368,6 +402,76 @@ class KtorApiClient(
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
                 setBody(body)
+            }
+        }
+    }
+
+    // ============================================================================
+    // Actions endpoints
+    // ============================================================================
+
+    override suspend fun getActions(
+        bearerToken: String,
+        status: String?,
+        type: String?
+    ): ApiResponse<ActionsListResponse> {
+        return executeRequest {
+            httpClient.get("$baseUrl/api/mobile/actions") {
+                header(HttpHeaders.Authorization, "Bearer $bearerToken")
+                status?.let { parameter("status", it) }
+                type?.let { parameter("type", it) }
+            }
+        }
+    }
+
+    override suspend fun respondToAction(
+        actionId: String,
+        body: ActionRespondRequest,
+        bearerToken: String
+    ): ApiResponse<ActionRespondResponse> {
+        return executeRequest {
+            httpClient.post("$baseUrl/api/mobile/actions/$actionId/respond") {
+                contentType(ContentType.Application.Json)
+                header(HttpHeaders.Authorization, "Bearer $bearerToken")
+                setBody(body)
+            }
+        }
+    }
+
+    // ============================================================================
+    // Device Linking endpoints
+    // ============================================================================
+
+    override suspend fun linkDevice(
+        body: DeviceLinkRequest,
+        bearerToken: String
+    ): ApiResponse<DeviceLinkResponse> {
+        return executeRequest {
+            httpClient.post("$baseUrl/api/mobile/devices/link") {
+                contentType(ContentType.Application.Json)
+                header(HttpHeaders.Authorization, "Bearer $bearerToken")
+                setBody(body)
+            }
+        }
+    }
+
+    override suspend fun unlinkDevice(
+        deviceId: String,
+        bearerToken: String
+    ): ApiResponse<Unit> {
+        return executeUnitRequest {
+            httpClient.delete("$baseUrl/api/mobile/devices/$deviceId") {
+                header(HttpHeaders.Authorization, "Bearer $bearerToken")
+            }
+        }
+    }
+
+    override suspend fun getDeviceStatus(
+        bearerToken: String
+    ): ApiResponse<DeviceStatusResponse> {
+        return executeRequest {
+            httpClient.get("$baseUrl/api/mobile/devices/status") {
+                header(HttpHeaders.Authorization, "Bearer $bearerToken")
             }
         }
     }

@@ -16,37 +16,33 @@
 package eu.europa.ec.authenticationfeature.ui
 
 import android.widget.Toast
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import eu.europa.ec.resourceslogic.theme.ThemeManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -56,46 +52,39 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.navigation.compose.rememberNavController
 import eu.europa.ec.authenticationlogic.model.OAuthProvider
-import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.resourceslogic.R
-import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.content.ContentScreen
 import eu.europa.ec.uilogic.component.content.ImePaddingConfig
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
-import eu.europa.ec.uilogic.component.content.ToolbarConfig
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
 import eu.europa.ec.uilogic.component.wrap.ButtonConfig
 import eu.europa.ec.uilogic.component.wrap.ButtonType
 import eu.europa.ec.uilogic.component.wrap.WrapButton
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable
@@ -103,30 +92,17 @@ fun LoginScreen(
     viewModel: AuthenticationViewModel,
     onNavigateToHome: () -> Unit,
     onNavigateToWalletSetup: () -> Unit,
-    onNavigateToProfileCompletion: () -> Unit
+    onNavigateToProfileCompletion: () -> Unit,
+    onNavigateToPinCreate: () -> Unit,
+    onNavigateToPinVerify: () -> Unit
 ) {
     val state by viewModel.viewState.collectAsState()
     val context = LocalContext.current
 
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner, viewModel) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                if (state.isLoading) {
-                    viewModel.setEvent(Event.DismissLoading)
-                }
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
-
-    // Reset ViewModel state when LoginScreen is displayed
-    LaunchedEffect(Unit) {
-        viewModel.setEvent(Event.ResetViewModel)
-    }
+    // Note: ON_RESUME loading dismissal removed — it was causing the login screen
+    // to flash briefly after sign-up by prematurely clearing the loading overlay
+    // before navigation to the profile completion screen could occur.
+    // Loading is now managed entirely by the auth state observer in the ViewModel.
 
     // Handle hardware back button in signup mode
     BackHandler(enabled = state.isSignUpMode) {
@@ -147,9 +123,11 @@ fun LoginScreen(
 
                 is Effect.Navigation.NavigateToWalletSetup -> onNavigateToWalletSetup()
                 is Effect.Navigation.NavigateToProfileCompletion -> onNavigateToProfileCompletion()
+                is Effect.Navigation.NavigateToPinCreate -> onNavigateToPinCreate()
+                is Effect.Navigation.NavigateToPinVerify -> onNavigateToPinVerify()
 
                 is Effect.Navigation.PopBackStack -> {
-                    // No-op for LoginScreen - this would only apply if LoginScreen had a back stack
+                    // No-op for LoginScreen
                 }
 
                 is Effect.Navigation.NavigateToLoginAndClearStack -> {
@@ -157,8 +135,6 @@ fun LoginScreen(
                 }
 
                 is Effect.Navigation.SignOutAndNavigateToLogin -> {
-                    // No-op for LoginScreen - user is already being navigated here
-                    // The logout has already been handled by the ViewModel
                     Toast.makeText(context, "Signed out successfully", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -168,11 +144,10 @@ fun LoginScreen(
     ContentScreen(
         isLoading = state.isLoading,
         imePaddingConfig = ImePaddingConfig.ONLY_CONTENT,
-        navigatableAction = ScreenNavigateAction.NONE, // Disable default navigation
-        toolBarConfig = null, // Disable default toolbar
+        navigatableAction = ScreenNavigateAction.NONE,
+        toolBarConfig = null,
         topBar = if (state.isSignUpMode) {
             {
-                // Custom transparent toolbar with just back arrow
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -213,76 +188,46 @@ private fun LoginFormContent(
     onEvent: (Event) -> Unit
 ) {
     val context = LocalContext.current
+    val isDarkTheme = ThemeManager.instance.set.isInDarkMode
 
-    // Animated gradient colors
-    val infiniteTransition = rememberInfiniteTransition(label = "gradient")
-    val gradientOffset by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(3000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "gradientOffset"
-    )
+    // Brand colors matching HomeScreen's navy spectrum
+    val navyDeep = Color(0xFF0A1A36)
+    val navyMedium = Color(0xFF1E3A5F)
+    val accentBlue = MaterialTheme.colorScheme.tertiary
 
-    // Logo scale animation
-    val logoScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "logoScale"
-    )
-
-    // Use darker navy in dark mode, primary (deep navy) in light mode
-    val isDarkTheme = isSystemInDarkTheme()
-    val headerBackground = if (isDarkTheme) {
-        // Dark mode: Use subtle dark navy gradient that blends with the dark background
-        // Avoid bright blues - use muted, sophisticated tones
+    // Diagonal gradient matching HomeScreen's card pattern
+    val headerBackground = remember(isDarkTheme) {
         Brush.linearGradient(
-            colors = listOf(
-                Color(0xFF0F2142), // Slightly lighter than background for subtle contrast
-                Color(0xFF0A1A36)  // Match background color for seamless blend
-            ),
+            colors = listOf(navyDeep, navyMedium),
             start = Offset(0f, 0f),
-            end = Offset(0f, Float.POSITIVE_INFINITY)
-        )
-    } else {
-        // Light mode: Keep the original deep navy
-        Brush.linearGradient(
-            colors = listOf(
-                MaterialTheme.colorScheme.primary,
-                MaterialTheme.colorScheme.primary
-            )
+            end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
         )
     }
 
-    // Dark mode button colors - use softer, less saturated colors
-    val primaryButtonColor = if (isDarkTheme) {
-        Color(0xFF60A5FA) // Lighter, softer blue for dark mode
+    val cardBorderColor = if (isDarkTheme) {
+        accentBlue.copy(alpha = 0.15f)
     } else {
-        MaterialTheme.colorScheme.primary
-    }
-
-    val primaryButtonTextColor = if (isDarkTheme) {
-        Color(0xFF0A1A36) // Dark text on light button in dark mode
-    } else {
-        MaterialTheme.colorScheme.onPrimary
-    }
-
-    val secondaryButtonBorderColor = if (isDarkTheme) {
-        Color(0xFF60A5FA).copy(alpha = 0.5f) // Softer border in dark mode
-    } else {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+        navyDeep.copy(alpha = 0.08f)
     }
 
     val linkTextColor = if (isDarkTheme) {
-        Color(0xFF93C5FD) // Light blue for links in dark mode - high contrast
+        Color(0xFF93C5FD)
     } else {
         MaterialTheme.colorScheme.primary
+    }
+
+    // Staggered entrance animation states
+    var brandingVisible by remember { mutableStateOf(false) }
+    var cardVisible by remember { mutableStateOf(false) }
+    var toggleVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        delay(150)
+        brandingVisible = true
+        delay(250)
+        cardVisible = true
+        delay(200)
+        toggleVisible = true
     }
 
     Box(
@@ -290,312 +235,352 @@ private fun LoginFormContent(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
     ) {
-        // Header background with arc shape
+        // Header background with wave shape and diagonal gradient
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(500.dp)
-                .clip(CustomWaveShape())
+                .height(420.dp)
+                .clip(remember { CustomWaveShape() })
                 .background(headerBackground)
-        )
+        ) {
+            // Decorative circles matching HomeScreen's brand motif
+            LoginDecorativeCircles(
+                modifier = Modifier.align(Alignment.TopEnd),
+                color = Color.White
+            )
+        }
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 24.dp),
+                .padding(horizontal = 16.dp)
+                .padding(top = 24.dp, bottom = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-//            Spacer(Modifier.height(40.dp))
-
-            // Animated Authbound branding
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                // Main Authbound logo with animation
-                Box(
-                    modifier = Modifier
-                        .scale(logoScale)
-                        .background(
-                            brush = Brush.radialGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.1f),
-                                    Color.Transparent
-                                ),
-                                radius = 120f
-                            ),
-                            shape = CircleShape
-                        )
-                        .padding(16.dp)
-                ) {
-                    // Use white tint in dark mode for better visibility
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_authbound_logo),
-                        contentDescription = null,
-                        modifier = Modifier.size(148.dp),
-                        tint = if (isDarkTheme) Color.White else Color.Unspecified
-                    )
-                }
-
-//                Spacer(modifier = Modifier.height(4.dp))
-
-                // Animated gradient text for main title
-                Text(
-                    text = "AUTHBOUND",
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.onPrimary,
-                                MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
-                            ),
-                            start = Offset(gradientOffset * 200f, 0f),
-                            end = Offset(gradientOffset * 200f + 200f, 0f)
-                        )
-                    ),
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-
-//                Spacer(modifier = Modifier.height(6.dp))
-
-                // Subtitle
-                Text(
-                    text = "Identity Wallet",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f),
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Security tagline
-                Text(
-                    text = "Secure • Private • Trusted",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
-                    textAlign = TextAlign.Center
-                )
-            }
-
-            Spacer(Modifier.height(30.dp))
-
-            // Enhanced login form card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isDarkTheme) {
-                        Color(0xFF0F2142) // Slightly elevated surface for card in dark mode
-                    } else {
-                        MaterialTheme.colorScheme.surface
-                    }
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = if (isDarkTheme) 8.dp else 16.dp),
-                border = BorderStroke(
-                    width = 1.dp,
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            secondaryButtonBorderColor,
-                            Color.Transparent
-                        )
-                    )
+            // Branding section with entrance animation
+            AnimatedVisibility(
+                visible = brandingVisible,
+                enter = fadeIn(tween(400)) + slideInVertically(
+                    animationSpec = tween(400),
+                    initialOffsetY = { it / 3 }
                 )
             ) {
                 Column(
-                    modifier = Modifier.padding(32.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    // Welcome header inside the card
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    Icon(
+                        painter = painterResource(id = R.drawable.authbound_logo_bold),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(120.dp),
+                        tint = Color.White
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Authbound",
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            fontFamily = FontFamily(Font(R.font.lato_black))
+                        ),
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        color = Color.White
+                    )
+
+                    Text(
+                        text = "Identity Wallet",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White.copy(alpha = 0.85f),
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "Secure \u2022 Private \u2022 Trusted",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.7f),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(24.dp))
+
+            // Form card with entrance animation
+            AnimatedVisibility(
+                visible = cardVisible,
+                enter = fadeIn(tween(400)) + slideInVertically(
+                    animationSpec = tween(400),
+                    initialOffsetY = { it / 3 }
+                )
+            ) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isDarkTheme) {
+                            Color(0xFF0F2142)
+                        } else {
+                            MaterialTheme.colorScheme.surface
+                        }
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                    border = BorderStroke(
+                        width = 1.dp,
+                        brush = Brush.linearGradient(
+                            colors = listOf(cardBorderColor, Color.Transparent)
+                        )
+                    )
+                ) {
                     Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.padding(24.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Text(
-                            text = if (state.isSignUpMode) "Create Account" else "Welcome Back",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            textAlign = TextAlign.Center
+                        // Welcome header
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = if (state.isSignUpMode) "Create Account" else "Welcome Back",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                textAlign = TextAlign.Center
+                            )
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Text(
+                                text = if (state.isSignUpMode) "Join the secure identity ecosystem" else "Sign in to your secure wallet",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+
+                        // Text field colors
+                        val textFieldColors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = if (isDarkTheme) Color(0xFF60A5FA) else MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = if (isDarkTheme) Color(0xFF5F6A85) else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                            focusedLabelColor = if (isDarkTheme) Color(0xFF93C5FD) else MaterialTheme.colorScheme.primary,
+                            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            cursorColor = if (isDarkTheme) Color(0xFF60A5FA) else MaterialTheme.colorScheme.primary
                         )
 
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Text(
-                            text = if (state.isSignUpMode) "Join the secure identity ecosystem" else "Sign in to your secure wallet",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-
-                    // Input fields with dark mode optimized colors
-                    val textFieldColors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = if (isDarkTheme) Color(0xFF60A5FA) else MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = if (isDarkTheme) Color(0xFF5F6A85) else MaterialTheme.colorScheme.outline.copy(alpha = 0.6f),
-                        focusedLabelColor = if (isDarkTheme) Color(0xFF93C5FD) else MaterialTheme.colorScheme.primary,
-                        unfocusedLabelColor = if (isDarkTheme) Color(0xFF9CA3AF) else MaterialTheme.colorScheme.onSurfaceVariant,
-                        cursorColor = if (isDarkTheme) Color(0xFF60A5FA) else MaterialTheme.colorScheme.primary
-                    )
-
-                    OutlinedTextField(
-                        value = state.email,
-                        onValueChange = { onEvent(Event.OnEmailChanged(it)) },
-                        label = { Text(stringResource(id = R.string.email)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        singleLine = true,
-                        colors = textFieldColors
-                    )
-
-                    OutlinedTextField(
-                        value = state.password,
-                        onValueChange = { onEvent(Event.OnPasswordChanged(it)) },
-                        label = { Text(stringResource(id = R.string.password)) },
-                        visualTransformation = PasswordVisualTransformation(),
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        singleLine = true,
-                        colors = textFieldColors
-                    )
-
-                    if (state.isSignUpMode) {
                         OutlinedTextField(
-                            value = state.confirmPassword,
-                            onValueChange = { onEvent(Event.OnConfirmPasswordChanged(it)) },
-                            label = { Text(stringResource(id = R.string.confirm_password)) },
+                            value = state.email,
+                            onValueChange = { onEvent(Event.OnEmailChanged(it)) },
+                            label = { Text(stringResource(id = R.string.email)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            singleLine = true,
+                            colors = textFieldColors
+                        )
+
+                        OutlinedTextField(
+                            value = state.password,
+                            onValueChange = { onEvent(Event.OnPasswordChanged(it)) },
+                            label = { Text(stringResource(id = R.string.password)) },
                             visualTransformation = PasswordVisualTransformation(),
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
                             singleLine = true,
-                            isError = state.error != null,
                             colors = textFieldColors
                         )
-                    }
 
-                    // Primary button
-                    WrapButton(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
-                        buttonConfig = ButtonConfig(
-                            type = ButtonType.PRIMARY,
-                            onClick = {
-                                if (state.isSignUpMode) {
-                                    onEvent(Event.SignUpWithEmailAndPassword)
-                                } else {
-                                    onEvent(Event.SignInWithEmailAndPassword)
-                                }
-                            },
-                        )
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
+                        if (state.isSignUpMode) {
+                            OutlinedTextField(
+                                value = state.confirmPassword,
+                                onValueChange = { onEvent(Event.OnConfirmPasswordChanged(it)) },
+                                label = { Text(stringResource(id = R.string.confirm_password)) },
+                                visualTransformation = PasswordVisualTransformation(),
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                singleLine = true,
+                                isError = state.error != null,
+                                colors = textFieldColors
+                            )
+                        }
+
+                        // Primary action button
+                        WrapButton(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                            buttonConfig = ButtonConfig(
+                                type = ButtonType.PRIMARY,
+                                onClick = {
+                                    if (state.isSignUpMode) {
+                                        onEvent(Event.SignUpWithEmailAndPassword)
+                                    } else {
+                                        onEvent(Event.SignInWithEmailAndPassword)
+                                    }
+                                },
+                            )
                         ) {
-                            if (state.isSignUpMode) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                if (state.isSignUpMode) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.baseline_person_24),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                }
+                                Text(
+                                    text = stringResource(id = if (state.isSignUpMode) R.string.sign_up else R.string.sign_in),
+                                    fontWeight = FontWeight.SemiBold,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                            }
+                        }
+
+                        // OR divider
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            HorizontalDivider(
+                                modifier = Modifier.weight(1f),
+                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                            )
+                            Text(
+                                text = "OR",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                fontWeight = FontWeight.Medium
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.weight(1f),
+                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                            )
+                        }
+
+                        // Google OAuth button
+                        WrapButton(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                            buttonConfig = ButtonConfig(
+                                type = ButtonType.SECONDARY,
+                                onClick = {
+                                    onEvent(
+                                        Event.SignInWithOAuth(
+                                            OAuthProvider.GOOGLE,
+                                            context
+                                        )
+                                    )
+                                },
+                            )
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
                                 Icon(
                                     painter = painterResource(id = R.drawable.baseline_person_24),
                                     contentDescription = null,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(20.dp),
+                                    tint = linkTextColor
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = stringResource(id = R.string.login_with_google),
+                                    fontWeight = FontWeight.Medium,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = if (isDarkTheme) Color.White else MaterialTheme.colorScheme.onSurface
+                                )
                             }
-                            Text(
-                                text = stringResource(id = if (state.isSignUpMode) R.string.sign_up else R.string.sign_in),
-                                fontWeight = FontWeight.SemiBold,
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                        }
-                    }
-
-                    // Divider
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        HorizontalDivider(
-                            modifier = Modifier.weight(1f),
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                        )
-                        Text(
-                            text = "OR",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 20.dp),
-                            fontWeight = FontWeight.Medium
-                        )
-                        HorizontalDivider(
-                            modifier = Modifier.weight(1f),
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                        )
-                    }
-
-                    // Google Sign-In button
-                    WrapButton(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
-                        buttonConfig = ButtonConfig(
-                            type = ButtonType.SECONDARY,
-                            onClick = {
-                                onEvent(
-                                    Event.SignInWithOAuth(
-                                        OAuthProvider.GOOGLE,
-                                        context
-                                    )
-                                )
-                            },
-                        )
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.baseline_person_24),
-                                contentDescription = null,
-                                modifier = Modifier.size(24.dp),
-                                tint = linkTextColor
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = stringResource(id = R.string.login_with_google),
-                                fontWeight = FontWeight.Medium,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = if (isDarkTheme) Color.White else MaterialTheme.colorScheme.onSurface
-                            )
                         }
                     }
                 }
             }
 
-            // Toggle button outside the card
-            TextButton(
-                onClick = { onEvent(Event.ToggleMode) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text(
-                    text = stringResource(
-                        id = if (state.isSignUpMode) R.string.already_have_account else R.string.dont_have_account
-                    ),
-                    color = linkTextColor,
-                    fontWeight = FontWeight.Medium
+            // Mode toggle with entrance animation
+            AnimatedVisibility(
+                visible = toggleVisible,
+                enter = fadeIn(tween(400)) + slideInVertically(
+                    animationSpec = tween(300),
+                    initialOffsetY = { it / 2 }
                 )
+            ) {
+                TextButton(
+                    onClick = { onEvent(Event.ToggleMode) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = stringResource(
+                            id = if (state.isSignUpMode) R.string.already_have_account else R.string.dont_have_account
+                        ),
+                        color = linkTextColor,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(24.dp))
         }
+    }
+}
+
+/**
+ * Decorative filled circles creating a soft ambient depth effect
+ * in the header. All circles are filled (no outlines) with varying
+ * sizes and opacities for a modern layered look.
+ */
+@Composable
+private fun LoginDecorativeCircles(
+    modifier: Modifier = Modifier,
+    color: Color
+) {
+    Canvas(
+        modifier = modifier
+            .size(200.dp)
+            .padding(8.dp)
+    ) {
+        // Large soft circle — ambient glow
+        drawCircle(
+            color = color.copy(alpha = 0.06f),
+            radius = 70.dp.toPx(),
+            center = Offset(size.width * 0.55f, size.height * 0.25f)
+        )
+        // Medium circle — primary accent
+        drawCircle(
+            color = color.copy(alpha = 0.10f),
+            radius = 32.dp.toPx(),
+            center = Offset(size.width * 0.30f, size.height * 0.50f)
+        )
+        // Small circle — detail
+        drawCircle(
+            color = color.copy(alpha = 0.14f),
+            radius = 14.dp.toPx(),
+            center = Offset(size.width * 0.75f, size.height * 0.65f)
+        )
+        // Tiny circle — sparkle
+        drawCircle(
+            color = color.copy(alpha = 0.18f),
+            radius = 6.dp.toPx(),
+            center = Offset(size.width * 0.50f, size.height * 0.78f)
+        )
     }
 }
 
 @ThemeModePreviews
 @Composable
 private fun LoginScreenPreview() {
-    // Create a mock state for preview
     val mockState = State(
         email = "",
         password = "",

@@ -16,7 +16,7 @@
 
 package eu.europa.ec.uilogic.component
 
-import androidx.compose.foundation.isSystemInDarkTheme
+import eu.europa.ec.resourceslogic.theme.ThemeManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.Composable
@@ -44,7 +44,7 @@ fun AppIconAndText(
     iconModifier: Modifier = Modifier,
     useDarkModeAwareTint: Boolean = true
 ) {
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = ThemeManager.instance.set.isInDarkMode
 
     // Apply white tint in dark mode for better visibility on dark backgrounds
     // Using BlendMode.SrcIn to replace all non-transparent pixels with white

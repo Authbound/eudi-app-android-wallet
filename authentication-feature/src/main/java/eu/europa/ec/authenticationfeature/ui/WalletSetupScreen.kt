@@ -59,6 +59,7 @@ fun WalletSetupScreen(
     viewModel: WalletSetupViewModel = koinViewModel(),
     logController: LogController,
     onNavigateToHome: () -> Unit,
+    onNavigateToPinCreate: () -> Unit,
     onNavigateToLogin: () -> Unit,
     onNavigateToDeviceSecurity: () -> Unit,
 ) {
@@ -67,7 +68,7 @@ fun WalletSetupScreen(
 
     // Only trigger wallet activation if wallet is not already activated on device
     // This prevents unnecessary activation attempts and error screens
-    LaunchedEffect(viewModel, state.isWalletAlreadyActivated, state.isActivating) {
+    LaunchedEffect(viewModel, state.isWalletAlreadyActivated, state.isActivating, state.activationError) {
         if (!state.isWalletAlreadyActivated && !state.isActivating && state.activationError == null) {
             logController.d("WalletSetupScreen", "Wallet not activated on device, triggering activation.")
             viewModel.setEvent(WalletSetupEvent.ActivateWallet)
@@ -81,6 +82,7 @@ fun WalletSetupScreen(
         viewModel.effect.collectLatest { effect ->
             when (effect) {
                 is WalletSetupEffect.NavigateToHome -> onNavigateToHome()
+                is WalletSetupEffect.NavigateToPinCreate -> onNavigateToPinCreate()
                 is WalletSetupEffect.NavigateToLogin -> onNavigateToLogin()
                 is WalletSetupEffect.NavigateToDeviceSecurity -> onNavigateToDeviceSecurity()
                 is WalletSetupEffect.ShowError -> {

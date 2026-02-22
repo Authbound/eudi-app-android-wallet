@@ -17,6 +17,7 @@
 package eu.europa.ec.dashboardfeature.di
 
 import eu.europa.ec.businesslogic.config.ConfigLogic
+import eu.europa.ec.businesslogic.controller.crypto.CryptoController
 import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsUserAuthenticatedUseCase
@@ -50,6 +51,8 @@ import eu.europa.ec.dashboardfeature.interactor.TransactionDetailsInteractor
 import eu.europa.ec.dashboardfeature.interactor.TransactionDetailsInteractorImpl
 import eu.europa.ec.dashboardfeature.interactor.TransactionsInteractor
 import eu.europa.ec.dashboardfeature.interactor.TransactionsInteractorImpl
+import eu.europa.ec.dashboardfeature.repository.ActionsRepository
+import eu.europa.ec.dashboardfeature.repository.ActionsRepositoryImpl
 import eu.europa.ec.dashboardfeature.repository.MaisaRepository
 import eu.europa.ec.dashboardfeature.repository.MaisaRepositoryImpl
 import eu.europa.ec.dashboardfeature.repository.VerificationRepository
@@ -70,19 +73,40 @@ class FeatureDashboardModule
 @Factory
 fun provideDashboardInteractor(
     resourceProvider: ResourceProvider,
+    configLogic: ConfigLogic,
     getCurrentUserUseCase: GetCurrentUserUseCase,
     getMyProfileUseCase: GetMyProfileUseCase,
+    walletCoreDocumentsController: WalletCoreDocumentsController,
 ): DashboardInteractor = DashboardInteractorImpl(
     resourceProvider,
+    configLogic,
     getCurrentUserUseCase,
     getMyProfileUseCase,
+    walletCoreDocumentsController,
+)
+
+@Single
+fun provideActionsRepository(
+    apiClient: ApiClient,
+    supabaseClient: SupabaseClient,
+    resourceProvider: ResourceProvider,
+    logController: LogController,
+    cryptoController: CryptoController
+): ActionsRepository = ActionsRepositoryImpl(
+    apiClient,
+    supabaseClient,
+    resourceProvider,
+    logController,
+    cryptoController
 )
 
 @Factory
 fun provideActionsInteractor(
     resourceProvider: ResourceProvider,
+    actionsRepository: ActionsRepository,
 ): ActionsInteractor = ActionsInteractorImpl(
     resourceProvider,
+    actionsRepository,
 )
 
 @Factory

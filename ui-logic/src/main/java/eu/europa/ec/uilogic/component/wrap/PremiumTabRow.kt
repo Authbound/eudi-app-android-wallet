@@ -182,7 +182,7 @@ fun PremiumTabRow(
         shadowElevation = 2.dp,
         border = BorderStroke(
             width = 0.5.dp,
-            color = Color.White.copy(alpha = 0.12f)
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.12f)
         )
     ) {
         Box(

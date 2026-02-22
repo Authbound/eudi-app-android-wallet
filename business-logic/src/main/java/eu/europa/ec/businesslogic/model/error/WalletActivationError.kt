@@ -97,6 +97,20 @@ sealed class WalletActivationError(
     )
 
     // ============================================================
+    // Conflict errors
+    // ============================================================
+
+    /**
+     * A wallet activation (WUA) already exists on the server for this user.
+     * Recovery: delete the old WUA from the server, then retry with a fresh key.
+     */
+    data class WalletAlreadyExists(
+        val httpCode: Int = 409
+    ) : WalletActivationError(
+        "A wallet activation already exists for this account (HTTP $httpCode)"
+    )
+
+    // ============================================================
     // Network and server errors
     // ============================================================
 
@@ -227,6 +241,8 @@ data class HttpErrorResponse(
  */
 fun HttpErrorResponse.toWalletActivationError(): WalletActivationError {
     return when (code) {
+        409 -> WalletActivationError.WalletAlreadyExists(httpCode = 409)
+
         429 -> WalletActivationError.ChallengeRateLimited(
             retryAfterSeconds = retryAfterSeconds ?: 60
         )
@@ -333,6 +349,10 @@ fun WalletActivationError.getUserFriendlyMessage(): String {
                 "Verification failed. Please try again or contact support."
             }
 
+        // Conflict errors
+        is WalletActivationError.WalletAlreadyExists ->
+            "A wallet already exists for this account. Recovering automatically..."
+
         // Device and security errors
         is WalletActivationError.DeviceSecurityInsufficient ->
             "Your device doesn't meet the security requirements for this wallet."
@@ -374,6 +394,7 @@ fun WalletActivationError.getErrorTitle(): String {
         is WalletActivationError.ChallengeExpired -> "Session Expired"
         is WalletActivationError.ChallengeNotFound -> "Session Not Found"
         is WalletActivationError.AttestationRejected -> "Verification Failed"
+        is WalletActivationError.WalletAlreadyExists -> "Wallet Already Exists"
         is WalletActivationError.DeviceSecurityInsufficient -> "Device Not Supported"
         is WalletActivationError.CryptographicFailure -> "Security Error"
         is WalletActivationError.NetworkFailure -> "Connection Lost"
@@ -392,6 +413,7 @@ fun WalletActivationError.getErrorTitle(): String {
 fun WalletActivationError.isRetryable(): Boolean {
     return when (this) {
         is WalletActivationError.ChallengeRateLimited -> true // After countdown
+        is WalletActivationError.WalletAlreadyExists -> true // Auto-recovered by use case
         is WalletActivationError.NetworkFailure -> true
         is WalletActivationError.TimeoutError -> true
         is WalletActivationError.NotificationRegistrationFailure -> true

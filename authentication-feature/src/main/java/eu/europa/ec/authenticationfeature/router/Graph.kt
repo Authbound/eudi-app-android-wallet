@@ -29,6 +29,20 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
 fun NavGraphBuilder.featureAuthenticationGraph(navController: NavController) {
+    val navigateToPinCreate: () -> Unit = {
+        navController.navigate("QUICK_PIN?pinFlow=CREATE") {
+            popUpTo(0) { inclusive = true }
+            launchSingleTop = true
+        }
+    }
+
+    val navigateToPinVerify: () -> Unit = {
+        navController.navigate("QUICK_PIN?pinFlow=VERIFY") {
+            popUpTo(0) { inclusive = true }
+            launchSingleTop = true
+        }
+    }
+
     composable(
         route = AuthenticationScreens.Login.screenRoute,
     ) {
@@ -52,7 +66,9 @@ fun NavGraphBuilder.featureAuthenticationGraph(navController: NavController) {
             },
             onNavigateToProfileCompletion = {
                 navController.navigate(AuthenticationScreens.ProfileCompletion.screenRoute)
-            }
+            },
+            onNavigateToPinCreate = navigateToPinCreate,
+            onNavigateToPinVerify = navigateToPinVerify
         )
     }
 
@@ -111,6 +127,7 @@ fun NavGraphBuilder.featureAuthenticationGraph(navController: NavController) {
                     launchSingleTop = true
                 }
             },
+            onNavigateToPinCreate = navigateToPinCreate,
             onNavigateToLogin = {
                 navController.navigate(AuthenticationScreens.Login.screenRoute) {
                     popUpTo(0) { inclusive = true }

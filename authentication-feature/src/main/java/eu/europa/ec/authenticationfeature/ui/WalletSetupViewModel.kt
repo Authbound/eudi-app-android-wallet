@@ -17,6 +17,7 @@ package eu.europa.ec.authenticationfeature.ui
 
 import androidx.lifecycle.viewModelScope
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricAuthenticationController
+import eu.europa.ec.authenticationlogic.controller.storage.PinStorageController
 import eu.europa.ec.businesslogic.model.error.WalletActivationError
 import eu.europa.ec.businesslogic.model.error.getErrorTitle
 import eu.europa.ec.businesslogic.model.error.getRetryDelaySeconds
@@ -96,6 +97,7 @@ sealed class WalletSetupEvent : ViewEvent {
 // Effects: Navigation or one-off actions
 sealed class WalletSetupEffect : ViewSideEffect {
     data object NavigateToHome : WalletSetupEffect()
+    data object NavigateToPinCreate : WalletSetupEffect()
     data object NavigateToLogin : WalletSetupEffect()
     data object NavigateToDeviceSecurity : WalletSetupEffect()
     data class ShowError(val message: String) : WalletSetupEffect()
@@ -111,19 +113,34 @@ class WalletSetupViewModel(
     private val pushNotificationController: PushNotificationController,
     private val prefKeys: PrefKeysV2,
     private val prefsController: PrefsControllerV2,
-    private val logController: LogController
+    private val logController: LogController,
+    private val pinStorageController: PinStorageController
 ) : MviViewModel<WalletSetupEvent, WalletSetupState, WalletSetupEffect>() {
 
     private var countdownJob: Job? = null
+
+    private suspend fun navigateToHomeOrPinCreate() {
+        val hasPin = try {
+            pinStorageController.retrievePin().isNotBlank()
+        } catch (e: Exception) {
+            logController.w("WalletSetupViewModel") { "Failed to check PIN status: ${e.message}" }
+            false
+        }
+        if (hasPin) {
+            setEffect { WalletSetupEffect.NavigateToHome }
+        } else {
+            setEffect { WalletSetupEffect.NavigateToPinCreate }
+        }
+    }
 
     override fun setInitialState(): WalletSetupState {
         // EUDI-ARF: Check if wallet is already activated for this user to avoid re-attestation
         try {
             if (prefKeys.isWalletActivatedSafe()) {
-                logController.i("WalletSetupViewModel", ) {"Wallet already activated for this user, navigating to home."}
+                logController.i("WalletSetupViewModel", ) {"Wallet already activated for this user, checking PIN status."}
                 // Use a coroutine to navigate after the view is ready
                 viewModelScope.launch {
-                    setEffect { WalletSetupEffect.NavigateToHome }
+                    navigateToHomeOrPinCreate()
                 }
                 return WalletSetupState(isWalletAlreadyActivated = true)
             }
@@ -169,9 +186,9 @@ class WalletSetupViewModel(
         // Double-check wallet activation status before proceeding
         try {
             if (prefKeys.isWalletActivatedSafe()) {
-                logController.i("WalletSetupViewModel") { "Wallet already activated, navigating to home instead." }
+                logController.i("WalletSetupViewModel") { "Wallet already activated, checking PIN status." }
                 viewModelScope.launch {
-                    setEffect { WalletSetupEffect.NavigateToHome }
+                    navigateToHomeOrPinCreate()
                 }
                 return
             }
@@ -223,7 +240,8 @@ class WalletSetupViewModel(
                         autoRetryAttempt = 0
                     )
                 }
-                setEffect { WalletSetupEffect.NavigateToHome }
+                // First activation: PIN can never exist yet, go straight to PIN CREATE
+                setEffect { WalletSetupEffect.NavigateToPinCreate }
 
             } catch (e: Exception) {
                 logController.e("WalletSetupViewModel", e)
@@ -233,9 +251,9 @@ class WalletSetupViewModel(
     }
 
     private fun continueToHome() {
-        logController.d("WalletSetupViewModel", "Continue to home requested")
+        logController.d("WalletSetupViewModel", "Continue to home requested, checking PIN status")
         viewModelScope.launch {
-            setEffect { WalletSetupEffect.NavigateToHome }
+            navigateToHomeOrPinCreate()
         }
     }
 
@@ -246,36 +264,7 @@ class WalletSetupViewModel(
             exception.toWalletActivationError()
         }
 
-        val errorMessage = exception.message ?: "Wallet activation failed"
-
-        // Check if this is a "wallet already exists" error from backend
-        val isAlreadyExistsError = errorMessage.contains("already exists", ignoreCase = true) ||
-                errorMessage.contains("already activated", ignoreCase = true) ||
-                errorMessage.contains("duplicate", ignoreCase = true) ||
-                errorMessage.contains("409", ignoreCase = true)
-
         when {
-            isAlreadyExistsError -> {
-                logController.i("WalletSetupViewModel") {
-                    "Wallet already exists on backend, marking as activated and navigating to home."
-                }
-                try {
-                    prefKeys.setWalletActivated(true)
-                } catch (securityException: SecurityException) {
-                    logController.w("WalletSetupViewModel") {
-                        "Failed to save wallet activation status: ${securityException.message}"
-                    }
-                }
-                setState {
-                    copy(
-                        isActivating = false,
-                        canNavigateBack = false,
-                        autoRetrying = false
-                    )
-                }
-                setEffect { WalletSetupEffect.NavigateToHome }
-            }
-
             // Auto-retry for transient errors (expired/not found challenges)
             error.shouldAutoRetry() && viewState.value.autoRetryAttempt < WalletSetupState.MAX_AUTO_RETRY_ATTEMPTS -> {
                 val attempt = viewState.value.autoRetryAttempt + 1
