@@ -21,6 +21,8 @@ import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.provider.UuidProvider
 import eu.europa.ec.corelogic.config.WalletCoreConfig
 import eu.europa.ec.corelogic.config.WalletCoreConfigImpl
+import eu.europa.ec.businesslogic.controller.wallet.LocalWalletCleanupController
+import eu.europa.ec.corelogic.controller.LocalWalletCleanupControllerImpl
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsControllerImpl
 import eu.europa.ec.corelogic.controller.WalletCoreLogController
@@ -93,6 +95,21 @@ fun provideWalletCoreAttestationProvider(
 ): WalletCoreAttestationProvider = WalletCoreAttestationProviderImpl(
     walletCoreConfig = walletCoreConfig,
     walletAttestationRepository = walletAttestationRepository
+)
+
+@Single
+fun provideLocalWalletCleanupController(
+    eudiWallet: EudiWallet,
+    bookmarkDao: BookmarkDao,
+    transactionLogDao: TransactionLogDao,
+    revokedDocumentDao: RevokedDocumentDao,
+    logController: LogController
+): LocalWalletCleanupController = LocalWalletCleanupControllerImpl(
+    eudiWallet,
+    bookmarkDao,
+    transactionLogDao,
+    revokedDocumentDao,
+    logController
 )
 
 @Factory

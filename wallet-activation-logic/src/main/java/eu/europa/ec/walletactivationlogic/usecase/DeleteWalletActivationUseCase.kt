@@ -17,8 +17,10 @@ package eu.europa.ec.walletactivationlogic.usecase
 
 import eu.europa.ec.authenticationlogic.usecase.SignOutMode
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
+import eu.europa.ec.businesslogic.controller.crypto.CryptoController
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeys
+import eu.europa.ec.businesslogic.controller.wallet.LocalWalletCleanupController
 import eu.europa.ec.walletactivationlogic.repository.WalletActivationRepository
 
 interface DeleteWalletActivationUseCase {
@@ -29,55 +31,71 @@ class DeleteWalletActivationUseCaseImpl(
     private val walletActivationRepository: WalletActivationRepository,
     private val prefKeys: PrefKeys,
     private val signOutUseCase: SignOutUseCase,
-    private val logController: LogController
+    private val logController: LogController,
+    private val cryptoController: CryptoController,
+    private val localWalletCleanupController: LocalWalletCleanupController
 ) : DeleteWalletActivationUseCase {
 
     override suspend fun invoke(): Result<Unit> {
         return try {
-            logController.d("DeleteWalletActivation", "Starting wallet activation deletion...")
+            logController.d(TAG, "Starting wallet activation deletion...")
 
-            // Delete from backend
+            // Step 1: Backend deletion (CRITICAL gate — abort if fails)
             val deleteResult = walletActivationRepository.deleteWalletActivation()
-
-            if (deleteResult.isSuccess) {
-                // Clear local wallet activation flag
-                try {
-                    prefKeys.setWalletActivated(false)
-                    logController.d(
-                        "DeleteWalletActivation",
-                        "Local wallet activation flag cleared"
-                    )
-                } catch (e: SecurityException) {
-                    logController.w("DeleteWalletActivation") {
-                        "Failed to clear local wallet activation flag due to security error: ${e.message}"
-                    }
-                    // Continue - backend deletion succeeded even if local flag couldn't be cleared
-                }
-
-                // Sign out user after successful wallet deletion
-                try {
-                    signOutUseCase(SignOutMode.Hard)
-                    logController.d(
-                        "DeleteWalletActivation",
-                        "User signed out after wallet deletion"
-                    )
-                } catch (e: Exception) {
-                    logController.w("DeleteWalletActivation") {
-                        "Failed to sign out user after wallet deletion: ${e.message}"
-                    }
-                    // Continue - wallet deletion succeeded even if sign out failed
-                }
-
-                logController.d("DeleteWalletActivation", "Wallet activation deleted successfully")
-                Result.success(Unit)
-            } else {
+            if (deleteResult.isFailure) {
                 val error = deleteResult.exceptionOrNull() ?: Exception("Unknown error")
-                logController.e("DeleteWalletActivation", error)
-                Result.failure(error)
+                logController.e(TAG, error)
+                return Result.failure(error)
             }
+            logController.d(TAG, "Backend deletion succeeded")
+
+            // Step 2: Delete WUA key from Android Keystore (SECURITY-CRITICAL, best-effort)
+            runCatching {
+                val deleted = cryptoController.deleteWuaKey()
+                if (deleted) {
+                    logController.d(TAG, "WUA key deleted from Keystore")
+                } else {
+                    logController.w(TAG) { "WUA key deletion returned false" }
+                }
+            }.onFailure { e ->
+                logController.w(TAG) { "Failed to delete WUA key: ${e.message}" }
+            }
+
+            // Step 3: Clean local wallet data — documents + DB (best-effort)
+            runCatching {
+                val failures = localWalletCleanupController.cleanupLocalWalletData()
+                if (failures.isNotEmpty()) {
+                    logController.w(TAG) { "Local cleanup had failures: $failures" }
+                }
+            }.onFailure { e ->
+                logController.w(TAG) { "Local wallet cleanup threw: ${e.message}" }
+            }
+
+            // Step 4: Clear activation flag (best-effort)
+            runCatching {
+                prefKeys.setWalletActivated(false)
+                logController.d(TAG, "Local wallet activation flag cleared")
+            }.onFailure { e ->
+                logController.w(TAG) { "Failed to clear activation flag: ${e.message}" }
+            }
+
+            // Step 5: Hard sign-out — session, prefs, biometric keys (best-effort)
+            runCatching {
+                signOutUseCase(SignOutMode.Hard)
+                logController.d(TAG, "User signed out after wallet deletion")
+            }.onFailure { e ->
+                logController.w(TAG) { "Failed to sign out: ${e.message}" }
+            }
+
+            logController.d(TAG, "Wallet activation deleted successfully")
+            Result.success(Unit)
         } catch (e: Exception) {
-            logController.e("DeleteWalletActivation", e)
+            logController.e(TAG, e)
             Result.failure(e)
         }
+    }
+
+    companion object {
+        private const val TAG = "DeleteWalletActivation"
     }
 }

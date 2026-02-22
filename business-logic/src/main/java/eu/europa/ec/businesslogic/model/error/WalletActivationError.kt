@@ -458,3 +458,63 @@ fun WalletActivationError.isPermanent(): Boolean {
         else -> false
     }
 }
+
+/**
+ * Adapts a [WalletActivationError] to the [AppError] interface without changing
+ * the sealed class hierarchy.
+ *
+ * This bridges the existing typed error system into the new unified [AppError] contract,
+ * delegating to the existing extension functions for all behavior.
+ */
+fun WalletActivationError.toAppError(): AppError {
+    val source = this
+    return object : AppError {
+        override val technicalMessage: String = source.message
+        override val cause: Throwable? = source.cause
+        override val severity: ErrorSeverity = source.toSeverity()
+
+        override fun getErrorTitle(): String = source.getErrorTitle()
+        override fun getUserFriendlyMessage(): String = source.getUserFriendlyMessage()
+        override fun isRetryable(): Boolean = source.isRetryable()
+        override fun shouldAutoRetry(): Boolean = source.shouldAutoRetry()
+        override fun isPermanent(): Boolean = source.isPermanent()
+        override fun getRetryDelaySeconds(): Int? = source.getRetryDelaySeconds()
+
+        override fun getErrorCode(): String = when (source) {
+            is WalletActivationError.ChallengeRateLimited -> "WUA-429"
+            is WalletActivationError.ChallengeExpired -> "WUA-EXP"
+            is WalletActivationError.ChallengeNotFound -> "WUA-CNF"
+            is WalletActivationError.AttestationRejected -> "WUA-ATT"
+            is WalletActivationError.DeviceSecurityInsufficient -> "WUA-SEC"
+            is WalletActivationError.CryptographicFailure -> "WUA-CRY"
+            is WalletActivationError.WalletAlreadyExists -> "WUA-409"
+            is WalletActivationError.NetworkFailure -> "WUA-NET"
+            is WalletActivationError.ServerRejection -> "WUA-REJ"
+            is WalletActivationError.ServerError -> "WUA-${source.httpCode}"
+            is WalletActivationError.NotificationRegistrationFailure -> "WUA-NTF"
+            is WalletActivationError.AuthenticationFailure -> "WUA-AUTH"
+            is WalletActivationError.TimeoutError -> "WUA-TMO"
+            is WalletActivationError.UnexpectedError -> "WUA-UNK"
+        }
+    }
+}
+
+private fun WalletActivationError.toSeverity(): ErrorSeverity {
+    return when (this) {
+        is WalletActivationError.ChallengeRateLimited -> ErrorSeverity.WARNING
+        is WalletActivationError.ChallengeExpired -> ErrorSeverity.WARNING
+        is WalletActivationError.ChallengeNotFound -> ErrorSeverity.WARNING
+        is WalletActivationError.NotificationRegistrationFailure -> ErrorSeverity.WARNING
+        is WalletActivationError.DeviceSecurityInsufficient -> ErrorSeverity.CRITICAL
+        is WalletActivationError.AttestationRejected ->
+            if (isDeviceIssue) ErrorSeverity.CRITICAL else ErrorSeverity.ERROR
+        is WalletActivationError.AuthenticationFailure -> ErrorSeverity.ERROR
+        is WalletActivationError.CryptographicFailure -> ErrorSeverity.ERROR
+        is WalletActivationError.WalletAlreadyExists -> ErrorSeverity.WARNING
+        is WalletActivationError.NetworkFailure -> ErrorSeverity.ERROR
+        is WalletActivationError.ServerRejection -> ErrorSeverity.ERROR
+        is WalletActivationError.ServerError -> ErrorSeverity.ERROR
+        is WalletActivationError.TimeoutError -> ErrorSeverity.ERROR
+        is WalletActivationError.UnexpectedError -> ErrorSeverity.ERROR
+    }
+}

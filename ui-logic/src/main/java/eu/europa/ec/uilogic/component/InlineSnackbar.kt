@@ -37,12 +37,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isUnspecified
 import androidx.compose.ui.unit.sp
+import eu.europa.ec.businesslogic.model.error.ErrorSeverity
 import eu.europa.ec.resourceslogic.R
+import eu.europa.ec.resourceslogic.theme.values.infoContainer
+import eu.europa.ec.resourceslogic.theme.values.onInfoContainer
 import eu.europa.ec.uilogic.component.content.ContentErrorConfig
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
@@ -69,6 +73,7 @@ fun InlineSnackbar(
         onDismiss = error.onCancel,
         modifier = modifier,
         maxMessageLines = maxMessageLines,
+        severity = error.severity,
     )
 }
 
@@ -79,12 +84,19 @@ fun InlineSnackbar(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     maxMessageLines: Int = 4,
+    severity: ErrorSeverity? = null,
 ) {
+    val severityColors = severity?.let { resolveSeverityColors(it) }
+    val surfaceColor = severityColors?.container
+        ?: MaterialTheme.colorScheme.inverseSurface
+    val contentColor = severityColors?.onContainer
+        ?: MaterialTheme.colorScheme.inverseOnSurface
+
     Box(modifier) {
         Surface(
             shape = RoundedCornerShape(SIZE_SMALL.dp),
-            color = MaterialTheme.colorScheme.inverseSurface,
-            contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+            color = surfaceColor,
+            contentColor = contentColor,
         ) {
             Row(
                 modifier = Modifier
@@ -114,7 +126,8 @@ fun InlineSnackbar(
                 onRetry?.let { retry ->
                     Text(
                         text = stringResource(R.string.generic_error_button_retry),
-                        color = MaterialTheme.colorScheme.inversePrimary,
+                        color = severityColors?.onContainer
+                            ?: MaterialTheme.colorScheme.inversePrimary,
                         style = MaterialTheme.typography.labelLarge,
                         modifier = Modifier
                             .padding(vertical = SPACING_EXTRA_SMALL.dp)
@@ -141,6 +154,33 @@ fun InlineSnackbar(
                 .padding(SPACING_EXTRA_SMALL.dp),
             iconData = AppIcons.Close,
             customTint = MaterialTheme.colorScheme.inverseSurface,
+        )
+    }
+}
+
+/**
+ * Resolved color pair for severity-based snackbar theming.
+ */
+private data class SeverityColors(
+    val container: Color,
+    val onContainer: Color,
+)
+
+@Composable
+private fun resolveSeverityColors(severity: ErrorSeverity): SeverityColors? {
+    return when (severity) {
+        ErrorSeverity.INFO -> SeverityColors(
+            container = MaterialTheme.colorScheme.infoContainer,
+            onContainer = MaterialTheme.colorScheme.onInfoContainer,
+        )
+        ErrorSeverity.WARNING -> SeverityColors(
+            container = MaterialTheme.colorScheme.tertiaryContainer,
+            onContainer = MaterialTheme.colorScheme.onTertiaryContainer,
+        )
+        ErrorSeverity.ERROR -> null // Use default inverseSurface
+        ErrorSeverity.CRITICAL -> SeverityColors(
+            container = MaterialTheme.colorScheme.errorContainer,
+            onContainer = MaterialTheme.colorScheme.onErrorContainer,
         )
     }
 }

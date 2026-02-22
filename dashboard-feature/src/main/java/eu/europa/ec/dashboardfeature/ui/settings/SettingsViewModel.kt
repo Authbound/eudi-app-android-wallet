@@ -268,22 +268,31 @@ class SettingsViewModel(
     private fun deleteWalletActivation() {
         viewModelScope.launch {
             setState { copy(showDeleteWalletConfirmation = false, isDeleting = true) }
-            try {
-                deleteWalletActivationUseCase().getOrThrow()
-                // Navigate to login after successful wallet deletion and logout
-                // The deleteWalletActivationUseCase handles both backend deletion and user logout
-                setState { copy(isDeleting = false) }
-                setEffect {
-                    Effect.Navigation.SwitchScreen(
-                        screenRoute = StartupScreens.Splash.screenRoute,
-                        popUpToScreenRoute = DashboardScreens.Dashboard.screenRoute,
-                        inclusive = true
-                    )
+            deleteWalletActivationUseCase().fold(
+                onSuccess = {
+                    setState { copy(isDeleting = false) }
+                    setEffect {
+                        Effect.ShowToast(
+                            resourceProvider.getString(R.string.settings_delete_wallet_success)
+                        )
+                    }
+                    setEffect {
+                        Effect.Navigation.SwitchScreen(
+                            screenRoute = StartupScreens.Splash.screenRoute,
+                            popUpToScreenRoute = DashboardScreens.Dashboard.screenRoute,
+                            inclusive = true
+                        )
+                    }
+                },
+                onFailure = {
+                    setState { copy(isDeleting = false) }
+                    setEffect {
+                        Effect.ShowToast(
+                            resourceProvider.getString(R.string.settings_delete_wallet_error)
+                        )
+                    }
                 }
-            } catch (e: Exception) {
-                setState { copy(isDeleting = false) }
-                setEffect { Effect.Navigation.Pop }
-            }
+            )
         }
     }
 

@@ -532,6 +532,14 @@
     <string name="settings_delete_data_confirm">Delete</string>
     <string name="settings_delete_data_cancel">Cancel</string>
 
+    <!-- Delete Wallet Activation -->
+    <string name="settings_delete_wallet_title">Delete Wallet Activation?</string>
+    <string name="settings_delete_wallet_message">This will permanently delete your wallet activation from the server. You\'ll need to set up your wallet again from the beginning. This action cannot be undone.</string>
+    <string name="settings_delete_wallet_confirm">Delete</string>
+    <string name="settings_delete_wallet_cancel">Cancel</string>
+    <string name="settings_delete_wallet_success">Wallet deleted successfully</string>
+    <string name="settings_delete_wallet_error">Failed to delete wallet. Please try again.</string>
+
     <!-- Notifications Section -->
     <string name="settings_notifications">Notifications</string>
     <string name="settings_notifications_description">Manage your notification preferences</string>

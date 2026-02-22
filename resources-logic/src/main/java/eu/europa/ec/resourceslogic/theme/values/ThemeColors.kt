@@ -119,6 +119,11 @@ class ThemeColors {
         // HSL: --border: 222 17% 44% -> #5F6A85
         internal const val eudiw_theme_light_divider: Long = 0xFF5F6A85
 
+        // Info severity color - blue for informational messages
+        internal const val eudiw_theme_light_info: Long = 0xFF2563EB
+        internal const val eudiw_theme_light_infoContainer: Long = 0xFFDBEAFE
+        internal const val eudiw_theme_light_onInfoContainer: Long = 0xFF1E3A5F
+
         // Active/selection highlight color - separate from primary for dark theme contrast
         // Light: Navy (matches primary) | Dark: Off-white (high contrast)
         internal const val eudiw_theme_light_activeHighlight: Long = 0xFF0A1A36
@@ -214,6 +219,11 @@ class ThemeColors {
         internal const val eudiw_theme_dark_pending: Long = 0xFF3B82F6
         // HSL: --border: 222 17% 44% -> #5F6A85
         internal const val eudiw_theme_dark_divider: Long = 0xFF5F6A85
+
+        // Info severity color - blue for informational messages (dark mode)
+        internal const val eudiw_theme_dark_info: Long = 0xFF60A5FA
+        internal const val eudiw_theme_dark_infoContainer: Long = 0xFF1E3A5F
+        internal const val eudiw_theme_dark_onInfoContainer: Long = 0xFFDBEAFE
 
         // Active/selection highlight color - separate from primary for dark theme contrast
         // Light: Navy (matches primary) | Dark: Off-white (high contrast)
@@ -396,6 +406,28 @@ class ThemeColors {
                 Color(eudiw_theme_light_glow_primary)
             }
 
+        // Info severity color - blue for informational messages
+        val info: Color
+            get() = if (isInDarkMode) {
+                Color(eudiw_theme_dark_info)
+            } else {
+                Color(eudiw_theme_light_info)
+            }
+
+        val infoContainer: Color
+            get() = if (isInDarkMode) {
+                Color(eudiw_theme_dark_infoContainer)
+            } else {
+                Color(eudiw_theme_light_infoContainer)
+            }
+
+        val onInfoContainer: Color
+            get() = if (isInDarkMode) {
+                Color(eudiw_theme_dark_onInfoContainer)
+            } else {
+                Color(eudiw_theme_light_onInfoContainer)
+            }
+
         // Semantic color for selection/active states (nav icons, checkboxes, radio buttons)
         // Separate from primary to allow different colors in dark mode
         val activeHighlight: Color
@@ -413,6 +445,27 @@ class ThemeColors {
             }
     }
 }
+
+val ColorScheme.info: Color
+    @Composable get() = if (isInDarkMode) {
+        Color(ThemeColors.eudiw_theme_dark_info)
+    } else {
+        Color(ThemeColors.eudiw_theme_light_info)
+    }
+
+val ColorScheme.infoContainer: Color
+    @Composable get() = if (isInDarkMode) {
+        Color(ThemeColors.eudiw_theme_dark_infoContainer)
+    } else {
+        Color(ThemeColors.eudiw_theme_light_infoContainer)
+    }
+
+val ColorScheme.onInfoContainer: Color
+    @Composable get() = if (isInDarkMode) {
+        Color(ThemeColors.eudiw_theme_dark_onInfoContainer)
+    } else {
+        Color(ThemeColors.eudiw_theme_light_onInfoContainer)
+    }
 
 val ColorScheme.success: Color
     @Composable get() = if (isInDarkMode) {

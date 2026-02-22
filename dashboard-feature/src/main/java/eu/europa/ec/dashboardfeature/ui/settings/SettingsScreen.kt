@@ -115,7 +115,7 @@ fun SettingsScreen(
 
     ContentScreen(
         navigatableAction = ScreenNavigateAction.NONE,
-        isLoading = false,
+        isLoading = state.isDeleting,
         onBack = { viewModel.setEvent(Event.Pop) },
         topBar = {
             TopBar(
@@ -299,12 +299,10 @@ private fun Content(
     if (state.showDeleteWalletConfirmation) {
         AlertDialog(
             onDismissRequest = { onEventSend(Event.DismissDeleteConfirmation) },
-            title = { Text("Delete Wallet Activation?") },
+            title = { Text(stringResource(R.string.settings_delete_wallet_title)) },
             text = {
                 Text(
-                    "This will permanently delete your wallet activation from the server. " +
-                    "You'll need to set up your wallet again from the beginning. " +
-                    "This action cannot be undone.",
+                    stringResource(R.string.settings_delete_wallet_message),
                     style = MaterialTheme.typography.bodyMedium
                 )
             },
@@ -312,14 +310,17 @@ private fun Content(
                 TextButton(
                     onClick = { onEventSend(Event.ConfirmDeleteWallet) }
                 ) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text(
+                        stringResource(R.string.settings_delete_wallet_confirm),
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
             },
             dismissButton = {
                 TextButton(
                     onClick = { onEventSend(Event.DismissDeleteConfirmation) }
                 ) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.settings_delete_wallet_cancel))
                 }
             }
         )

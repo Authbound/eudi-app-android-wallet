@@ -296,17 +296,14 @@ class TestActionsRepository {
         assertNotNull("Payload should be captured", capturedPayload)
         val payloadString = String(capturedPayload!!)
 
-        // Verify format: "actionId:decision:timestamp"
-        val parts = payloadString.split(":")
-        assertEquals("Payload should have 3 parts", 3, parts.size)
-        assertEquals("First part should be actionId", testActionId, parts[0])
-        assertEquals("Second part should be decision", "accept", parts[1])
+        // Verify JSON format: {"actionId":"...","decision":"...","timestamp":...}
+        val json = org.json.JSONObject(payloadString)
+        assertEquals("actionId should match", testActionId, json.getString("actionId"))
+        assertEquals("decision should be accept", "accept", json.getString("decision"))
 
-        // Third part should be a valid timestamp
-        val timestamp = parts[2].toLongOrNull()
-        assertNotNull("Third part should be a valid timestamp", timestamp)
+        val timestamp = json.getLong("timestamp")
         assertTrue("Timestamp should be recent",
-            timestamp!! > System.currentTimeMillis() - 5000)
+            timestamp > System.currentTimeMillis() - 5000)
     }
 
     // endregion

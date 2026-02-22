@@ -183,7 +183,8 @@ class TestSettingsInteractor {
         whenever(configLogic.appBuildType).thenReturn(AppBuildType.RELEASE)
         mockStringsNeededForGetSettingsItemsUi(resourcesProvider = resourceProvider)
         val settingsItems = interactor.getSettingsItemsUi(changelogUrl = mockedChangeLogUrl)
-        assertEquals(5, settingsItems.size)
+        assertEquals(3, settingsItems.size)
+
         val accountDetailsItem = settingsItems[0]
         assertEquals(SettingsMenuItemType.ACCOUNT_DETAILS, accountDetailsItem.type)
         assertEquals(accountDetailsIdString, accountDetailsItem.data.itemId)
@@ -196,17 +197,8 @@ class TestSettingsInteractor {
         val accountDetailsTrailing =
             accountDetailsItem.data.trailingContentData as ListItemTrailingContentDataUi.Icon
         assertEquals(AppIcons.KeyboardArrowRight, accountDetailsTrailing.iconData)
-        val myDataItem = settingsItems[1]
-        assertEquals(SettingsMenuItemType.MY_DATA, myDataItem.type)
-        assertEquals(myDataIdString, myDataItem.data.itemId)
-        val myDataMain = myDataItem.data.mainContentData as ListItemMainContentDataUi.Text
-        assertEquals(myDataTitle, myDataMain.text)
-        assertEquals(myDataDescription, myDataItem.data.supportingText)
-        val myDataLeading = myDataItem.data.leadingContentData as ListItemLeadingContentDataUi.Icon
-        assertEquals(AppIcons.Id, myDataLeading.iconData)
-        val myDataTrailing = myDataItem.data.trailingContentData as ListItemTrailingContentDataUi.Icon
-        assertEquals(AppIcons.KeyboardArrowRight, myDataTrailing.iconData)
-        val changePinItem = settingsItems[2]
+
+        val changePinItem = settingsItems[1]
         assertEquals(SettingsMenuItemType.CHANGE_PIN, changePinItem.type)
         assertEquals(changePinIdString, changePinItem.data.itemId)
         val changePinMain = changePinItem.data.mainContentData as ListItemMainContentDataUi.Text
@@ -217,7 +209,8 @@ class TestSettingsInteractor {
         val changePinTrailing =
             changePinItem.data.trailingContentData as ListItemTrailingContentDataUi.Icon
         assertEquals(AppIcons.KeyboardArrowRight, changePinTrailing.iconData)
-        val retrieveLogsItem = settingsItems[3]
+
+        val retrieveLogsItem = settingsItems[2]
         assertEquals(SettingsMenuItemType.RETRIEVE_LOGS, retrieveLogsItem.type)
         assertEquals(retrieveLogsIdString, retrieveLogsItem.data.itemId)
         val retrieveLogsMain =
@@ -229,16 +222,6 @@ class TestSettingsInteractor {
         val retrieveLogsTrailing =
             retrieveLogsItem.data.trailingContentData as ListItemTrailingContentDataUi.Icon
         assertEquals(AppIcons.KeyboardArrowRight, retrieveLogsTrailing.iconData)
-        val resetHealthItem = settingsItems[4]
-        assertEquals(SettingsMenuItemType.RESET_HEALTH_DATA, resetHealthItem.type)
-        assertEquals(resetHealthDataIdString, resetHealthItem.data.itemId)
-        val resetHealthMain = resetHealthItem.data.mainContentData as ListItemMainContentDataUi.Text
-        assertEquals(resetHealthDataTitle, resetHealthMain.text)
-        assertEquals(resetHealthDataDescription, resetHealthItem.data.supportingText)
-        val resetHealthLeading = resetHealthItem.data.leadingContentData as ListItemLeadingContentDataUi.Icon
-        assertEquals(AppIcons.Refresh, resetHealthLeading.iconData)
-        val resetHealthTrailing = resetHealthItem.data.trailingContentData as ListItemTrailingContentDataUi.Icon
-        assertEquals(AppIcons.KeyboardArrowRight, resetHealthTrailing.iconData)
     }
 
     @Test
@@ -246,8 +229,8 @@ class TestSettingsInteractor {
         whenever(configLogic.appBuildType).thenReturn(AppBuildType.DEBUG)
         mockStringsNeededForGetSettingsItemsUi(resourcesProvider = resourceProvider)
         val settingsItems = interactor.getSettingsItemsUi(changelogUrl = null)
-        assertEquals(6, settingsItems.size)
-        val deleteWalletItem = settingsItems[5]
+        assertEquals(4, settingsItems.size)
+        val deleteWalletItem = settingsItems[3]
         assertEquals(SettingsMenuItemType.DELETE_WALLET_ACTIVATION, deleteWalletItem.type)
         assertEquals(deleteWalletActivationIdString, deleteWalletItem.data.itemId)
         val deleteWalletMain =
@@ -267,15 +250,10 @@ class TestSettingsInteractor {
         mockResourceProviderStrings(
             resourcesProvider,
             listOf(
-                R.string.settings_my_data_title to myDataTitle,
-                R.string.settings_my_data_description to myDataDescription,
                 R.string.dashboard_side_menu_option_change_pin_id to changePinIdString,
                 R.string.dashboard_side_menu_option_change_pin to changePinText,
                 R.string.settings_screen_option_retrieve_logs_id to retrieveLogsIdString,
                 R.string.settings_screen_option_retrieve_logs to retrieveLogsText,
-                R.string.settings_reset_health_data_id to resetHealthDataIdString,
-                R.string.settings_reset_health_data_title to resetHealthDataTitle,
-                R.string.settings_reset_health_data_description to resetHealthDataDescription,
             )
         )
     }
@@ -284,16 +262,10 @@ class TestSettingsInteractor {
     //region Mocked objects needed for tests.
     private val accountDetailsIdString = "account_details"
     private val accountDetailsText = "Account details"
-    private val myDataIdString = "my_data"
-    private val myDataTitle = "My data"
-    private val myDataDescription = "My data description"
     private val changePinIdString = "changePinId"
     private val changePinText = "Change PIN"
     private val retrieveLogsIdString = "retrieveLogsId"
     private val retrieveLogsText = "Retrieve logs"
-    private val resetHealthDataIdString = "resetHealthDataId"
-    private val resetHealthDataTitle = "Reset health data"
-    private val resetHealthDataDescription = "Remove imported health credentials and reset Maisa status"
     private val deleteWalletActivationIdString = "delete_wallet_activation"
     private val deleteWalletActivationText = "Delete Wallet Activation"
     //endregion

@@ -143,6 +143,10 @@ open class ActionsRepositoryImpl(
             )
 
             if (!response.isSuccessful) {
+                if (response.code() == 404) {
+                    logController.d(TAG, "Actions endpoint not available (404), returning empty list")
+                    return Result.success(emptyList())
+                }
                 logController.w(TAG) { "Failed to fetch actions: ${response.code()} ${response.message()}" }
                 return Result.failure(Exception("HTTP ${response.code()}: ${response.message()}"))
             }
@@ -322,6 +326,10 @@ open class ActionsRepositoryImpl(
             val response = apiClient.getDeviceStatus(bearerToken = token)
 
             if (!response.isSuccessful) {
+                if (response.code() == 404) {
+                    logController.d(TAG, "Device status endpoint not available (404), defaulting to NOT_LINKED")
+                    return Result.success(DeviceLinkStatusResult(DeviceLinkStatus.NOT_LINKED, null))
+                }
                 logController.w(TAG) { "Failed to get device status: ${response.code()} ${response.message()}" }
                 return Result.failure(Exception("HTTP ${response.code()}: ${response.message()}"))
             }
