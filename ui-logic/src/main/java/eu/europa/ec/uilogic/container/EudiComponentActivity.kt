@@ -95,7 +95,15 @@ open class EudiComponentActivity : FragmentActivity() {
 
     private fun handleDeepLink(intent: Intent?, coldBoot: Boolean = false) {
         hasDeepLink(intent?.data)?.let {
-            if (it.type == DeepLinkType.ISSUANCE && !coldBoot) {
+            if (it.type == DeepLinkType.AUTHBOUNDPID_CALLBACK && !coldBoot) {
+                // AuthboundPID callback from Chrome Custom Tab — only handle if user is logged in
+                if (routerHost.userIsLoggedInWithDocuments() || routerHost.userIsLoggedInWithNoDocuments()) {
+                    handleDeepLinkAction(
+                        routerHost.getNavController(),
+                        it
+                    )
+                }
+            } else if (it.type == DeepLinkType.ISSUANCE && !coldBoot) {
                 handleDeepLinkAction(
                     routerHost.getNavController(),
                     it.link

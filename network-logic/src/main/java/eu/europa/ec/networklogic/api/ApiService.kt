@@ -18,6 +18,7 @@ package eu.europa.ec.networklogic.api
 
 import eu.europa.ec.networklogic.model.ApiResponse
 import eu.europa.ec.networklogic.model.request.CompleteProfileRequest
+import eu.europa.ec.networklogic.model.request.CreateAuthboundPidSessionRequest
 import eu.europa.ec.networklogic.model.request.CreateLivenessSessionRequest
 import eu.europa.ec.networklogic.model.request.CreateQuickIdSessionRequest
 import eu.europa.ec.networklogic.model.request.DummyRequest
@@ -27,7 +28,9 @@ import eu.europa.ec.networklogic.model.request.MaisaIssueRequest
 import eu.europa.ec.networklogic.model.request.WalletActivationRequest
 import eu.europa.ec.networklogic.model.response.AttestationChallengeResponse
 import eu.europa.ec.networklogic.model.response.AuthboundIdCredentialResponse
+import eu.europa.ec.networklogic.model.response.AuthboundPidSessionStatus
 import eu.europa.ec.networklogic.model.response.CheckHandleResponse
+import eu.europa.ec.networklogic.model.response.CreateAuthboundPidSessionResponse
 import eu.europa.ec.networklogic.model.response.DummyResponse
 import eu.europa.ec.networklogic.model.response.LivenessSessionResponse
 import eu.europa.ec.networklogic.model.response.MaisaAuthorizeResponse
@@ -89,6 +92,10 @@ interface ApiClient {
         livenessSessionId: String
     ): ApiResponse<VerificationResponse>
     suspend fun issueAuthboundIdCredential(body: IssueAuthboundIdRequest, bearerToken: String): ApiResponse<AuthboundIdCredentialResponse>
+
+    // AuthboundPID Identity endpoints
+    suspend fun createAuthboundPidSession(body: CreateAuthboundPidSessionRequest, bearerToken: String): ApiResponse<CreateAuthboundPidSessionResponse>
+    suspend fun getAuthboundPidSessionStatus(sessionId: String, bearerToken: String): ApiResponse<AuthboundPidSessionStatus>
 }
 
 /**
@@ -361,6 +368,34 @@ class KtorApiClient(
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
                 setBody(body)
+            }
+        }
+    }
+
+    // ============================================================================
+    // AuthboundPID Identity endpoints
+    // ============================================================================
+
+    override suspend fun createAuthboundPidSession(
+        body: CreateAuthboundPidSessionRequest,
+        bearerToken: String
+    ): ApiResponse<CreateAuthboundPidSessionResponse> {
+        return executeRequest {
+            httpClient.post("$baseUrl/api/authboundpid/sessions") {
+                contentType(ContentType.Application.Json)
+                header(HttpHeaders.Authorization, "Bearer $bearerToken")
+                setBody(body)
+            }
+        }
+    }
+
+    override suspend fun getAuthboundPidSessionStatus(
+        sessionId: String,
+        bearerToken: String
+    ): ApiResponse<AuthboundPidSessionStatus> {
+        return executeRequest {
+            httpClient.get("$baseUrl/api/authboundpid/sessions/$sessionId") {
+                header(HttpHeaders.Authorization, "Bearer $bearerToken")
             }
         }
     }

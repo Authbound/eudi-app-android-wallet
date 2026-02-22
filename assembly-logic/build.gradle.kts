@@ -35,6 +35,8 @@ import project.convention.logic.config.LibraryModule.WalletActivationLogic
 import project.convention.logic.config.LibraryModule.NotificationLogic
 import project.convention.logic.config.LibraryModule.QuickIdLogic
 import project.convention.logic.config.LibraryModule.QuickIdFeature
+import project.convention.logic.config.LibraryModule.AuthboundPidLogic
+import project.convention.logic.config.LibraryModule.AuthboundPidFeature
 import project.convention.logic.kover.KoverExclusionRules
 import project.convention.logic.kover.excludeFromKoverReport
 import project.convention.logic.kover.koverModules
@@ -89,6 +91,8 @@ dependencies {
     api(project(AuthenticationFeature.path))
     api(project(QuickIdLogic.path))
     api(project(QuickIdFeature.path))
+    api(project(AuthboundPidLogic.path))
+    api(project(AuthboundPidFeature.path))
 
 
     // Modules Kover Report

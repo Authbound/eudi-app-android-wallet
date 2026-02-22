@@ -22,6 +22,8 @@ import eu.europa.ec.authenticationfeature.di.FeatureAuthenticationModule
 import eu.europa.ec.authenticationlogic.di.LogicAuthenticationModule
 import eu.europa.ec.authenticationlogic.di.supabaseModule
 import eu.europa.ec.businesslogic.di.LogicBusinessModule
+import eu.europa.ec.authboundpidfeature.di.FeatureAuthboundPidModule
+import eu.europa.ec.authboundpidlogic.di.LogicAuthboundPidModule
 import eu.europa.ec.commonfeature.di.FeatureCommonModule
 import eu.europa.ec.corelogic.di.LogicCoreModule
 import eu.europa.ec.dashboardfeature.di.FeatureDashboardModule
@@ -58,6 +60,7 @@ private val assembledModules = listOf(
     LogicStorageModule().module,
     LogicNotificationModule().module,
     LogicQuickIdModule().module,
+    LogicAuthboundPidModule().module,
 
     // Feature Modules
     FeatureCommonModule().module,
@@ -68,7 +71,8 @@ private val assembledModules = listOf(
     FeatureIssuanceModule().module,
     FeatureAuthenticationModule().module,
     FeatureWalletActivationModule().module,
-    FeatureQuickIdModule().module
+    FeatureQuickIdModule().module,
+    FeatureAuthboundPidModule().module
 
 )
 

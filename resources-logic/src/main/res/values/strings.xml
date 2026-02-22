@@ -849,4 +849,55 @@
     <string name="quickid_nfc_success">Passport read successfully!</string>
     <string name="quickid_mrz_not_found">MRZ data not found. Please scan your passport first.</string>
     <string name="quickid_liveness_not_found">Liveness session not found. Please try again.</string>
+
+    <!-- AuthboundPID Identity Verification -->
+    <string name="authboundpid_quick_action_title">Verify Identity</string>
+    <string name="authboundpid_quick_action_description">Verify with your passport via NFC</string>
+
+    <!-- AuthboundPID Intro Screen -->
+    <string name="authboundpid_intro_badge">IDENTITY VERIFICATION</string>
+    <string name="authboundpid_intro_title">Verify Your Identity</string>
+    <string name="authboundpid_intro_subtitle">Get your verified Authbound ID using\nyour passport\'s NFC chip</string>
+    <string name="authboundpid_intro_how_it_works">How it works</string>
+    <string name="authboundpid_intro_step_open">Open</string>
+    <string name="authboundpid_intro_step_open_desc">Verify in browser</string>
+    <string name="authboundpid_intro_step_scan">Scan</string>
+    <string name="authboundpid_intro_step_scan_desc">NFC + photo check</string>
+    <string name="authboundpid_intro_step_done">Done</string>
+    <string name="authboundpid_intro_step_done_desc">ID ready to use</string>
+    <string name="authboundpid_intro_requirements_title">What you\'ll need</string>
+    <string name="authboundpid_intro_requirement_passport">A passport or national ID with NFC chip</string>
+    <string name="authboundpid_intro_requirement_lighting">Good lighting for the photo check</string>
+    <string name="authboundpid_intro_requirement_time">About 2 minutes</string>
+    <string name="authboundpid_intro_verify_button">Verify Identity</string>
+    <string name="authboundpid_intro_invalid_url">Invalid verification URL. Please try again.</string>
+
+    <!-- AuthboundPID Processing Screen -->
+    <string name="authboundpid_processing_status">Processing verification…</string>
+    <string name="authboundpid_processing_issuing">Issuing credential…</string>
+    <string name="authboundpid_processing_subtitle">Please wait while we verify your identity.\nThis usually takes less than a minute.</string>
+    <string name="authboundpid_processing_session_not_found">Session not found. Please try again.</string>
+    <string name="authboundpid_network_error">Network error. Please check your connection and try again.</string>
+    <string name="authboundpid_verification_failed">Identity verification was not successful.</string>
+
+    <!-- AuthboundPID Result Screen -->
+    <string name="authboundpid_result_cancelled_title">Verification Cancelled</string>
+    <string name="authboundpid_result_cancelled_message">You cancelled the identity verification.</string>
+    <string name="authboundpid_result_unsupported_device_title">Device Not Supported</string>
+    <string name="authboundpid_result_unsupported_device_message">Your device does not support NFC verification. Please use a device with NFC capability.</string>
+    <string name="authboundpid_result_unsupported_id_title">Document Not Supported</string>
+    <string name="authboundpid_result_unsupported_id_message">Your identity document is not supported for NFC verification. Please try with a passport or national ID card.</string>
+    <string name="authboundpid_result_failed_title">Verification Failed</string>
+    <string name="authboundpid_result_failed_message">Identity verification was not successful. Please try again.</string>
+    <string name="authboundpid_result_expired_title">Session Expired</string>
+    <string name="authboundpid_result_expired_message">Your verification session has expired. Please start a new verification.</string>
+    <string name="authboundpid_result_timeout_title">Taking Too Long</string>
+    <string name="authboundpid_result_timeout_message">Verification is taking longer than expected. Please try again in a few minutes.</string>
+    <string name="authboundpid_result_verified_title">Verification Successful</string>
+    <string name="authboundpid_result_verified_message">Your identity was verified, but credential issuance is still processing. Please try again shortly.</string>
+    <string name="authboundpid_result_unknown_title">Unknown Error</string>
+    <string name="authboundpid_result_unknown_message">Something went wrong. Please try again.</string>
+    <string name="authboundpid_try_again">Try Again</string>
+    <string name="authboundpid_start_over">Start Over</string>
+    <string name="authboundpid_go_to_dashboard">Back to Dashboard</string>
 </resources>

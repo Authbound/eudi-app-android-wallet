@@ -139,6 +139,20 @@ sealed class QuickIdScreens {
     )
 }
 
+sealed class AuthboundPidScreens {
+    data object Intro : Screen(name = "AUTHBOUNDPID_INTRO")
+
+    data object Processing : Screen(
+        name = "AUTHBOUNDPID_PROCESSING",
+        parameters = "?callbackStatus={callbackStatus}&nonce={nonce}"
+    )
+
+    data object Result : Screen(
+        name = "AUTHBOUNDPID_RESULT",
+        parameters = "?resultType={resultType}"
+    )
+}
+
 sealed class ModuleRoute(val route: String) : NavigatableItem {
     data object StartupModule : ModuleRoute("STARTUP_MODULE")
     data object CommonModule : ModuleRoute("COMMON_MODULE")
@@ -147,6 +161,7 @@ sealed class ModuleRoute(val route: String) : NavigatableItem {
     data object ProximityModule : ModuleRoute("PROXIMITY_MODULE")
     data object IssuanceModule : ModuleRoute("ISSUANCE_MODULE")
     data object QuickIdModule : ModuleRoute("QUICKID_MODULE")
+    data object AuthboundPidModule : ModuleRoute("AUTHBOUNDPID_MODULE")
 }
 
 sealed class AuthenticationScreens(name: String, parameters: String = "") : Screen(name, parameters) {

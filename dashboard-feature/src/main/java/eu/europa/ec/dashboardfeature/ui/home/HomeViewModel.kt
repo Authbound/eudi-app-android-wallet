@@ -46,6 +46,7 @@ import eu.europa.ec.uilogic.mvi.MviViewModel
 import eu.europa.ec.uilogic.mvi.ViewEvent
 import eu.europa.ec.uilogic.mvi.ViewSideEffect
 import eu.europa.ec.uilogic.mvi.ViewState
+import eu.europa.ec.uilogic.navigation.AuthboundPidScreens
 import eu.europa.ec.uilogic.navigation.CommonScreens
 import eu.europa.ec.uilogic.navigation.DashboardScreens
 import eu.europa.ec.uilogic.navigation.IssuanceScreens
@@ -234,6 +235,15 @@ class HomeViewModel(
                     gradientStart = Color(0xFF5B21B6),  // Purple dark
                     gradientEnd = Color(0xFF7C3AED),    // Purple light
                     accentColor = Color(0xFFA78BFA)     // Violet accent
+                ),
+                QuickActionConfig(
+                    id = "authboundpid",
+                    title = resourceProvider.getString(R.string.authboundpid_quick_action_title),
+                    description = resourceProvider.getString(R.string.authboundpid_quick_action_description),
+                    icon = AppIcons.Id,
+                    gradientStart = Color(0xFF164E63),  // Teal dark
+                    gradientEnd = Color(0xFF0E7490),    // Teal medium
+                    accentColor = Color(0xFF2DD4BF)     // Teal accent
                 ),
             )
 
@@ -749,6 +759,10 @@ class HomeViewModel(
             "authbound_id" -> {
                 navigateToQuickId()
             }
+
+            "authboundpid" -> {
+                navigateToAuthboundPid()
+            }
         }
     }
 
@@ -756,6 +770,14 @@ class HomeViewModel(
         setEffect {
             Effect.Navigation.SwitchScreen(
                 screenRoute = QuickIdScreens.Intro.screenRoute
+            )
+        }
+    }
+
+    private fun navigateToAuthboundPid() {
+        setEffect {
+            Effect.Navigation.SwitchScreen(
+                screenRoute = AuthboundPidScreens.Intro.screenRoute
             )
         }
     }

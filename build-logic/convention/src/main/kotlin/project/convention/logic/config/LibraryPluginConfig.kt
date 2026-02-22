@@ -40,7 +40,9 @@ enum class LibraryModule(val path: String) {
     IssuanceFeature(":issuance-feature"),
     AuthenticationFeature(":authentication-feature"),
     QuickIdLogic(":quickid-logic"),
-    QuickIdFeature(":quickid-feature");
+    QuickIdFeature(":quickid-feature"),
+    AuthboundPidLogic(":authboundpid-logic"),
+    AuthboundPidFeature(":authboundpid-feature");
 
     val isLogicModule: Boolean
         get() {
