@@ -17,11 +17,11 @@
 package eu.europa.ec.issuancefeature.ui.add.model
 
 import eu.europa.ec.corelogic.model.DocumentCategory
-import eu.europa.ec.uilogic.component.ListItemDataUi
+import eu.europa.ec.uilogic.component.IconDataUi
 
-data class AddDocumentUi(
-    val credentialIssuerId: String,
-    val configurationId: String,
-    val itemData: ListItemDataUi,
-    val category: DocumentCategory = DocumentCategory.Other,
+data class CategoryGroupUi(
+    val category: DocumentCategory,
+    val categoryIcon: IconDataUi,
+    val credentials: List<AddDocumentUi>,
+    val isExpanded: Boolean = false,
 )

@@ -28,8 +28,15 @@ import eu.europa.ec.corelogic.controller.FetchScopedDocumentsPartialState
 import eu.europa.ec.corelogic.controller.IssuanceMethod
 import eu.europa.ec.corelogic.controller.IssueDocumentPartialState
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
+import eu.europa.ec.corelogic.model.DocumentCategory
 import eu.europa.ec.corelogic.model.FormatType
+import eu.europa.ec.corelogic.model.ScopedDocumentDomain
+import eu.europa.ec.corelogic.model.toDocumentCategory
+import eu.europa.ec.corelogic.model.toDocumentIdentifier
 import eu.europa.ec.issuancefeature.ui.add.model.AddDocumentUi
+import eu.europa.ec.issuancefeature.ui.add.model.CategoryGroupUi
+import eu.europa.ec.issuancefeature.ui.add.model.FeaturedCredentialUi
+import eu.europa.ec.issuancefeature.util.toIcon
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.resourceslogic.theme.values.ThemeColors
@@ -50,8 +57,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
 sealed class AddDocumentInteractorPartialState {
-    data class Success(val options: List<Pair<String, List<AddDocumentUi>>>) :
-        AddDocumentInteractorPartialState()
+    data class Success(
+        val featured: List<FeaturedCredentialUi>,
+        val categoryGroups: List<CategoryGroupUi>,
+    ) : AddDocumentInteractorPartialState()
 
     data class NoOptions(val errorMsg: String) : AddDocumentInteractorPartialState()
     data class Failure(val error: String) : AddDocumentInteractorPartialState()
@@ -104,53 +113,49 @@ class AddDocumentInteractorImpl(
                 )
 
                 is FetchScopedDocumentsPartialState.Success -> {
-
                     val customFormatType: FormatType? =
                         (flowType as? IssuanceFlowType.ExtraDocument)?.formatType
 
-                    val options: List<Pair<String, List<AddDocumentUi>>> =
-                        state.documents
-                            .asSequence()
-                            .filter { doc ->
-                                (customFormatType == null || doc.formatType == customFormatType) &&
-                                        (flowType !is IssuanceFlowType.NoDocument || doc.isPid)
-                            }
-                            .sortedWith(
-                                compareBy(
-                                    { it.credentialIssuerId },
-                                    { it.name.lowercase() }
-                                ))
-                            .map { doc ->
-                                AddDocumentUi(
-                                    credentialIssuerId = doc.credentialIssuerId,
-                                    configurationId = doc.configurationId,
-                                    itemData = ListItemDataUi(
-                                        itemId = doc.configurationId,
-                                        mainContentData = ListItemMainContentDataUi.Text(text = doc.name),
-                                        trailingContentData = ListItemTrailingContentDataUi.Icon(
-                                            iconData = AppIcons.Add
-                                        )
-                                    )
-                                )
-                            }
-                            .groupBy { it.credentialIssuerId }
-                            .entries
-                            .map { (issuer, items) -> issuer to items }
+                    val allCategories = walletCoreDocumentsController.getAllDocumentCategories()
 
+                    val filtered = state.documents.filter { doc ->
+                        (customFormatType == null || doc.formatType == customFormatType) &&
+                                (flowType !is IssuanceFlowType.NoDocument || doc.isPid)
+                    }
 
-                    if (options.isEmpty()) {
+                    val deduplicated = deduplicateDocuments(filtered)
+
+                    if (deduplicated.isEmpty()) {
                         emit(
                             AddDocumentInteractorPartialState.NoOptions(
                                 errorMsg = resourceProvider.getString(R.string.issuance_add_document_no_options)
                             )
                         )
-                    } else {
-                        emit(
-                            AddDocumentInteractorPartialState.Success(
-                                options = options
-                            )
-                        )
+                        return@flow
                     }
+
+                    val categorizedDocs = deduplicated.map { doc ->
+                        val formatType = doc.formatType.orEmpty()
+                        val category = formatType.toDocumentIdentifier()
+                            .toDocumentCategory(allCategories)
+                        doc to category
+                    }
+
+                    val featured = buildFeaturedList(categorizedDocs)
+                    val featuredKeys = featured.map { it.configurationId }.toSet()
+
+                    val categoryGroups = buildCategoryGroups(
+                        categorizedDocs.filter { (doc, _) ->
+                            doc.configurationId !in featuredKeys
+                        }
+                    )
+
+                    emit(
+                        AddDocumentInteractorPartialState.Success(
+                            featured = featured,
+                            categoryGroups = categoryGroups,
+                        )
+                    )
                 }
             }
         }.safeAsync {
@@ -158,6 +163,125 @@ class AddDocumentInteractorImpl(
                 error = it.localizedMessage ?: genericErrorMsg
             )
         }
+
+    private fun normalizeFormatType(formatType: String): String {
+        var normalized = formatType.removeSuffix(".deferred_endpoint")
+        // Map urn:eu.europa.ec.eudi:X:1 → eu.europa.ec.eudi.X.1
+        if (normalized.startsWith("urn:")) {
+            normalized = normalized.removePrefix("urn:")
+                .replace(':', '.')
+        }
+        return normalized.lowercase()
+    }
+
+    private fun deduplicateDocuments(
+        documents: List<ScopedDocumentDomain>
+    ): List<ScopedDocumentDomain> {
+        return documents
+            .groupBy { doc ->
+                normalizeFormatType(doc.formatType.orEmpty())
+            }
+            .values
+            .mapNotNull { variants ->
+                variants.sortedWith(
+                    compareBy<ScopedDocumentDomain> { doc ->
+                        // Prefer non-deferred
+                        if (doc.formatType.orEmpty().endsWith(".deferred_endpoint")) 1 else 0
+                    }.thenBy { doc ->
+                        // Prefer Mdoc (non-urn prefix) over SdJwt (urn: prefix)
+                        if (doc.formatType.orEmpty().startsWith("urn:")) 1 else 0
+                    }
+                ).firstOrNull()
+            }
+    }
+
+    private fun buildFeaturedList(
+        categorizedDocs: List<Pair<ScopedDocumentDomain, DocumentCategory>>
+    ): List<FeaturedCredentialUi> {
+        val docsByNormalized = categorizedDocs.associateBy { (doc, _) ->
+            normalizeFormatType(doc.formatType.orEmpty())
+        }
+
+        return FEATURED_FORMAT_TYPES.mapNotNull { featuredType ->
+            val normalized = normalizeFormatType(featuredType)
+            val (doc, category) = docsByNormalized[normalized] ?: return@mapNotNull null
+            FeaturedCredentialUi(
+                credentialIssuerId = doc.credentialIssuerId,
+                configurationId = doc.configurationId,
+                name = doc.name,
+                description = getFeaturedDescription(normalized),
+                category = category,
+                categoryIcon = category.toIcon(),
+            )
+        }
+    }
+
+    private fun getFeaturedDescription(normalizedFormatType: String): String {
+        val descriptionResId = FEATURED_DESCRIPTIONS[normalizedFormatType] ?: return ""
+        return resourceProvider.getString(descriptionResId)
+    }
+
+    private fun buildCategoryGroups(
+        categorizedDocs: List<Pair<ScopedDocumentDomain, DocumentCategory>>
+    ): List<CategoryGroupUi> {
+        return categorizedDocs
+            .groupBy { (_, category) -> category }
+            .entries
+            .sortedBy { (category, _) -> category.order }
+            .map { (category, docsWithCategory) ->
+                CategoryGroupUi(
+                    category = category,
+                    categoryIcon = category.toIcon(),
+                    credentials = docsWithCategory
+                        .sortedBy { (doc, _) -> doc.name.lowercase() }
+                        .map { (doc, cat) ->
+                            AddDocumentUi(
+                                credentialIssuerId = doc.credentialIssuerId,
+                                configurationId = doc.configurationId,
+                                category = cat,
+                                itemData = ListItemDataUi(
+                                    itemId = doc.configurationId,
+                                    mainContentData = ListItemMainContentDataUi.Text(text = doc.name),
+                                    trailingContentData = ListItemTrailingContentDataUi.Icon(
+                                        iconData = AppIcons.Add
+                                    )
+                                )
+                            )
+                        }
+                )
+            }
+            .filter { it.credentials.isNotEmpty() }
+    }
+
+    companion object {
+        val FEATURED_FORMAT_TYPES = listOf(
+            "eu.europa.ec.eudi.pid.1",
+            "org.iso.18013.5.1.mDL",
+            "eu.europa.ec.eudi.ehic.1",
+            "eu.europa.ec.eudi.iban.1",
+            "org.iso.23220.2.photoid.1",
+            "eu.europa.ec.eudi.pseudonym.age_over_18.1",
+        )
+
+        private val FEATURED_DESCRIPTIONS: Map<String, Int> = FEATURED_FORMAT_TYPES.zip(
+            listOf(
+                R.string.credential_desc_pid,
+                R.string.credential_desc_mdl,
+                R.string.credential_desc_ehic,
+                R.string.credential_desc_iban,
+                R.string.credential_desc_photoid,
+                R.string.credential_desc_age_verification,
+            )
+        ).associate { (type, resId) -> normalizeFormatTypeStatic(type) to resId }
+
+        private fun normalizeFormatTypeStatic(formatType: String): String {
+            var normalized = formatType.removeSuffix(".deferred_endpoint")
+            if (normalized.startsWith("urn:")) {
+                normalized = normalized.removePrefix("urn:").replace(':', '.')
+            }
+            return normalized.lowercase()
+        }
+    }
 
     override fun issueDocument(
         issuanceMethod: IssuanceMethod,

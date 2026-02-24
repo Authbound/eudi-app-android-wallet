@@ -14,14 +14,19 @@
  * governing permissions and limitations under the Licence.
  */
 
-package eu.europa.ec.issuancefeature.ui.add.model
+package eu.europa.ec.issuancefeature.util
 
 import eu.europa.ec.corelogic.model.DocumentCategory
-import eu.europa.ec.uilogic.component.ListItemDataUi
+import eu.europa.ec.uilogic.component.AppIcons
+import eu.europa.ec.uilogic.component.IconDataUi
 
-data class AddDocumentUi(
-    val credentialIssuerId: String,
-    val configurationId: String,
-    val itemData: ListItemDataUi,
-    val category: DocumentCategory = DocumentCategory.Other,
-)
+fun DocumentCategory.toIcon(): IconDataUi = when (this) {
+    DocumentCategory.Government -> AppIcons.Government
+    DocumentCategory.Finance -> AppIcons.Finance
+    DocumentCategory.Education -> AppIcons.Education
+    DocumentCategory.Health -> AppIcons.Health
+    DocumentCategory.Travel -> AppIcons.Travel
+    DocumentCategory.SocialSecurity -> AppIcons.SocialSecurity
+    DocumentCategory.Retail -> AppIcons.Retail
+    DocumentCategory.Other -> AppIcons.Folder
+}
