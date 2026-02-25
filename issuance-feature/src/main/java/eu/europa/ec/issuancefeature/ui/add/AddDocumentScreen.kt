@@ -17,10 +17,7 @@
 package eu.europa.ec.issuancefeature.ui.add
 
 import android.content.Context
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -50,12 +47,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -110,7 +107,6 @@ import eu.europa.ec.uilogic.extension.paddingFrom
 import eu.europa.ec.uilogic.navigation.IssuanceScreens
 import eu.europa.ec.uilogic.navigation.helper.handleDeepLinkAction
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
@@ -281,9 +277,15 @@ private fun MainContent(
                     item(key = "featured-header") {
                         Text(
                             text = stringResource(R.string.issuance_add_document_featured_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.onSurface,
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                                    )
+                                )
+                            ),
                             modifier = Modifier.padding(bottom = SPACING_MEDIUM.dp)
                         )
                     }
@@ -296,11 +298,9 @@ private fun MainContent(
                                 horizontalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
                             ) {
                                 rowItems.forEachIndexed { colIndex, featured ->
-                                    val tileIndex = rowIndex * 2 + colIndex
                                     FeaturedCredentialTile(
                                         modifier = Modifier.weight(1f),
                                         featured = featured,
-                                        animationDelay = tileIndex * 50,
                                         onClick = {
                                             onEventSend(
                                                 Event.IssueDocument(
@@ -329,11 +329,27 @@ private fun MainContent(
                 if (state.categoryGroups.isNotEmpty()) {
                     item(key = "browse-header") {
                         Spacer(modifier = Modifier.height(SPACING_LARGE.dp))
+                        // Subtle divider line
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                                )
+                        )
+                        Spacer(modifier = Modifier.height(SPACING_LARGE.dp))
                         Text(
                             text = stringResource(R.string.issuance_add_document_browse_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.onSurface,
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                                    )
+                                )
+                            ),
                             modifier = Modifier.padding(bottom = SPACING_SMALL.dp)
                         )
                     }
@@ -356,9 +372,6 @@ private fun MainContent(
                                     )
                                 }
                             )
-                            if (index < state.categoryGroups.lastIndex) {
-                                Spacer(modifier = Modifier.height(SPACING_SMALL.dp))
-                            }
                         }
                     }
                 }
@@ -382,51 +395,46 @@ private fun MainContent(
 private fun FeaturedCredentialTile(
     modifier: Modifier = Modifier,
     featured: FeaturedCredentialUi,
-    animationDelay: Int = 0,
     onClick: () -> Unit,
 ) {
     val haptic = LocalHapticFeedback.current
-    var visible by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        delay(animationDelay.toLong())
-        visible = true
-    }
-
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 4 },
-        modifier = modifier,
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+        ),
+        shadowElevation = 4.dp,
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onClick()
+            }
     ) {
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onClick()
-                }
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(
-                modifier = Modifier.padding(SPACING_MEDIUM.dp),
+            // Category icon in circular background
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.size(36.dp)
             ) {
-                // Category icon in circular background
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        WrapImage(
-                            iconData = featured.categoryIcon,
-                            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onPrimaryContainer)
-                        )
-                    }
+                Box(contentAlignment = Alignment.Center) {
+                    WrapImage(
+                        iconData = featured.categoryIcon,
+                        colorFilter = ColorFilter.tint(Color.White)
+                    )
                 }
+            }
 
-                Spacer(modifier = Modifier.height(SPACING_SMALL.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
+            Column(modifier = Modifier.weight(1f)) {
                 // Credential name
                 Text(
                     text = featured.name,
@@ -442,28 +450,9 @@ private fun FeaturedCredentialTile(
                     text = featured.description,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-
-                Spacer(modifier = Modifier.height(SPACING_SMALL.dp))
-
-                // Add indicator
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    WrapImage(
-                        iconData = AppIcons.Add,
-                        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary),
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = stringResource(R.string.generic_add),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
             }
         }
     }
@@ -482,7 +471,7 @@ private fun CategorySection(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(SPACING_MEDIUM.dp),
+                    .padding(SPACING_SMALL.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 DocumentCategoryHeader(
@@ -504,9 +493,9 @@ private fun CategorySection(
         cardExpandedContent = {
             Column(
                 modifier = Modifier.padding(
-                    start = SPACING_MEDIUM.dp,
-                    end = SPACING_MEDIUM.dp,
-                    bottom = SPACING_MEDIUM.dp,
+                    start = SPACING_SMALL.dp,
+                    end = SPACING_SMALL.dp,
+                    bottom = SPACING_SMALL.dp,
                 )
             ) {
                 group.credentials.forEachIndexed { index, credential ->

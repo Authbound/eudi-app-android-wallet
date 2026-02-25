@@ -57,6 +57,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
 import eu.europa.ec.resourceslogic.theme.values.pending
 import eu.europa.ec.resourceslogic.theme.values.success
 import eu.europa.ec.resourceslogic.theme.values.warning
@@ -190,12 +191,12 @@ fun DocumentCard(
                         Surface(
                             modifier = Modifier.size(48.dp),
                             shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                            color = MaterialTheme.colorScheme.primaryContainer
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 WrapIcon(
                                     iconData = config.icon,
-                                    customTint = MaterialTheme.colorScheme.primary,
+                                    customTint = Color.White,
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
@@ -339,12 +340,12 @@ fun DocumentCategoryHeader(
             Surface(
                 modifier = Modifier.size(32.dp),
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                color = MaterialTheme.colorScheme.primaryContainer
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     WrapIcon(
                         iconData = icon,
-                        customTint = MaterialTheme.colorScheme.primary,
+                        customTint = Color.White,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -374,15 +375,6 @@ fun DocumentCategoryHeader(
             }
         }
 
-        Spacer(modifier = Modifier.weight(1f))
-
-        // Subtle horizontal line (replaces full-width gradient)
-        Box(
-            modifier = Modifier
-                .weight(0.3f)
-                .height(1.dp)
-                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-        )
     }
 }
 
