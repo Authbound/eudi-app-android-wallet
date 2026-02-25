@@ -173,6 +173,9 @@ internal fun DashboardScreen(
                     viewModel = verificationHomeViewModel,
                     notificationCount = notificationCount,
                     onNotificationsClick = onNotificationsClick,
+                    onDashboardEventSent = { event ->
+                        viewModel.setEvent(event)
+                    }
                 )
             }
             composable(BottomNavigationItem.Settings.route) {

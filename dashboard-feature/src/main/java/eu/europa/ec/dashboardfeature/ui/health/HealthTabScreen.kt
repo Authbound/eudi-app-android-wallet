@@ -72,6 +72,8 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import eu.europa.ec.resourceslogic.R
+import eu.europa.ec.resourceslogic.theme.values.activeHighlight
+import eu.europa.ec.resourceslogic.theme.values.success
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.utils.SPACING_MEDIUM
 import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
@@ -223,7 +225,8 @@ private fun HealthEmptyState(
         // onActionClick = onImportClick,
         actionLabel = stringResource(R.string.coming_soon_badge),
         onActionClick = { },
-        enableAnimations = false
+        enableAnimations = false,
+        useActionsStyle = true
     )
 }
 
@@ -378,10 +381,11 @@ private fun ConnectionStatusBanner(
     }
 
     if (isConnected && connectedService != null) {
+        val successColor = MaterialTheme.colorScheme.success
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+            color = successColor.copy(alpha = 0.1f)
         ) {
             Row(
                 modifier = Modifier
@@ -393,7 +397,7 @@ private fun ConnectionStatusBanner(
                     modifier = Modifier
                         .size(8.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary)
+                        .background(successColor)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -401,13 +405,13 @@ private fun ConnectionStatusBanner(
                         text = stringResource(R.string.health_connected_to, connectedService),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     if (lastSyncTime != null) {
                         Text(
                             text = stringResource(R.string.health_last_sync, lastSyncTime),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -420,7 +424,7 @@ private fun ConnectionStatusBanner(
                     IconButton(onClick = onRefresh) {
                         WrapIcon(
                             iconData = AppIcons.Refresh,
-                            customTint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            customTint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -444,7 +448,7 @@ private fun HealthSectionHeader(
     ) {
         WrapIcon(
             iconData = icon,
-            customTint = MaterialTheme.colorScheme.primary,
+            customTint = MaterialTheme.colorScheme.activeHighlight,
             modifier = Modifier.size(20.dp)
         )
         Spacer(modifier = Modifier.width(8.dp))

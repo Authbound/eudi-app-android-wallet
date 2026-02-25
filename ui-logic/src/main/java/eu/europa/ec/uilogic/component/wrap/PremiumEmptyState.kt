@@ -29,6 +29,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -69,6 +70,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import eu.europa.ec.resourceslogic.theme.values.activeHighlight
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.IconDataUi
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
@@ -115,7 +117,8 @@ fun PremiumEmptyState(
     features: List<FeatureHighlight>? = null,
     actionLabel: String? = null,
     onActionClick: (() -> Unit)? = null,
-    enableAnimations: Boolean = true
+    enableAnimations: Boolean = true,
+    useActionsStyle: Boolean = false
 ) {
     val shouldAnimate: Boolean = enableAnimations
     var showIllustration by remember { mutableStateOf(!shouldAnimate) }
@@ -150,10 +153,18 @@ fun PremiumEmptyState(
                 visible = showIllustration,
                 enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { -it / 4 }
             ) {
-                EmptyStateIllustrationComponent(illustration = illustration, enableAnimations = true)
+                EmptyStateIllustrationComponent(
+                    illustration = illustration,
+                    enableAnimations = true,
+                    useActionsStyle = useActionsStyle
+                )
             }
         } else {
-            EmptyStateIllustrationComponent(illustration = illustration, enableAnimations = false)
+            EmptyStateIllustrationComponent(
+                illustration = illustration,
+                enableAnimations = false,
+                useActionsStyle = useActionsStyle
+            )
         }
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -224,7 +235,8 @@ fun PremiumEmptyState(
                         features.forEach { feature ->
                             FeatureHighlightCard(
                                 feature = feature,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
+                                useActionsStyle = useActionsStyle
                             )
                         }
                     }
@@ -237,7 +249,8 @@ fun PremiumEmptyState(
                     features.forEach { feature ->
                         FeatureHighlightCard(
                             feature = feature,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            useActionsStyle = useActionsStyle
                         )
                     }
                 }
@@ -274,7 +287,8 @@ fun PremiumEmptyState(
 private fun EmptyStateIllustrationComponent(
     illustration: EmptyStateIllustration,
     modifier: Modifier = Modifier,
-    enableAnimations: Boolean = true
+    enableAnimations: Boolean = true,
+    useActionsStyle: Boolean = false
 ) {
     val pulseScale: Float = if (enableAnimations) {
         val infiniteTransition = rememberInfiniteTransition(label = "illustrationPulse")
@@ -334,59 +348,128 @@ private fun EmptyStateIllustrationComponent(
         )
     }
 
+    val highlightColor = if (useActionsStyle) {
+        MaterialTheme.colorScheme.activeHighlight
+    } else {
+        primaryColor
+    }
+
+    val illustrationSize = if (useActionsStyle) 140.dp else 120.dp
+
     Box(
         modifier = modifier
-            .size(120.dp)
+            .size(illustrationSize)
             .scale(pulseScale),
         contentAlignment = Alignment.Center
     ) {
-        // Outer glow ring
-        Box(
-            modifier = Modifier
-                .size(120.dp)
-                .clip(CircleShape)
-                .background(
-                    Brush.radialGradient(
-                        listOf(
-                            primaryColor.copy(alpha = 0.15f),
-                            Color.Transparent
-                        )
-                    )
-                )
-        )
-
-        // Inner circle
-        Surface(
-            modifier = Modifier.size(80.dp),
-            shape = CircleShape,
-            color = secondaryColor.copy(alpha = 0.4f),
-            shadowElevation = 4.dp
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                WrapIcon(
-                    iconData = mainIcon,
-                    customTint = primaryColor,
-                    modifier = Modifier.size(40.dp)
-                )
-            }
-        }
-
-        // Floating accent badge (optional)
-        if (accentIcon != null) {
+        if (useActionsStyle) {
+            // Actions-style: outer glow ring with radial gradient
             Box(
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .offset(x = (-4).dp, y = (-4).dp)
-                    .size(32.dp)
+                    .size(140.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary),
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                highlightColor.copy(alpha = 0.15f),
+                                highlightColor.copy(alpha = 0.05f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            )
+            // Inner circle with gradient
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(
+                                highlightColor.copy(alpha = 0.2f),
+                                highlightColor.copy(alpha = 0.1f)
+                            )
+                        )
+                    ),
                 contentAlignment = Alignment.Center
             ) {
-                WrapIcon(
-                    iconData = accentIcon,
-                    customTint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(18.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surface),
+                    contentAlignment = Alignment.Center
+                ) {
+                    WrapIcon(
+                        iconData = mainIcon,
+                        customTint = highlightColor,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
+            // Floating plus badge
+            if (accentIcon != null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(8.dp)
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center
+                ) {
+                    WrapIcon(
+                        iconData = accentIcon,
+                        customTint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        } else {
+            // Original style
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.radialGradient(
+                            listOf(
+                                primaryColor.copy(alpha = 0.15f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            )
+            Surface(
+                modifier = Modifier.size(80.dp),
+                shape = CircleShape,
+                color = secondaryColor.copy(alpha = 0.4f),
+                shadowElevation = 4.dp
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    WrapIcon(
+                        iconData = mainIcon,
+                        customTint = primaryColor,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+            }
+            if (accentIcon != null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .offset(x = (-4).dp, y = (-4).dp)
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center
+                ) {
+                    WrapIcon(
+                        iconData = accentIcon,
+                        customTint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
     }
@@ -395,50 +478,90 @@ private fun EmptyStateIllustrationComponent(
 @Composable
 private fun FeatureHighlightCard(
     feature: FeatureHighlight,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    useActionsStyle: Boolean = false
 ) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shadowElevation = 2.dp
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+    val accentColor = if (useActionsStyle) {
+        MaterialTheme.colorScheme.activeHighlight
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
+    if (useActionsStyle) {
+        Surface(
+            modifier = modifier,
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            border = BorderStroke(1.dp, accentColor.copy(alpha = 0.2f))
         ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
+            Column(
+                modifier = Modifier.padding(vertical = 16.dp, horizontal = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                WrapIcon(
-                    iconData = feature.icon,
-                    customTint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(20.dp)
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(accentColor.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    WrapIcon(
+                        iconData = feature.icon,
+                        customTint = accentColor,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = feature.title,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                    minLines = 2,
+                    maxLines = 2
                 )
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = feature.title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = feature.description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
+        }
+    } else {
+        Surface(
+            modifier = modifier,
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            shadowElevation = 2.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    WrapIcon(
+                        iconData = feature.icon,
+                        customTint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = feature.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = feature.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }

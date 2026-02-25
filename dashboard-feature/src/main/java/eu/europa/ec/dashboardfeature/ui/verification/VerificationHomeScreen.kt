@@ -75,9 +75,12 @@ import eu.europa.ec.uilogic.component.wrap.PremiumEmptyState
 import eu.europa.ec.uilogic.component.wrap.PremiumTab
 import eu.europa.ec.uilogic.component.wrap.PremiumTabRow
 import eu.europa.ec.uilogic.component.wrap.WrapIcon
+import eu.europa.ec.uilogic.component.wrap.WrapIconButton
 import eu.europa.ec.uilogic.extension.paddingFrom
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
+import eu.europa.ec.dashboardfeature.ui.dashboard.Event as DashboardEvent
+import eu.europa.ec.dashboardfeature.ui.dashboard.Event.SideMenu.Open as OpenSideMenuEvent
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -98,6 +101,7 @@ fun VerificationHomeScreen(
     viewModel: VerificationHomeViewModel,
     notificationCount: Int,
     onNotificationsClick: () -> Unit,
+    onDashboardEventSent: (DashboardEvent) -> Unit,
 ) {
     val state: VerificationHomeState by viewModel.viewState.collectAsStateWithLifecycle()
     var selectedTab: VerificationHomeTab by remember {
@@ -109,7 +113,8 @@ fun VerificationHomeScreen(
         topBar = {
             VerificationTopBar(
                 notificationCount = notificationCount,
-                onNotificationsClick = onNotificationsClick
+                onNotificationsClick = onNotificationsClick,
+                onDashboardEventSent = onDashboardEventSent,
             )
         }
     ) { paddingValues ->
@@ -171,6 +176,7 @@ fun VerificationHomeScreen(
 private fun VerificationTopBar(
     notificationCount: Int,
     onNotificationsClick: () -> Unit,
+    onDashboardEventSent: (DashboardEvent) -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -180,6 +186,13 @@ private fun VerificationTopBar(
                 vertical = 4.dp
             )
     ) {
+        WrapIconButton(
+            modifier = Modifier.align(Alignment.CenterStart),
+            iconData = AppIcons.Menu,
+            customTint = MaterialTheme.colorScheme.onSurface,
+        ) {
+            onDashboardEventSent(OpenSideMenuEvent)
+        }
         Text(
             modifier = Modifier.align(Alignment.Center),
             textAlign = TextAlign.Center,
@@ -220,7 +233,8 @@ private fun ActiveSessionsContent(
             ),
             actionLabel = stringResource(R.string.verification_home_create_button),
             onActionClick = onCreateClick,
-            enableAnimations = false
+            enableAnimations = false,
+            useActionsStyle = true
         )
     } else {
         // Sessions list with create button at top
@@ -264,7 +278,8 @@ private fun HistorySessionsContent(
             illustration = EmptyStateIllustration.HISTORY,
             title = stringResource(R.string.verification_home_empty_history),
             description = stringResource(R.string.verification_history_empty_description),
-            enableAnimations = false
+            enableAnimations = false,
+            useActionsStyle = true
         )
     } else {
         // History sessions list

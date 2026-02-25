@@ -24,19 +24,22 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -54,13 +57,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.uilogic.component.AppIcons
+import eu.europa.ec.uilogic.component.IconDataUi
 import eu.europa.ec.uilogic.component.content.ContentScreen
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
 import eu.europa.ec.uilogic.component.wrap.ButtonConfig
@@ -71,6 +74,11 @@ import eu.europa.ec.uilogic.extension.paddingFrom
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
+
+// ── Brand colors ────────────────────────────────────────────────────
+private val StepBlue = Color(0xFF3B82F6)
+private val StepPurple = Color(0xFF8B5CF6)
+private val StepGreen = Color(0xFF10B981)
 
 @Composable
 fun AuthboundPidIntroScreen(
@@ -127,25 +135,28 @@ private fun Content(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
+            // Small top padding before hero (user requested)
+            Spacer(modifier = Modifier.height(12.dp))
 
             HeroSection()
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
-            StepVisualization()
+            StepTimeline()
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
             RequirementsSection()
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(36.dp))
 
+            // CTA button — taller with proper vertical padding
             WrapButton(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .height(56.dp)
                     .padding(horizontal = 16.dp)
-                    .padding(bottom = 24.dp),
+                    .padding(bottom = 0.dp),
                 buttonConfig = ButtonConfig(
                     type = ButtonType.PRIMARY,
                     onClick = {
@@ -161,6 +172,8 @@ private fun Content(
                     )
                 )
             }
+
+            Spacer(modifier = Modifier.height(32.dp))
         }
 
         // Top fade gradient overlay
@@ -189,6 +202,8 @@ private fun Content(
         }.collect()
     }
 }
+
+// ── Hero Section (UNTOUCHED per user request) ───────────────────────
 
 @Composable
 private fun HeroSection() {
@@ -288,19 +303,40 @@ private fun HeroSection() {
     }
 }
 
-@Composable
-private fun StepVisualization() {
-    data class StepInfo(
-        val number: String,
-        val title: String,
-        val description: String,
-        val color: Color
-    )
+// ── Step Timeline (vertical with connecting line) ───────────────────
 
+private data class StepInfo(
+    val number: String,
+    val title: String,
+    val description: String,
+    val color: Color,
+    val icon: IconDataUi
+)
+
+@Composable
+private fun StepTimeline() {
     val steps = listOf(
-        StepInfo("1", stringResource(R.string.authboundpid_intro_step_open), stringResource(R.string.authboundpid_intro_step_open_desc), Color(0xFF3B82F6)),
-        StepInfo("2", stringResource(R.string.authboundpid_intro_step_scan), stringResource(R.string.authboundpid_intro_step_scan_desc), Color(0xFF8B5CF6)),
-        StepInfo("3", stringResource(R.string.authboundpid_intro_step_done), stringResource(R.string.authboundpid_intro_step_done_desc), Color(0xFF10B981))
+        StepInfo(
+            "1",
+            stringResource(R.string.authboundpid_intro_step_open),
+            stringResource(R.string.authboundpid_intro_step_open_desc),
+            StepBlue,
+            AppIcons.OpenInBrowser
+        ),
+        StepInfo(
+            "2",
+            stringResource(R.string.authboundpid_intro_step_scan),
+            stringResource(R.string.authboundpid_intro_step_scan_desc),
+            StepPurple,
+            AppIcons.QrScanner
+        ),
+        StepInfo(
+            "3",
+            stringResource(R.string.authboundpid_intro_step_done),
+            stringResource(R.string.authboundpid_intro_step_done_desc),
+            StepGreen,
+            AppIcons.Verified
+        )
     )
 
     Column(
@@ -320,84 +356,12 @@ private fun StepVisualization() {
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-            tonalElevation = 0.dp
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            tonalElevation = 1.dp
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.Top
-            ) {
-                steps.forEach { step ->
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(horizontal = 4.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Box(
-                                modifier = Modifier
-                                    .size(52.dp)
-                                    .clip(CircleShape)
-                                    .background(step.color.copy(alpha = 0.12f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                WrapIcon(
-                                    iconData = when (step.number) {
-                                        "1" -> AppIcons.OpenInBrowser
-                                        "2" -> AppIcons.NFC
-                                        else -> AppIcons.Check
-                                    },
-                                    customTint = step.color,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .align(Alignment.TopEnd)
-                                    .offset(x = 2.dp, y = (-2).dp)
-                                    .clip(CircleShape)
-                                    .background(step.color),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = step.number,
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 10.sp
-                                    ),
-                                    color = Color.White
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        Text(
-                            text = step.title,
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1
-                        )
-
-                        Spacer(modifier = Modifier.height(2.dp))
-
-                        Text(
-                            text = step.description,
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 14.sp,
-                            maxLines = 2
-                        )
-                    }
+            Column(modifier = Modifier.padding(20.dp)) {
+                steps.forEachIndexed { index, step ->
+                    StepRow(step = step, isLast = index == steps.lastIndex)
                 }
             }
         }
@@ -405,11 +369,122 @@ private fun StepVisualization() {
 }
 
 @Composable
+private fun StepRow(step: StepInfo, isLast: Boolean) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min),
+        verticalAlignment = Alignment.Top
+    ) {
+        // Left rail: icon circle + connecting line
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.width(48.dp)
+        ) {
+            // Step number circle with colored background
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(step.color.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                WrapIcon(
+                    iconData = step.icon,
+                    customTint = step.color,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            // Connecting line (skip on last step)
+            if (!isLast) {
+                Box(
+                    modifier = Modifier
+                        .width(2.dp)
+                        .fillMaxHeight()
+                        .padding(vertical = 4.dp)
+                        .background(
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                        )
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(14.dp))
+
+        // Right side: text content
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(bottom = if (isLast) 0.dp else 20.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = step.title,
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                // Step number badge
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = step.color.copy(alpha = 0.10f)
+                ) {
+                    Text(
+                        text = step.number,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 10.sp
+                        ),
+                        color = step.color,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = step.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = 18.sp
+            )
+        }
+    }
+}
+
+// ── Requirements Section (individual icon per requirement) ──────────
+
+private data class RequirementInfo(
+    val text: String,
+    val icon: IconDataUi,
+    val color: Color
+)
+
+@Composable
 private fun RequirementsSection() {
+    val iconTint = MaterialTheme.colorScheme.onSurfaceVariant
     val requirements = listOf(
-        stringResource(R.string.authboundpid_intro_requirement_passport),
-        stringResource(R.string.authboundpid_intro_requirement_lighting),
-        stringResource(R.string.authboundpid_intro_requirement_time)
+        RequirementInfo(
+            text = stringResource(R.string.authboundpid_intro_requirement_passport),
+            icon = AppIcons.Id,
+            color = iconTint
+        ),
+        RequirementInfo(
+            text = stringResource(R.string.authboundpid_intro_requirement_lighting),
+            icon = AppIcons.Visibility,
+            color = iconTint
+        ),
+        RequirementInfo(
+            text = stringResource(R.string.authboundpid_intro_requirement_time),
+            icon = AppIcons.ClockTimer,
+            color = iconTint
+        )
     )
 
     Column(
@@ -429,40 +504,70 @@ private fun RequirementsSection() {
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-            tonalElevation = 0.dp
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            tonalElevation = 1.dp
         ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                requirements.forEach { requirement ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(26.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFF10B981).copy(alpha = 0.12f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            WrapIcon(
-                                iconData = AppIcons.Check,
-                                modifier = Modifier.size(14.dp),
-                                customTint = Color(0xFF10B981)
-                            )
-                        }
-                        Text(
-                            text = requirement,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface
+            Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                requirements.forEachIndexed { index, requirement ->
+                    RequirementRow(requirement = requirement)
+                    if (index < requirements.lastIndex) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(start = 60.dp, end = 16.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
                         )
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun RequirementRow(requirement: RequirementInfo) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Neutral icon circle
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surface),
+            contentAlignment = Alignment.Center
+        ) {
+            WrapIcon(
+                iconData = requirement.icon,
+                modifier = Modifier.size(16.dp),
+                customTint = requirement.color
+            )
+        }
+
+        Text(
+            text = requirement.text,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = FontWeight.Medium
+            ),
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
+        )
+
+        // Checkmark on the right
+        Box(
+            modifier = Modifier
+                .size(22.dp)
+                .clip(CircleShape)
+                .background(StepGreen.copy(alpha = 0.10f)),
+            contentAlignment = Alignment.Center
+        ) {
+            WrapIcon(
+                iconData = AppIcons.Check,
+                modifier = Modifier.size(12.dp),
+                customTint = StepGreen
+            )
         }
     }
 }

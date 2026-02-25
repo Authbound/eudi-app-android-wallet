@@ -339,13 +339,16 @@ fun DocumentCategoryHeader(
             Surface(
                 modifier = Modifier.size(32.dp),
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                color = MaterialTheme.colorScheme.primary
             ) {
-                Box(contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier.size(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     WrapIcon(
                         iconData = icon,
-                        customTint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
+                        customTint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }

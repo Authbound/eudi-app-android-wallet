@@ -25,13 +25,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -226,85 +230,103 @@ private fun Content(
     }
 
     // Standard PIN screen layout: Top branding, Middle content (flexible), Bottom keypad (fixed)
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(paddingValues)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
-        // Top section with logo and instructions - takes remaining space
-        Column(
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val logoWidthFraction = 0.62f
+        val logoHeight = (maxWidth * logoWidthFraction) * (35.61f / 120f)
+        val logoReservedHeight = logoHeight + 24.dp
+
+        // Main screen content respects ContentScreen paddings (toolbar, insets, etc.).
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
+                .fillMaxSize()
+                .padding(paddingValues)
         ) {
-            AppIconAndText(
-                modifier = Modifier
-                    .fillMaxWidth(0.45f)
-                    .padding(bottom = 24.dp),
-                appIconAndTextData = AppIconAndTextData(),
-            )
+            Column(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                // Top section with instructions - takes remaining space
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(top = 24.dp, bottom = 24.dp),
+                    verticalArrangement = Arrangement.Top,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Reserve space so the title/subtitle do not move when the logo is overlaid.
+                    Spacer(modifier = Modifier.height(logoReservedHeight))
+                    Spacer(modifier = Modifier.height(32.dp))
 
-            // Title - e.g., "Create Passcode" or "Enter Passcode"
-            Text(
-                text = state.title,
-                style = MaterialTheme.typography.headlineSmall.copy(
-                    fontWeight = FontWeight.Bold
-                ),
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+                    // Title - e.g., "Create Passcode" or "Enter Passcode"
+                    Text(
+                        text = state.title,
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
 
-            // Subtitle - e.g., "Enter a 6-digit passcode" or "Re-enter to confirm"
-            Text(
-                text = state.subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 32.dp, vertical = 4.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
+                    // Subtitle - e.g., "Enter a 6-digit passcode" or "Re-enter to confirm"
+                    Text(
+                        text = state.subtitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 32.dp, vertical = 4.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+
+                // PIN indicators - positioned directly above keypad
+                PinFieldLayout(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 40.dp),
+                    state = state
+                )
+
+                WrapPinKeypad(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding(),
+                    onDigitPressed = { digit ->
+                        val current = state.pin
+                        val next = if (!state.quickPinError.isNullOrEmpty()) {
+                            digit.toString()
+                        } else {
+                            (current + digit.toString())
+                        }.take(state.quickPinSize)
+                        onEventSend(Event.OnQuickPinEntered(next))
+                    },
+                    onBackspacePressed = {
+                        val current = state.pin
+                        val next = if (current.isNotEmpty()) current.dropLast(1) else current
+                        onEventSend(Event.OnQuickPinEntered(next))
+                    }
+                )
+            } // end main Column
         }
 
-        // PIN indicators - positioned directly above keypad
-        PinFieldLayout(
+        // Logo overlay (not inside the scroll container, so it will not be clipped).
+        AppIconAndText(
             modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = paddingValues.calculateTopPadding() + 24.dp)
+                .fillMaxWidth(logoWidthFraction),
+            iconModifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 40.dp),
-            state = state
+                .aspectRatio(120f / 35.61f),
+            appIconAndTextData = AppIconAndTextData(),
         )
 
-        WrapPinKeypad(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding(),
-            onDigitPressed = { digit ->
-                val current = state.pin
-                val next = if (!state.quickPinError.isNullOrEmpty()) {
-                    digit.toString()
-                } else {
-                    (current + digit.toString())
-                }.take(state.quickPinSize)
-                onEventSend(Event.OnQuickPinEntered(next))
-            },
-            onBackspacePressed = {
-                val current = state.pin
-                val next = if (current.isNotEmpty()) current.dropLast(1) else current
-                onEventSend(Event.OnQuickPinEntered(next))
-            }
-        )
-        } // end inner Column
-
-        // Overflow menu — only visible during VERIFY flow
+        // Overflow menu overlay — only visible during VERIFY flow.
         if (state.isVerifyFlow) {
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(top = 4.dp, end = 4.dp)
+                    .padding(top = paddingValues.calculateTopPadding(), end = 4.dp)
+                    .offset(y = (-6).dp)
             ) {
                 IconButton(
                     onClick = { onEventSend(Event.OverflowMenuToggled(true)) }
@@ -324,12 +346,15 @@ private fun Content(
                         text = {
                             Text(text = stringResource(id = R.string.quick_pin_forgot_menu_item))
                         },
-                        onClick = { onEventSend(Event.ForgotPinPressed) }
+                        onClick = {
+                            onEventSend(Event.OverflowMenuToggled(false))
+                            onEventSend(Event.ForgotPinPressed)
+                        }
                     )
                 }
             }
         }
-    } // end outer Box
+    }
 
     LaunchedEffect(Unit) {
         effectFlow.onEach { effect ->
