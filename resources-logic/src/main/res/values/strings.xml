@@ -33,6 +33,7 @@
     <string name="generic_success">Success</string>
     <string name="generic_close">Close</string>
     <string name="generic_ok">OK</string>
+    <string name="generic_add">Add</string>
     <string name="generic_dash">-</string>
     <string name="generic_default_relying_party_name">Relying Party</string>
     <string name="generic_default_issuer_name">Issuer</string>
@@ -461,6 +462,14 @@
     <string name="issuance_add_document_deferred_success_text">@string/generic_deferred_success_text</string>
     <string name="issuance_add_document_deferred_success_description">Your document has been requested. You will be notified when it has been issued to your wallet.</string>
     <string name="issuance_add_document_deferred_success_primary_button_text">@string/generic_ok</string>
+    <string name="credential_desc_pid">Your core digital identity</string>
+    <string name="credential_desc_mdl">Digital driving license</string>
+    <string name="credential_desc_ehic">European health insurance</string>
+    <string name="credential_desc_iban">Banking information</string>
+    <string name="credential_desc_photoid">Travel photo identification</string>
+    <string name="credential_desc_age_verification">Prove your age privately</string>
+    <string name="issuance_add_document_featured_title">Popular credentials</string>
+    <string name="issuance_add_document_browse_title">Browse all credentials</string>
 
     <!-- Issuance Success Screen -->
     <string name="issuance_success_header_description">You have successfully added the following to your wallet</string>
@@ -493,14 +502,14 @@
     <string name="issuance_generic_error">Something went wrong issuing your document(s)</string>
 
     <!-- Document Categories -->
-    <string name="document_category_government">GOVERNMENT</string>
-    <string name="document_category_travel">TRAVEL</string>
-    <string name="document_category_finance">FINANCE</string>
-    <string name="document_category_education">EDUCATION</string>
-    <string name="document_category_health">HEALTH</string>
-    <string name="document_category_social_security">SOCIAL SECURITY</string>
-    <string name="document_category_retail">RETAIL</string>
-    <string name="document_category_other">OTHER</string>
+    <string name="document_category_government">Government</string>
+    <string name="document_category_travel">Travel</string>
+    <string name="document_category_finance">Finance</string>
+    <string name="document_category_education">Education</string>
+    <string name="document_category_health">Health</string>
+    <string name="document_category_social_security">Social Security</string>
+    <string name="document_category_retail">Retail</string>
+    <string name="document_category_other">Other</string>
 
     <!-- Transaction Categories -->
     <string name="transaction_category_today">TODAY</string>">

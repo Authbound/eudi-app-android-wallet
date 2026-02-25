@@ -27,13 +27,12 @@ import eu.europa.ec.corelogic.controller.FetchScopedDocumentsPartialState
 import eu.europa.ec.corelogic.controller.IssuanceMethod
 import eu.europa.ec.corelogic.controller.IssueDocumentPartialState
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
-import eu.europa.ec.issuancefeature.util.mockedAgeOptionItemUi
+import eu.europa.ec.corelogic.model.DocumentCategories
+import eu.europa.ec.corelogic.model.DocumentCategory
+import eu.europa.ec.corelogic.model.DocumentIdentifier
 import eu.europa.ec.issuancefeature.util.mockedConfigNavigationTypePopToScreen
 import eu.europa.ec.issuancefeature.util.mockedConfigNavigationTypePush
 import eu.europa.ec.issuancefeature.util.mockedIssuerId
-import eu.europa.ec.issuancefeature.util.mockedMdlOptionItemUi
-import eu.europa.ec.issuancefeature.util.mockedPhotoIdOptionItemUi
-import eu.europa.ec.issuancefeature.util.mockedPidOptionItemUi
 import eu.europa.ec.issuancefeature.util.mockedPrimaryButtonText
 import eu.europa.ec.issuancefeature.util.mockedRouteArguments
 import eu.europa.ec.issuancefeature.util.mockedScopedDocuments
@@ -60,6 +59,7 @@ import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.utils.PERCENTAGE_25
 import eu.europa.ec.uilogic.serializer.UiSerializer
 import junit.framework.TestCase.assertEquals
+import junit.framework.TestCase.assertTrue
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -116,6 +116,10 @@ class TestAddDocumentInteractor {
 
         whenever(resourceProvider.genericErrorMessage()).thenReturn(mockedGenericErrorMessage)
         whenever(resourceProvider.getLocale()).thenReturn(mockedDefaultLocale)
+        whenever(walletCoreDocumentsController.getAllDocumentCategories()).thenReturn(
+            mockedDocumentCategories
+        )
+        mockFeaturedDescriptionStrings()
     }
 
     @After
@@ -130,8 +134,7 @@ class TestAddDocumentInteractor {
     // 2. walletCoreDocumentsController.getScopedDocuments() returns a non-empty list
 
     // Case 1 Expected Result:
-    // AddDocumentInteractorPartialState.Success state, with the following options:
-    // 1. a PID
+    // AddDocumentInteractorPartialState.Success state with PID in featured list
     @Test
     fun `Given Case 1, When getAddDocumentOption is called, Then Case 1 Expected Result is returned`() {
         coroutineRule.runTest {
@@ -146,14 +149,12 @@ class TestAddDocumentInteractor {
                 flowType = IssuanceFlowType.NoDocument
             ).runFlowTest {
                 // Then
-                assertEquals(
-                    AddDocumentInteractorPartialState.Success(
-                        options = listOf(
-                            Pair(mockedIssuerId, listOf(mockedPidOptionItemUi))
-                        )
-                    ),
-                    awaitItem()
-                )
+                val result = awaitItem()
+                assertTrue(result is AddDocumentInteractorPartialState.Success)
+                val success = result as AddDocumentInteractorPartialState.Success
+                assertEquals(1, success.featured.size)
+                assertEquals(mockedIssuerId, success.featured[0].credentialIssuerId)
+                assertTrue(success.categoryGroups.isEmpty())
             }
         }
     }
@@ -163,11 +164,8 @@ class TestAddDocumentInteractor {
     // 2. walletCoreDocumentsController.getScopedDocuments() returns a non-empty list
 
     // Case 2 Expected Result:
-    // AddDocumentInteractorPartialState.Success state, with the following options:
-    // 1. an Age Verification,
-    // 2. a PID,
-    // 3. an mDL,
-    // 4. a Photo ID
+    // AddDocumentInteractorPartialState.Success state with all 4 docs in featured
+    // (PID, mDL, Age Verification, Photo ID all match FEATURED_FORMAT_TYPES)
     @Test
     fun `Given Case 2, When getAddDocumentOption is called, Then Case 2 Expected Result is returned`() {
         coroutineRule.runTest {
@@ -184,22 +182,11 @@ class TestAddDocumentInteractor {
                 )
             ).runFlowTest {
                 // Then
-                assertEquals(
-                    AddDocumentInteractorPartialState.Success(
-                        options = listOf(
-                            Pair(
-                                mockedIssuerId,
-                                listOf(
-                                    mockedAgeOptionItemUi,
-                                    mockedPidOptionItemUi,
-                                    mockedMdlOptionItemUi,
-                                    mockedPhotoIdOptionItemUi
-                                )
-                            )
-                        )
-                    ),
-                    awaitItem()
-                )
+                val result = awaitItem()
+                assertTrue(result is AddDocumentInteractorPartialState.Success)
+                val success = result as AddDocumentInteractorPartialState.Success
+                assertEquals(4, success.featured.size)
+                assertTrue(success.categoryGroups.isEmpty())
             }
         }
     }
@@ -660,7 +647,38 @@ class TestAddDocumentInteractor {
     }
     //endregion
 
+    private fun mockFeaturedDescriptionStrings() {
+        whenever(resourceProvider.getString(R.string.credential_desc_pid))
+            .thenReturn("Your core digital identity")
+        whenever(resourceProvider.getString(R.string.credential_desc_mdl))
+            .thenReturn("Digital driving license")
+        whenever(resourceProvider.getString(R.string.credential_desc_ehic))
+            .thenReturn("European health insurance")
+        whenever(resourceProvider.getString(R.string.credential_desc_iban))
+            .thenReturn("Banking information")
+        whenever(resourceProvider.getString(R.string.credential_desc_photoid))
+            .thenReturn("Travel photo identification")
+        whenever(resourceProvider.getString(R.string.credential_desc_age_verification))
+            .thenReturn("Prove your age privately")
+    }
+
     //region mocked objects
+    private val mockedDocumentCategories = DocumentCategories(
+        mapOf(
+            DocumentCategory.Government to listOf(
+                DocumentIdentifier.MdocPid,
+                DocumentIdentifier.SdJwtPid,
+            ),
+            DocumentCategory.Travel to listOf(
+                DocumentIdentifier.OTHER("org.iso.18013.5.1.mDL"),
+                DocumentIdentifier.OTHER("org.iso.23220.2.photoid.1"),
+            ),
+            DocumentCategory.Other to listOf(
+                DocumentIdentifier.OTHER("eu.europa.ec.eudi.pseudonym.age_over_18.1"),
+            ),
+        )
+    )
+
     private val mockedTripleObject by lazy {
         Triple(
             first = SuccessUIConfig.TextElementsConfig(

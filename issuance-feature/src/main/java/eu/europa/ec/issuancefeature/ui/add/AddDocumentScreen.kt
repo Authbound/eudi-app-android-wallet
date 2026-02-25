@@ -17,10 +17,14 @@
 package eu.europa.ec.issuancefeature.ui.add
 
 import android.content.Context
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
@@ -29,12 +33,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,11 +51,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -56,9 +69,13 @@ import androidx.navigation.NavController
 import eu.europa.ec.commonfeature.config.IssuanceFlowType
 import eu.europa.ec.commonfeature.config.IssuanceUiConfig
 import eu.europa.ec.corelogic.controller.IssuanceMethod
+import eu.europa.ec.corelogic.model.DocumentCategory
 import eu.europa.ec.corelogic.util.CoreActions
 import eu.europa.ec.issuancefeature.ui.add.model.AddDocumentUi
+import eu.europa.ec.issuancefeature.ui.add.model.CategoryGroupUi
+import eu.europa.ec.issuancefeature.ui.add.model.FeaturedCredentialUi
 import eu.europa.ec.issuancefeature.util.TestTag
+import eu.europa.ec.issuancefeature.util.toIcon
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.ErrorInfo
@@ -75,14 +92,15 @@ import eu.europa.ec.uilogic.component.utils.LifecycleEffect
 import eu.europa.ec.uilogic.component.utils.SIZE_LARGE
 import eu.europa.ec.uilogic.component.utils.SPACING_LARGE
 import eu.europa.ec.uilogic.component.utils.SPACING_MEDIUM
+import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
 import eu.europa.ec.uilogic.component.utils.VSpacer
 import eu.europa.ec.uilogic.component.wrap.ButtonConfig
 import eu.europa.ec.uilogic.component.wrap.ButtonType
-import eu.europa.ec.uilogic.component.wrap.TextConfig
+import eu.europa.ec.uilogic.component.wrap.DocumentCategoryHeader
 import eu.europa.ec.uilogic.component.wrap.WrapButton
+import eu.europa.ec.uilogic.component.wrap.WrapExpandableCard
 import eu.europa.ec.uilogic.component.wrap.WrapImage
 import eu.europa.ec.uilogic.component.wrap.WrapListItem
-import eu.europa.ec.uilogic.component.wrap.WrapText
 import eu.europa.ec.uilogic.extension.finish
 import eu.europa.ec.uilogic.extension.getPendingDeepLink
 import eu.europa.ec.uilogic.extension.paddingFrom
@@ -227,6 +245,9 @@ private fun MainContent(
     onEventSend: (Event) -> Unit,
     context: Context,
 ) {
+    val noOptions = state.featuredCredentials.isEmpty() && state.categoryGroups.isEmpty()
+            && state.isInitialised && !state.isLoading
+
     Column(
         modifier = modifier
     ) {
@@ -237,102 +258,267 @@ private fun MainContent(
             subtitleTestTag = TestTag.AddDocumentScreen.SUBTITLE,
         )
 
-        if (state.noOptions) {
+        if (noOptions) {
             ErrorInfo(
                 modifier = Modifier.fillMaxSize(),
                 informativeText = stringResource(R.string.issuance_add_document_no_options)
             )
         } else {
-
             VSpacer.Medium()
 
-            Options(
-                options = state.options,
+            val listState = remember { LazyListState() }
+
+            LazyColumn(
+                state = listState,
                 modifier = Modifier.fillMaxSize(),
-                footerIsShown = state.showFooterScanner,
-                onOptionClicked = { itemId, issuerId ->
-                    onEventSend(
-                        Event.IssueDocument(
-                            issuanceMethod = IssuanceMethod.OPENID4VCI,
-                            issuerId = issuerId,
-                            configId = itemId,
-                            context = context
+            ) {
+                // Featured credentials section
+                if (state.featuredCredentials.isNotEmpty()) {
+                    item(key = "featured-header") {
+                        Text(
+                            text = stringResource(R.string.issuance_add_document_featured_title),
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.onSurface,
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                                    )
+                                )
+                            ),
+                            modifier = Modifier.padding(bottom = SPACING_MEDIUM.dp)
                         )
+                    }
+
+                    val rows = state.featuredCredentials.chunked(2)
+                    rows.forEachIndexed { rowIndex, rowItems ->
+                        item(key = "featured-row-$rowIndex") {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
+                            ) {
+                                rowItems.forEachIndexed { colIndex, featured ->
+                                    FeaturedCredentialTile(
+                                        modifier = Modifier.weight(1f),
+                                        featured = featured,
+                                        onClick = {
+                                            onEventSend(
+                                                Event.IssueDocument(
+                                                    issuanceMethod = IssuanceMethod.OPENID4VCI,
+                                                    issuerId = featured.credentialIssuerId,
+                                                    configId = featured.configurationId,
+                                                    context = context
+                                                )
+                                            )
+                                        }
+                                    )
+                                }
+                                // Fill empty space for odd last row
+                                if (rowItems.size == 1) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                            if (rowIndex < rows.lastIndex) {
+                                Spacer(modifier = Modifier.height(SPACING_MEDIUM.dp))
+                            }
+                        }
+                    }
+                }
+
+                // Browse all credentials section
+                if (state.categoryGroups.isNotEmpty()) {
+                    item(key = "browse-header") {
+                        Spacer(modifier = Modifier.height(SPACING_LARGE.dp))
+                        // Subtle divider line
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                                )
+                        )
+                        Spacer(modifier = Modifier.height(SPACING_LARGE.dp))
+                        Text(
+                            text = stringResource(R.string.issuance_add_document_browse_title),
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.onSurface,
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                                    )
+                                )
+                            ),
+                            modifier = Modifier.padding(bottom = SPACING_SMALL.dp)
+                        )
+                    }
+
+                    state.categoryGroups.forEachIndexed { index, group ->
+                        item(key = "category-${group.category.id}") {
+                            CategorySection(
+                                group = group,
+                                onToggle = {
+                                    onEventSend(Event.ToggleCategoryExpansion(group.category.id))
+                                },
+                                onCredentialClick = { configId, issuerId ->
+                                    onEventSend(
+                                        Event.IssueDocument(
+                                            issuanceMethod = IssuanceMethod.OPENID4VCI,
+                                            issuerId = issuerId,
+                                            configId = configId,
+                                            context = context
+                                        )
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
+
+                item(key = "footer-spacer") {
+                    Spacer(
+                        modifier = Modifier
+                            .padding(bottom = SPACING_MEDIUM.dp)
+                            .then(
+                                if (!state.showFooterScanner) Modifier.navigationBarsPadding()
+                                else Modifier
+                            )
                     )
                 }
-            )
+            }
         }
     }
 }
 
 @Composable
-private fun Options(
-    options: List<Pair<String, List<AddDocumentUi>>>,
-    footerIsShown: Boolean,
+private fun FeaturedCredentialTile(
     modifier: Modifier = Modifier,
-    onOptionClicked: (itemId: String, issuerId: String) -> Unit,
+    featured: FeaturedCredentialUi,
+    onClick: () -> Unit,
 ) {
+    val haptic = LocalHapticFeedback.current
 
-    val listState = remember(options) { LazyListState() }
-
-    LazyColumn(
-        state = listState,
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+        ),
+        shadowElevation = 4.dp,
         modifier = modifier
-    ) {
-        options.forEachIndexed { sectionIndex, (issuerId, items) ->
-
-            stickyHeader(key = "hdr-$issuerId") {
-                WrapText(
-                    modifier = modifier
-                        .background(MaterialTheme.colorScheme.background)
-                        .padding(bottom = SPACING_MEDIUM.dp),
-                    text = issuerId,
-                    textConfig = TextConfig(
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                )
+            .fillMaxWidth()
+            .clickable {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onClick()
             }
-
-            itemsIndexed(
-                items = items,
-                key = { _, item -> "$issuerId-${item.configurationId}" }
-            ) { index, item ->
-                val testTag = TestTag.AddDocumentScreen.optionItem(
-                    issuerId = issuerId,
-                    configId = item.configurationId
-                )
-                WrapListItem(
-                    modifier = Modifier
-                        .testTag(testTag)
-                        .fillMaxWidth(),
-                    item = item.itemData,
-                    mainContentVerticalPadding = SPACING_LARGE.dp,
-                    mainContentTextStyle = MaterialTheme.typography.titleMedium,
-                    onItemClick = { clicked ->
-                        onOptionClicked(clicked.itemId, issuerId)
-                    }
-                )
-                if (index < items.lastIndex) {
-                    Spacer(Modifier.height(SPACING_MEDIUM.dp))
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // Category icon in circular background
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    WrapImage(
+                        iconData = featured.categoryIcon,
+                        colorFilter = ColorFilter.tint(Color.White)
+                    )
                 }
             }
 
-            if (sectionIndex != options.lastIndex) {
-                item(key = "sep-$issuerId") { Spacer(Modifier.height(SPACING_MEDIUM.dp)) }
-            }
-        }
+            Spacer(modifier = Modifier.width(12.dp))
 
-        item(key = "footer-spacer") {
-            Spacer(
-                modifier = Modifier
-                    .padding(bottom = SPACING_MEDIUM.dp)
-                    .then(if (!footerIsShown) Modifier.navigationBarsPadding() else Modifier)
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                // Credential name
+                Text(
+                    text = featured.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+
+                // Description
+                Text(
+                    text = featured.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
 
+@Composable
+private fun CategorySection(
+    group: CategoryGroupUi,
+    onToggle: () -> Unit,
+    onCredentialClick: (configId: String, issuerId: String) -> Unit,
+) {
+    WrapExpandableCard(
+        isExpanded = group.isExpanded,
+        onExpandedChange = onToggle,
+        cardCollapsedContent = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(SPACING_SMALL.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                DocumentCategoryHeader(
+                    title = stringResource(group.category.stringResId),
+                    icon = group.categoryIcon,
+                    documentCount = group.credentials.size,
+                    modifier = Modifier.weight(1f),
+                )
+                WrapImage(
+                    iconData = if (group.isExpanded) {
+                        AppIcons.KeyboardArrowUp
+                    } else {
+                        AppIcons.KeyboardArrowDown
+                    },
+                    colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant),
+                )
+            }
+        },
+        cardExpandedContent = {
+            Column(
+                modifier = Modifier.padding(
+                    start = SPACING_SMALL.dp,
+                    end = SPACING_SMALL.dp,
+                    bottom = SPACING_SMALL.dp,
+                )
+            ) {
+                group.credentials.forEachIndexed { index, credential ->
+                    WrapListItem(
+                        modifier = Modifier.fillMaxWidth(),
+                        item = credential.itemData,
+                        mainContentVerticalPadding = SPACING_MEDIUM.dp,
+                        mainContentTextStyle = MaterialTheme.typography.bodyLarge,
+                        onItemClick = { clicked ->
+                            onCredentialClick(
+                                clicked.itemId,
+                                credential.credentialIssuerId
+                            )
+                        }
+                    )
+                    if (index < group.credentials.lastIndex) {
+                        Spacer(Modifier.height(SPACING_SMALL.dp))
+                    }
+                }
+            }
+        }
+    )
+}
 
 @Composable
 private fun Footer(
@@ -387,40 +573,45 @@ private fun IssuanceAddDocumentScreenPreview() {
                 navigatableAction = ScreenNavigateAction.NONE,
                 title = stringResource(R.string.issuance_add_document_title),
                 subtitle = stringResource(R.string.issuance_add_document_subtitle),
-                options = listOf(
-                    Pair(
-                        "issuer1",
-                        listOf(
+                isInitialised = true,
+                featuredCredentials = listOf(
+                    FeaturedCredentialUi(
+                        credentialIssuerId = "issuer1",
+                        configurationId = "pid",
+                        name = "National ID",
+                        description = "Your core digital identity",
+                        category = DocumentCategory.Government,
+                        categoryIcon = AppIcons.Government,
+                    ),
+                    FeaturedCredentialUi(
+                        credentialIssuerId = "issuer1",
+                        configurationId = "mdl",
+                        name = "Driving License",
+                        description = "Digital driving license",
+                        category = DocumentCategory.Travel,
+                        categoryIcon = AppIcons.Travel,
+                    ),
+                ),
+                categoryGroups = listOf(
+                    CategoryGroupUi(
+                        category = DocumentCategory.Health,
+                        categoryIcon = DocumentCategory.Health.toIcon(),
+                        credentials = listOf(
                             AddDocumentUi(
                                 credentialIssuerId = "issuer1",
-                                configurationId = "configId1",
+                                configurationId = "ehic",
+                                category = DocumentCategory.Health,
                                 itemData = ListItemDataUi(
-                                    itemId = "configId1",
-                                    mainContentData = ListItemMainContentDataUi.Text(text = "National ID"),
+                                    itemId = "ehic",
+                                    mainContentData = ListItemMainContentDataUi.Text(text = "EHIC"),
                                     trailingContentData = ListItemTrailingContentDataUi.Icon(
                                         iconData = AppIcons.Add
                                     )
                                 )
                             )
-                        )
+                        ),
                     ),
-                    Pair(
-                        "issuer2",
-                        listOf(
-                            AddDocumentUi(
-                                credentialIssuerId = "issuer2",
-                                configurationId = "configId2",
-                                itemData = ListItemDataUi(
-                                    itemId = "configId2",
-                                    mainContentData = ListItemMainContentDataUi.Text(text = "Driving Licence"),
-                                    trailingContentData = ListItemTrailingContentDataUi.Icon(
-                                        iconData = AppIcons.Add
-                                    )
-                                )
-                            )
-                        )
-                    )
-                )
+                ),
             ),
             effectFlow = Channel<Effect>().receiveAsFlow(),
             onEventSend = {},
@@ -446,40 +637,33 @@ private fun DashboardAddDocumentScreenPreview() {
                 navigatableAction = ScreenNavigateAction.BACKABLE,
                 title = stringResource(R.string.issuance_add_document_title),
                 subtitle = stringResource(R.string.issuance_add_document_subtitle),
-                options = listOf(
-                    Pair(
-                        "issuer1",
-                        listOf(
-                            AddDocumentUi(
-                                credentialIssuerId = "issuer1",
-                                configurationId = "configId1",
-                                itemData = ListItemDataUi(
-                                    itemId = "configId1",
-                                    mainContentData = ListItemMainContentDataUi.Text(text = "National ID"),
-                                    trailingContentData = ListItemTrailingContentDataUi.Icon(
-                                        iconData = AppIcons.Add
-                                    )
-                                )
-                            )
-                        )
+                isInitialised = true,
+                featuredCredentials = listOf(
+                    FeaturedCredentialUi(
+                        credentialIssuerId = "issuer1",
+                        configurationId = "pid",
+                        name = "National ID",
+                        description = "Your core digital identity",
+                        category = DocumentCategory.Government,
+                        categoryIcon = AppIcons.Government,
                     ),
-                    Pair(
-                        "issuer2",
-                        listOf(
-                            AddDocumentUi(
-                                credentialIssuerId = "issuer2",
-                                configurationId = "configId2",
-                                itemData = ListItemDataUi(
-                                    itemId = "configId2",
-                                    mainContentData = ListItemMainContentDataUi.Text(text = "Driving Licence"),
-                                    trailingContentData = ListItemTrailingContentDataUi.Icon(
-                                        iconData = AppIcons.Add
-                                    )
-                                )
-                            )
-                        )
-                    )
-                )
+                    FeaturedCredentialUi(
+                        credentialIssuerId = "issuer1",
+                        configurationId = "mdl",
+                        name = "Driving License",
+                        description = "Digital driving license",
+                        category = DocumentCategory.Travel,
+                        categoryIcon = AppIcons.Travel,
+                    ),
+                    FeaturedCredentialUi(
+                        credentialIssuerId = "issuer1",
+                        configurationId = "ehic",
+                        name = "EHIC",
+                        description = "European health insurance",
+                        category = DocumentCategory.Health,
+                        categoryIcon = AppIcons.Health,
+                    ),
+                ),
             ),
             effectFlow = Channel<Effect>().receiveAsFlow(),
             onEventSend = {},

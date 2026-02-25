@@ -34,7 +34,8 @@ import eu.europa.ec.corelogic.controller.IssueDocumentPartialState
 import eu.europa.ec.corelogic.di.getOrCreatePresentationScope
 import eu.europa.ec.issuancefeature.interactor.AddDocumentInteractor
 import eu.europa.ec.issuancefeature.interactor.AddDocumentInteractorPartialState
-import eu.europa.ec.issuancefeature.ui.add.model.AddDocumentUi
+import eu.europa.ec.issuancefeature.ui.add.model.CategoryGroupUi
+import eu.europa.ec.issuancefeature.ui.add.model.FeaturedCredentialUi
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.uilogic.component.content.ContentErrorConfig
@@ -73,8 +74,8 @@ data class State(
 
     val title: String = "",
     val subtitle: String = "",
-    val options: List<Pair<String, List<AddDocumentUi>>> = emptyList(),
-    val noOptions: Boolean = false,
+    val featuredCredentials: List<FeaturedCredentialUi> = emptyList(),
+    val categoryGroups: List<CategoryGroupUi> = emptyList(),
     val showFooterScanner: Boolean,
 ) : ViewState
 
@@ -87,6 +88,7 @@ sealed class Event : ViewEvent {
     data class OnDynamicPresentation(val uri: String) : Event()
     data object Finish : Event()
     data object DismissError : Event()
+    data class ToggleCategoryExpansion(val categoryId: Int) : Event()
     data class IssueDocument(
         val issuanceMethod: IssuanceMethod,
         val issuerId: String,
@@ -134,7 +136,7 @@ class AddDocumentViewModel(
     override fun handleEvents(event: Event) {
         when (event) {
             is Event.Init -> {
-                if (viewState.value.options.isEmpty()) {
+                if (viewState.value.featuredCredentials.isEmpty() && viewState.value.categoryGroups.isEmpty()) {
                     getOptions(event, event.deepLink)
                 } else {
                     handleDeepLink(event.deepLink)
@@ -145,6 +147,20 @@ class AddDocumentViewModel(
 
             is Event.DismissError -> {
                 setState { copy(error = null) }
+            }
+
+            is Event.ToggleCategoryExpansion -> {
+                setState {
+                    copy(
+                        categoryGroups = categoryGroups.map { group ->
+                            if (group.category.id == event.categoryId) {
+                                group.copy(isExpanded = !group.isExpanded)
+                            } else {
+                                group
+                            }
+                        }
+                    )
+                }
             }
 
             is Event.IssueDocument -> {
@@ -220,8 +236,8 @@ class AddDocumentViewModel(
                         setState {
                             copy(
                                 error = null,
-                                options = response.options,
-                                noOptions = false,
+                                featuredCredentials = response.featured,
+                                categoryGroups = response.categoryGroups,
                                 showFooterScanner = shouldShowFooterScanner(
                                     flowType = viewState.value.issuanceConfig.flowType
                                 ),
@@ -247,8 +263,8 @@ class AddDocumentViewModel(
                                 } else {
                                     null
                                 },
-                                options = emptyList(),
-                                noOptions = false,
+                                featuredCredentials = emptyList(),
+                                categoryGroups = emptyList(),
                                 showFooterScanner = false,
                                 isInitialised = true,
                                 isLoading = false
@@ -263,8 +279,8 @@ class AddDocumentViewModel(
                         setState {
                             copy(
                                 error = null,
-                                options = emptyList(),
-                                noOptions = true,
+                                featuredCredentials = emptyList(),
+                                categoryGroups = emptyList(),
                                 showFooterScanner = true,
                                 isInitialised = true,
                                 isLoading = false
