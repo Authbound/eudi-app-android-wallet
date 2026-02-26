@@ -17,12 +17,15 @@
 package eu.europa.ec.storagelogic.model
 
 import androidx.room.Entity
+import androidx.room.Index
 
 @Entity(
-    tableName = "bookmarks",
-    primaryKeys = ["identifier", "userId"]
+    tableName = "user_document_mappings",
+    primaryKeys = ["documentId", "userId"],
+    indices = [Index(value = ["userId"])]
 )
-data class Bookmark(
-    val identifier: String,
-    val userId: String
+data class UserDocumentMapping(
+    val documentId: String,
+    val userId: String,
+    val createdAt: Long = System.currentTimeMillis()
 )

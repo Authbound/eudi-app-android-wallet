@@ -20,31 +20,31 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import eu.europa.ec.storagelogic.model.RevokedDocument
+import eu.europa.ec.storagelogic.model.UserDocumentMapping
 
 @Dao
-interface RevokedDocumentDao {
+interface UserDocumentMappingDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun store(value: RevokedDocument)
+    suspend fun store(mapping: UserDocumentMapping)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun storeAll(values: List<RevokedDocument>)
+    suspend fun storeAll(mappings: List<UserDocumentMapping>)
 
-    @Query("SELECT * FROM revokedDocuments WHERE identifier = :identifier AND userId = :userId")
-    suspend fun retrieve(identifier: String, userId: String): RevokedDocument?
+    @Query("SELECT documentId FROM user_document_mappings WHERE userId = :userId")
+    suspend fun getDocumentIdsForUser(userId: String): List<String>
 
-    @Query("SELECT * FROM revokedDocuments WHERE userId = :userId")
-    suspend fun retrieveAllForUser(userId: String): List<RevokedDocument>
+    @Query("SELECT * FROM user_document_mappings WHERE documentId = :documentId AND userId = :userId")
+    suspend fun getMapping(documentId: String, userId: String): UserDocumentMapping?
 
-    @Query("DELETE FROM revokedDocuments WHERE identifier = :identifier AND userId = :userId")
-    suspend fun delete(identifier: String, userId: String)
+    @Query("DELETE FROM user_document_mappings WHERE documentId = :documentId")
+    suspend fun deleteByDocumentId(documentId: String)
 
-    @Query("DELETE FROM revokedDocuments WHERE userId = :userId")
+    @Query("DELETE FROM user_document_mappings WHERE userId = :userId")
     suspend fun deleteAllForUser(userId: String)
 
-    @Query("UPDATE revokedDocuments SET userId = :userId WHERE userId = ''")
-    suspend fun migrateOrphanedToUser(userId: String)
+    @Query("SELECT documentId FROM user_document_mappings")
+    suspend fun getAllMappedDocumentIds(): List<String>
 
-    @Query("DELETE FROM revokedDocuments")
+    @Query("DELETE FROM user_document_mappings")
     suspend fun deleteAll()
 }

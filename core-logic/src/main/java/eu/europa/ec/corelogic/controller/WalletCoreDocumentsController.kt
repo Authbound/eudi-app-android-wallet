@@ -55,19 +55,24 @@ import eu.europa.ec.eudi.wallet.issue.openid4vci.OfferResult
 import eu.europa.ec.eudi.wallet.issue.openid4vci.OpenId4VciManager
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
+import eu.europa.ec.businesslogic.controller.wallet.UserDocumentOwnershipController
 import eu.europa.ec.storagelogic.dao.BookmarkDao
 import eu.europa.ec.storagelogic.dao.RevokedDocumentDao
 import eu.europa.ec.storagelogic.dao.TransactionLogDao
 import eu.europa.ec.storagelogic.model.Bookmark
+import eu.europa.ec.storagelogic.model.RevokedDocument
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.ProducerScope
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.channels.trySendBlocking
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.URLDecoder
@@ -209,6 +214,10 @@ interface WalletCoreDocumentsController {
     suspend fun deleteBookmark(bookmarkId: DocumentId)
 
     suspend fun isDocumentLowOnCredentials(document: IssuedDocument): Boolean
+
+    suspend fun storeRevokedDocuments(revokedDocuments: List<IssuedDocument>)
+
+    suspend fun removeRevokedDocumentsFromStorage(ids: List<String>)
 }
 
 class WalletCoreDocumentsControllerImpl(
@@ -218,8 +227,11 @@ class WalletCoreDocumentsControllerImpl(
     private val bookmarkDao: BookmarkDao,
     private val transactionLogDao: TransactionLogDao,
     private val revokedDocumentDao: RevokedDocumentDao,
+    private val ownershipController: UserDocumentOwnershipController,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : WalletCoreDocumentsController {
+
+    private val bindingScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val genericErrorMessage
         get() = resourceProvider.genericErrorMessage()
@@ -233,11 +245,14 @@ class WalletCoreDocumentsControllerImpl(
         }
     }
 
-    override fun getAllDocuments(): List<Document> =
-        eudiWallet.getDocuments { it is IssuedDocument || it is DeferredDocument }
+    override fun getAllDocuments(): List<Document> {
+        val ownedIds = runBlocking { ownershipController.getCurrentUserDocumentIds() }
+        return eudiWallet.getDocuments { it is IssuedDocument || it is DeferredDocument }
+            .filter { it.id in ownedIds }
+    }
 
     override fun getAllIssuedDocuments(): List<IssuedDocument> =
-        eudiWallet.getDocuments().filterIsInstance<IssuedDocument>()
+        getAllDocuments().filterIsInstance<IssuedDocument>()
 
     override suspend fun getScopedDocuments(locale: Locale): FetchScopedDocumentsPartialState {
         return withContext(dispatcher) {
@@ -317,6 +332,8 @@ class WalletCoreDocumentsControllerImpl(
             }
 
     override fun getDocumentById(documentId: DocumentId): Document? {
+        val isOwned = runBlocking { ownershipController.isDocumentOwnedByCurrentUser(documentId) }
+        if (!isOwned) return null
         return eudiWallet.getDocumentById(documentId = documentId)
     }
 
@@ -404,10 +421,17 @@ class WalletCoreDocumentsControllerImpl(
         }
 
     override fun deleteDocument(documentId: String): Flow<DeleteDocumentPartialState> = flow {
+        val isOwned = ownershipController.isDocumentOwnedByCurrentUser(documentId)
+        if (!isOwned) {
+            emit(DeleteDocumentPartialState.Failure(errorMessage = genericErrorMessage))
+            return@flow
+        }
+        val userId = ownershipController.requireCurrentUserId()
         eudiWallet.deleteDocumentById(documentId = documentId)
             .kotlinResult
             .onSuccess {
-                revokedDocumentDao.delete(documentId)
+                revokedDocumentDao.delete(documentId, userId)
+                ownershipController.unbindDocument(documentId)
                 emit(DeleteDocumentPartialState.Success)
             }
             .onFailure {
@@ -589,6 +613,9 @@ class WalletCoreDocumentsControllerImpl(
                             }
 
                             is DeferredIssueResult.DocumentIssued -> {
+                                bindingScope.launch {
+                                    ownershipController.bindDocumentToCurrentUser(deferredIssuanceResult.documentId)
+                                }
                                 trySendBlocking(
                                     IssueDeferredDocumentPartialState.Issued(
                                         DeferredDocumentDataDomain(
@@ -653,7 +680,8 @@ class WalletCoreDocumentsControllerImpl(
 
     override suspend fun getTransactionLogs(): List<TransactionLogDataDomain> =
         withContext(dispatcher) {
-            transactionLogDao.retrieveAll()
+            val userId = ownershipController.getCurrentUserId() ?: ""
+            transactionLogDao.retrieveAllForUser(userId)
                 .mapNotNull { transactionLog ->
                     transactionLog
                         .toCoreTransactionLog()
@@ -664,20 +692,27 @@ class WalletCoreDocumentsControllerImpl(
 
     override suspend fun getTransactionLog(id: String): TransactionLogDataDomain? =
         withContext(dispatcher) {
-            transactionLogDao.retrieve(id)
+            val userId = ownershipController.getCurrentUserId() ?: ""
+            transactionLogDao.retrieve(id, userId)
                 ?.toCoreTransactionLog()
                 ?.parseTransactionLog()
                 ?.toTransactionLogData(id)
         }
 
-    override suspend fun isDocumentBookmarked(documentId: DocumentId): Boolean =
-        bookmarkDao.retrieve(documentId) != null
+    override suspend fun isDocumentBookmarked(documentId: DocumentId): Boolean {
+        val userId = ownershipController.requireCurrentUserId()
+        return bookmarkDao.retrieve(documentId, userId) != null
+    }
 
-    override suspend fun storeBookmark(bookmarkId: DocumentId) =
-        bookmarkDao.store(Bookmark(bookmarkId))
+    override suspend fun storeBookmark(bookmarkId: DocumentId) {
+        val userId = ownershipController.requireCurrentUserId()
+        bookmarkDao.store(Bookmark(bookmarkId, userId))
+    }
 
-    override suspend fun deleteBookmark(bookmarkId: DocumentId) =
-        bookmarkDao.delete(bookmarkId)
+    override suspend fun deleteBookmark(bookmarkId: DocumentId) {
+        val userId = ownershipController.requireCurrentUserId()
+        bookmarkDao.delete(bookmarkId, userId)
+    }
 
     override suspend fun isDocumentLowOnCredentials(document: IssuedDocument): Boolean {
         val documentRemainingCredentials = document.credentialsCount()
@@ -686,11 +721,27 @@ class WalletCoreDocumentsControllerImpl(
                 && documentRemainingCredentials <= 1
     }
 
-    override suspend fun getRevokedDocumentIds(): List<String> =
-        revokedDocumentDao.retrieveAll().map { it.identifier }
+    override suspend fun getRevokedDocumentIds(): List<String> {
+        val userId = ownershipController.getCurrentUserId() ?: ""
+        return revokedDocumentDao.retrieveAllForUser(userId).map { it.identifier }
+    }
 
-    override suspend fun isDocumentRevoked(id: String): Boolean =
-        revokedDocumentDao.retrieve(id) != null
+    override suspend fun isDocumentRevoked(id: String): Boolean {
+        val userId = ownershipController.getCurrentUserId() ?: ""
+        return revokedDocumentDao.retrieve(id, userId) != null
+    }
+
+    override suspend fun storeRevokedDocuments(revokedDocuments: List<IssuedDocument>) {
+        val userId = ownershipController.getCurrentUserId() ?: ""
+        revokedDocumentDao.storeAll(
+            revokedDocuments.map { RevokedDocument(identifier = it.id, userId = userId) }
+        )
+    }
+
+    override suspend fun removeRevokedDocumentsFromStorage(ids: List<String>) {
+        val userId = ownershipController.getCurrentUserId() ?: ""
+        ids.forEach { revokedDocumentDao.delete(it, userId) }
+    }
 
     override suspend fun resolveDocumentStatus(document: IssuedDocument): Result<Status> =
         eudiWallet.resolveStatus(document)
@@ -815,6 +866,9 @@ class WalletCoreDocumentsControllerImpl(
 
                 is IssueEvent.DocumentIssued -> {
                     issuedDocuments[event.documentId] = event.docType
+                    bindingScope.launch {
+                        ownershipController.bindDocumentToCurrentUser(event.documentId)
+                    }
                 }
 
                 is IssueEvent.Started -> {
@@ -823,6 +877,9 @@ class WalletCoreDocumentsControllerImpl(
 
                 is IssueEvent.DocumentDeferred -> {
                     deferredDocuments[event.documentId] = event.docType
+                    bindingScope.launch {
+                        ownershipController.bindDocumentToCurrentUser(event.documentId)
+                    }
                 }
             }
         }

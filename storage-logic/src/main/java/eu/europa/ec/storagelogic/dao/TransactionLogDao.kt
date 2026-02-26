@@ -20,30 +20,28 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Update
-import eu.europa.ec.storagelogic.dao.type.StorageDao
 import eu.europa.ec.storagelogic.model.TransactionLog
 
 @Dao
-interface TransactionLogDao : StorageDao<TransactionLog> {
-    @Insert(onConflict = OnConflictStrategy.ABORT)
-    override suspend fun store(value: TransactionLog)
+interface TransactionLogDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun store(value: TransactionLog)
 
-    @Insert(onConflict = OnConflictStrategy.ABORT)
-    override suspend fun storeAll(values: List<TransactionLog>)
+    @Query("SELECT * FROM transactionLogs WHERE identifier = :identifier AND userId = :userId")
+    suspend fun retrieve(identifier: String, userId: String): TransactionLog?
 
-    @Query("SELECT * FROM transactionLogs WHERE identifier = :identifier")
-    override suspend fun retrieve(identifier: String): TransactionLog?
+    @Query("SELECT * FROM transactionLogs WHERE userId = :userId")
+    suspend fun retrieveAllForUser(userId: String): List<TransactionLog>
 
-    @Query("SELECT * FROM transactionLogs")
-    override suspend fun retrieveAll(): List<TransactionLog>
+    @Query("DELETE FROM transactionLogs WHERE identifier = :identifier AND userId = :userId")
+    suspend fun delete(identifier: String, userId: String)
 
-    @Update
-    override suspend fun update(value: TransactionLog)
+    @Query("DELETE FROM transactionLogs WHERE userId = :userId")
+    suspend fun deleteAllForUser(userId: String)
 
-    @Query("DELETE FROM transactionLogs WHERE identifier = :identifier")
-    override suspend fun delete(identifier: String)
+    @Query("UPDATE transactionLogs SET userId = :userId WHERE userId = ''")
+    suspend fun migrateOrphanedToUser(userId: String)
 
     @Query("DELETE FROM transactionLogs")
-    override suspend fun deleteAll()
+    suspend fun deleteAll()
 }

@@ -17,11 +17,13 @@
 package eu.europa.ec.storagelogic.model
 
 import androidx.room.Entity
-import androidx.room.PrimaryKey
 
-@Entity(tableName = "transactionLogs")
+@Entity(
+    tableName = "transactionLogs",
+    primaryKeys = ["identifier", "userId"]
+)
 data class TransactionLog(
-    @PrimaryKey
     val identifier: String,
-    val value: String
+    val value: String,
+    val userId: String
 )

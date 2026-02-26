@@ -20,30 +20,28 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Update
-import eu.europa.ec.storagelogic.dao.type.StorageDao
 import eu.europa.ec.storagelogic.model.Bookmark
 
 @Dao
-interface BookmarkDao : StorageDao<Bookmark> {
-    @Insert(onConflict = OnConflictStrategy.ABORT)
-    override suspend fun store(value: Bookmark)
+interface BookmarkDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun store(value: Bookmark)
 
-    @Insert(onConflict = OnConflictStrategy.ABORT)
-    override suspend fun storeAll(values: List<Bookmark>)
+    @Query("SELECT * FROM bookmarks WHERE identifier = :identifier AND userId = :userId")
+    suspend fun retrieve(identifier: String, userId: String): Bookmark?
 
-    @Query("SELECT * FROM bookmarks WHERE identifier = :identifier")
-    override suspend fun retrieve(identifier: String): Bookmark?
+    @Query("SELECT * FROM bookmarks WHERE userId = :userId")
+    suspend fun retrieveAllForUser(userId: String): List<Bookmark>
 
-    @Query("SELECT * FROM bookmarks")
-    override suspend fun retrieveAll(): List<Bookmark>
+    @Query("DELETE FROM bookmarks WHERE identifier = :identifier AND userId = :userId")
+    suspend fun delete(identifier: String, userId: String)
 
-    @Update
-    override suspend fun update(value: Bookmark)
+    @Query("DELETE FROM bookmarks WHERE userId = :userId")
+    suspend fun deleteAllForUser(userId: String)
 
-    @Query("DELETE FROM bookmarks WHERE identifier = :identifier")
-    override suspend fun delete(identifier: String)
+    @Query("UPDATE bookmarks SET userId = :userId WHERE userId = ''")
+    suspend fun migrateOrphanedToUser(userId: String)
 
     @Query("DELETE FROM bookmarks")
-    override suspend fun deleteAll()
+    suspend fun deleteAll()
 }

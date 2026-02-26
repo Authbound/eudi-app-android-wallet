@@ -17,6 +17,7 @@ package eu.europa.ec.corelogic.controller
 
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.wallet.LocalWalletCleanupController
+import eu.europa.ec.businesslogic.controller.wallet.UserDocumentOwnershipController
 import eu.europa.ec.eudi.wallet.EudiWallet
 import eu.europa.ec.storagelogic.dao.BookmarkDao
 import eu.europa.ec.storagelogic.dao.RevokedDocumentDao
@@ -27,50 +28,81 @@ class LocalWalletCleanupControllerImpl(
     private val bookmarkDao: BookmarkDao,
     private val transactionLogDao: TransactionLogDao,
     private val revokedDocumentDao: RevokedDocumentDao,
+    private val ownershipController: UserDocumentOwnershipController,
     private val logController: LogController
 ) : LocalWalletCleanupController {
 
     override suspend fun cleanupLocalWalletData(): List<String> {
         val failures = mutableListOf<String>()
 
-        // Delete all EUDI SDK documents
-        runCatching {
-            val documents = eudiWallet.getDocuments()
-            for (doc in documents) {
-                runCatching {
-                    eudiWallet.deleteDocumentById(doc.id)
-                }.onFailure { e ->
-                    logController.w(TAG) { "Failed to delete document ${doc.id}: ${e.message}" }
-                    failures.add("Delete document ${doc.id}")
+        val userId = ownershipController.getCurrentUserId()
+
+        if (userId != null) {
+            // User-scoped cleanup: only delete current user's documents
+            runCatching {
+                val ownedDocIds = ownershipController.getCurrentUserDocumentIds()
+                for (docId in ownedDocIds) {
+                    runCatching {
+                        eudiWallet.deleteDocumentById(docId)
+                    }.onFailure { e ->
+                        logController.w(TAG) { "Failed to delete document $docId: ${e.message}" }
+                        failures.add("Delete document $docId")
+                    }
                 }
+            }.onFailure { e ->
+                logController.w(TAG) { "Failed to get owned document IDs: ${e.message}" }
+                failures.add("Get owned documents")
             }
-        }.onFailure { e ->
-            logController.w(TAG) { "Failed to list documents: ${e.message}" }
-            failures.add("List documents")
-        }
 
-        // Clear bookmarks
-        runCatching {
-            bookmarkDao.deleteAll()
-        }.onFailure { e ->
-            logController.w(TAG) { "Failed to clear bookmarks: ${e.message}" }
-            failures.add("Clear bookmarks")
-        }
+            // Clear user-scoped Room records
+            runCatching { bookmarkDao.deleteAllForUser(userId) }.onFailure { e ->
+                logController.w(TAG) { "Failed to clear bookmarks: ${e.message}" }
+                failures.add("Clear bookmarks")
+            }
+            runCatching { transactionLogDao.deleteAllForUser(userId) }.onFailure { e ->
+                logController.w(TAG) { "Failed to clear transaction logs: ${e.message}" }
+                failures.add("Clear transaction logs")
+            }
+            runCatching { revokedDocumentDao.deleteAllForUser(userId) }.onFailure { e ->
+                logController.w(TAG) { "Failed to clear revoked documents: ${e.message}" }
+                failures.add("Clear revoked documents")
+            }
 
-        // Clear transaction logs
-        runCatching {
-            transactionLogDao.deleteAll()
-        }.onFailure { e ->
-            logController.w(TAG) { "Failed to clear transaction logs: ${e.message}" }
-            failures.add("Clear transaction logs")
-        }
+            // Unbind ownership mappings
+            runCatching { ownershipController.unbindAllDocumentsForCurrentUser() }.onFailure { e ->
+                logController.w(TAG) { "Failed to unbind document mappings: ${e.message}" }
+                failures.add("Unbind document mappings")
+            }
+        } else {
+            // Fallback: no session — delete all documents (nuclear cleanup)
+            logController.w(TAG) { "No user session — falling back to unscoped cleanup" }
+            runCatching {
+                val documents = eudiWallet.getDocuments()
+                for (doc in documents) {
+                    runCatching {
+                        eudiWallet.deleteDocumentById(doc.id)
+                    }.onFailure { e ->
+                        logController.w(TAG) { "Failed to delete document ${doc.id}: ${e.message}" }
+                        failures.add("Delete document ${doc.id}")
+                    }
+                }
+            }.onFailure { e ->
+                logController.w(TAG) { "Failed to list documents: ${e.message}" }
+                failures.add("List documents")
+            }
 
-        // Clear revoked documents
-        runCatching {
-            revokedDocumentDao.deleteAll()
-        }.onFailure { e ->
-            logController.w(TAG) { "Failed to clear revoked documents: ${e.message}" }
-            failures.add("Clear revoked documents")
+            runCatching { bookmarkDao.deleteAll() }.onFailure { e ->
+                logController.w(TAG) { "Failed to clear bookmarks: ${e.message}" }
+                failures.add("Clear bookmarks")
+            }
+            runCatching { transactionLogDao.deleteAll() }.onFailure { e ->
+                logController.w(TAG) { "Failed to clear transaction logs: ${e.message}" }
+                failures.add("Clear transaction logs")
+            }
+            runCatching { revokedDocumentDao.deleteAll() }.onFailure { e ->
+                logController.w(TAG) { "Failed to clear revoked documents: ${e.message}" }
+                failures.add("Clear revoked documents")
+            }
         }
 
         if (failures.isEmpty()) {

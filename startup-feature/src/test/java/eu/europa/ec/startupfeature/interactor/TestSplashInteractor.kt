@@ -27,6 +27,7 @@ import eu.europa.ec.businesslogic.controller.device.DeviceSecurityState
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
 import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
+import eu.europa.ec.businesslogic.controller.wallet.UserDocumentOwnershipController
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractor
 import eu.europa.ec.startupfeature.model.StartupState
 import eu.europa.ec.testlogic.extension.runTest
@@ -41,6 +42,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.mockito.Mock
 import org.mockito.MockitoAnnotations
+import kotlinx.coroutines.runBlocking
 import org.mockito.kotlin.any
 import org.mockito.kotlin.atLeast
 import org.mockito.kotlin.never
@@ -90,6 +92,9 @@ class TestSplashInteractor {
     @Mock
     private lateinit var signOutUseCase: SignOutUseCase
 
+    @Mock
+    private lateinit var ownershipController: UserDocumentOwnershipController
+
     private lateinit var interactor: SplashInteractorImpl
     private lateinit var closeable: AutoCloseable
 
@@ -104,6 +109,8 @@ class TestSplashInteractor {
         whenever(deviceController.getDeviceSecurityState()).thenReturn(readyState)
         // Default: session data is accessible (for most tests)
         whenever(prefsController.hasAuthenticatedUser()).thenReturn(true)
+        // Default: migration already completed (for most tests)
+        runBlocking { whenever(ownershipController.isMigrationCompleted()).thenReturn(true) }
         interactor = SplashInteractorImpl(
             supabaseAuthRepository = supabaseAuthRepository,
             prefKeys = prefKeys,
@@ -114,7 +121,8 @@ class TestSplashInteractor {
             quickPinInteractor = quickPinInteractor,
             localUnlockTracker = localUnlockTracker,
             deviceController = deviceController,
-            signOutUseCase = signOutUseCase
+            signOutUseCase = signOutUseCase,
+            ownershipController = ownershipController
         )
     }
 

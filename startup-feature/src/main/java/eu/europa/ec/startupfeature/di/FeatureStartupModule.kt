@@ -25,6 +25,7 @@ import eu.europa.ec.businesslogic.controller.device.DeviceController
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
 import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
+import eu.europa.ec.businesslogic.controller.wallet.UserDocumentOwnershipController
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractor
 import eu.europa.ec.startupfeature.interactor.SplashInteractor
 import eu.europa.ec.startupfeature.interactor.SplashInteractorImpl
@@ -47,7 +48,8 @@ fun provideSplashInteractor(
     quickPinInteractor: QuickPinInteractor,
     localUnlockTracker: LocalUnlockTracker,
     deviceController: DeviceController,
-    signOutUseCase: SignOutUseCase
+    signOutUseCase: SignOutUseCase,
+    ownershipController: UserDocumentOwnershipController
 ): SplashInteractor = SplashInteractorImpl(
     supabaseAuthRepository,
     prefKeys,
@@ -58,5 +60,6 @@ fun provideSplashInteractor(
     quickPinInteractor,
     localUnlockTracker,
     deviceController,
-    signOutUseCase
+    signOutUseCase,
+    ownershipController
 )

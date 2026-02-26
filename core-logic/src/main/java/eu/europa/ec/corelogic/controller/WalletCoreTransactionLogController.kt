@@ -17,6 +17,7 @@
 package eu.europa.ec.corelogic.controller
 
 import com.nimbusds.jose.shaded.gson.Gson
+import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
 import eu.europa.ec.businesslogic.provider.UuidProvider
 import eu.europa.ec.eudi.wallet.transactionLogging.TransactionLog
 import eu.europa.ec.eudi.wallet.transactionLogging.TransactionLogger
@@ -32,6 +33,7 @@ interface WalletCoreTransactionLogController : TransactionLogger
 
 class WalletCoreTransactionLogControllerImpl(
     private val transactionLogDao: TransactionLogDao,
+    private val supabaseAuthRepository: SupabaseAuthRepository,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
     private val uuidProvider: UuidProvider
 ) : WalletCoreTransactionLogController {
@@ -39,11 +41,13 @@ class WalletCoreTransactionLogControllerImpl(
     @OptIn(ExperimentalUuidApi::class)
     override fun log(transaction: TransactionLog) {
         scope.launch {
+            val userId = supabaseAuthRepository.getCurrentUserId() ?: ""
             val json = Gson().toJson(transaction)
             transactionLogDao.store(
                 TransactionStorage(
                     identifier = uuidProvider.provideUuid(),
-                    value = json
+                    value = json,
+                    userId = userId
                 )
             )
         }

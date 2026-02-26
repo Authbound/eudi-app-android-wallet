@@ -21,6 +21,8 @@ import androidx.room.Room
 import eu.europa.ec.storagelogic.dao.BookmarkDao
 import eu.europa.ec.storagelogic.dao.RevokedDocumentDao
 import eu.europa.ec.storagelogic.dao.TransactionLogDao
+import eu.europa.ec.storagelogic.dao.UserDocumentMappingDao
+import eu.europa.ec.storagelogic.service.DatabaseMigrations
 import eu.europa.ec.storagelogic.service.DatabaseService
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Module
@@ -36,7 +38,7 @@ fun provideAppDatabase(context: Context): DatabaseService =
         context,
         DatabaseService::class.java,
         "eudi.app.wallet.storage"
-    ).fallbackToDestructiveMigration(true).build()
+    ).addMigrations(DatabaseMigrations.MIGRATION_1_2).build()
 
 @Single
 fun provideBookmarkDao(service: DatabaseService): BookmarkDao = service.bookmarkDao()
@@ -48,3 +50,7 @@ fun provideRevokedDocumentDao(service: DatabaseService): RevokedDocumentDao =
 @Single
 fun provideTransactionLogDao(service: DatabaseService): TransactionLogDao =
     service.transactionLogDao()
+
+@Single
+fun provideUserDocumentMappingDao(service: DatabaseService): UserDocumentMappingDao =
+    service.userDocumentMappingDao()

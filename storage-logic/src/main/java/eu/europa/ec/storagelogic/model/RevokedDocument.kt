@@ -17,10 +17,12 @@
 package eu.europa.ec.storagelogic.model
 
 import androidx.room.Entity
-import androidx.room.PrimaryKey
 
-@Entity(tableName = "revokedDocuments")
+@Entity(
+    tableName = "revokedDocuments",
+    primaryKeys = ["identifier", "userId"]
+)
 data class RevokedDocument(
-    @PrimaryKey
-    val identifier: String
+    val identifier: String,
+    val userId: String
 )

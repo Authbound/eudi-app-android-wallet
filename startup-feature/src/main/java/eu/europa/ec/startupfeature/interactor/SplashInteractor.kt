@@ -27,6 +27,7 @@ import eu.europa.ec.businesslogic.controller.device.DeviceController
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
 import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
+import eu.europa.ec.businesslogic.controller.wallet.UserDocumentOwnershipController
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractor
 import eu.europa.ec.startupfeature.model.StartupState
 import io.github.jan.supabase.auth.status.SessionStatus
@@ -68,7 +69,8 @@ class SplashInteractorImpl(
     private val quickPinInteractor: QuickPinInteractor,
     private val localUnlockTracker: LocalUnlockTracker,
     private val deviceController: DeviceController,
-    private val signOutUseCase: SignOutUseCase
+    private val signOutUseCase: SignOutUseCase,
+    private val ownershipController: UserDocumentOwnershipController
 ) : SplashInteractor {
 
     companion object {
@@ -88,6 +90,9 @@ class SplashInteractorImpl(
                 logController.i(TAG) { authState.logMessage }
                 return authState
             }
+
+            // Migrate orphaned documents to current user (one-time per user)
+            migrateOrphanedDocumentsIfNeeded()
 
             // Level 2: Onboarding Check (Profile + WUA)
             val onboardingState = checkOnboardingState()
@@ -261,6 +266,25 @@ class SplashInteractorImpl(
 
         // User needs to verify PIN (warm start)
         return StartupState.PinVerificationRequired
+    }
+
+    /**
+     * One-time migration: binds existing SDK documents and Room records
+     * to the current user if they haven't been assigned yet.
+     * Non-fatal — user proceeds even if migration fails.
+     */
+    private suspend fun migrateOrphanedDocumentsIfNeeded() {
+        try {
+            if (!ownershipController.isMigrationCompleted()) {
+                val count = ownershipController.migrateOrphanedDocumentsToCurrentUser()
+                ownershipController.setMigrationCompleted()
+                if (count > 0) {
+                    logController.i(TAG) { "Migrated $count orphaned documents to current user" }
+                }
+            }
+        } catch (e: Exception) {
+            logController.w(TAG) { "Document ownership migration failed (non-fatal): ${e.message}" }
+        }
     }
 
     /**

@@ -43,7 +43,10 @@ class SupabaseAuthRepositoryImpl(
 
     override suspend fun getCurrentUser(): UserInfo? {
         return supabaseClient.auth.currentSessionOrNull()?.user
+    }
 
+    override suspend fun getCurrentUserId(): String? {
+        return supabaseClient.auth.currentSessionOrNull()?.user?.id
     }
 
     override fun observeAuthState(): Flow<SessionStatus> = supabaseClient.auth.sessionStatus

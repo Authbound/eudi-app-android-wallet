@@ -21,8 +21,12 @@ import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.provider.UuidProvider
 import eu.europa.ec.corelogic.config.WalletCoreConfig
 import eu.europa.ec.corelogic.config.WalletCoreConfigImpl
+import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
+import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
 import eu.europa.ec.businesslogic.controller.wallet.LocalWalletCleanupController
+import eu.europa.ec.businesslogic.controller.wallet.UserDocumentOwnershipController
 import eu.europa.ec.corelogic.controller.LocalWalletCleanupControllerImpl
+import eu.europa.ec.corelogic.controller.UserDocumentOwnershipControllerImpl
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsControllerImpl
 import eu.europa.ec.corelogic.controller.WalletCoreLogController
@@ -37,6 +41,7 @@ import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.storagelogic.dao.BookmarkDao
 import eu.europa.ec.storagelogic.dao.RevokedDocumentDao
 import eu.europa.ec.storagelogic.dao.TransactionLogDao
+import eu.europa.ec.storagelogic.dao.UserDocumentMappingDao
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Module
@@ -82,9 +87,11 @@ fun provideWalletCoreLogController(logController: LogController): WalletCoreLogC
 @Single
 fun provideWalletCoreTransactionLogController(
     transactionLogDao: TransactionLogDao,
+    supabaseAuthRepository: SupabaseAuthRepository,
     uuidProvider: UuidProvider
 ): WalletCoreTransactionLogController = WalletCoreTransactionLogControllerImpl(
     transactionLogDao = transactionLogDao,
+    supabaseAuthRepository = supabaseAuthRepository,
     uuidProvider = uuidProvider
 )
 
@@ -98,17 +105,40 @@ fun provideWalletCoreAttestationProvider(
 )
 
 @Single
+fun provideUserDocumentOwnershipController(
+    userDocumentMappingDao: UserDocumentMappingDao,
+    eudiWallet: EudiWallet,
+    supabaseAuthRepository: SupabaseAuthRepository,
+    prefsControllerV2: PrefsControllerV2,
+    bookmarkDao: BookmarkDao,
+    revokedDocumentDao: RevokedDocumentDao,
+    transactionLogDao: TransactionLogDao,
+    logController: LogController
+): UserDocumentOwnershipController = UserDocumentOwnershipControllerImpl(
+    userDocumentMappingDao = userDocumentMappingDao,
+    eudiWallet = eudiWallet,
+    supabaseAuthRepository = supabaseAuthRepository,
+    prefsControllerV2 = prefsControllerV2,
+    bookmarkDao = bookmarkDao,
+    revokedDocumentDao = revokedDocumentDao,
+    transactionLogDao = transactionLogDao,
+    logController = logController
+)
+
+@Single
 fun provideLocalWalletCleanupController(
     eudiWallet: EudiWallet,
     bookmarkDao: BookmarkDao,
     transactionLogDao: TransactionLogDao,
     revokedDocumentDao: RevokedDocumentDao,
+    ownershipController: UserDocumentOwnershipController,
     logController: LogController
 ): LocalWalletCleanupController = LocalWalletCleanupControllerImpl(
     eudiWallet,
     bookmarkDao,
     transactionLogDao,
     revokedDocumentDao,
+    ownershipController,
     logController
 )
 
@@ -119,7 +149,8 @@ fun provideWalletCoreDocumentsController(
     walletCoreConfig: WalletCoreConfig,
     bookmarkDao: BookmarkDao,
     transactionLogDao: TransactionLogDao,
-    revokedDocumentDao: RevokedDocumentDao
+    revokedDocumentDao: RevokedDocumentDao,
+    ownershipController: UserDocumentOwnershipController
 ): WalletCoreDocumentsController =
     WalletCoreDocumentsControllerImpl(
         resourceProvider,
@@ -127,7 +158,8 @@ fun provideWalletCoreDocumentsController(
         walletCoreConfig,
         bookmarkDao,
         transactionLogDao,
-        revokedDocumentDao
+        revokedDocumentDao,
+        ownershipController
     )
 
 /**

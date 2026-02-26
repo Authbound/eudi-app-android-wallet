@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.Flow
 interface SupabaseAuthRepository {
     suspend fun isUserAuthenticated(): Boolean
     suspend fun getCurrentUser(): UserInfo?
+    suspend fun getCurrentUserId(): String?
     fun observeAuthState(): Flow<SessionStatus>
     suspend fun signInWithEmailPassword(request: EmailPasswordRequest)
     suspend fun signUpWithEmailPassword(request: EmailPasswordRequest)
