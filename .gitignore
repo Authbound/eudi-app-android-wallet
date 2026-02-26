@@ -56,3 +56,6 @@ fastlane/report.xml
 *.apk
 # Firebase
 firebase-debug.log
+
+# Git worktrees
+.worktrees/
