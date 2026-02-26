@@ -54,7 +54,7 @@ class UserDocumentOwnershipControllerImpl(
             userId = userId
         )
         userDocumentMappingDao.store(mapping)
-        logController.d(TAG, "Bound document $documentId to user $userId")
+        logController.d(TAG, "Bound document $documentId to user ${userId.take(8)}")
     }
 
     override suspend fun bindDocumentsToCurrentUser(documentIds: List<String>) {
@@ -64,7 +64,7 @@ class UserDocumentOwnershipControllerImpl(
             UserDocumentMapping(documentId = docId, userId = userId)
         }
         userDocumentMappingDao.storeAll(mappings)
-        logController.d(TAG, "Bound ${documentIds.size} documents to user $userId")
+        logController.d(TAG, "Bound ${documentIds.size} documents to user ${userId.take(8)}")
     }
 
     override suspend fun isDocumentOwnedByCurrentUser(documentId: String): Boolean {
@@ -85,7 +85,7 @@ class UserDocumentOwnershipControllerImpl(
     override suspend fun unbindAllDocumentsForCurrentUser() {
         val userId = requireCurrentUserId()
         userDocumentMappingDao.deleteAllForUser(userId)
-        logController.d(TAG, "Unbound all documents for user $userId")
+        logController.d(TAG, "Unbound all documents for user ${userId.take(8)}")
     }
 
     override suspend fun migrateOrphanedDocumentsToCurrentUser(): Int {
@@ -101,7 +101,7 @@ class UserDocumentOwnershipControllerImpl(
                 UserDocumentMapping(documentId = docId, userId = userId)
             }
             userDocumentMappingDao.storeAll(mappings)
-            logController.d(TAG, "Migrated ${orphanedDocIds.size} orphaned SDK documents to user $userId")
+            logController.d(TAG, "Migrated ${orphanedDocIds.size} orphaned SDK documents to user ${userId.take(8)}")
         }
 
         // Migrate Room records with empty userId

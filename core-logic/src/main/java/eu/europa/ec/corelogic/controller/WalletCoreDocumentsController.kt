@@ -246,7 +246,7 @@ class WalletCoreDocumentsControllerImpl(
     }
 
     override fun getAllDocuments(): List<Document> {
-        val ownedIds = runBlocking { ownershipController.getCurrentUserDocumentIds() }
+        val ownedIds = runBlocking(dispatcher) { ownershipController.getCurrentUserDocumentIds() }
         return eudiWallet.getDocuments { it is IssuedDocument || it is DeferredDocument }
             .filter { it.id in ownedIds }
     }
@@ -332,7 +332,9 @@ class WalletCoreDocumentsControllerImpl(
             }
 
     override fun getDocumentById(documentId: DocumentId): Document? {
-        val isOwned = runBlocking { ownershipController.isDocumentOwnedByCurrentUser(documentId) }
+        val isOwned = runBlocking(dispatcher) {
+            ownershipController.isDocumentOwnedByCurrentUser(documentId)
+        }
         if (!isOwned) return null
         return eudiWallet.getDocumentById(documentId = documentId)
     }
@@ -614,7 +616,11 @@ class WalletCoreDocumentsControllerImpl(
 
                             is DeferredIssueResult.DocumentIssued -> {
                                 bindingScope.launch {
-                                    ownershipController.bindDocumentToCurrentUser(deferredIssuanceResult.documentId)
+                                    try {
+                                        ownershipController.bindDocumentToCurrentUser(deferredIssuanceResult.documentId)
+                                    } catch (e: Exception) {
+                                        Log.e("WalletCoreDocs", "Failed to bind deferred document ${deferredIssuanceResult.documentId}: ${e.message}")
+                                    }
                                 }
                                 trySendBlocking(
                                     IssueDeferredDocumentPartialState.Issued(
@@ -732,14 +738,14 @@ class WalletCoreDocumentsControllerImpl(
     }
 
     override suspend fun storeRevokedDocuments(revokedDocuments: List<IssuedDocument>) {
-        val userId = ownershipController.getCurrentUserId() ?: ""
+        val userId = ownershipController.requireCurrentUserId()
         revokedDocumentDao.storeAll(
             revokedDocuments.map { RevokedDocument(identifier = it.id, userId = userId) }
         )
     }
 
     override suspend fun removeRevokedDocumentsFromStorage(ids: List<String>) {
-        val userId = ownershipController.getCurrentUserId() ?: ""
+        val userId = ownershipController.requireCurrentUserId()
         ids.forEach { revokedDocumentDao.delete(it, userId) }
     }
 
@@ -867,7 +873,11 @@ class WalletCoreDocumentsControllerImpl(
                 is IssueEvent.DocumentIssued -> {
                     issuedDocuments[event.documentId] = event.docType
                     bindingScope.launch {
-                        ownershipController.bindDocumentToCurrentUser(event.documentId)
+                        try {
+                            ownershipController.bindDocumentToCurrentUser(event.documentId)
+                        } catch (e: Exception) {
+                            Log.e("WalletCoreDocs", "Failed to bind document ${event.documentId}: ${e.message}")
+                        }
                     }
                 }
 
@@ -878,7 +888,11 @@ class WalletCoreDocumentsControllerImpl(
                 is IssueEvent.DocumentDeferred -> {
                     deferredDocuments[event.documentId] = event.docType
                     bindingScope.launch {
-                        ownershipController.bindDocumentToCurrentUser(event.documentId)
+                        try {
+                            ownershipController.bindDocumentToCurrentUser(event.documentId)
+                        } catch (e: Exception) {
+                            Log.e("WalletCoreDocs", "Failed to bind document ${event.documentId}: ${e.message}")
+                        }
                     }
                 }
             }
