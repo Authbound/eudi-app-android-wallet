@@ -17,6 +17,7 @@
 package eu.europa.ec.authenticationlogic.controller.authentication
 
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.content.Intent.FLAG_ACTIVITY_NEW_TASK
 import android.os.Build
@@ -98,47 +99,54 @@ class BiometricAuthenticationControllerImpl(
         notifyOnAuthenticationFailure: Boolean,
         listener: (BiometricsAuthenticate) -> Unit
     ) {
-        (context as? FragmentActivity)?.let { activity ->
-
-            activity.lifecycleScope.launch {
-
-                val storedCrypto = retrieveCrypto()
-                val biometricData = storedCrypto.first
-                val cipher = storedCrypto.second
-
-                if (cipher == null) {
-                    listener.invoke(
-                        BiometricsAuthenticate.Failed(context.getString(R.string.generic_error_description))
+        val activity: FragmentActivity = context.findFragmentActivity()
+            ?: run {
+                listener.invoke(
+                    BiometricsAuthenticate.Failed(
+                        context.getString(R.string.generic_error_description)
                     )
-                    return@launch
-                }
-
-                val data = authenticate(
-                    activity = activity,
-                    biometryCrypto = BiometricCrypto(BiometricPrompt.CryptoObject(cipher)),
-                    promptInfo = BiometricPrompt.PromptInfo.Builder()
-                        .setTitle(activity.getString(R.string.biometric_prompt_title))
-                        .setSubtitle(activity.getString(R.string.biometric_prompt_subtitle))
-                        .setNegativeButtonText(activity.getString(R.string.generic_cancel))
-                        .build(),
-                    notifyOnAuthenticationFailure = notifyOnAuthenticationFailure
                 )
+                return
+            }
 
-                if (data.authenticationResult != null) {
-                    val state = verifyCrypto(
-                        context = context,
-                        result = data.authenticationResult,
-                        biometricAuthentication = biometricData
-                    )
-                    listener.invoke(state)
-                } else if (
-                    data.errorCode != BiometricsAuthError.Cancel.code &&
-                    data.errorCode != BiometricsAuthError.CancelByUser.code
-                ) {
-                    authenticate(context, notifyOnAuthenticationFailure, listener)
-                } else {
-                    listener.invoke(BiometricsAuthenticate.Cancelled)
-                }
+        activity.lifecycleScope.launch {
+
+            val storedCrypto = retrieveCrypto()
+            val biometricData = storedCrypto.first
+            val cipher = storedCrypto.second
+
+            if (cipher == null) {
+                listener.invoke(
+                    BiometricsAuthenticate.Failed(context.getString(R.string.generic_error_description))
+                )
+                return@launch
+            }
+
+            val data = authenticate(
+                activity = activity,
+                biometryCrypto = BiometricCrypto(BiometricPrompt.CryptoObject(cipher)),
+                promptInfo = BiometricPrompt.PromptInfo.Builder()
+                    .setTitle(activity.getString(R.string.biometric_prompt_title))
+                    .setSubtitle(activity.getString(R.string.biometric_prompt_subtitle))
+                    .setNegativeButtonText(activity.getString(R.string.generic_cancel))
+                    .build(),
+                notifyOnAuthenticationFailure = notifyOnAuthenticationFailure
+            )
+
+            if (data.authenticationResult != null) {
+                val state = verifyCrypto(
+                    context = context,
+                    result = data.authenticationResult,
+                    biometricAuthentication = biometricData
+                )
+                listener.invoke(state)
+            } else if (
+                data.errorCode != BiometricsAuthError.Cancel.code &&
+                data.errorCode != BiometricsAuthError.CancelByUser.code
+            ) {
+                authenticate(context, notifyOnAuthenticationFailure, listener)
+            } else {
+                listener.invoke(BiometricsAuthenticate.Cancelled)
             }
         }
     }
@@ -256,6 +264,17 @@ class BiometricAuthenticationControllerImpl(
                 }
             }
         } ?: BiometricsAuthenticate.Failed(context.getString(R.string.generic_error_description))
+    }
+
+    private fun Context.findFragmentActivity(): FragmentActivity? {
+        var currentContext: Context? = this
+        while (currentContext is ContextWrapper) {
+            if (currentContext is FragmentActivity) {
+                return currentContext
+            }
+            currentContext = currentContext.baseContext
+        }
+        return null
     }
 }
 

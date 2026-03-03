@@ -17,6 +17,7 @@
 package eu.europa.ec.authenticationlogic.controller.authentication
 
 import android.content.Context
+import android.content.ContextWrapper
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.fragment.app.FragmentActivity
@@ -67,35 +68,49 @@ class DeviceAuthenticationControllerImpl(
         result: DeviceAuthenticationResult,
 
         ) {
-        (context as? FragmentActivity)?.let { activity ->
+        val activity: FragmentActivity = context.findFragmentActivity()
+            ?: run {
+                result.onAuthenticationError()
+                return
+            }
 
-            activity.lifecycleScope.launch {
+        activity.lifecycleScope.launch {
 
-                val data = biometricAuthenticationController.authenticate(
-                    activity = activity,
-                    biometryCrypto = biometryCrypto,
-                    promptInfo = BiometricPrompt.PromptInfo.Builder()
-                        .setTitle(resourceProvider.getString(R.string.biometric_prompt_title))
-                        .setSubtitle(resourceProvider.getString(R.string.biometric_prompt_subtitle))
-                        .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
-                        .build(),
-                    notifyOnAuthenticationFailure = notifyOnAuthenticationFailure
-                )
+            val data = biometricAuthenticationController.authenticate(
+                activity = activity,
+                biometryCrypto = biometryCrypto,
+                promptInfo = BiometricPrompt.PromptInfo.Builder()
+                    .setTitle(resourceProvider.getString(R.string.biometric_prompt_title))
+                    .setSubtitle(resourceProvider.getString(R.string.biometric_prompt_subtitle))
+                    .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+                    .build(),
+                notifyOnAuthenticationFailure = notifyOnAuthenticationFailure
+            )
 
-                if (data.authenticationResult != null) {
-                    localUnlockTracker.markUnlocked()
-                    result.onAuthenticationSuccess()
-                } else if (data.hasError) {
-                    result.onAuthenticationError()
-                } else {
-                    result.onAuthenticationFailure()
-                }
+            if (data.authenticationResult != null) {
+                localUnlockTracker.markUnlocked()
+                result.onAuthenticationSuccess()
+            } else if (data.hasError) {
+                result.onAuthenticationError()
+            } else {
+                result.onAuthenticationFailure()
             }
         }
     }
 
     override fun launchBiometricSystemScreen() {
         biometricAuthenticationController.launchBiometricSystemScreen()
+    }
+
+    private fun Context.findFragmentActivity(): FragmentActivity? {
+        var currentContext: Context? = this
+        while (currentContext is ContextWrapper) {
+            if (currentContext is FragmentActivity) {
+                return currentContext
+            }
+            currentContext = currentContext.baseContext
+        }
+        return null
     }
 }
 
