@@ -45,6 +45,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -65,6 +67,7 @@ import eu.europa.ec.commonfeature.model.PinFlow
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.uilogic.component.AppIconAndText
 import eu.europa.ec.uilogic.component.AppIconAndTextData
+import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.content.ContentScreen
 import eu.europa.ec.uilogic.component.content.ImePaddingConfig
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
@@ -154,6 +157,36 @@ fun PinScreen(
                     onEventSent = { viewModel.setEvent(it) }
                 )
             }
+        }
+
+        if (state.showBiometricsPreferencePrompt) {
+            AlertDialog(
+                onDismissRequest = { },
+                title = { Text(text = stringResource(R.string.quick_pin_biometrics_prompt_title)) },
+                text = { Text(text = stringResource(R.string.quick_pin_biometrics_prompt_description)) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.setEvent(
+                                Event.OnBiometricsPreferenceSelected(shouldUseBiometrics = true)
+                            )
+                        }
+                    ) {
+                        Text(text = stringResource(R.string.quick_pin_biometrics_prompt_enable))
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.setEvent(
+                                Event.OnBiometricsPreferenceSelected(shouldUseBiometrics = false)
+                            )
+                        }
+                    ) {
+                        Text(text = stringResource(R.string.quick_pin_biometrics_prompt_disable))
+                    }
+                }
+            )
         }
     }
 }
@@ -284,6 +317,14 @@ private fun Content(
                     maxKeySize = adaptiveKeySize,
                     keySpacing = keySpacing,
                     enabled = !state.pinSuccess && !state.isTransitioning,
+                    leadingIconData = if (state.shouldShowBiometricLoginButton) AppIcons.TouchId else null,
+                    onLeadingPressed = if (state.shouldShowBiometricLoginButton) {
+                        {
+                            onEventSend(
+                                Event.OnBiometricLoginPressed(context = context)
+                            )
+                        }
+                    } else null,
                     onDigitPressed = { digit ->
                         val current = state.pin
                         val next = if (!state.quickPinError.isNullOrEmpty()) {

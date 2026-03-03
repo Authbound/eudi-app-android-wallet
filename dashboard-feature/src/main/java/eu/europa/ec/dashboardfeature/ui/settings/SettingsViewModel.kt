@@ -52,6 +52,7 @@ data class State(
     val settingsItems: List<SettingsItemUi> = emptyList(),
     val appVersion: String = "",
     val changelogUrl: String?,
+    val isBiometricAuthenticationEnabled: Boolean = false,
     val userEmail: String? = null,
     val showDeleteWalletConfirmation: Boolean = false,
     val isDeleting: Boolean = false,
@@ -110,7 +111,11 @@ class SettingsViewModel(
                 val user = settingsInteractor.getCurrentUser()
                 val profile = settingsInteractor.getMyProfile().getOrNull()
                 val pidPortraitBase64 = settingsInteractor.getMainPidPortraitBase64()
-                val settingsItems = settingsInteractor.getSettingsItemsUi(changelogUrl)
+                val isBiometricAuthenticationEnabled = settingsInteractor.getBiometricsEnabled()
+                val settingsItems = settingsInteractor.getSettingsItemsUi(
+                    changelogUrl = changelogUrl,
+                    isBiometricsEnabled = isBiometricAuthenticationEnabled
+                )
                 val appVersion = settingsInteractor.getAppVersion()
                 val credentialCount = settingsInteractor.getCredentialCount()
                 val credentials = settingsInteractor.getCredentialSummaries()
@@ -118,6 +123,7 @@ class SettingsViewModel(
                 setState {
                     copy(
                         changelogUrl = changelogUrl,
+                        isBiometricAuthenticationEnabled = isBiometricAuthenticationEnabled,
                         settingsItems = settingsItems,
                         appVersion = appVersion,
                         userEmail = user?.email,
@@ -217,6 +223,10 @@ class SettingsViewModel(
                 }
             }
 
+            SettingsMenuItemType.BIOMETRIC_AUTHENTICATION -> {
+                toggleBiometricAuthentication()
+            }
+
             SettingsMenuItemType.CHANGE_PIN -> {
                 val nextScreenRoute = generateComposableNavigationLink(
                     screen = CommonScreens.QuickPin,
@@ -262,6 +272,32 @@ class SettingsViewModel(
                 setState { copy(showDeleteWalletConfirmation = true) }
             }
 
+        }
+    }
+
+    private fun toggleBiometricAuthentication() {
+        viewModelScope.launch {
+            try {
+                val toggledValue = !viewState.value.isBiometricAuthenticationEnabled
+                settingsInteractor.setBiometricsEnabled(toggledValue)
+                settingsInteractor.setBiometricsPreferenceDecided(true)
+                val updatedItems = settingsInteractor.getSettingsItemsUi(
+                    changelogUrl = viewState.value.changelogUrl,
+                    isBiometricsEnabled = toggledValue
+                )
+                setState {
+                    copy(
+                        isBiometricAuthenticationEnabled = toggledValue,
+                        settingsItems = updatedItems
+                    )
+                }
+            } catch (_: Exception) {
+                setEffect {
+                    Effect.ShowToast(
+                        resourceProvider.getString(R.string.generic_error_description)
+                    )
+                }
+            }
         }
     }
 

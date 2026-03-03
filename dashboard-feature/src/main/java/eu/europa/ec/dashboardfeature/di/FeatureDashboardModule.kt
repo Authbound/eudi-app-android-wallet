@@ -22,6 +22,7 @@ import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsUserAuthenticatedUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
+import eu.europa.ec.authenticationlogic.controller.storage.BiometryStorageController
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeys
 import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
@@ -149,6 +150,7 @@ fun provideSettingsInteractor(
     resourceProvider: ResourceProvider,
     prefKeys: PrefKeys,
     prefsController: PrefsControllerV2,
+    biometryStorageController: BiometryStorageController,
     walletCoreDocumentsController: WalletCoreDocumentsController,
     getCurrentUserUseCase: GetCurrentUserUseCase,
     signOutUseCase: SignOutUseCase,
@@ -160,6 +162,7 @@ fun provideSettingsInteractor(
     resourceProvider,
     prefKeys,
     prefsController,
+    biometryStorageController,
     walletCoreDocumentsController,
     getCurrentUserUseCase,
     signOutUseCase,

@@ -31,6 +31,8 @@ interface BiometricInteractor {
     fun getBiometricsAvailability(listener: (BiometricsAvailability) -> Unit)
     suspend fun getBiometricUserSelection(): Boolean
     suspend fun storeBiometricsUsageDecision(shouldUseBiometrics: Boolean)
+    suspend fun getBiometricsPreferenceDecided(): Boolean
+    suspend fun storeBiometricsPreferenceDecided(value: Boolean)
     fun authenticateWithBiometrics(
         context: Context,
         notifyOnAuthenticationFailure: Boolean,
@@ -58,6 +60,14 @@ class BiometricInteractorImpl(
 
     override suspend fun getBiometricUserSelection(): Boolean {
         return biometryStorageController.getUseBiometricsAuth()
+    }
+
+    override suspend fun getBiometricsPreferenceDecided(): Boolean {
+        return biometryStorageController.getBiometricsPreferenceDecided()
+    }
+
+    override suspend fun storeBiometricsPreferenceDecided(value: Boolean) {
+        biometryStorageController.setBiometricsPreferenceDecided(value)
     }
 
     override fun getBiometricsAvailability(listener: (BiometricsAvailability) -> Unit) {

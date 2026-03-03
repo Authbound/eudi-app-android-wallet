@@ -16,6 +16,9 @@
 
 package eu.europa.ec.commonfeature.ui.pin
 
+import android.content.Context
+import eu.europa.ec.authenticationlogic.controller.authentication.BiometricsAuthenticate
+import eu.europa.ec.authenticationlogic.controller.authentication.BiometricsAvailability
 import androidx.lifecycle.viewModelScope
 import eu.europa.ec.authenticationlogic.usecase.SignOutMode
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
@@ -23,6 +26,7 @@ import eu.europa.ec.businesslogic.validator.Form
 import eu.europa.ec.businesslogic.validator.FormValidationResult
 import eu.europa.ec.businesslogic.validator.Rule
 import eu.europa.ec.commonfeature.config.SuccessUIConfig
+import eu.europa.ec.commonfeature.interactor.BiometricInteractor
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractor
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractorPinValidPartialState
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractorSetPinPartialState
@@ -45,6 +49,7 @@ import eu.europa.ec.uilogic.navigation.helper.generateComposableNavigationLink
 import eu.europa.ec.uilogic.serializer.UiSerializer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.koin.android.annotation.KoinViewModel
 import org.koin.core.annotation.InjectedParam
 
@@ -59,6 +64,8 @@ data class State(
         val isLoading: Boolean = false,
         val isButtonEnabled: Boolean = false,
         val quickPinError: String? = null,
+        val isBiometricsEnabled: Boolean = false,
+        val showBiometricsPreferencePrompt: Boolean = false,
         val validationResult: FormValidationResult = FormValidationResult(false),
         val subtitle: String = "",
         val title: String = "",
@@ -86,6 +93,9 @@ data class State(
             }
         }
 
+    val shouldShowBiometricLoginButton: Boolean
+        get() = isVerifyFlow && isBiometricsEnabled
+
     val onBackEvent: Event
         get() {
             return when (pinFlow) {
@@ -99,6 +109,8 @@ data class State(
 sealed class Event : ViewEvent {
     data class NextButtonPressed(val pin: String) : Event()
     data class OnQuickPinEntered(val quickPin: String) : Event()
+    data class OnBiometricLoginPressed(val context: Context) : Event()
+    data class OnBiometricsPreferenceSelected(val shouldUseBiometrics: Boolean) : Event()
     data object CancelPressed : Event()
     data object Finish : Event()
     data class OverflowMenuToggled(val isOpen: Boolean) : Event()
@@ -135,6 +147,7 @@ sealed class Effect : ViewSideEffect {
 @KoinViewModel
 class PinViewModel(
         private val interactor: QuickPinInteractor,
+        private val biometricInteractor: BiometricInteractor,
         private val resourceProvider: ResourceProvider,
         private val uiSerializer: UiSerializer,
         private val signOutUseCase: SignOutUseCase,
@@ -146,6 +159,15 @@ class PinViewModel(
         val subtitle: String
         val pinState: PinValidationState
         val buttonText: String
+        val isBiometricsEnabled: Boolean = runBlocking {
+            biometricInteractor.getBiometricUserSelection()
+        }
+        val hasBiometricsPreferenceBeenDecided: Boolean = runBlocking {
+            biometricInteractor.getBiometricsPreferenceDecided()
+        }
+        val shouldPromptForBiometricsPreference: Boolean =
+                (pinFlow == PinFlow.CREATE || pinFlow == PinFlow.VERIFY) &&
+                        !hasBiometricsPreferenceBeenDecided
 
         when (pinFlow) {
             PinFlow.CREATE -> {
@@ -177,6 +199,8 @@ class PinViewModel(
                 subtitle = subtitle,
                 pinState = pinState,
                 buttonText = buttonText,
+                isBiometricsEnabled = isBiometricsEnabled,
+                showBiometricsPreferencePrompt = shouldPromptForBiometricsPreference,
                 pinFlow = pinFlow
         )
     }
@@ -185,6 +209,12 @@ class PinViewModel(
         when (event) {
             is Event.OnQuickPinEntered -> {
                 validateForm(event.quickPin)
+            }
+            is Event.OnBiometricLoginPressed -> {
+                authenticateWithBiometrics(event.context)
+            }
+            is Event.OnBiometricsPreferenceSelected -> {
+                storeBiometricsPreference(event.shouldUseBiometrics)
             }
             is Event.NextButtonPressed -> {
                 val state = viewState.value
@@ -245,28 +275,34 @@ class PinViewModel(
                         }
                     }
                     QuickPinInteractorPinValidPartialState.Success -> {
-                        setState { copy(pinSuccess = true) }
-                        delay(250L)
-                        setState { copy(isTransitioning = true) }
-                        delay(75L)
-                        when (pinFlow) {
-                            PinFlow.VERIFY -> {
-                                setEffect {
-                                    Effect.Navigation.SwitchScreen(
-                                            DashboardScreens.Dashboard.screenRoute
-                                    )
-                                }
-                            }
-                            PinFlow.UPDATE -> {
-                                setState { copy(pinSuccess = false, isTransitioning = false) }
-                                setupEnterPhase()
-                            }
-                            PinFlow.CREATE -> {
-                                setState { copy(pinSuccess = false, isTransitioning = false) }
-                                setupEnterPhase()
-                            }
-                        }
+                        handlePinValidationSuccess()
                     }
+                }
+            }
+        }
+    }
+
+    private fun handlePinValidationSuccess() {
+        viewModelScope.launch {
+            setState { copy(pinSuccess = true) }
+            delay(250L)
+            setState { copy(isTransitioning = true) }
+            delay(75L)
+            when (pinFlow) {
+                PinFlow.VERIFY -> {
+                    setEffect {
+                        Effect.Navigation.SwitchScreen(
+                                DashboardScreens.Dashboard.screenRoute
+                        )
+                    }
+                }
+                PinFlow.UPDATE -> {
+                    setState { copy(pinSuccess = false, isTransitioning = false) }
+                    setupEnterPhase()
+                }
+                PinFlow.CREATE -> {
+                    setState { copy(pinSuccess = false, isTransitioning = false) }
+                    setupEnterPhase()
                 }
             }
         }
@@ -354,6 +390,71 @@ class PinViewModel(
                         pin = pin,
                         resetPin = false
                 )
+            }
+        }
+    }
+
+    private fun storeBiometricsPreference(shouldUseBiometrics: Boolean) {
+        viewModelScope.launch {
+            biometricInteractor.storeBiometricsUsageDecision(shouldUseBiometrics)
+            biometricInteractor.storeBiometricsPreferenceDecided(true)
+            setState {
+                copy(
+                        isBiometricsEnabled = shouldUseBiometrics,
+                        showBiometricsPreferencePrompt = false,
+                        quickPinError = null
+                )
+            }
+        }
+    }
+
+    private fun authenticateWithBiometrics(context: Context) {
+        setState { copy(quickPinError = null) }
+        biometricInteractor.getBiometricsAvailability { availability ->
+            when (availability) {
+                BiometricsAvailability.CanAuthenticate -> {
+                    biometricInteractor.authenticateWithBiometrics(
+                            context = context,
+                            notifyOnAuthenticationFailure = true
+                    ) { authResult ->
+                        when (authResult) {
+                            is BiometricsAuthenticate.Success -> {
+                                handlePinValidationSuccess()
+                            }
+                            is BiometricsAuthenticate.Failed -> {
+                                setState {
+                                    copy(
+                                            quickPinError = authResult.errorMessage,
+                                            pin = "",
+                                            resetPin = true
+                                    )
+                                }
+                            }
+                            BiometricsAuthenticate.Cancelled -> Unit
+                        }
+                    }
+                }
+                BiometricsAvailability.NonEnrolled -> {
+                    setState {
+                        copy(
+                                quickPinError =
+                                        resourceProvider.getString(
+                                                R.string.quick_pin_biometric_not_enrolled_error
+                                        ),
+                                pin = "",
+                                resetPin = true
+                        )
+                    }
+                }
+                is BiometricsAvailability.Failure -> {
+                    setState {
+                        copy(
+                                quickPinError = availability.errorMessage,
+                                pin = "",
+                                resetPin = true
+                        )
+                    }
+                }
             }
         }
     }
