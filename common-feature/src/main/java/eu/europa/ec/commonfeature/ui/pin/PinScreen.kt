@@ -238,6 +238,11 @@ private fun Content(
     OneTimeLaunchedEffect {
         focusManager.clearFocus(force = true)
         keyboardController?.hide()
+        if (state.shouldShowBiometricLoginButton) {
+            onEventSend(
+                Event.OnBiometricLoginPressed(context = localContext)
+            )
+        }
     }
 
     // Responsive PIN screen: sizes derived from available screen dimensions.
