@@ -230,6 +230,7 @@ private fun Content(
     coroutineScope: CoroutineScope,
     modalBottomSheetState: SheetState,
 ) {
+    val localContext = LocalContext.current
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
@@ -321,7 +322,7 @@ private fun Content(
                     onLeadingPressed = if (state.shouldShowBiometricLoginButton) {
                         {
                             onEventSend(
-                                Event.OnBiometricLoginPressed(context = context)
+                                Event.OnBiometricLoginPressed(context = localContext)
                             )
                         }
                     } else null,
