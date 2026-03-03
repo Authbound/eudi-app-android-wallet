@@ -468,6 +468,7 @@
     <string name="credential_desc_iban">Banking information</string>
     <string name="credential_desc_photoid">Travel photo identification</string>
     <string name="credential_desc_age_verification">Prove your age privately</string>
+    <string name="credential_desc_reservation">Hotel and travel bookings</string>
     <string name="issuance_add_document_featured_title">Popular credentials</string>
     <string name="issuance_add_document_browse_title">Browse all credentials</string>
 

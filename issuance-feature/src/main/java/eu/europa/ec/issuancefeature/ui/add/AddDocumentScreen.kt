@@ -268,6 +268,13 @@ private fun MainContent(
 
             val listState = remember { LazyListState() }
 
+            // Scroll to top when featured credentials first load
+            LaunchedEffect(state.featuredCredentials.isNotEmpty()) {
+                if (state.featuredCredentials.isNotEmpty()) {
+                    listState.scrollToItem(0)
+                }
+            }
+
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
@@ -414,46 +421,49 @@ private fun FeaturedCredentialTile(
                 onClick()
             }
     ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            modifier = Modifier.padding(14.dp),
         ) {
-            // Category icon in circular background
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.size(36.dp)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    WrapImage(
-                        iconData = featured.categoryIcon,
-                        colorFilter = ColorFilter.tint(Color.White)
-                    )
+                // Category icon in circular background
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        WrapImage(
+                            iconData = featured.categoryIcon,
+                            colorFilter = ColorFilter.tint(Color.White)
+                        )
+                    }
                 }
-            }
 
-            Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(12.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
                 // Credential name
                 Text(
                     text = featured.name,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-
-                // Description
-                Text(
-                    text = featured.description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Description
+            Text(
+                text = featured.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

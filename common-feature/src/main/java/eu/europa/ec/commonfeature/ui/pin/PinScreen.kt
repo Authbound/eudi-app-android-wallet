@@ -17,13 +17,9 @@
 package eu.europa.ec.commonfeature.ui.pin
 
 import android.content.Context
-import android.view.HapticFeedbackConstants
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
@@ -38,7 +34,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
@@ -54,20 +49,16 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import eu.europa.ec.commonfeature.model.PinFlow
@@ -79,8 +70,6 @@ import eu.europa.ec.uilogic.component.content.ImePaddingConfig
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
 import eu.europa.ec.uilogic.component.utils.OneTimeLaunchedEffect
-import eu.europa.ec.uilogic.component.utils.SPACING_LARGE
-import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
 import eu.europa.ec.uilogic.component.wrap.BottomSheetTextDataUi
 import eu.europa.ec.uilogic.component.wrap.DialogBottomSheet
 import eu.europa.ec.uilogic.component.wrap.WrapModalBottomSheet
@@ -91,6 +80,7 @@ import eu.europa.ec.uilogic.navigation.AuthenticationScreens
 import eu.europa.ec.uilogic.navigation.CommonScreens
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
@@ -117,19 +107,6 @@ fun PinScreen(
         navigatableAction = state.action,
         onBack = { viewModel.setEvent(state.onBackEvent) },
         imePaddingConfig = ImePaddingConfig.ONLY_CONTENT,
-        stickyBottom = { paddingValues ->
-            ModernVerifyButton(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(paddingValues)
-                    .padding(horizontal = 24.dp, vertical = 16.dp),
-                text = state.buttonText,
-                enabled = state.isButtonEnabled,
-                onClick = {
-                    viewModel.setEvent(Event.NextButtonPressed(pin = state.pin))
-                }
-            )
-        }
     ) { paddingValues ->
         Content(
             state = state,
@@ -229,11 +206,26 @@ private fun Content(
         keyboardController?.hide()
     }
 
-    // Standard PIN screen layout: Top branding, Middle content (flexible), Bottom keypad (fixed)
+    // Responsive PIN screen: sizes derived from available screen dimensions.
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val logoWidthFraction = 0.62f
-        val logoHeight = (maxWidth * logoWidthFraction) * (35.61f / 120f)
-        val logoReservedHeight = logoHeight + 24.dp
+        val screenHeight = maxHeight
+        val screenWidth = maxWidth
+
+        // Scale logo proportionally — cap width fraction so it doesn't bloat on tablets.
+        val logoWidthFraction = 0.50f
+        val logoHeight = (screenWidth * logoWidthFraction) * (35.61f / 120f)
+        val logoTopPadding = paddingValues.calculateTopPadding() + (screenHeight * 0.02f)
+
+        // Keypad key size: pick the smaller of width-based and height-based limits
+        // so the keypad fits comfortably on any screen.
+        val keyFromWidth = (screenWidth - 32.dp) / 3   // 3 keys + spacing
+        val keyFromHeight = screenHeight * 0.10f         // ~10% of screen height
+        val keySpacing = (screenHeight * 0.014f).coerceIn(10.dp, 18.dp)
+        val adaptiveKeySize = minOf(keyFromWidth, keyFromHeight, 80.dp)
+
+        // Spacing between sections, proportional to screen height.
+        val pinToKeypadSpacing = (screenHeight * 0.03f).coerceIn(16.dp, 40.dp)
+        val titleToSubtitleSpacing = (screenHeight * 0.008f).coerceIn(4.dp, 12.dp)
 
         // Main screen content respects ContentScreen paddings (toolbar, insets, etc.).
         Box(
@@ -244,31 +236,29 @@ private fun Content(
             Column(
                 modifier = Modifier.fillMaxSize()
             ) {
-                // Top section with instructions - takes remaining space
+                // Top section: logo space + title + subtitle — flexes to fill remaining space.
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .verticalScroll(rememberScrollState())
-                        .padding(top = 24.dp, bottom = 24.dp),
-                    verticalArrangement = Arrangement.Top,
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Reserve space so the title/subtitle do not move when the logo is overlaid.
-                    Spacer(modifier = Modifier.height(logoReservedHeight))
-                    Spacer(modifier = Modifier.height(32.dp))
+                    // Reserve space for the overlaid logo.
+                    Spacer(modifier = Modifier.height(logoHeight + (screenHeight * 0.03f)))
 
-                    // Title - e.g., "Create Passcode" or "Enter Passcode"
+                    // Title — e.g., "Create Passcode" or "Enter Passcode"
                     Text(
                         text = state.title,
                         style = MaterialTheme.typography.headlineSmall.copy(
                             fontWeight = FontWeight.Bold
                         ),
                         color = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        modifier = Modifier.padding(bottom = titleToSubtitleSpacing)
                     )
 
-                    // Subtitle - e.g., "Enter a 6-digit passcode" or "Re-enter to confirm"
+                    // Subtitle — e.g., "Enter a 6-digit passcode"
                     Text(
                         text = state.subtitle,
                         style = MaterialTheme.typography.bodyMedium,
@@ -278,18 +268,22 @@ private fun Content(
                     )
                 }
 
-                // PIN indicators - positioned directly above keypad
+                // PIN indicators — directly above the keypad.
                 PinFieldLayout(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 40.dp),
+                        .padding(bottom = pinToKeypadSpacing),
                     state = state
                 )
 
+                // Keypad — pinned to the bottom, sized proportionally.
                 WrapPinKeypad(
                     modifier = Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding(),
+                    maxKeySize = adaptiveKeySize,
+                    keySpacing = keySpacing,
+                    enabled = !state.pinSuccess && !state.isTransitioning,
                     onDigitPressed = { digit ->
                         val current = state.pin
                         val next = if (!state.quickPinError.isNullOrEmpty()) {
@@ -308,11 +302,20 @@ private fun Content(
             } // end main Column
         }
 
-        // Logo overlay (not inside the scroll container, so it will not be clipped).
+        // Auto-submit: when all digits are entered, trigger verify after a brief
+        // delay so the user sees the last indicator dot fill in.
+        LaunchedEffect(state.pin) {
+            if (state.pin.length == state.quickPinSize) {
+                delay(150L)
+                onEventSend(Event.NextButtonPressed(pin = state.pin))
+            }
+        }
+
+        // Logo overlay — floats above the scroll content.
         AppIconAndText(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = paddingValues.calculateTopPadding() + 24.dp)
+                .padding(top = logoTopPadding)
                 .fillMaxWidth(logoWidthFraction),
             iconModifier = Modifier
                 .fillMaxWidth()
@@ -353,6 +356,22 @@ private fun Content(
                     )
                 }
             }
+        }
+
+        // Fade-to-background overlay: a flat rectangle that fades in on top of everything.
+        // Much cheaper than animating alpha on the content tree.
+        if (state.isTransitioning) {
+            val overlayAlpha by animateFloatAsState(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 300),
+                label = "fadeOverlay"
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { alpha = overlayAlpha }
+                    .background(MaterialTheme.colorScheme.background)
+            )
         }
     }
 
@@ -421,74 +440,13 @@ private fun PinFieldLayout(
         pinLength = state.quickPinSize,
         filledCount = state.pin.length,
         hasError = !state.quickPinError.isNullOrEmpty(),
+        hasSuccess = state.pinSuccess,
         errorMessage = state.quickPinError,
         circleSize = 16.dp,
         circleSpacing = 20.dp
     )
 }
 
-/**
- * Modern verify button with clean solid background and subtle press animation.
- * Designed to feel premium and distinctive without the divider line.
- */
-@Composable
-private fun ModernVerifyButton(
-    modifier: Modifier = Modifier,
-    text: String,
-    enabled: Boolean,
-    onClick: () -> Unit,
-) {
-    val view = LocalView.current
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    // Smooth scale animation on press
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed && enabled) 0.97f else 1f,
-        animationSpec = tween(durationMillis = 100),
-        label = "verifyButtonScale"
-    )
-
-    val backgroundColor = if (enabled) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
-    }
-
-    Box(
-        modifier = modifier
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .clip(RoundedCornerShape(16.dp))
-            .background(backgroundColor)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                enabled = enabled,
-                onClick = {
-                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                    onClick()
-                }
-            )
-            .height(56.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.5.sp
-            ),
-            color = if (enabled) {
-                MaterialTheme.colorScheme.onPrimary
-            } else {
-                MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f)
-            }
-        )
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @ThemeModePreviews
@@ -520,32 +478,3 @@ private fun SheetContentCancelPreview() {
     }
 }
 
-@ThemeModePreviews
-@Composable
-private fun ModernVerifyButtonEnabledPreview() {
-    PreviewTheme {
-        ModernVerifyButton(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            text = "Verify",
-            enabled = true,
-            onClick = {}
-        )
-    }
-}
-
-@ThemeModePreviews
-@Composable
-private fun ModernVerifyButtonDisabledPreview() {
-    PreviewTheme {
-        ModernVerifyButton(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            text = "Verify",
-            enabled = false,
-            onClick = {}
-        )
-    }
-}

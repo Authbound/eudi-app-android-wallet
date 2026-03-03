@@ -110,6 +110,11 @@ import eu.europa.ec.dashboardfeature.ui.documents.list.model.DocumentUi
 import eu.europa.ec.dashboardfeature.ui.home.model.HeroCredentialUi
 import eu.europa.ec.dashboardfeature.ui.component.NotificationIconButton
 import eu.europa.ec.eudi.wallet.document.DocumentId
+import eu.europa.ec.uilogic.component.wrap.CompactCredentialCard
+import eu.europa.ec.uilogic.component.wrap.CompactCredentialConfig
+import eu.europa.ec.uilogic.component.wrap.CredentialStatus
+import eu.europa.ec.uilogic.component.wrap.CredentialVisualType
+import eu.europa.ec.uilogic.component.wrap.DocumentCategoryHeader
 import eu.europa.ec.uilogic.component.wrap.VisualCredentialCard
 
 import eu.europa.ec.resourceslogic.R
@@ -1814,29 +1819,70 @@ private fun CredentialCategory(
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp),
-
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        // Category title
-        SectionTitle(
-            modifier = Modifier.fillMaxWidth(),
-            text = stringResource(category.stringResId)
+        // Category header with icon badge
+        val categoryIcon = when (category) {
+            DocumentCategory.Government -> AppIcons.Government
+            DocumentCategory.Finance -> AppIcons.Finance
+            DocumentCategory.Education -> AppIcons.Education
+            DocumentCategory.Health -> AppIcons.Health
+            DocumentCategory.Travel -> AppIcons.Travel
+            DocumentCategory.SocialSecurity -> AppIcons.SocialSecurity
+            DocumentCategory.Retail -> AppIcons.Retail
+            DocumentCategory.Other -> AppIcons.Folder
+        }
+
+        DocumentCategoryHeader(
+            title = stringResource(category.stringResId),
+            icon = categoryIcon,
+            documentCount = documents.size
         )
 
-        // Credentials in this category
-        documents.forEach { document ->
-            WrapListItem(
-                modifier = Modifier.fillMaxWidth(),
-                item = document.uiData,
-                onItemClick = {
+        // Compact credential cards
+        documents.forEachIndexed { index, document ->
+            val status = when (document.documentIssuanceState) {
+                DocumentIssuanceStateUi.Issued -> CredentialStatus.ISSUED
+                DocumentIssuanceStateUi.Pending -> CredentialStatus.PENDING
+                DocumentIssuanceStateUi.Failed -> CredentialStatus.PENDING
+                DocumentIssuanceStateUi.Expired -> CredentialStatus.EXPIRED
+                DocumentIssuanceStateUi.Revoked -> CredentialStatus.REVOKED
+            }
+
+            val visualType = when (document.documentIdentifier) {
+                is DocumentIdentifier.MdocPid,
+                is DocumentIdentifier.SdJwtPid -> CredentialVisualType.PID
+                is DocumentIdentifier.OTHER -> {
+                    val formatType = document.documentIdentifier.formatType.lowercase()
+                    when {
+                        formatType.contains("mdl") || formatType.contains("driving") -> CredentialVisualType.MDL
+                        category == DocumentCategory.Education -> CredentialVisualType.DIPLOMA
+                        category == DocumentCategory.Health -> CredentialVisualType.HEALTH
+                        else -> CredentialVisualType.GENERIC
+                    }
+                }
+            }
+
+            val title = when (val content = document.uiData.mainContentData) {
+                is ListItemMainContentDataUi.Text -> content.text
+                is ListItemMainContentDataUi.Image -> document.uiData.itemId
+            }
+
+            CompactCredentialCard(
+                config = CompactCredentialConfig(
+                    id = document.uiData.itemId,
+                    visualType = visualType,
+                    title = title,
+                    issuerName = document.uiData.overlineText,
+                    status = status,
+                    expiryDate = document.uiData.supportingText
+                        ?.removePrefix("Valid until: "),
+                    hasPhoto = !document.portraitBase64.isNullOrBlank(),
+                    portraitBase64 = document.portraitBase64
+                ),
+                animationDelay = index * 60,
+                onClick = {
                     onCredentialClick(document.uiData.itemId)
-                },
-                supportingTextColor = when (document.documentIssuanceState) {
-                    DocumentIssuanceStateUi.Issued -> null
-                    DocumentIssuanceStateUi.Pending -> MaterialTheme.colorScheme.warning
-                    DocumentIssuanceStateUi.Failed -> MaterialTheme.colorScheme.error
-                    DocumentIssuanceStateUi.Expired -> MaterialTheme.colorScheme.error
-                    DocumentIssuanceStateUi.Revoked -> MaterialTheme.colorScheme.error
                 }
             )
         }

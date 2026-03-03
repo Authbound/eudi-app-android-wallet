@@ -261,6 +261,7 @@ class AddDocumentInteractorImpl(
             "eu.europa.ec.eudi.iban.1",
             "org.iso.23220.2.photoid.1",
             "eu.europa.ec.eudi.pseudonym.age_over_18.1",
+            "org.iso.18013.5.1.reservation",
         )
 
         private val FEATURED_DESCRIPTIONS: Map<String, Int> = FEATURED_FORMAT_TYPES.zip(
@@ -271,6 +272,7 @@ class AddDocumentInteractorImpl(
                 R.string.credential_desc_iban,
                 R.string.credential_desc_photoid,
                 R.string.credential_desc_age_verification,
+                R.string.credential_desc_reservation,
             )
         ).associate { (type, resId) -> normalizeFormatTypeStatic(type) to resId }
 

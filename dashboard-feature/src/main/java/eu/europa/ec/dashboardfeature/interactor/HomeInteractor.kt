@@ -181,12 +181,16 @@ class HomeInteractorImpl(
                     }
                 }
 
-                // Group by category and sort
+                // Group by category and sort: Government (PID) first, Health second, then by order
                 val groupedByCategory = documents.groupBy { it.documentCategory }
                     .map { (category, docs) -> category to docs }
-                    .sortedWith { a, b ->
-                        a.first.toString().compareTo(b.first.toString())
-                    }
+                    .sortedWith(compareBy { (category, _) ->
+                        when (category) {
+                            DocumentCategory.Government -> 0
+                            DocumentCategory.Health -> 1
+                            else -> 2 + category.order
+                        }
+                    })
 
                 // Limit to 3 documents per category for home screen
                 val limitedDocuments = groupedByCategory.map { (category, docs) ->
