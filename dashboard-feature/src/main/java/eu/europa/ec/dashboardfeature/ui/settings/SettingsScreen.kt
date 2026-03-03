@@ -115,7 +115,7 @@ fun SettingsScreen(
 
     ContentScreen(
         navigatableAction = ScreenNavigateAction.NONE,
-        isLoading = state.isDeleting,
+        isLoading = state.isDeleting || state.isBiometricToggleInProgress,
         onBack = { viewModel.setEvent(Event.Pop) },
         topBar = {
             TopBar(
@@ -224,6 +224,7 @@ private fun Content(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = SPACING_LARGE.dp),
+                context = context,
                 items = state.settingsItems,
                 onEventSent = onEventSend,
             )
@@ -431,14 +432,20 @@ private fun ProfileHeader(email: String?, phone: String?, profile: Profile?, pid
 @Composable
 private fun SettingsItemsSection(
     modifier: Modifier = Modifier,
+    context: Context,
     items: List<SettingsItemUi>,
     onEventSent: (Event) -> Unit,
 ) {
-    SettingsItems(items = items, onEventSent = onEventSent)
+    SettingsItems(
+        context = context,
+        items = items,
+        onEventSent = onEventSent
+    )
 }
 
 @Composable
 private fun SettingsItems(
+    context: Context,
     items: List<SettingsItemUi>,
     onEventSent: (Event) -> Unit,
 ) {
@@ -456,9 +463,15 @@ private fun SettingsItems(
                     .padding(start = SPACING_MEDIUM.dp, end = SPACING_SMALL.dp),
                 item = adjustedData,
                 onItemClick = {
-                    onEventSent(
-                        Event.ItemClicked(itemType = settingsItemUi.type)
-                    )
+                    if (settingsItemUi.type == SettingsMenuItemType.BIOMETRIC_AUTHENTICATION) {
+                        onEventSent(
+                            Event.ToggleBiometricAuthentication(context = context)
+                        )
+                    } else {
+                        onEventSent(
+                            Event.ItemClicked(itemType = settingsItemUi.type)
+                        )
+                    }
                 },
                 throttleClicks = false,
                 colors = CardDefaults.cardColors(containerColor = Color.Transparent),
