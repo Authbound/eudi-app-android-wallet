@@ -452,9 +452,16 @@ private fun SettingsItems(
     Column {
         items.forEachIndexed { index, settingsItemUi ->
             // Enlarge leading icons and main text
+            val iconSize: Int = if (
+                settingsItemUi.type == SettingsMenuItemType.BIOMETRIC_AUTHENTICATION
+            ) {
+                30
+            } else {
+                36
+            }
             val adjustedData: ListItemDataUi = when (val lead = settingsItemUi.data.leadingContentData) {
                 is ListItemLeadingContentDataUi.Icon ->
-                    settingsItemUi.data.copy(leadingContentData = lead.copy(size = 36))
+                    settingsItemUi.data.copy(leadingContentData = lead.copy(size = iconSize))
                 else -> settingsItemUi.data
             }
             WrapListItem(

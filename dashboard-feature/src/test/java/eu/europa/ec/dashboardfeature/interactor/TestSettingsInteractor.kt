@@ -223,7 +223,7 @@ class TestSettingsInteractor {
         assertEquals(biometricAuthenticationIdString, biometricItem.data.itemId)
         val biometricMain = biometricItem.data.mainContentData as ListItemMainContentDataUi.Text
         assertEquals(biometricAuthenticationText, biometricMain.text)
-        assertEquals(biometricAuthenticationDescription, biometricItem.data.supportingText)
+        assertEquals(null, biometricItem.data.supportingText)
         val biometricLeading =
             biometricItem.data.leadingContentData as ListItemLeadingContentDataUi.Icon
         assertEquals(AppIcons.TouchId, biometricLeading.iconData)
@@ -281,7 +281,6 @@ class TestSettingsInteractor {
                 R.string.dashboard_side_menu_option_change_pin_id to changePinIdString,
                 R.string.dashboard_side_menu_option_change_pin to changePinText,
                 R.string.settings_biometric_authentication to biometricAuthenticationText,
-                R.string.settings_biometric_description to biometricAuthenticationDescription,
                 R.string.settings_screen_option_retrieve_logs_id to retrieveLogsIdString,
                 R.string.settings_screen_option_retrieve_logs to retrieveLogsText,
             )
@@ -295,8 +294,7 @@ class TestSettingsInteractor {
     private val changePinIdString = "changePinId"
     private val changePinText = "Change PIN"
     private val biometricAuthenticationIdString = "biometric_authentication"
-    private val biometricAuthenticationText = "Biometric Authentication"
-    private val biometricAuthenticationDescription = "Use your fingerprint or face to unlock the app"
+    private val biometricAuthenticationText = "Biometrics"
     private val retrieveLogsIdString = "retrieveLogsId"
     private val retrieveLogsText = "Retrieve logs"
     private val deleteWalletActivationIdString = "delete_wallet_activation"

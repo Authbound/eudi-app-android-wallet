@@ -527,7 +527,7 @@
 
     <!-- Security Section -->
     <string name="settings_security">Security</string>
-    <string name="settings_biometric_authentication">Biometric Authentication</string>
+    <string name="settings_biometric_authentication">Biometrics</string>
     <string name="settings_biometric_description">Use your fingerprint or face to unlock the app</string>
     <string name="settings_change_pin">Change PIN</string>
     <string name="settings_change_pin_description">Change your PIN code</string>

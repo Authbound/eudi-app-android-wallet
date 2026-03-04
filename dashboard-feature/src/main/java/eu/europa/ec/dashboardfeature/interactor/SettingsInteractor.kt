@@ -148,7 +148,6 @@ class SettingsInteractorImpl(
                         mainContentData = ListItemMainContentDataUi.Text(
                             text = resourceProvider.getString(R.string.settings_biometric_authentication)
                         ),
-                        supportingText = resourceProvider.getString(R.string.settings_biometric_description),
                         leadingContentData = ListItemLeadingContentDataUi.Icon(
                             iconData = AppIcons.TouchId
                         ),
