@@ -40,6 +40,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -56,6 +57,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.ImageOrPlaceholder
@@ -63,6 +66,8 @@ import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
 import androidx.compose.ui.unit.sp
 import eu.europa.ec.resourceslogic.R
+import eu.europa.ec.uilogic.component.utils.ANIMATION_DURATION_INTERACTION
+import eu.europa.ec.uilogic.extension.isReducedMotionEnabled
 
 /**
  * Configuration data for the profile header.
@@ -86,12 +91,14 @@ fun ProfileHeader(
     onProfileClick: (() -> Unit)? = null
 ) {
     val view = LocalView.current
+    val shouldReduceMotion: Boolean = isReducedMotionEnabled()
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
+    val openProfileLabel: String = stringResource(R.string.dashboard_side_menu_option_profile)
 
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = tween(durationMillis = 100),
+        targetValue = if (isPressed && !shouldReduceMotion) 0.98f else 1f,
+        animationSpec = tween(durationMillis = if (shouldReduceMotion) 0 else ANIMATION_DURATION_INTERACTION),
         label = "profile_header_scale"
     )
 
@@ -114,6 +121,8 @@ fun ProfileHeader(
                     Modifier.clickable(
                         interactionSource = interactionSource,
                         indication = ripple(bounded = true, color = Color.White),
+                        role = Role.Button,
+                        onClickLabel = openProfileLabel,
                         onClick = {
                             view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                             onProfileClick()
@@ -239,15 +248,19 @@ private fun EditProfileButton(
     modifier: Modifier = Modifier
 ) {
     val view = LocalView.current
+    val editProfileLabel: String = stringResource(R.string.settings_edit_profile)
     val interactionSource = remember { MutableInteractionSource() }
 
     Surface(
         color = Color.White.copy(alpha = 0.15f),
         shape = RoundedCornerShape(100.dp),
         modifier = modifier
+            .minimumInteractiveComponentSize()
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
+                role = Role.Button,
+                onClickLabel = editProfileLabel,
                 onClick = {
                     view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                     onClick()
@@ -265,7 +278,7 @@ private fun EditProfileButton(
                 modifier = Modifier.size(12.dp)
             )
             Text(
-                text = "Edit Profile",
+                text = editProfileLabel,
                 style = MaterialTheme.typography.labelSmall,
                 color = Color.White,
                 fontWeight = FontWeight.Medium
@@ -306,12 +319,13 @@ fun MenuItemCard(
     showDivider: Boolean = true
 ) {
     val view = LocalView.current
+    val shouldReduceMotion: Boolean = isReducedMotionEnabled()
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.99f else 1f,
-        animationSpec = tween(durationMillis = 100),
+        targetValue = if (isPressed && !shouldReduceMotion) 0.99f else 1f,
+        animationSpec = tween(durationMillis = if (shouldReduceMotion) 0 else ANIMATION_DURATION_INTERACTION),
         label = "menu_item_scale"
     )
 
@@ -320,10 +334,13 @@ fun MenuItemCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .scale(scale)
+                .minimumInteractiveComponentSize()
                 .clickable(
                     interactionSource = interactionSource,
                     indication = ripple(bounded = true),
                     enabled = isEnabled,
+                    role = Role.Button,
+                    onClickLabel = title,
                     onClick = {
                         view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                         onClick()
@@ -416,12 +433,12 @@ fun MenuFooter(
         Text(
             text = "App Version $appVersion",
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
             text = copyrightText,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }

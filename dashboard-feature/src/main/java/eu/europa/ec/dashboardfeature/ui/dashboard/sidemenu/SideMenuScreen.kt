@@ -71,6 +71,9 @@ import eu.europa.ec.uilogic.component.utils.SPACING_LARGE
 import eu.europa.ec.uilogic.component.utils.SPACING_MEDIUM
 import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
 import eu.europa.ec.uilogic.component.utils.VSpacer
+import eu.europa.ec.uilogic.component.utils.ANIMATION_DURATION_ENTRANCE
+import eu.europa.ec.uilogic.component.utils.ANIMATION_STAGGER_DELAY
+import eu.europa.ec.uilogic.extension.isReducedMotionEnabled
 import eu.europa.ec.uilogic.component.wrap.MenuFooter
 import eu.europa.ec.uilogic.component.wrap.MenuItemCard
 import eu.europa.ec.uilogic.component.wrap.MenuSectionHeader
@@ -103,14 +106,23 @@ private fun Content(
     var showActions by remember { mutableStateOf(false) }
     var showAccount by remember { mutableStateOf(false) }
     var showFooter by remember { mutableStateOf(false) }
+    val shouldReduceMotion: Boolean = isReducedMotionEnabled()
+    val animationDuration: Int = if (shouldReduceMotion) 0 else ANIMATION_DURATION_ENTRANCE
+    val staggerDelay: Long = if (shouldReduceMotion) 0L else ANIMATION_STAGGER_DELAY.toLong()
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(shouldReduceMotion) {
         showProfile = true
-        delay(50)
+        if (shouldReduceMotion) {
+            showActions = true
+            showAccount = true
+            showFooter = true
+            return@LaunchedEffect
+        }
+        delay(staggerDelay)
         showActions = true
-        delay(50)
+        delay(staggerDelay)
         showAccount = true
-        delay(50)
+        delay(staggerDelay)
         showFooter = true
     }
 
@@ -124,7 +136,7 @@ private fun Content(
         Box(modifier = Modifier.fillMaxWidth()) {
             androidx.compose.animation.AnimatedVisibility(
                 visible = showProfile,
-                enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { -it / 4 }
+                enter = fadeIn(tween(animationDuration)) + slideInVertically(tween(animationDuration)) { -it / 4 }
             ) {
                 ProfileHeader(
                     config = ProfileHeaderConfig(
@@ -196,7 +208,7 @@ private fun Content(
             if (quickActions.isNotEmpty()) {
                 AnimatedVisibility(
                     visible = showActions,
-                    enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 4 }
+                    enter = fadeIn(tween(animationDuration)) + slideInVertically(tween(animationDuration)) { it / 4 }
                 ) {
                     MenuSection(
                         title = stringResource(R.string.dashboard_side_menu_quick_actions_header),
@@ -212,7 +224,7 @@ private fun Content(
             if (accountOptions.isNotEmpty()) {
                 AnimatedVisibility(
                     visible = showAccount,
-                    enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 4 }
+                    enter = fadeIn(tween(animationDuration)) + slideInVertically(tween(animationDuration)) { it / 4 }
                 ) {
                     MenuSection(
                         title = stringResource(R.string.dashboard_side_menu_account_header),
@@ -226,7 +238,7 @@ private fun Content(
         // Footer
         AnimatedVisibility(
             visible = showFooter,
-            enter = fadeIn(tween(300))
+            enter = fadeIn(tween(animationDuration))
         ) {
             HorizontalDivider(
                 modifier = Modifier.padding(horizontal = SPACING_MEDIUM.dp),

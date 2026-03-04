@@ -44,6 +44,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -60,6 +61,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -74,6 +80,7 @@ import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.IconDataUi
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
+import eu.europa.ec.uilogic.extension.isReducedMotionEnabled
 import eu.europa.ec.uilogic.component.wrap.WrapIcon
 
 sealed class BottomNavigationItem(
@@ -122,6 +129,8 @@ fun BottomNavigationBar(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     val view = LocalView.current
+    val shouldReduceMotion: Boolean = isReducedMotionEnabled()
+    val qrScanDescription: String = stringResource(R.string.qr_scan_fab_description)
 
     // Create a floating navigation bar with center QR FAB
     Box(
@@ -180,6 +189,7 @@ fun BottomNavigationBar(
                             label = stringResource(screen.titleRes),
                             selected = selected,
                             iconSize = screen.iconSize,
+                            reduceMotion = shouldReduceMotion,
                             onItemClick = {
                                 if (!selected) {
                                     navController.navigate(screen.route) {
@@ -219,6 +229,7 @@ fun BottomNavigationBar(
                             label = stringResource(screen.titleRes),
                             selected = selected,
                             iconSize = screen.iconSize,
+                            reduceMotion = shouldReduceMotion,
                             onItemClick = {
                                 if (!selected) {
                                     navController.navigate(screen.route) {
@@ -262,7 +273,11 @@ fun BottomNavigationBar(
 
             // FAB
             FloatingActionButton(
-                modifier = Modifier.size(56.dp),
+                modifier = Modifier
+                    .size(56.dp)
+                    .semantics {
+                        contentDescription = qrScanDescription
+                    },
                 onClick = {
                     view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                     onQrScanClick()
@@ -291,6 +306,7 @@ fun FloatingNavItem(
     label: String,
     selected: Boolean,
     iconSize: Dp = 24.dp,
+    reduceMotion: Boolean = false,
     onItemClick: () -> Unit
 ) {
     val view = LocalView.current
@@ -298,25 +314,33 @@ fun FloatingNavItem(
 
     // Smooth scale animation with spring
     val scale by animateFloatAsState(
-        targetValue = if (selected) 1.15f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
+        targetValue = if (selected && !reduceMotion) 1.15f else 1f,
+        animationSpec = if (reduceMotion) {
+            tween(durationMillis = 0)
+        } else {
+            spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMedium
+            )
+        },
         label = "scale"
     )
 
     // Animated background alpha
     val backgroundAlpha by animateFloatAsState(
         targetValue = if (selected) 0.12f else 0f,
-        animationSpec = tween(durationMillis = 200),
+        animationSpec = tween(durationMillis = if (reduceMotion) 0 else 200),
         label = "backgroundAlpha"
     )
 
     // Animated icon tint - uses activeHighlight for proper dark theme contrast
     val iconTint by animateColorAsState(
-        targetValue = if (selected) MaterialTheme.colorScheme.activeHighlight else MaterialTheme.colorScheme.outline,
-        animationSpec = tween(durationMillis = 200),
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.activeHighlight
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        animationSpec = tween(durationMillis = if (reduceMotion) 0 else 200),
         label = "iconTint"
     )
 
@@ -330,9 +354,17 @@ fun FloatingNavItem(
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
+            .minimumInteractiveComponentSize()
+            .semantics(mergeDescendants = true) {
+                this.role = Role.Tab
+                contentDescription = label
+                this.selected = selected
+            }
             .clickable(
                 interactionSource = interactionSource,
-                indication = null
+                indication = null,
+                role = Role.Tab,
+                onClickLabel = label
             ) {
                 onItemClick()
             }
