@@ -241,6 +241,10 @@ class SettingsViewModel(
                 setEffect { Effect.Navigation.SwitchScreen(screenRoute = nextScreenRoute) }
             }
 
+            SettingsMenuItemType.BIOMETRIC_AUTHENTICATION -> {
+                // Handled via Event.ToggleBiometricAuthentication from the UI
+            }
+
             SettingsMenuItemType.RETRIEVE_LOGS -> {
                 val logs = settingsInteractor.retrieveLogFileUris()
                 if (logs.isNotEmpty()) {

@@ -311,25 +311,16 @@ fun DocumentCategoryHeader(
         modifier: Modifier = Modifier
 ) {
     Row(
-            modifier = modifier.fillMaxWidth().padding(vertical = 12.dp),
+            modifier = modifier.fillMaxWidth().padding(vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // Icon with circular background
         if (icon != null) {
-            Surface(
-                    modifier = Modifier.size(32.dp),
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primary
-            ) {
-                Box(modifier = Modifier.size(32.dp), contentAlignment = Alignment.Center) {
-                    WrapIcon(
-                            iconData = icon,
-                            customTint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
+            WrapIcon(
+                    iconData = icon,
+                    customTint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+            )
         }
 
         // Title with sentence case (more modern, easier to read)
