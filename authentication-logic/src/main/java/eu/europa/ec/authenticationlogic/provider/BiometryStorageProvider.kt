@@ -23,4 +23,6 @@ interface BiometryStorageProvider {
     suspend fun setBiometricAuthentication(value: BiometricAuthentication?)
     suspend fun setUseBiometricsAuth(value: Boolean)
     suspend fun getUseBiometricsAuth(): Boolean
+    suspend fun setBiometricsPreferenceDecided(value: Boolean)
+    suspend fun getBiometricsPreferenceDecided(): Boolean
 }

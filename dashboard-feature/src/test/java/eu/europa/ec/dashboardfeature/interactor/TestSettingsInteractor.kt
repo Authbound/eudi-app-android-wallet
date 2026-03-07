@@ -17,6 +17,7 @@
 package eu.europa.ec.dashboardfeature.interactor
 
 import android.net.Uri
+import eu.europa.ec.authenticationlogic.controller.storage.BiometryStorageController
 import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsUserAuthenticatedUseCase
@@ -66,6 +67,9 @@ class TestSettingsInteractor {
     private lateinit var prefsController: PrefsControllerV2
 
     @Mock
+    private lateinit var biometryStorageController: BiometryStorageController
+
+    @Mock
     private lateinit var walletCoreDocumentsController: WalletCoreDocumentsController
 
     @Mock
@@ -94,6 +98,7 @@ class TestSettingsInteractor {
             resourceProvider = resourceProvider,
             prefKeys = prefKeys,
             prefsController = prefsController,
+            biometryStorageController = biometryStorageController,
             walletCoreDocumentsController = walletCoreDocumentsController,
             getCurrentUserUseCase = getCurrentUserUseCase,
             signOutUseCase = signOutUseCase,
@@ -182,8 +187,11 @@ class TestSettingsInteractor {
     fun `Given release build, When getSettingsItemsUi is called, Then expected entries are returned`() {
         whenever(configLogic.appBuildType).thenReturn(AppBuildType.RELEASE)
         mockStringsNeededForGetSettingsItemsUi(resourcesProvider = resourceProvider)
-        val settingsItems = interactor.getSettingsItemsUi(changelogUrl = mockedChangeLogUrl)
-        assertEquals(3, settingsItems.size)
+        val settingsItems = interactor.getSettingsItemsUi(
+            changelogUrl = mockedChangeLogUrl,
+            isBiometricsEnabled = false
+        )
+        assertEquals(4, settingsItems.size)
 
         val accountDetailsItem = settingsItems[0]
         assertEquals(SettingsMenuItemType.ACCOUNT_DETAILS, accountDetailsItem.type)
@@ -210,7 +218,20 @@ class TestSettingsInteractor {
             changePinItem.data.trailingContentData as ListItemTrailingContentDataUi.Icon
         assertEquals(AppIcons.KeyboardArrowRight, changePinTrailing.iconData)
 
-        val retrieveLogsItem = settingsItems[2]
+        val biometricItem = settingsItems[2]
+        assertEquals(SettingsMenuItemType.BIOMETRIC_AUTHENTICATION, biometricItem.type)
+        assertEquals(biometricAuthenticationIdString, biometricItem.data.itemId)
+        val biometricMain = biometricItem.data.mainContentData as ListItemMainContentDataUi.Text
+        assertEquals(biometricAuthenticationText, biometricMain.text)
+        assertEquals(null, biometricItem.data.supportingText)
+        val biometricLeading =
+            biometricItem.data.leadingContentData as ListItemLeadingContentDataUi.Icon
+        assertEquals(AppIcons.TouchId, biometricLeading.iconData)
+        val biometricTrailing =
+            biometricItem.data.trailingContentData as ListItemTrailingContentDataUi.Switch
+        assertEquals(false, biometricTrailing.switchData.isChecked)
+
+        val retrieveLogsItem = settingsItems[3]
         assertEquals(SettingsMenuItemType.RETRIEVE_LOGS, retrieveLogsItem.type)
         assertEquals(retrieveLogsIdString, retrieveLogsItem.data.itemId)
         val retrieveLogsMain =
@@ -228,9 +249,16 @@ class TestSettingsInteractor {
     fun `Given debug build, When getSettingsItemsUi is called, Then delete wallet activation is included`() {
         whenever(configLogic.appBuildType).thenReturn(AppBuildType.DEBUG)
         mockStringsNeededForGetSettingsItemsUi(resourcesProvider = resourceProvider)
-        val settingsItems = interactor.getSettingsItemsUi(changelogUrl = null)
-        assertEquals(4, settingsItems.size)
-        val deleteWalletItem = settingsItems[3]
+        val settingsItems = interactor.getSettingsItemsUi(
+            changelogUrl = null,
+            isBiometricsEnabled = true
+        )
+        assertEquals(5, settingsItems.size)
+        val biometricItem = settingsItems[2]
+        val biometricTrailing =
+            biometricItem.data.trailingContentData as ListItemTrailingContentDataUi.Switch
+        assertEquals(true, biometricTrailing.switchData.isChecked)
+        val deleteWalletItem = settingsItems[4]
         assertEquals(SettingsMenuItemType.DELETE_WALLET_ACTIVATION, deleteWalletItem.type)
         assertEquals(deleteWalletActivationIdString, deleteWalletItem.data.itemId)
         val deleteWalletMain =
@@ -252,6 +280,7 @@ class TestSettingsInteractor {
             listOf(
                 R.string.dashboard_side_menu_option_change_pin_id to changePinIdString,
                 R.string.dashboard_side_menu_option_change_pin to changePinText,
+                R.string.settings_biometric_authentication to biometricAuthenticationText,
                 R.string.settings_screen_option_retrieve_logs_id to retrieveLogsIdString,
                 R.string.settings_screen_option_retrieve_logs to retrieveLogsText,
             )
@@ -264,6 +293,8 @@ class TestSettingsInteractor {
     private val accountDetailsText = "Account details"
     private val changePinIdString = "changePinId"
     private val changePinText = "Change PIN"
+    private val biometricAuthenticationIdString = "biometric_authentication"
+    private val biometricAuthenticationText = "Biometrics"
     private val retrieveLogsIdString = "retrieveLogsId"
     private val retrieveLogsText = "Retrieve logs"
     private val deleteWalletActivationIdString = "delete_wallet_activation"

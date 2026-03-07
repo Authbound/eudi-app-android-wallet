@@ -19,6 +19,7 @@ package eu.europa.ec.commonfeature.ui.pin
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.businesslogic.validator.Form
 import eu.europa.ec.businesslogic.validator.FormValidationResult
+import eu.europa.ec.commonfeature.interactor.BiometricInteractor
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractor
 import eu.europa.ec.commonfeature.model.PinFlow
 import eu.europa.ec.resourceslogic.R
@@ -38,6 +39,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -68,6 +70,9 @@ class TestPinViewModel {
     private lateinit var interactor: QuickPinInteractor
 
     @Mock
+    private lateinit var biometricInteractor: BiometricInteractor
+
+    @Mock
     private lateinit var resourceProvider: ResourceProvider
 
     @Mock
@@ -84,6 +89,10 @@ class TestPinViewModel {
         // Set Main dispatcher for ViewModel's viewModelScope
         Dispatchers.setMain(testDispatcher)
         setupResourceProvider()
+        runBlocking {
+            whenever(biometricInteractor.getBiometricUserSelection()).thenReturn(false)
+            whenever(biometricInteractor.getBiometricsPreferenceDecided()).thenReturn(true)
+        }
     }
 
     @After
@@ -387,6 +396,7 @@ class TestPinViewModel {
     private fun createViewModel(pinFlow: PinFlow): PinViewModel {
         return PinViewModel(
             interactor = interactor,
+            biometricInteractor = biometricInteractor,
             resourceProvider = resourceProvider,
             uiSerializer = uiSerializer,
             signOutUseCase = signOutUseCase,

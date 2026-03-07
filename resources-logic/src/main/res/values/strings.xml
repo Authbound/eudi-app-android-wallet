@@ -166,6 +166,11 @@
 
     <string name="quick_pin_verify_title">Enter Passcode</string>
     <string name="quick_pin_verify_subtitle">Enter your 6-digit passcode to unlock</string>
+    <string name="quick_pin_biometrics_prompt_title">Use biometrics to unlock?</string>
+    <string name="quick_pin_biometrics_prompt_description">You can use your fingerprint or face for faster login. You can change this anytime in Profile settings.</string>
+    <string name="quick_pin_biometrics_prompt_enable">Turn On</string>
+    <string name="quick_pin_biometrics_prompt_disable">Not Now</string>
+    <string name="quick_pin_biometric_not_enrolled_error">No biometrics are enrolled on this device. Add biometrics in system settings and try again.</string>
 
     <string name="quick_pin_create_success_text">Your wallet is secured!</string>
     <string name="quick_pin_create_success_description">To activate your wallet, connect to your National System to add your Digital ID.</string>
@@ -468,6 +473,7 @@
     <string name="credential_desc_iban">Banking information</string>
     <string name="credential_desc_photoid">Travel photo identification</string>
     <string name="credential_desc_age_verification">Prove your age privately</string>
+    <string name="credential_desc_reservation">Hotel and travel bookings</string>
     <string name="issuance_add_document_featured_title">Popular credentials</string>
     <string name="issuance_add_document_browse_title">Browse all credentials</string>
 
@@ -521,7 +527,7 @@
 
     <!-- Security Section -->
     <string name="settings_security">Security</string>
-    <string name="settings_biometric_authentication">Biometric Authentication</string>
+    <string name="settings_biometric_authentication">Biometrics</string>
     <string name="settings_biometric_description">Use your fingerprint or face to unlock the app</string>
     <string name="settings_change_pin">Change PIN</string>
     <string name="settings_change_pin_description">Change your PIN code</string>

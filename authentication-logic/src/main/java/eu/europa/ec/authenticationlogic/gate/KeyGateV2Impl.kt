@@ -25,6 +25,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 private const val PREF_LAST_UNLOCK_AT = "authbound.last_local_unlock_at_ms"
+private const val PREF_USE_BIOMETRICS_AUTH = "UseBiometricsAuth"
 private const val TAG = "KeyGateV2"
 
 /**
@@ -71,6 +72,11 @@ class KeyGateV2Impl(
      */
     fun onAppBackgrounded() {
         backgroundedAtMs = System.currentTimeMillis()
+        val biometricsEnabled: Boolean = prefs.safeBool(PREF_USE_BIOMETRICS_AUTH, false)
+        if (biometricsEnabled) {
+            processAuthenticated = false
+            Log.d(TAG, ">>> onAppBackgrounded() — biometrics enabled, forcing relock for next foreground")
+        }
         Log.d(TAG, ">>> onAppBackgrounded() called — backgroundedAtMs=$backgroundedAtMs, processAuthenticated=$processAuthenticated")
     }
 

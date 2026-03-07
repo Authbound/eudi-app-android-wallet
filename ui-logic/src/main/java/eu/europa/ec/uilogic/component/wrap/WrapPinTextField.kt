@@ -17,6 +17,7 @@
 package eu.europa.ec.uilogic.component.wrap
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -363,12 +364,14 @@ fun PinIndicator(
     pinLength: Int,
     filledCount: Int,
     hasError: Boolean = false,
+    hasSuccess: Boolean = false,
     errorMessage: String? = null,
     circleSize: Dp = 16.dp,
     circleSpacing: Dp = 16.dp,
     filledColor: Color = MaterialTheme.colorScheme.primary,
     emptyColor: Color = MaterialTheme.colorScheme.outlineVariant,
     errorColor: Color = MaterialTheme.colorScheme.error,
+    successColor: Color = Color(0xFF4CAF50),
 ) {
     Column(
         modifier = modifier,
@@ -377,16 +380,20 @@ fun PinIndicator(
         Row(
             modifier = Modifier
                 .wrapContentWidth()
-                .height(circleSize), // Fixed height to prevent layout shifts during animations
+                .height(circleSize),
             horizontalArrangement = Arrangement.spacedBy(circleSpacing),
             verticalAlignment = Alignment.CenterVertically
         ) {
             for (index in 0 until pinLength) {
                 val isFilled = index < filledCount
 
-                // Animate scale when filling
+                // Animate scale: pop on fill, extra pop on success/error feedback.
                 val scale by animateFloatAsState(
-                    targetValue = if (isFilled) 1f else 0.85f,
+                    targetValue = when {
+                        hasSuccess || hasError -> 1.15f
+                        isFilled -> 1f
+                        else -> 0.85f
+                    },
                     animationSpec = spring(
                         dampingRatio = Spring.DampingRatioMediumBouncy,
                         stiffness = Spring.StiffnessLow
@@ -394,12 +401,20 @@ fun PinIndicator(
                     label = "pinIndicatorScale"
                 )
 
-                // Determine color based on state
-                val circleColor = when {
+                // Target color: success > error > filled > empty.
+                val targetColor = when {
+                    hasSuccess -> successColor
                     hasError -> errorColor
                     isFilled -> filledColor
                     else -> emptyColor
                 }
+
+                // Smooth color transition (150ms for snappy feedback).
+                val animatedColor by animateColorAsState(
+                    targetValue = targetColor,
+                    animationSpec = tween(durationMillis = 150),
+                    label = "pinIndicatorColor"
+                )
 
                 Box(
                     modifier = Modifier
@@ -409,15 +424,13 @@ fun PinIndicator(
                             scaleY = scale
                         }
                         .then(
-                            if (isFilled) {
-                                Modifier.background(circleColor, CircleShape)
+                            if (isFilled || hasSuccess || hasError) {
+                                Modifier.background(animatedColor, CircleShape)
                             } else {
-                                Modifier
-                                    .background(Color.Transparent, CircleShape)
-                                    .background(
-                                        color = circleColor.copy(alpha = 0.3f),
-                                        shape = CircleShape
-                                    )
+                                Modifier.background(
+                                    color = animatedColor.copy(alpha = 0.3f),
+                                    shape = CircleShape
+                                )
                             }
                         )
                         .testTag("pin_indicator_$index")
@@ -425,7 +438,6 @@ fun PinIndicator(
             }
         }
 
-        // Use AnimatedVisibility to prevent layout shifts when error message appears/disappears
         AnimatedVisibility(
             visible = !errorMessage.isNullOrEmpty(),
             enter = fadeIn(animationSpec = tween(200)) + expandVertically(animationSpec = tween(200)),
@@ -473,6 +485,18 @@ private fun PreviewPinIndicatorFilled() {
         PinIndicator(
             pinLength = 6,
             filledCount = 6
+        )
+    }
+}
+
+@ThemeModePreviews
+@Composable
+private fun PreviewPinIndicatorSuccess() {
+    PreviewTheme {
+        PinIndicator(
+            pinLength = 6,
+            filledCount = 6,
+            hasSuccess = true
         )
     }
 }

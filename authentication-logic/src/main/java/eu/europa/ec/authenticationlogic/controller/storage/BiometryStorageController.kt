@@ -24,6 +24,8 @@ interface BiometryStorageController {
     suspend fun setBiometricAuthentication(value: BiometricAuthentication?)
     suspend fun setUseBiometricsAuth(value: Boolean)
     suspend fun getUseBiometricsAuth(): Boolean
+    suspend fun setBiometricsPreferenceDecided(value: Boolean)
+    suspend fun getBiometricsPreferenceDecided(): Boolean
 }
 
 class BiometryStorageControllerImpl(private val storageConfig: StorageConfig) :
@@ -41,4 +43,11 @@ class BiometryStorageControllerImpl(private val storageConfig: StorageConfig) :
 
     override suspend fun getUseBiometricsAuth(): Boolean =
         storageConfig.biometryStorageProvider.getUseBiometricsAuth()
+
+    override suspend fun setBiometricsPreferenceDecided(value: Boolean) {
+        storageConfig.biometryStorageProvider.setBiometricsPreferenceDecided(value)
+    }
+
+    override suspend fun getBiometricsPreferenceDecided(): Boolean =
+        storageConfig.biometryStorageProvider.getBiometricsPreferenceDecided()
 }

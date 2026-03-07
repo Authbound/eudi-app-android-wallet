@@ -18,6 +18,7 @@ package eu.europa.ec.dashboardfeature.interactor
 
 import android.net.Uri
 import android.util.Base64
+import eu.europa.ec.authenticationlogic.controller.storage.BiometryStorageController
 import eu.europa.ec.businesslogic.config.AppBuildType
 import eu.europa.ec.businesslogic.config.ConfigLogic
 import eu.europa.ec.businesslogic.controller.log.LogController
@@ -56,9 +57,12 @@ interface SettingsInteractor {
     fun getAppVersion(): String
     fun getChangelogUrl(): String?
     fun retrieveLogFileUris(): ArrayList<Uri>
-    fun getSettingsItemsUi(changelogUrl: String?): List<SettingsItemUi>
+    fun getSettingsItemsUi(changelogUrl: String?, isBiometricsEnabled: Boolean): List<SettingsItemUi>
     fun getShowBatchIssuanceCounter(): Boolean
     fun toggleShowBatchIssuanceCounter()
+    suspend fun getBiometricsEnabled(): Boolean
+    suspend fun setBiometricsEnabled(enabled: Boolean)
+    suspend fun setBiometricsPreferenceDecided(value: Boolean)
     fun getUserEmail(): Flow<String?>
     suspend fun logout()
     suspend fun isUserAuthenticated(): Boolean
@@ -82,6 +86,7 @@ class SettingsInteractorImpl(
     private val resourceProvider: ResourceProvider,
     private val prefKeys: PrefKeys,
     private val prefsController: PrefsControllerV2,
+    private val biometryStorageController: BiometryStorageController,
     private val walletCoreDocumentsController: WalletCoreDocumentsController,
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
     private val signOutUseCase: SignOutUseCase,
@@ -97,7 +102,7 @@ class SettingsInteractorImpl(
         return ArrayList(logController.retrieveLogFileUris())
     }
 
-    override fun getSettingsItemsUi(changelogUrl: String?): List<SettingsItemUi> {
+    override fun getSettingsItemsUi(changelogUrl: String?, isBiometricsEnabled: Boolean): List<SettingsItemUi> {
         return buildList {
             add(
                 SettingsItemUi(
@@ -130,6 +135,26 @@ class SettingsInteractorImpl(
                         ),
                         trailingContentData = ListItemTrailingContentDataUi.Icon(
                             iconData = AppIcons.KeyboardArrowRight
+                        )
+                    )
+                )
+            )
+
+            add(
+                SettingsItemUi(
+                    type = SettingsMenuItemType.BIOMETRIC_AUTHENTICATION,
+                    data = ListItemDataUi(
+                        itemId = "biometric_authentication",
+                        mainContentData = ListItemMainContentDataUi.Text(
+                            text = resourceProvider.getString(R.string.settings_biometric_authentication)
+                        ),
+                        leadingContentData = ListItemLeadingContentDataUi.Icon(
+                            iconData = AppIcons.TouchId
+                        ),
+                        trailingContentData = ListItemTrailingContentDataUi.Switch(
+                            switchData = SwitchDataUi(
+                                isChecked = isBiometricsEnabled
+                            )
                         )
                     )
                 )
@@ -214,6 +239,18 @@ class SettingsInteractorImpl(
                 )
             }
         }
+    }
+
+    override suspend fun getBiometricsEnabled(): Boolean {
+        return biometryStorageController.getUseBiometricsAuth()
+    }
+
+    override suspend fun setBiometricsEnabled(enabled: Boolean) {
+        biometryStorageController.setUseBiometricsAuth(enabled)
+    }
+
+    override suspend fun setBiometricsPreferenceDecided(value: Boolean) {
+        biometryStorageController.setBiometricsPreferenceDecided(value)
     }
 
     override fun getMainPidPortraitBase64(): String? {

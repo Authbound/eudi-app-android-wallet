@@ -25,13 +25,19 @@ class PrefsBiometryStorageProvider(
     private val prefsController: PrefsControllerV2
 ) : BiometryStorageProvider {
 
+    companion object {
+        private const val BIOMETRIC_AUTHENTICATION_KEY = "BiometricAuthentication"
+        private const val USE_BIOMETRICS_AUTH_KEY = "UseBiometricsAuth"
+        private const val BIOMETRICS_PREFERENCE_DECIDED_KEY = "BiometricsPreferenceDecided"
+    }
+
     /**
      * Returns the biometric data in order to validate that biometric is not tampered in any way.
      */
     override suspend fun getBiometricAuthentication(): BiometricAuthentication? {
         return try {
             Gson().fromJson(
-                prefsController.getString("BiometricAuthentication", ""),
+                prefsController.getString(BIOMETRIC_AUTHENTICATION_KEY, ""),
                 BiometricAuthentication::class.java
             )
         } catch (_: Exception) {
@@ -45,8 +51,8 @@ class PrefsBiometryStorageProvider(
      * @param value the biometric data.
      */
     override suspend fun setBiometricAuthentication(value: BiometricAuthentication?) {
-        if (value == null) prefsController.clear("BiometricAuthentication")
-        else prefsController.setString("BiometricAuthentication", Gson().toJson(value))
+        if (value == null) prefsController.clear(BIOMETRIC_AUTHENTICATION_KEY)
+        else prefsController.setString(BIOMETRIC_AUTHENTICATION_KEY, Gson().toJson(value))
     }
 
     /**
@@ -55,7 +61,7 @@ class PrefsBiometryStorageProvider(
      * Setting an empty value will clear the entry from shared prefs.
      */
     override suspend fun setUseBiometricsAuth(value: Boolean) {
-        prefsController.setBool("UseBiometricsAuth", value)
+        prefsController.setBool(USE_BIOMETRICS_AUTH_KEY, value)
     }
 
     /**
@@ -64,6 +70,14 @@ class PrefsBiometryStorageProvider(
      * Setting an empty value will clear the entry from shared prefs.
      */
     override suspend fun getUseBiometricsAuth(): Boolean {
-        return prefsController.getBool("UseBiometricsAuth", false)
+        return prefsController.getBool(USE_BIOMETRICS_AUTH_KEY, false)
+    }
+
+    override suspend fun setBiometricsPreferenceDecided(value: Boolean) {
+        prefsController.setBool(BIOMETRICS_PREFERENCE_DECIDED_KEY, value)
+    }
+
+    override suspend fun getBiometricsPreferenceDecided(): Boolean {
+        return prefsController.getBool(BIOMETRICS_PREFERENCE_DECIDED_KEY, false)
     }
 }

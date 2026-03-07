@@ -16,9 +16,13 @@
 
 package eu.europa.ec.dashboardfeature.ui.settings
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.viewModelScope
+import eu.europa.ec.authenticationlogic.controller.authentication.BiometricAuthenticationController
+import eu.europa.ec.authenticationlogic.controller.authentication.BiometricsAuthenticate
+import eu.europa.ec.authenticationlogic.controller.authentication.BiometricsAvailability
 import eu.europa.ec.businesslogic.extension.toUri
 import eu.europa.ec.dashboardfeature.interactor.CredentialSummaryUi
 import eu.europa.ec.dashboardfeature.interactor.SettingsInteractor
@@ -52,6 +56,8 @@ data class State(
     val settingsItems: List<SettingsItemUi> = emptyList(),
     val appVersion: String = "",
     val changelogUrl: String?,
+    val isBiometricAuthenticationEnabled: Boolean = false,
+    val isBiometricToggleInProgress: Boolean = false,
     val userEmail: String? = null,
     val showDeleteWalletConfirmation: Boolean = false,
     val isDeleting: Boolean = false,
@@ -64,6 +70,7 @@ data class State(
 sealed class Event : ViewEvent {
     data object Pop : Event()
     data class ItemClicked(val itemType: SettingsMenuItemType) : Event()
+    data class ToggleBiometricAuthentication(val context: Context) : Event()
     data object Logout : Event()
     data object ConfirmDeleteWallet : Event()
     data object DismissDeleteConfirmation : Event()
@@ -91,6 +98,7 @@ sealed class Effect : ViewSideEffect {
 class SettingsViewModel(
     private val settingsInteractor: SettingsInteractor,
     private val deleteWalletActivationUseCase: DeleteWalletActivationUseCase,
+    private val biometricAuthenticationController: BiometricAuthenticationController,
     private val resourceProvider: ResourceProvider,
 ) : MviViewModel<Event, State, Effect>() {
 
@@ -110,7 +118,11 @@ class SettingsViewModel(
                 val user = settingsInteractor.getCurrentUser()
                 val profile = settingsInteractor.getMyProfile().getOrNull()
                 val pidPortraitBase64 = settingsInteractor.getMainPidPortraitBase64()
-                val settingsItems = settingsInteractor.getSettingsItemsUi(changelogUrl)
+                val isBiometricAuthenticationEnabled = settingsInteractor.getBiometricsEnabled()
+                val settingsItems = settingsInteractor.getSettingsItemsUi(
+                    changelogUrl = changelogUrl,
+                    isBiometricsEnabled = isBiometricAuthenticationEnabled
+                )
                 val appVersion = settingsInteractor.getAppVersion()
                 val credentialCount = settingsInteractor.getCredentialCount()
                 val credentials = settingsInteractor.getCredentialSummaries()
@@ -118,6 +130,7 @@ class SettingsViewModel(
                 setState {
                     copy(
                         changelogUrl = changelogUrl,
+                        isBiometricAuthenticationEnabled = isBiometricAuthenticationEnabled,
                         settingsItems = settingsItems,
                         appVersion = appVersion,
                         userEmail = user?.email,
@@ -143,6 +156,7 @@ class SettingsViewModel(
             is Event.Pop -> setEffect { Effect.Navigation.Pop }
 
             is Event.ItemClicked -> handleSettingsMenuItemClicked(event.itemType)
+            is Event.ToggleBiometricAuthentication -> toggleBiometricAuthentication(event.context)
 
             is Event.Logout -> logout()
             is Event.ConfirmDeleteWallet -> deleteWalletActivation()
@@ -227,6 +241,10 @@ class SettingsViewModel(
                 setEffect { Effect.Navigation.SwitchScreen(screenRoute = nextScreenRoute) }
             }
 
+            SettingsMenuItemType.BIOMETRIC_AUTHENTICATION -> {
+                // Handled via Event.ToggleBiometricAuthentication from the UI
+            }
+
             SettingsMenuItemType.RETRIEVE_LOGS -> {
                 val logs = settingsInteractor.retrieveLogFileUris()
                 if (logs.isNotEmpty()) {
@@ -262,6 +280,79 @@ class SettingsViewModel(
                 setState { copy(showDeleteWalletConfirmation = true) }
             }
 
+        }
+    }
+
+    private fun toggleBiometricAuthentication(context: Context) {
+        if (viewState.value.isBiometricToggleInProgress) {
+            return
+        }
+        if (viewState.value.isBiometricAuthenticationEnabled) {
+            persistBiometricAuthentication(enabled = false)
+            return
+        }
+        setState { copy(isBiometricToggleInProgress = true) }
+        biometricAuthenticationController.deviceSupportsBiometrics { availability ->
+            when (availability) {
+                BiometricsAvailability.CanAuthenticate -> {
+                    biometricAuthenticationController.authenticate(
+                        context = context,
+                        notifyOnAuthenticationFailure = true
+                    ) { result ->
+                        when (result) {
+                            BiometricsAuthenticate.Success -> {
+                                persistBiometricAuthentication(enabled = true)
+                            }
+                            is BiometricsAuthenticate.Failed -> {
+                                setState { copy(isBiometricToggleInProgress = false) }
+                                setEffect { Effect.ShowToast(result.errorMessage) }
+                            }
+                            BiometricsAuthenticate.Cancelled -> {
+                                setState { copy(isBiometricToggleInProgress = false) }
+                            }
+                        }
+                    }
+                }
+                BiometricsAvailability.NonEnrolled -> {
+                    setState { copy(isBiometricToggleInProgress = false) }
+                    setEffect {
+                        Effect.ShowToast(
+                            resourceProvider.getString(R.string.quick_pin_biometric_not_enrolled_error)
+                        )
+                    }
+                }
+                is BiometricsAvailability.Failure -> {
+                    setState { copy(isBiometricToggleInProgress = false) }
+                    setEffect { Effect.ShowToast(availability.errorMessage) }
+                }
+            }
+        }
+    }
+
+    private fun persistBiometricAuthentication(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                settingsInteractor.setBiometricsEnabled(enabled)
+                settingsInteractor.setBiometricsPreferenceDecided(true)
+                val updatedItems = settingsInteractor.getSettingsItemsUi(
+                    changelogUrl = viewState.value.changelogUrl,
+                    isBiometricsEnabled = enabled
+                )
+                setState {
+                    copy(
+                        isBiometricAuthenticationEnabled = enabled,
+                        settingsItems = updatedItems,
+                        isBiometricToggleInProgress = false
+                    )
+                }
+            } catch (_: Exception) {
+                setState { copy(isBiometricToggleInProgress = false) }
+                setEffect {
+                    Effect.ShowToast(
+                        resourceProvider.getString(R.string.generic_error_description)
+                    )
+                }
+            }
         }
     }
 
