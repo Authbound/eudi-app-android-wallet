@@ -368,12 +368,12 @@ private fun MainContent(
                                 onToggle = {
                                     onEventSend(Event.ToggleCategoryExpansion(group.category.id))
                                 },
-                                onCredentialClick = { configId, issuerId ->
+                                onCredentialClick = { configIds, issuerId ->
                                     onEventSend(
                                         Event.IssueDocument(
                                             issuanceMethod = IssuanceMethod.OPENID4VCI,
                                             issuerId = issuerId,
-                                            configIds = listOf(configId),
+                                            configIds = configIds,
                                             context = context
                                         )
                                     )
@@ -472,7 +472,7 @@ private fun FeaturedCredentialTile(
 private fun CategorySection(
     group: CategoryGroupUi,
     onToggle: () -> Unit,
-    onCredentialClick: (configId: String, issuerId: String) -> Unit,
+    onCredentialClick: (configIds: List<String>, issuerId: String) -> Unit,
 ) {
     WrapExpandableCard(
         isExpanded = group.isExpanded,
@@ -514,9 +514,9 @@ private fun CategorySection(
                         item = credential.itemData,
                         mainContentVerticalPadding = SPACING_MEDIUM.dp,
                         mainContentTextStyle = MaterialTheme.typography.bodyLarge,
-                        onItemClick = { clicked ->
+                        onItemClick = {
                             onCredentialClick(
-                                clicked.itemId,
+                                credential.configurationIds,
                                 credential.credentialIssuerId
                             )
                         }

@@ -341,7 +341,7 @@ class AddDocumentInteractorImpl(
                 }
             }
 
-            val state = if (isDeferred) {
+            val result = if (isDeferred) {
                 AddDocumentInteractorIssueDocumentsPartialState.DeferredSuccess
             } else if (successIds.isNotEmpty()) {
                 AddDocumentInteractorIssueDocumentsPartialState.Success(successIds)
@@ -356,7 +356,7 @@ class AddDocumentInteractorImpl(
                 AddDocumentInteractorIssueDocumentsPartialState.Failure(genericErrorMsg)
             }
 
-            emit(state)
+            emit(result)
         }
     }.safeAsync {
         AddDocumentInteractorIssueDocumentsPartialState.Failure(
