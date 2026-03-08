@@ -19,8 +19,11 @@ package eu.europa.ec.corelogic.config
 import android.content.Context
 import android.os.Build
 import eu.europa.ec.corelogic.BuildConfig
+import eu.europa.ec.corelogic.model.DocumentIdentifier
 import eu.europa.ec.eudi.wallet.EudiWalletConfig
+import eu.europa.ec.eudi.wallet.document.CreateDocumentSettings.CredentialPolicy
 import eu.europa.ec.eudi.wallet.issue.openid4vci.OpenId4VciManager
+import eu.europa.ec.eudi.wallet.issue.openid4vci.dpop.DPopConfig
 import eu.europa.ec.eudi.wallet.transfer.openId4vp.ClientIdScheme
 import eu.europa.ec.eudi.wallet.transfer.openId4vp.Format
 import eu.europa.ec.eudi.wallet.transfer.openId4vp.PreregisteredVerifier
@@ -142,14 +145,14 @@ internal class WalletCoreConfigImpl(
                 .withClientAuthenticationType(OpenId4VciManager.ClientAuthenticationType.AttestationBased)
                 .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
                 .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
-                .withDPoPUsage(OpenId4VciManager.Config.DPoPUsage.IfSupported())
+                .withDPopConfig(DPopConfig.Default)
                 .build(),
             OpenId4VciManager.Config.Builder()
                 .withIssuerUrl(issuerUrl = "https://issuer-backend.eudiw.dev")
                 .withClientAuthenticationType(OpenId4VciManager.ClientAuthenticationType.AttestationBased)
                 .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
                 .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
-                .withDPoPUsage(OpenId4VciManager.Config.DPoPUsage.IfSupported())
+                .withDPopConfig(DPopConfig.Default)
                 .build(),
             OpenId4VciManager.Config.Builder()
                 .withIssuerUrl(
@@ -158,8 +161,26 @@ internal class WalletCoreConfigImpl(
                 .withClientAuthenticationType(OpenId4VciManager.ClientAuthenticationType.AttestationBased)
                 .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
                 .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
-                .withDPoPUsage(OpenId4VciManager.Config.DPoPUsage.IfSupported())
+                .withDPopConfig(DPopConfig.Default)
                 .build()
+        )
+
+    override val documentIssuanceConfig: DocumentIssuanceConfig
+        get() = DocumentIssuanceConfig(
+            defaultRule = DocumentIssuanceRule(
+                policy = CredentialPolicy.RotateUse,
+                numberOfCredentials = 1
+            ),
+            documentSpecificRules = mapOf(
+                DocumentIdentifier.MdocPid to DocumentIssuanceRule(
+                    policy = CredentialPolicy.OneTimeUse,
+                    numberOfCredentials = 10
+                ),
+                DocumentIdentifier.SdJwtPid to DocumentIssuanceRule(
+                    policy = CredentialPolicy.OneTimeUse,
+                    numberOfCredentials = 10
+                ),
+            )
         )
 
     override val walletProviderHost: String

@@ -65,6 +65,7 @@ import eu.europa.ec.uilogic.component.wrap.WrapPinKeypad
 import eu.europa.ec.uilogic.config.ConfigNavigation
 import eu.europa.ec.uilogic.config.FlowCompletion
 import eu.europa.ec.uilogic.config.NavigationType
+import eu.europa.ec.uilogic.extension.applyTestTag
 import eu.europa.ec.uilogic.extension.cacheDeepLink
 import eu.europa.ec.uilogic.extension.finish
 import eu.europa.ec.uilogic.extension.paddingFrom

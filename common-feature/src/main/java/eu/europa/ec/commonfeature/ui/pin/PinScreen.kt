@@ -502,7 +502,7 @@ private fun PinScreenEmptyPreview() {
     PreviewTheme {
         Content(
             state = State(
-                pinFlow = PinFlow.CREATE,
+                pinFlow = PinFlow.CREATE_WITH_ACTIVATION,
                 pinState = PinValidationState.ENTER
             ),
             effectFlow = Channel<Effect>().receiveAsFlow(),

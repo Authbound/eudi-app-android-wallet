@@ -313,7 +313,7 @@ private fun MainContent(
                                                 Event.IssueDocument(
                                                     issuanceMethod = IssuanceMethod.OPENID4VCI,
                                                     issuerId = featured.credentialIssuerId,
-                                                    configId = featured.configurationId,
+                                                    configIds = listOf(featured.configurationId),
                                                     context = context
                                                 )
                                             )
@@ -373,7 +373,7 @@ private fun MainContent(
                                         Event.IssueDocument(
                                             issuanceMethod = IssuanceMethod.OPENID4VCI,
                                             issuerId = issuerId,
-                                            configId = configId,
+                                            configIds = listOf(configId),
                                             context = context
                                         )
                                     )

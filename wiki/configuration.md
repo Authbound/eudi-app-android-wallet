@@ -48,7 +48,7 @@ Each flavor can use different issuer URLs, wallet provider hosts, and trust stor
           .withClientAuthenticationType(OpenId4VciManager.ClientAuthenticationType.AttestationBased)
           .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
           .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
-          .withDPoPUsage(OpenId4VciManager.Config.DPoPUsage.IfSupported())
+          .withDPopConfig(DPopConfig.Default)
           .build()
     )
     ```
@@ -170,6 +170,23 @@ Each flavor can use different issuer URLs, wallet provider hosts, and trust stor
                 shouldLog = should_log_option
             )
     }
+    ```
+
+6. Wallet Activation
+
+   You can enable or disable the PID Wallet Activation flow. If you choose to enable this feature, the Wallet will not be operational unless a PID is issued first.
+   With this feature disabled, there are no such limitations, and the Wallet can operate without a PID being issued beforehand.
+
+   Via the *ConfigLogic* interface inside the business-logic module.
+
+   ```kotlin
+   interface ConfigLogic {
+   
+         /**
+         * Set if the wallet requires PID Activation.
+         */
+        val forcePidActivation: Boolean get() = false
+   }
     ```
 
 ## DeepLink Schemas configuration

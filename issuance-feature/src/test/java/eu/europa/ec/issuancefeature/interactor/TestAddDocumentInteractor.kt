@@ -25,7 +25,7 @@ import eu.europa.ec.commonfeature.config.SuccessUIConfig
 import eu.europa.ec.commonfeature.interactor.DeviceAuthenticationInteractor
 import eu.europa.ec.corelogic.controller.FetchScopedDocumentsPartialState
 import eu.europa.ec.corelogic.controller.IssuanceMethod
-import eu.europa.ec.corelogic.controller.IssueDocumentPartialState
+import eu.europa.ec.corelogic.controller.IssueDocumentsPartialState
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
 import eu.europa.ec.corelogic.model.DocumentCategories
 import eu.europa.ec.corelogic.model.DocumentCategory
@@ -383,27 +383,27 @@ class TestAddDocumentInteractor {
         }
     }
 
-    //region issueDocument
+    //region issueDocuments
     @Test
-    fun `Given an issuance method and a document type, When issueDocument is called, Then it calls walletCoreDocumentsController#issueDocument`() {
+    fun `Given an issuance method and a document type, When issueDocuments is called, Then it calls walletCoreDocumentsController#issueDocuments`() {
         coroutineRule.runTest {
             // Given
             val mockedIssuanceMethod = IssuanceMethod.OPENID4VCI
-            val mockedConfigId = "id"
+            val mockedConfigIds = listOf("id")
             val mockedIssuerId = "issuerId"
 
             whenever(
-                walletCoreDocumentsController.issueDocument(
+                walletCoreDocumentsController.issueDocuments(
                     issuanceMethod = mockedIssuanceMethod,
-                    configId = mockedConfigId,
+                    configIds = mockedConfigIds,
                     issuerId = mockedIssuerId
                 )
-            ).thenReturn(IssueDocumentPartialState.Success(mockedPidId).toFlow())
+            ).thenReturn(IssueDocumentsPartialState.Success(listOf(mockedPidId)).toFlow())
 
             // When
-            interactor.issueDocument(
+            interactor.issueDocuments(
                 issuanceMethod = mockedIssuanceMethod,
-                configId = mockedConfigId,
+                configIds = mockedConfigIds,
                 issuerId = mockedIssuerId
             ).runFlowTest {
 
@@ -412,9 +412,9 @@ class TestAddDocumentInteractor {
                 // Then
                 @Suppress("UnusedFlow")
                 verify(walletCoreDocumentsController, times(1))
-                    .issueDocument(
+                    .issueDocuments(
                         issuanceMethod = mockedIssuanceMethod,
-                        configId = mockedConfigId,
+                        configIds = mockedConfigIds,
                         issuerId = mockedIssuerId
                     )
             }
