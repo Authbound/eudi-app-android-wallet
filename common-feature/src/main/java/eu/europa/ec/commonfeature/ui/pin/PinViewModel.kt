@@ -534,14 +534,19 @@ class PinViewModel(
                                 ),
                 )
 
+        // After PIN creation without activation → Push to Dashboard
+        val navigationAfterCreateNoActivation = ConfigNavigation(
+            navigationType = NavigationType.PushScreen(
+                screen = DashboardScreens.Dashboard,
+                popUpToScreen = CommonScreens.QuickPin
+            ),
+        )
+
         // After PIN update (change) → Pop back to Dashboard (already in nav stack)
         val navigationAfterUpdate =
                 ConfigNavigation(
                         navigationType = NavigationType.PopTo(DashboardScreens.Dashboard),
                 )
-
-
-
 
 
         return generateComposableNavigationLink(
