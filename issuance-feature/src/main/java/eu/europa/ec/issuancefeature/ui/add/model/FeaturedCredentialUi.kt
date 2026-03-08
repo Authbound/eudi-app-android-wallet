@@ -21,7 +21,7 @@ import eu.europa.ec.uilogic.component.IconDataUi
 
 data class FeaturedCredentialUi(
     val credentialIssuerId: String,
-    val configurationId: String,
+    val configurationIds: List<String>,
     val name: String,
     val description: String,
     val category: DocumentCategory,

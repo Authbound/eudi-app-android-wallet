@@ -140,9 +140,30 @@ class AddDocumentInteractorImpl(
                                 (flowType !is IssuanceFlowType.NoDocument || doc.isPid)
                     }
 
-                    val deduplicated = deduplicateDocuments(filtered)
+                    // Partition PIDs from non-PIDs: PIDs bypass dedup and get combined
+                    val (pidDocs, nonPidDocs) = filtered.partition { it.isPid }
 
-                    if (deduplicated.isEmpty()) {
+                    // Deduplicate only non-PID docs (PIDs are handled separately)
+                    val deduplicatedNonPid = deduplicateDocuments(nonPidDocs)
+
+                    // Group PID docs by issuer → collect all configIds and pick representative
+                    val pidsByIssuer = pidDocs.groupBy { it.credentialIssuerId }
+
+                    val combinedPidConfigIds: Map<String, List<String>> = pidsByIssuer
+                        .mapValues { (_, issuerPids) ->
+                            issuerPids.map { it.configurationId }
+                        }
+
+                    // Pick one representative PID per issuer, preferring Mdoc over SD-JWT
+                    val representativePidDocs = pidsByIssuer.values.mapNotNull { issuerPids ->
+                        issuerPids.sortedBy { doc ->
+                            if (doc.formatType.orEmpty().startsWith("urn:")) 1 else 0
+                        }.firstOrNull()
+                    }
+
+                    val allDocs = deduplicatedNonPid + representativePidDocs
+
+                    if (allDocs.isEmpty()) {
                         emit(
                             AddDocumentInteractorPartialState.NoOptions(
                                 errorMsg = resourceProvider.getString(R.string.issuance_add_document_no_options)
@@ -151,15 +172,15 @@ class AddDocumentInteractorImpl(
                         return@flow
                     }
 
-                    val categorizedDocs = deduplicated.map { doc ->
+                    val categorizedDocs = allDocs.map { doc ->
                         val formatType = doc.formatType.orEmpty()
                         val category = formatType.toDocumentIdentifier()
                             .toDocumentCategory(allCategories)
                         doc to category
                     }
 
-                    val featured = buildFeaturedList(categorizedDocs)
-                    val featuredKeys = featured.map { it.configurationId }.toSet()
+                    val featured = buildFeaturedList(categorizedDocs, combinedPidConfigIds)
+                    val featuredKeys = featured.flatMap { it.configurationIds }.toSet()
 
                     val categoryGroups = buildCategoryGroups(
                         categorizedDocs.filter { (doc, _) ->
@@ -213,7 +234,8 @@ class AddDocumentInteractorImpl(
     }
 
     private fun buildFeaturedList(
-        categorizedDocs: List<Pair<ScopedDocumentDomain, DocumentCategory>>
+        categorizedDocs: List<Pair<ScopedDocumentDomain, DocumentCategory>>,
+        combinedPidConfigIds: Map<String, List<String>> = emptyMap()
     ): List<FeaturedCredentialUi> {
         val docsByNormalized = categorizedDocs.associateBy { (doc, _) ->
             normalizeFormatType(doc.formatType.orEmpty())
@@ -222,10 +244,24 @@ class AddDocumentInteractorImpl(
         return FEATURED_FORMAT_TYPES.mapNotNull { featuredType ->
             val normalized = normalizeFormatType(featuredType)
             val (doc, category) = docsByNormalized[normalized] ?: return@mapNotNull null
+
+            val configIds = if (doc.isPid) {
+                combinedPidConfigIds[doc.credentialIssuerId]
+                    ?: listOf(doc.configurationId)
+            } else {
+                listOf(doc.configurationId)
+            }
+
+            val name = if (configIds.size > 1) {
+                resourceProvider.getString(R.string.issuance_add_document_pid_combined)
+            } else {
+                doc.name
+            }
+
             FeaturedCredentialUi(
                 credentialIssuerId = doc.credentialIssuerId,
-                configurationId = doc.configurationId,
-                name = doc.name,
+                configurationIds = configIds,
+                name = name,
                 description = getFeaturedDescription(normalized),
                 category = category,
                 categoryIcon = category.toIcon(),

@@ -34,6 +34,7 @@ import eu.europa.ec.issuancefeature.util.mockedConfigNavigationTypePopToScreen
 import eu.europa.ec.issuancefeature.util.mockedConfigNavigationTypePush
 import eu.europa.ec.issuancefeature.util.mockedIssuerId
 import eu.europa.ec.issuancefeature.util.mockedPrimaryButtonText
+import eu.europa.ec.issuancefeature.util.mockedCombinedPid
 import eu.europa.ec.issuancefeature.util.mockedRouteArguments
 import eu.europa.ec.issuancefeature.util.mockedScopedDocuments
 import eu.europa.ec.issuancefeature.util.mockedSuccessContentDescription
@@ -154,6 +155,8 @@ class TestAddDocumentInteractor {
                 val success = result as AddDocumentInteractorPartialState.Success
                 assertEquals(1, success.featured.size)
                 assertEquals(mockedIssuerId, success.featured[0].credentialIssuerId)
+                assertEquals(2, success.featured[0].configurationIds.size)
+                assertEquals(mockedCombinedPid, success.featured[0].name)
                 assertTrue(success.categoryGroups.isEmpty())
             }
         }
@@ -648,6 +651,8 @@ class TestAddDocumentInteractor {
     //endregion
 
     private fun mockFeaturedDescriptionStrings() {
+        whenever(resourceProvider.getString(R.string.issuance_add_document_pid_combined))
+            .thenReturn(mockedCombinedPid)
         whenever(resourceProvider.getString(R.string.credential_desc_pid))
             .thenReturn("Your core digital identity")
         whenever(resourceProvider.getString(R.string.credential_desc_mdl))

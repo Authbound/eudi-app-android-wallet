@@ -32,6 +32,7 @@ import eu.europa.ec.testfeature.util.mockedPhotoIdDocName
 import eu.europa.ec.testfeature.util.mockedPidDocName
 import eu.europa.ec.testfeature.util.mockedPidId
 import eu.europa.ec.testfeature.util.mockedSdJwtPidId
+import eu.europa.ec.testfeature.util.mockedSdJwtPidVct
 import eu.europa.ec.testfeature.util.mockedUuid
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.ListItemDataUi
@@ -60,6 +61,7 @@ internal const val mockedErrorDescription = "Error description"
 internal const val mockedIssuerId = "issuerId"
 
 private const val mockedConfigIssuerId = "configurationId"
+internal const val mockedSdJwtPidConfigId = "sdJwtPidConfigId"
 
 internal val mockedPidOptionItemUi = AddDocumentUi(
     credentialIssuerId = mockedIssuerId,
@@ -109,6 +111,13 @@ internal val mockedScopedDocuments: List<ScopedDocumentDomain>
             credentialIssuerId = mockedIssuerId,
             isPid = true,
             formatType = mockedMdocPidFormat.docType
+        ),
+        ScopedDocumentDomain(
+            name = mockedPidDocName,
+            configurationId = mockedSdJwtPidConfigId,
+            credentialIssuerId = mockedIssuerId,
+            isPid = true,
+            formatType = mockedSdJwtPidVct
         ),
         ScopedDocumentDomain(
             name = mockedMdlDocName,

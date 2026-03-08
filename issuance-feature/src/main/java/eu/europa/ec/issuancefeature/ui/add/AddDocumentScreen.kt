@@ -313,7 +313,7 @@ private fun MainContent(
                                                 Event.IssueDocument(
                                                     issuanceMethod = IssuanceMethod.OPENID4VCI,
                                                     issuerId = featured.credentialIssuerId,
-                                                    configIds = listOf(featured.configurationId),
+                                                    configIds = featured.configurationIds,
                                                     context = context
                                                 )
                                             )
@@ -587,7 +587,7 @@ private fun IssuanceAddDocumentScreenPreview() {
                 featuredCredentials = listOf(
                     FeaturedCredentialUi(
                         credentialIssuerId = "issuer1",
-                        configurationId = "pid",
+                        configurationIds = listOf("pid"),
                         name = "National ID",
                         description = "Your core digital identity",
                         category = DocumentCategory.Government,
@@ -595,7 +595,7 @@ private fun IssuanceAddDocumentScreenPreview() {
                     ),
                     FeaturedCredentialUi(
                         credentialIssuerId = "issuer1",
-                        configurationId = "mdl",
+                        configurationIds = listOf("mdl"),
                         name = "Driving License",
                         description = "Digital driving license",
                         category = DocumentCategory.Travel,
@@ -651,7 +651,7 @@ private fun DashboardAddDocumentScreenPreview() {
                 featuredCredentials = listOf(
                     FeaturedCredentialUi(
                         credentialIssuerId = "issuer1",
-                        configurationId = "pid",
+                        configurationIds = listOf("pid"),
                         name = "National ID",
                         description = "Your core digital identity",
                         category = DocumentCategory.Government,
@@ -659,7 +659,7 @@ private fun DashboardAddDocumentScreenPreview() {
                     ),
                     FeaturedCredentialUi(
                         credentialIssuerId = "issuer1",
-                        configurationId = "mdl",
+                        configurationIds = listOf("mdl"),
                         name = "Driving License",
                         description = "Digital driving license",
                         category = DocumentCategory.Travel,
@@ -667,7 +667,7 @@ private fun DashboardAddDocumentScreenPreview() {
                     ),
                     FeaturedCredentialUi(
                         credentialIssuerId = "issuer1",
-                        configurationId = "ehic",
+                        configurationIds = listOf("ehic"),
                         name = "EHIC",
                         description = "European health insurance",
                         category = DocumentCategory.Health,
