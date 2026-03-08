@@ -243,6 +243,9 @@ internal fun DashboardScreen(
             }
         }
         actionsViewModel.setEvent(eu.europa.ec.dashboardfeature.ui.actions.Event.OnResume)
+        homeViewModel.setEvent(
+            eu.europa.ec.dashboardfeature.ui.home.Event.GetCredentials
+        )
         viewModel.setEvent(
             Event.Init(
                 deepLinkUri = context.getPendingDeepLink()

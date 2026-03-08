@@ -609,7 +609,7 @@ private fun IssuanceAddDocumentScreenPreview() {
                         credentials = listOf(
                             AddDocumentUi(
                                 credentialIssuerId = "issuer1",
-                                configurationId = "ehic",
+                                configurationIds = listOf("ehic"),
                                 category = DocumentCategory.Health,
                                 itemData = ListItemDataUi(
                                     itemId = "ehic",

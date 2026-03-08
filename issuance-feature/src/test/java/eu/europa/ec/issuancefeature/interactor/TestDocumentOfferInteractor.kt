@@ -395,6 +395,7 @@ class TestDocumentOfferInteractor {
                     issuerName = mockedIssuerName,
                     txCodeLength = mockedOffer.txCodeSpec?.length,
                     issuerLogo = null,
+                    offer = mockedOffer
                 )
 
                 // Then
@@ -420,6 +421,7 @@ class TestDocumentOfferInteractor {
     fun `Given Case 6, When resolveDocumentOffer is called, Then Case 6 Expected Result is returned`() =
         coroutineRule.runTest {
             // Given
+            whenever(configLogic.forcePidActivation).thenReturn(false)
             val mockedOffer = mockOffer(
                 issuerName = mockedIssuerName,
                 offeredDocuments = mockedOfferedDocumentsList,
@@ -445,6 +447,7 @@ class TestDocumentOfferInteractor {
                     issuerName = mockedIssuerName,
                     txCodeLength = mockedOffer.txCodeSpec?.length,
                     issuerLogo = null,
+                    offer = mockedOffer
                 )
                 // Then
                 assertEquals(expectedResult, awaitItem())

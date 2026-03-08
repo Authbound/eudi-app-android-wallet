@@ -187,7 +187,7 @@ class DocumentOfferInteractorImpl(
                             if (hasMainPid || hasPidInOffer || !configLogic.forcePidActivation) {
                                 logController.d(
                                     "DocumentOfferInteractor",
-                                    "resolveDocumentOffer parsed issuer=${response.offer.credentialOffer.credentialIssuerIdentifier} txCode=${response.offer.txCodeSpec?.length} grants=${response.offer.credentialOffer.grants}"
+                                    "resolveDocumentOffer parsed issuer=${response.offer.credentialOffer?.credentialIssuerIdentifier} txCode=${response.offer.txCodeSpec?.length} grants=${response.offer.credentialOffer?.grants}"
                                 )
                                 ResolveDocumentOfferInteractorPartialState.Success(
                                     documents = response.offer.offeredDocuments.map { offeredDocument ->

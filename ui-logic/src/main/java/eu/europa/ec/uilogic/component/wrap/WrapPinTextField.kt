@@ -86,6 +86,7 @@ import eu.europa.ec.uilogic.component.utils.EmptyTextToolbar
 import eu.europa.ec.uilogic.component.utils.HSpacer
 import eu.europa.ec.uilogic.component.utils.OneTimeLaunchedEffect
 import eu.europa.ec.uilogic.component.utils.SIZE_SMALL
+import androidx.compose.ui.platform.testTag
 import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
 
 @Composable

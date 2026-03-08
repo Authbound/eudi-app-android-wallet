@@ -62,6 +62,9 @@ sealed class AddDocumentInteractorPartialState {
         val featured: List<FeaturedCredentialUi>,
         val categoryGroups: List<CategoryGroupUi>,
     ) : AddDocumentInteractorPartialState()
+
+    data class NoOptions(val errorMsg: String) : AddDocumentInteractorPartialState()
+    data class Failure(val error: String) : AddDocumentInteractorPartialState()
 }
 
 sealed class AddDocumentInteractorIssueDocumentsPartialState {
@@ -78,18 +81,11 @@ sealed class AddDocumentInteractorIssueDocumentsPartialState {
     ) : AddDocumentInteractorIssueDocumentsPartialState()
 }
 
-sealed class AddDocumentInteractorScopedPartialState {
-    data class Success(val options: List<Pair<String, List<AddDocumentUi>>>) :
-        AddDocumentInteractorScopedPartialState()
-
-    data class NoOptions(val errorMsg: String) : AddDocumentInteractorScopedPartialState()
-    data class Failure(val error: String) : AddDocumentInteractorScopedPartialState()
-}
 
 interface AddDocumentInteractor {
     fun getAddDocumentOption(
         flowType: IssuanceFlowType,
-    ): Flow<AddDocumentInteractorScopedPartialState>
+    ): Flow<AddDocumentInteractorPartialState>
 
     fun issueDocuments(
         issuanceMethod: IssuanceMethod,
@@ -121,14 +117,14 @@ class AddDocumentInteractorImpl(
 
     override fun getAddDocumentOption(
         flowType: IssuanceFlowType,
-    ): Flow<AddDocumentInteractorScopedPartialState> =
+    ): Flow<AddDocumentInteractorPartialState> =
         flow {
             val state =
                 walletCoreDocumentsController.getScopedDocuments(resourceProvider.getLocale())
 
             when (state) {
                 is FetchScopedDocumentsPartialState.Failure -> emit(
-                    AddDocumentInteractorScopedPartialState.Failure(
+                    AddDocumentInteractorPartialState.Failure(
                         error = state.errorMessage
                     )
                 )
@@ -148,7 +144,7 @@ class AddDocumentInteractorImpl(
 
                     if (deduplicated.isEmpty()) {
                         emit(
-                            AddDocumentInteractorScopedPartialState.NoOptions(
+                            AddDocumentInteractorPartialState.NoOptions(
                                 errorMsg = resourceProvider.getString(R.string.issuance_add_document_no_options)
                             )
                         )
@@ -180,7 +176,7 @@ class AddDocumentInteractorImpl(
                 }
             }
         }.safeAsync {
-            AddDocumentInteractorScopedPartialState.Failure(
+            AddDocumentInteractorPartialState.Failure(
                 error = it.localizedMessage ?: genericErrorMsg
             )
         }
@@ -258,7 +254,7 @@ class AddDocumentInteractorImpl(
                         .map { (doc, cat) ->
                             AddDocumentUi(
                                 credentialIssuerId = doc.credentialIssuerId,
-                                configurationId = doc.configurationId,
+                                configurationIds = listOf(doc.configurationId),
                                 category = cat,
                                 itemData = ListItemDataUi(
                                     itemId = doc.configurationId,
