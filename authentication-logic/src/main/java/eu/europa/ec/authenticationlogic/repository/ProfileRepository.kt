@@ -22,6 +22,16 @@ import eu.europa.ec.networklogic.model.request.CompleteProfileRequest
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 
+/**
+ * Exception from profile API calls that preserves the HTTP status code.
+ * Allows downstream error classification (e.g., 400 server error vs network failure).
+ */
+class ProfileApiException(
+    val httpCode: Int,
+    val httpMessage: String,
+    val errorBody: String? = null
+) : Exception("HTTP $httpCode: $httpMessage")
+
 interface ProfileRepository {
     suspend fun completeProfile(request: CompleteProfileRequest): Result<Unit>
     suspend fun checkHandle(handle: String): Result<Boolean>
@@ -46,7 +56,11 @@ class ProfileRepositoryImpl(
             if (response.isSuccessful) {
                 Result.success(Unit)
             } else {
-                Result.failure(Exception("HTTP ${response.code()}: ${response.message()}"))
+                Result.failure(ProfileApiException(
+                    httpCode = response.code(),
+                    httpMessage = response.message(),
+                    errorBody = response.errorBody()
+                ))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -95,7 +109,7 @@ class ProfileRepositoryImpl(
             if (response.isSuccessful) {
                 val profileResponse = response.body()
                     ?: return Result.failure(Exception("Empty response body"))
-                
+
                 // Convert NetworkLogic ProfileResponse to AuthenticationLogic Profile
                 val profile = Profile(
                     id = profileResponse.id,
@@ -104,7 +118,11 @@ class ProfileRepositoryImpl(
                 )
                 Result.success(profile)
             } else {
-                Result.failure(Exception("HTTP ${response.code()}: ${response.message()}"))
+                Result.failure(ProfileApiException(
+                    httpCode = response.code(),
+                    httpMessage = response.message(),
+                    errorBody = response.errorBody()
+                ))
             }
         } catch (e: Exception) {
             Result.failure(e)

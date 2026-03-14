@@ -105,7 +105,7 @@ internal class WalletCoreConfigImpl(
             VciConfig(
                 config = OpenId4VciManager.Config.Builder()
                     .withIssuerUrl(
-                        issuerUrl = "https://oid4vc.igrant.io/organisation/cc8f6303-c49f-468c-ad3c-ce93a865f963/service/draft-15"
+                        issuerUrl = "https://oid4vc.igrant.io/organisation/cc8f6303-c49f-468c-ad3c-ce93a865f963/service/version-01"
                     )
                     .withClientAuthenticationType(OpenId4VciManager.ClientAuthenticationType.AttestationBased)
                     .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)

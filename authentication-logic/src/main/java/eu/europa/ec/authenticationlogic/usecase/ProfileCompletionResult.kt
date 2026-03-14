@@ -49,4 +49,12 @@ sealed class ProfileCompletionResult {
      *                    - `null` = No cached value available (force completion for safety)
      */
     data class NetworkError(val cachedValue: Boolean?) : ProfileCompletionResult()
+
+    /**
+     * Server returned an HTTP error (4xx/5xx) while checking profile.
+     * Since the cache was `false` when this path is reached, we have no
+     * evidence the profile exists. Callers should treat this as incomplete
+     * and route to profile completion for safety.
+     */
+    data class ServerError(val httpCode: Int) : ProfileCompletionResult()
 }

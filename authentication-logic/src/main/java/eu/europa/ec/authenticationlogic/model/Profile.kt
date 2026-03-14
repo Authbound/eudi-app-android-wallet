@@ -21,7 +21,7 @@ data class Profile(
     @SerializedName("id")
     val id: String,
     @SerializedName("handle")
-    val handle: String,
+    val handle: String? = null,
     @SerializedName("display_name")
-    val displayName: String
-) 
+    val displayName: String? = null
+)

@@ -17,6 +17,7 @@
 package eu.europa.ec.authenticationlogic.usecase
 
 import eu.europa.ec.authenticationlogic.model.Profile
+import eu.europa.ec.authenticationlogic.repository.ProfileApiException
 import eu.europa.ec.authenticationlogic.repository.ProfileRepository
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
@@ -313,6 +314,71 @@ class TestIsProfileCompletedUseCaseV2 {
             // Then
             assertTrue("Should return true", result)
             verify(profileRepository, times(1)).getMyProfile()
+        }
+
+    //endregion
+
+    //region Server Error Tests (ProfileApiException)
+
+    // Case 12:
+    // Backend returns HTTP 400 (e.g., race condition duplicate key error).
+    // Expected: Returns false (cannot verify profile), no retries for 4xx.
+    @Test
+    fun `Given backend returns HTTP 400, When invoke is called, Then returns false without retry`() =
+        coroutineRule.runTest {
+            // Given
+            whenever(prefKeys.isProfileCompletedSafe()).thenReturn(false)
+            whenever(profileRepository.getMyProfile()).thenReturn(
+                Result.failure(ProfileApiException(400, "Bad Request"))
+            )
+
+            // When
+            val result = useCase.invoke()
+
+            // Then
+            assertFalse("Should return false on HTTP 400 — cannot verify profile", result)
+            verify(profileRepository, times(1)).getMyProfile() // No retries for 4xx
+        }
+
+    // Case 13:
+    // Backend returns HTTP 500 on all attempts.
+    // Expected: Retries 3x, then returns false (cannot verify profile).
+    @Test
+    fun `Given backend returns HTTP 500, When invoke is called, Then retries and returns false`() =
+        coroutineRule.runTest {
+            // Given
+            whenever(prefKeys.isProfileCompletedSafe()).thenReturn(false)
+            whenever(profileRepository.getMyProfile()).thenReturn(
+                Result.failure(ProfileApiException(500, "Internal Server Error"))
+            )
+
+            // When
+            val result = useCase.invoke()
+
+            // Then
+            assertFalse("Should return false on HTTP 500 — cannot verify profile", result)
+            verify(profileRepository, times(3)).getMyProfile() // Retries for 5xx
+        }
+
+    // Case 14:
+    // Backend returns HTTP 500 twice, then succeeds on third attempt.
+    // Expected: Returns true, caches result.
+    @Test
+    fun `Given HTTP 500 twice then success, When invoke is called, Then returns true`() =
+        coroutineRule.runTest {
+            // Given
+            whenever(prefKeys.isProfileCompletedSafe()).thenReturn(false)
+            whenever(profileRepository.getMyProfile())
+                .thenReturn(Result.failure(ProfileApiException(500, "Server Error")))
+                .thenReturn(Result.failure(ProfileApiException(500, "Server Error")))
+                .thenReturn(Result.success(COMPLETE_PROFILE))
+
+            // When
+            val result = useCase.invoke()
+
+            // Then
+            assertTrue("Should succeed after retries", result)
+            verify(prefKeys).setProfileCompleted(true) // Caches on success
         }
 
     //endregion

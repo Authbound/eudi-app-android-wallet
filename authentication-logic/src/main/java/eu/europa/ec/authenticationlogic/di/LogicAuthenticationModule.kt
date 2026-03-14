@@ -200,7 +200,7 @@ fun provideGetMyProfileUseCase(
     profileRepository: ProfileRepository
 ): GetMyProfileUseCase = GetMyProfileUseCaseImpl(profileRepository)
 
-@Factory
+@Single
 fun provideIsProfileCompletedUseCase(
     prefKeys: PrefKeysV2,
     profileRepository: ProfileRepository,
