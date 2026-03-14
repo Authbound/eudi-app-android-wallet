@@ -18,28 +18,17 @@ package eu.europa.ec.networklogic.model.response
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 
 /**
  * Response containing list of actions from the backend.
  */
 @Serializable
 data class ActionsListResponse(
-    @SerialName("actions")
-    val actions: List<ActionDto>,
+    @SerialName("data")
+    val data: List<ActionDto>,
 
-    @SerialName("pagination")
-    val pagination: PaginationDto? = null
-)
-
-/**
- * Pagination metadata.
- */
-@Serializable
-data class PaginationDto(
-    @SerialName("total")
-    val total: Int,
-
-    @SerialName("hasMore")
+    @SerialName("has_more")
     val hasMore: Boolean
 )
 
@@ -54,8 +43,8 @@ data class ActionDto(
     @SerialName("type")
     val type: String, // VERIFY_REQUEST, SIGN_REQUEST, DATA_REQUEST
 
-    @SerialName("status")
-    val status: String, // PENDING, ACCEPTED, DECLINED, EXPIRED
+    @SerialName("title")
+    val title: String,
 
     @SerialName("requester")
     val requester: RequesterDto,
@@ -63,20 +52,17 @@ data class ActionDto(
     @SerialName("description")
     val description: String? = null,
 
-    @SerialName("openId4VpRequestUri")
-    val openId4VpRequestUri: String? = null,
+    @SerialName("priority")
+    val priority: String? = null,
 
-    @SerialName("requestedCredentials")
-    val requestedCredentials: List<String>? = null,
-
-    @SerialName("requestedClaims")
-    val requestedClaims: List<String>? = null,
-
-    @SerialName("createdAt")
+    @SerialName("created_at")
     val createdAt: String, // ISO 8601 timestamp
 
-    @SerialName("expiresAt")
-    val expiresAt: String? = null // ISO 8601 timestamp
+    @SerialName("expires_at")
+    val expiresAt: String? = null, // ISO 8601 timestamp
+
+    @SerialName("payload")
+    val payload: JsonObject
 )
 
 /**
@@ -87,11 +73,8 @@ data class RequesterDto(
     @SerialName("name")
     val name: String,
 
-    @SerialName("logoUrl")
-    val logoUrl: String? = null,
-
-    @SerialName("verifierDid")
-    val verifierDid: String? = null
+    @SerialName("logo_url")
+    val logoUrl: String? = null
 )
 
 /**
@@ -99,29 +82,29 @@ data class RequesterDto(
  */
 @Serializable
 data class ActionRespondResponse(
-    @SerialName("success")
-    val success: Boolean,
+    @SerialName("id")
+    val id: String,
 
-    @SerialName("message")
-    val message: String? = null,
+    @SerialName("status")
+    val status: String,
 
-    @SerialName("actionId")
-    val actionId: String
+    @SerialName("responded_at")
+    val respondedAt: String? = null
 )
 
 /**
- * Response after linking a device.
+ * Response after completing a pairing session.
  */
 @Serializable
-data class DeviceLinkResponse(
+data class PairingCompleteResponse(
     @SerialName("success")
     val success: Boolean,
 
     @SerialName("deviceId")
     val deviceId: String,
 
-    @SerialName("linkedAt")
-    val linkedAt: String // ISO 8601 timestamp
+    @SerialName("previousDeviceReplaced")
+    val previousDeviceReplaced: Boolean
 )
 
 /**
@@ -129,11 +112,11 @@ data class DeviceLinkResponse(
  */
 @Serializable
 data class DeviceStatusResponse(
-    @SerialName("isLinked")
-    val isLinked: Boolean,
+    @SerialName("hasLinkedDevice")
+    val hasLinkedDevice: Boolean,
 
-    @SerialName("deviceInfo")
-    val deviceInfo: LinkedDeviceInfoDto? = null
+    @SerialName("device")
+    val device: LinkedDeviceInfoDto? = null
 )
 
 /**
@@ -141,15 +124,18 @@ data class DeviceStatusResponse(
  */
 @Serializable
 data class LinkedDeviceInfoDto(
-    @SerialName("deviceId")
+    @SerialName("id")
     val deviceId: String,
 
-    @SerialName("deviceName")
+    @SerialName("name")
     val deviceName: String,
 
-    @SerialName("deviceModel")
-    val deviceModel: String,
+    @SerialName("model")
+    val deviceModel: String? = null,
 
     @SerialName("linkedAt")
-    val linkedAt: String // ISO 8601 timestamp
+    val linkedAt: String, // ISO 8601 timestamp
+
+    @SerialName("lastActiveAt")
+    val lastActiveAt: String? = null
 )

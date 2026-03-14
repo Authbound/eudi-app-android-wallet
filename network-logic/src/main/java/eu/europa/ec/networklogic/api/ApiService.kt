@@ -17,11 +17,11 @@
 package eu.europa.ec.networklogic.api
 
 import eu.europa.ec.networklogic.model.ApiResponse
+import eu.europa.ec.networklogic.model.request.ActionRespondRequest
+import eu.europa.ec.networklogic.model.request.CompletePairingRequest
 import eu.europa.ec.networklogic.model.request.CompleteProfileRequest
 import eu.europa.ec.networklogic.model.request.CreateAuthboundPidSessionRequest
 import eu.europa.ec.networklogic.model.request.DummyRequest
-import eu.europa.ec.networklogic.model.request.ActionRespondRequest
-import eu.europa.ec.networklogic.model.request.DeviceLinkRequest
 import eu.europa.ec.networklogic.model.request.MaisaExchangeRequest
 import eu.europa.ec.networklogic.model.request.MaisaIssueRequest
 import eu.europa.ec.networklogic.model.request.WalletActivationRequest
@@ -39,8 +39,8 @@ import eu.europa.ec.networklogic.model.response.ProfileResponse
 
 import eu.europa.ec.networklogic.model.response.ActionRespondResponse
 import eu.europa.ec.networklogic.model.response.ActionsListResponse
-import eu.europa.ec.networklogic.model.response.DeviceLinkResponse
 import eu.europa.ec.networklogic.model.response.DeviceStatusResponse
+import eu.europa.ec.networklogic.model.response.PairingCompleteResponse
 
 import eu.europa.ec.networklogic.model.response.WalletActivationResponse
 import io.ktor.client.HttpClient
@@ -95,15 +95,13 @@ interface ApiClient {
     ): ApiResponse<ActionRespondResponse>
 
     // Device linking endpoints
-    suspend fun linkDevice(
-        body: DeviceLinkRequest,
+    suspend fun completePairing(
+        completionUrl: String,
+        body: CompletePairingRequest,
         bearerToken: String
-    ): ApiResponse<DeviceLinkResponse>
+    ): ApiResponse<PairingCompleteResponse>
 
-    suspend fun unlinkDevice(
-        deviceId: String,
-        bearerToken: String
-    ): ApiResponse<Unit>
+    suspend fun unlinkCurrentDevice(bearerToken: String): ApiResponse<Unit>
 
     suspend fun getDeviceStatus(
         bearerToken: String
@@ -328,7 +326,7 @@ class KtorApiClient(
         type: String?
     ): ApiResponse<ActionsListResponse> {
         return executeRequest {
-            httpClient.get("$baseUrl/api/mobile/actions") {
+            httpClient.get("$baseUrl/v1/actions/me/actions") {
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
                 status?.let { parameter("status", it) }
                 type?.let { parameter("type", it) }
@@ -342,7 +340,7 @@ class KtorApiClient(
         bearerToken: String
     ): ApiResponse<ActionRespondResponse> {
         return executeRequest {
-            httpClient.post("$baseUrl/api/mobile/actions/$actionId/respond") {
+            httpClient.post("$baseUrl/v1/actions/me/actions/$actionId/respond") {
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
                 setBody(body)
@@ -354,12 +352,13 @@ class KtorApiClient(
     // Device Linking endpoints
     // ============================================================================
 
-    override suspend fun linkDevice(
-        body: DeviceLinkRequest,
+    override suspend fun completePairing(
+        completionUrl: String,
+        body: CompletePairingRequest,
         bearerToken: String
-    ): ApiResponse<DeviceLinkResponse> {
+    ): ApiResponse<PairingCompleteResponse> {
         return executeRequest {
-            httpClient.post("$baseUrl/api/mobile/devices/link") {
+            httpClient.post(completionUrl) {
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
                 setBody(body)
@@ -367,12 +366,9 @@ class KtorApiClient(
         }
     }
 
-    override suspend fun unlinkDevice(
-        deviceId: String,
-        bearerToken: String
-    ): ApiResponse<Unit> {
+    override suspend fun unlinkCurrentDevice(bearerToken: String): ApiResponse<Unit> {
         return executeUnitRequest {
-            httpClient.delete("$baseUrl/api/mobile/devices/$deviceId") {
+            httpClient.delete("$baseUrl/api/pairing/devices/current") {
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
             }
         }
@@ -382,7 +378,7 @@ class KtorApiClient(
         bearerToken: String
     ): ApiResponse<DeviceStatusResponse> {
         return executeRequest {
-            httpClient.get("$baseUrl/api/mobile/devices/status") {
+            httpClient.get("$baseUrl/api/pairing/devices/current") {
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
             }
         }

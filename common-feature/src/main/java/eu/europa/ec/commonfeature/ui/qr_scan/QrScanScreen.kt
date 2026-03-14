@@ -123,6 +123,13 @@ private fun handleNavigationEffect(
             }
         }
 
+        is Effect.Navigation.PopWithDeviceLinkingPayload -> {
+            navController.previousBackStackEntry
+                ?.savedStateHandle
+                ?.set(DEVICE_LINKING_PAIRING_PAYLOAD_RESULT_KEY, navigationEffect.pairingPayload)
+            navController.popBackStack()
+        }
+
         is Effect.Navigation.Pop -> {
             navController.popBackStack()
         }

@@ -18,32 +18,24 @@ package eu.europa.ec.networklogic.model.request
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 
 /**
  * Request to respond to an action (accept or decline).
- *
- * For VERIFY_REQUEST actions, the vpToken and presentationSubmission are required when accepting.
- * The wuaSignature provides device attestation for security.
  */
 @Serializable
 data class ActionRespondRequest(
-    @SerialName("decision")
-    val decision: String, // "accept" or "decline"
+    @SerialName("response")
+    val response: String, // "accept" or "decline"
 
-    @SerialName("vpToken")
-    val vpToken: String? = null,
+    @SerialName("device_id")
+    val deviceId: String,
 
-    @SerialName("presentationSubmission")
-    val presentationSubmission: PresentationSubmissionDto? = null,
+    @SerialName("biometric_verified")
+    val biometricVerified: Boolean,
 
-    @SerialName("declineReason")
-    val declineReason: String? = null,
-
-    @SerialName("wuaSignature")
-    val wuaSignature: String? = null,
-
-    @SerialName("signatureTimestamp")
-    val signatureTimestamp: Long? = null
+    @SerialName("payload")
+    val payload: JsonObject? = null
 )
 
 /**
@@ -80,37 +72,19 @@ data class DescriptorMapEntryDto(
 )
 
 /**
- * Request to link a device to the Authbound portal.
+ * Request to complete a pairing session after scanning the portal QR code.
  */
 @Serializable
-data class DeviceLinkRequest(
-    @SerialName("linkingCode")
-    val linkingCode: String,
-
-    @SerialName("deviceInfo")
-    val deviceInfo: DeviceInfoDto,
-
-    @SerialName("fcmToken")
-    val fcmToken: String?,
-
-    @SerialName("wuaPublicKey")
-    val wuaPublicKey: String
-)
-
-/**
- * Basic device info for linking.
- */
-@Serializable
-data class DeviceInfoDto(
+data class CompletePairingRequest(
     @SerialName("deviceName")
     val deviceName: String,
 
     @SerialName("deviceModel")
-    val deviceModel: String,
+    val deviceModel: String? = null,
 
-    @SerialName("osVersion")
-    val osVersion: String,
+    @SerialName("fcmToken")
+    val fcmToken: String,
 
-    @SerialName("appVersion")
-    val appVersion: String
+    @SerialName("challengeResponse")
+    val challengeResponse: String
 )

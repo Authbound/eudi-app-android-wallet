@@ -17,12 +17,13 @@
 package eu.europa.ec.dashboardfeature.di
 
 import eu.europa.ec.businesslogic.config.ConfigLogic
-import eu.europa.ec.businesslogic.controller.crypto.CryptoController
+import eu.europa.ec.businesslogic.controller.device.DeviceController
 import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsUserAuthenticatedUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.authenticationlogic.controller.storage.BiometryStorageController
+import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeys
 import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
@@ -59,6 +60,7 @@ import eu.europa.ec.dashboardfeature.repository.MaisaRepositoryImpl
 import eu.europa.ec.dashboardfeature.repository.VerificationRepository
 import eu.europa.ec.dashboardfeature.repository.VerificationRepositoryImpl
 import eu.europa.ec.networklogic.api.ApiClient
+import eu.europa.ec.notificationlogic.controller.UserScopedPushNotificationController
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import io.github.jan.supabase.SupabaseClient
 
@@ -90,15 +92,17 @@ fun provideDashboardInteractor(
 fun provideActionsRepository(
     apiClient: ApiClient,
     supabaseClient: SupabaseClient,
-    resourceProvider: ResourceProvider,
     logController: LogController,
-    cryptoController: CryptoController
+    deviceController: DeviceController,
+    localUnlockTracker: LocalUnlockTracker,
+    userScopedPushNotificationController: UserScopedPushNotificationController
 ): ActionsRepository = ActionsRepositoryImpl(
     apiClient,
     supabaseClient,
-    resourceProvider,
     logController,
-    cryptoController
+    deviceController,
+    localUnlockTracker,
+    userScopedPushNotificationController
 )
 
 @Factory

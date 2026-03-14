@@ -38,8 +38,8 @@ private class DemoEnvironmentConfig : EnvironmentConfig() {
     override fun getServerHost(): String = when (environment) {
         ServerConfig.Debug -> {
             val host = EmulatorDetector.getLocalhostAddress()
-            "http://$host:3008"
+            "http://$host:3009"
         }
-        ServerConfig.Release -> "https://api.authbound.io"
+        ServerConfig.Release -> "https://mobile-backend.authbound.io"
     }
 }

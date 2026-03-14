@@ -16,17 +16,32 @@
 
 package eu.europa.ec.dashboardfeature.repository
 
-import eu.europa.ec.businesslogic.controller.crypto.CryptoController
+import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
+import eu.europa.ec.businesslogic.controller.device.DeviceController
 import eu.europa.ec.businesslogic.controller.log.LogController
+import eu.europa.ec.businesslogic.model.DeviceInfo
+import eu.europa.ec.dashboardfeature.ui.actions.model.ActionStatus
 import eu.europa.ec.networklogic.api.ApiClient
 import eu.europa.ec.networklogic.model.ApiResponse
 import eu.europa.ec.networklogic.model.request.ActionRespondRequest
-import eu.europa.ec.networklogic.model.request.DeviceLinkRequest
+import eu.europa.ec.networklogic.model.request.CompletePairingRequest
+import eu.europa.ec.networklogic.model.request.DescriptorMapEntryDto
+import eu.europa.ec.networklogic.model.request.PresentationSubmissionDto
+import eu.europa.ec.networklogic.model.response.ActionDto
 import eu.europa.ec.networklogic.model.response.ActionRespondResponse
-import eu.europa.ec.networklogic.model.response.DeviceLinkResponse
-import eu.europa.ec.resourceslogic.provider.ResourceProvider
+import eu.europa.ec.networklogic.model.response.ActionsListResponse
+import eu.europa.ec.networklogic.model.response.DeviceStatusResponse
+import eu.europa.ec.networklogic.model.response.LinkedDeviceInfoDto
+import eu.europa.ec.networklogic.model.response.PairingCompleteResponse
+import eu.europa.ec.networklogic.model.response.RequesterDto
+import eu.europa.ec.notificationlogic.controller.UserScopedPushNotificationController
 import io.github.jan.supabase.SupabaseClient
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -39,6 +54,7 @@ import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
@@ -47,14 +63,11 @@ import org.robolectric.annotation.Config
 /**
  * Unit tests for [ActionsRepositoryImpl].
  *
- * These tests verify the WUA signature generation and validation logic,
- * ensuring that:
- * - Signatures include timestamps that are sent to the backend
- * - Action responses fail properly when WUA key is missing
- * - Device linking fails when wallet is not activated
- *
- * Uses a TestableActionsRepository subclass that overrides getAuthToken()
- * to bypass Supabase extension property mocking difficulties.
+ * These tests verify the current mobile-backend contract:
+ * - action responses send `device_id`, `biometric_verified`, and structured payload data
+ * - action responses require a recent local unlock
+ * - action list mapping preserves backend titles and payload metadata
+ * - device pairing completes through the mobile-backend pairing contract
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [30], manifest = Config.NONE)
@@ -67,22 +80,44 @@ class TestActionsRepository {
     private lateinit var supabaseClient: SupabaseClient
 
     @Mock
-    private lateinit var resourceProvider: ResourceProvider
-
-    @Mock
     private lateinit var logController: LogController
 
     @Mock
-    private lateinit var cryptoController: CryptoController
+    private lateinit var deviceController: DeviceController
+
+    @Mock
+    private lateinit var localUnlockTracker: LocalUnlockTracker
+
+    @Mock
+    private lateinit var userScopedPushNotificationController: UserScopedPushNotificationController
 
     private lateinit var closeable: AutoCloseable
 
     private val testAccessToken = "test-access-token"
     private val testActionId = "action-123"
+    private val testDeviceId = "android-device-123"
 
     @Before
     fun before() {
         closeable = MockitoAnnotations.openMocks(this)
+        whenever(deviceController.getDeviceInfo()).thenReturn(
+            DeviceInfo(
+                deviceId = testDeviceId,
+                deviceName = "Pixel Test",
+                deviceModel = "Google Pixel Test",
+                deviceOs = "Android 15",
+                deviceOsVersion = "35",
+                securityPatchLevel = "2026-01-01",
+                hasSecureElement = true,
+                hasHardwareKeystore = true,
+                hasStrongBox = true,
+                attestationSupported = true,
+                deviceVerifiedBoot = true,
+                playProtectVerified = true,
+                hasBiometricHardware = true
+            )
+        )
+        whenever(localUnlockTracker.isUnlocked()).thenReturn(true)
     }
 
     @After
@@ -93,44 +128,71 @@ class TestActionsRepository {
     // region Accept Action Tests
 
     @Test
-    fun `Given WUA key exists, When acceptAction is called, Then request includes signature and timestamp`() = runTest {
+    fun `Given wallet is unlocked, When acceptAction is called, Then request includes device proof and verification payload`() = runTest {
         // Given
-        val signatureBytes = "test-signature".toByteArray()
-        whenever(cryptoController.signData(any())).thenReturn(signatureBytes)
-
         val successResponse = ApiResponse.Success(
-            body = ActionRespondResponse(success = true, actionId = testActionId),
+            body = ActionRespondResponse(
+                id = testActionId,
+                status = "accepted",
+                respondedAt = "2026-03-09T10:00:00Z"
+            ),
             code = 200
         )
         whenever(apiClient.respondToAction(eq(testActionId), any(), eq(testAccessToken)))
             .thenReturn(successResponse)
 
-        val testableRepository = createTestableRepository(testAccessToken)
+        val presentationSubmission = PresentationSubmissionDto(
+            id = "presentation-submission-1",
+            definitionId = "presentation-definition-1",
+            descriptorMap = listOf(
+                DescriptorMapEntryDto(
+                    id = "pid",
+                    format = "dc+sd-jwt",
+                    path = "$.verifiablePresentation[0]"
+                )
+            )
+        )
+
+        val testableRepository = createTestableRepository(testAccessToken, "user-123")
 
         // When
-        val result = testableRepository.acceptAction(testActionId, null, null)
+        val result = testableRepository.acceptAction(
+            actionId = testActionId,
+            vpToken = "vp-token-123",
+            presentationSubmission = presentationSubmission
+        )
 
         // Then
         assertTrue("Result should be success", result.isSuccess)
 
-        // Verify the request includes both signature and timestamp
         val requestCaptor = argumentCaptor<ActionRespondRequest>()
         verify(apiClient).respondToAction(eq(testActionId), requestCaptor.capture(), eq(testAccessToken))
 
         val capturedRequest = requestCaptor.firstValue
-        assertNotNull("wuaSignature should not be null", capturedRequest.wuaSignature)
-        assertNotNull("signatureTimestamp should not be null", capturedRequest.signatureTimestamp)
-        assertTrue("signatureTimestamp should be recent",
-            capturedRequest.signatureTimestamp!! > System.currentTimeMillis() - 5000)
-        assertEquals("accept", capturedRequest.decision)
+        assertEquals("accept", capturedRequest.response)
+        assertEquals(testDeviceId, capturedRequest.deviceId)
+        assertTrue("biometricVerified should be true", capturedRequest.biometricVerified)
+        assertNotNull("payload should not be null", capturedRequest.payload)
+        assertEquals(
+            "vp-token-123",
+            capturedRequest.payload?.get("vp_token")?.jsonPrimitive?.content
+        )
+        assertEquals(
+            "presentation-submission-1",
+            capturedRequest.payload
+                ?.get("presentation_submission")
+                ?.jsonObject
+                ?.get("id")
+                ?.jsonPrimitive
+                ?.content
+        )
     }
 
     @Test
-    fun `Given WUA key does not exist, When acceptAction is called, Then returns failure`() = runTest {
+    fun `Given wallet is locked, When acceptAction is called, Then returns failure without calling the API`() = runTest {
         // Given
-        whenever(cryptoController.signData(any())).thenReturn(null)
-
-        val testableRepository = createTestableRepository(testAccessToken)
+        whenever(localUnlockTracker.isUnlocked()).thenReturn(false)
+        val testableRepository = createTestableRepository(testAccessToken, "user-123")
 
         // When
         val result = testableRepository.acceptAction(testActionId, null, null)
@@ -139,8 +201,11 @@ class TestActionsRepository {
         assertTrue("Result should be failure", result.isFailure)
         val exception = result.exceptionOrNull()
         assertNotNull("Exception should not be null", exception)
-        assertTrue("Error message should mention signing failure",
-            exception!!.message?.contains("sign") == true)
+        assertTrue(
+            "Error message should mention unlocking the wallet",
+            exception!!.message?.contains("Unlock", ignoreCase = true) == true
+        )
+        verify(apiClient, never()).respondToAction(any(), any(), any())
     }
 
     // endregion
@@ -148,19 +213,20 @@ class TestActionsRepository {
     // region Decline Action Tests
 
     @Test
-    fun `Given WUA key exists, When declineAction is called, Then request includes signature and timestamp`() = runTest {
+    fun `Given wallet is unlocked, When declineAction is called, Then request includes device proof and decline payload`() = runTest {
         // Given
-        val signatureBytes = "test-signature".toByteArray()
-        whenever(cryptoController.signData(any())).thenReturn(signatureBytes)
-
         val successResponse = ApiResponse.Success(
-            body = ActionRespondResponse(success = true, actionId = testActionId),
+            body = ActionRespondResponse(
+                id = testActionId,
+                status = "declined",
+                respondedAt = "2026-03-09T10:00:00Z"
+            ),
             code = 200
         )
         whenever(apiClient.respondToAction(eq(testActionId), any(), eq(testAccessToken)))
             .thenReturn(successResponse)
 
-        val testableRepository = createTestableRepository(testAccessToken)
+        val testableRepository = createTestableRepository(testAccessToken, "user-123")
 
         // When
         val result = testableRepository.declineAction(testActionId, "user_cancelled")
@@ -172,28 +238,72 @@ class TestActionsRepository {
         verify(apiClient).respondToAction(eq(testActionId), requestCaptor.capture(), eq(testAccessToken))
 
         val capturedRequest = requestCaptor.firstValue
-        assertNotNull("wuaSignature should not be null", capturedRequest.wuaSignature)
-        assertNotNull("signatureTimestamp should not be null", capturedRequest.signatureTimestamp)
-        assertEquals("decline", capturedRequest.decision)
-        assertEquals("user_cancelled", capturedRequest.declineReason)
+        assertEquals("decline", capturedRequest.response)
+        assertEquals(testDeviceId, capturedRequest.deviceId)
+        assertTrue("biometricVerified should be true", capturedRequest.biometricVerified)
+        assertEquals(
+            "user_cancelled",
+            capturedRequest.payload?.get("reason")?.jsonPrimitive?.content
+        )
     }
 
-    @Test
-    fun `Given WUA key does not exist, When declineAction is called, Then returns failure`() = runTest {
-        // Given
-        whenever(cryptoController.signData(any())).thenReturn(null)
+    // endregion
 
-        val testableRepository = createTestableRepository(testAccessToken)
+    // region Fetch Actions Tests
+
+    @Test
+    fun `Given backend action list response, When fetchActions is called, Then backend title and payload metadata are preserved`() = runTest {
+        // Given
+        val successResponse = ApiResponse.Success(
+            body = ActionsListResponse(
+                data = listOf(
+                    ActionDto(
+                        id = testActionId,
+                        type = "VERIFY_REQUEST",
+                        title = "Age Verification Required",
+                        requester = RequesterDto(
+                            name = "Acme Store",
+                            logoUrl = "https://example.com/logo.png"
+                        ),
+                        description = "Please verify you are over 18",
+                        priority = "high",
+                        createdAt = "2026-03-09T10:00:00Z",
+                        expiresAt = "2026-03-10T10:00:00Z",
+                        payload = buildJsonObject {
+                            put("policy_id", JsonPrimitive("pol_age_verification"))
+                            put("requested_attributes", buildJsonArray {
+                                add(JsonPrimitive("age_over_18"))
+                            })
+                        }
+                    )
+                ),
+                hasMore = false
+            ),
+            code = 200
+        )
+        whenever(apiClient.getActions(eq(testAccessToken), eq("pending"), eq(null)))
+            .thenReturn(successResponse)
+
+        val testableRepository = createTestableRepository(testAccessToken, "user-123")
 
         // When
-        val result = testableRepository.declineAction(testActionId, "user_cancelled")
+        val result = testableRepository.fetchActions(status = ActionStatus.PENDING)
 
         // Then
-        assertTrue("Result should be failure", result.isFailure)
-        val exception = result.exceptionOrNull()
-        assertNotNull("Exception should not be null", exception)
-        assertTrue("Error message should mention signing failure",
-            exception!!.message?.contains("sign") == true)
+        assertTrue("Result should be success", result.isSuccess)
+        val actions = result.getOrNull()
+        assertEquals(1, actions?.size)
+
+        val action = actions?.first()
+        assertEquals("Age Verification Required", action?.title)
+        assertEquals("Acme Store", action?.requesterName)
+        assertEquals(ActionStatus.PENDING, action?.status)
+        assertEquals("pol_age_verification", action?.metadata?.get("policy_id"))
+        assertTrue(
+            "requested_attributes metadata should include requested claim",
+            action?.metadata?.get("requested_attributes")?.contains("age_over_18") == true
+        )
+        assertEquals("high", action?.metadata?.get("priority"))
     }
 
     // endregion
@@ -201,131 +311,158 @@ class TestActionsRepository {
     // region Device Linking Tests
 
     @Test
-    fun `Given WUA key exists, When linkDevice is called, Then request includes public key`() = runTest {
+    fun `Given pairing QR payload, When linkDevice is called, Then request completes the pairing session`() = runTest {
         // Given
-        val testPublicKey = "base64-encoded-public-key"
-        whenever(cryptoController.getWuaPublicKey()).thenReturn(testPublicKey)
+        val pairingPayload = """
+            {"t":"authbound_pair","v":1,"sid":"550e8400-e29b-41d4-a716-446655440000","cr":"challenge-response","url":"https://app.authbound.io/api/pairing/complete/550e8400-e29b-41d4-a716-446655440000","exp":4102444800}
+        """.trimIndent()
+        whenever(userScopedPushNotificationController.registerForPushNotifications(eq("user-123")))
+            .thenReturn(Result.success("fcm-token-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_=:-fcm-token-1234567890"))
 
         val successResponse = ApiResponse.Success(
-            body = DeviceLinkResponse(
+            body = PairingCompleteResponse(
                 success = true,
                 deviceId = "device-123",
-                linkedAt = "2025-01-15T10:00:00Z"
+                previousDeviceReplaced = false
             ),
             code = 200
         )
-        whenever(apiClient.linkDevice(any(), eq(testAccessToken))).thenReturn(successResponse)
+        whenever(apiClient.completePairing(eq("https://app.authbound.io/api/pairing/complete/550e8400-e29b-41d4-a716-446655440000"), any(), eq(testAccessToken)))
+            .thenReturn(successResponse)
+        whenever(apiClient.getDeviceStatus(eq(testAccessToken))).thenReturn(
+            ApiResponse.Success(
+                body = DeviceStatusResponse(
+                    hasLinkedDevice = true,
+                    device = LinkedDeviceInfoDto(
+                        deviceId = "device-123",
+                        deviceName = "Pixel Test",
+                        deviceModel = "Google Pixel Test",
+                        linkedAt = "2025-01-15T10:00:00Z",
+                        lastActiveAt = null
+                    )
+                ),
+                code = 200
+            )
+        )
 
-        val testableRepository = createTestableRepository(testAccessToken)
+        val testableRepository = createTestableRepository(testAccessToken, "user-123")
 
         // When
-        val result = testableRepository.linkDevice("LINK-CODE", "fcm-token")
+        val result = testableRepository.linkDevice(pairingPayload)
 
         // Then
         assertTrue("Result should be success", result.isSuccess)
 
-        val requestCaptor = argumentCaptor<DeviceLinkRequest>()
-        verify(apiClient).linkDevice(requestCaptor.capture(), eq(testAccessToken))
+        val requestCaptor = argumentCaptor<CompletePairingRequest>()
+        verify(apiClient).completePairing(
+            eq("https://app.authbound.io/api/pairing/complete/550e8400-e29b-41d4-a716-446655440000"),
+            requestCaptor.capture(),
+            eq(testAccessToken)
+        )
 
         val capturedRequest = requestCaptor.firstValue
-        assertEquals("LINK-CODE", capturedRequest.linkingCode)
-        assertEquals(testPublicKey, capturedRequest.wuaPublicKey)
-        assertEquals("fcm-token", capturedRequest.fcmToken)
+        assertEquals("Pixel Test", capturedRequest.deviceName)
+        assertEquals("Google Pixel Test", capturedRequest.deviceModel)
+        assertEquals("challenge-response", capturedRequest.challengeResponse)
+        assertTrue("FCM token should be propagated", capturedRequest.fcmToken.startsWith("fcm-token-1234567890"))
     }
 
     @Test
-    fun `Given WUA key does not exist, When linkDevice is called, Then returns failure`() = runTest {
+    fun `Given pairing completion succeeds, When device status refresh fails, Then linkDevice still returns success`() = runTest {
         // Given
-        whenever(cryptoController.getWuaPublicKey()).thenReturn(null)
+        val pairingPayload = """
+            {"t":"authbound_pair","v":1,"sid":"550e8400-e29b-41d4-a716-446655440000","cr":"challenge-response","url":"https://staging.authbound.io/api/pairing/complete/550e8400-e29b-41d4-a716-446655440000","exp":4102444800}
+        """.trimIndent()
+        whenever(userScopedPushNotificationController.registerForPushNotifications(eq("user-123")))
+            .thenReturn(Result.success("fcm-token-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_=:-fcm-token-1234567890"))
+        whenever(apiClient.completePairing(eq("https://staging.authbound.io/api/pairing/complete/550e8400-e29b-41d4-a716-446655440000"), any(), eq(testAccessToken)))
+            .thenReturn(
+                ApiResponse.Success(
+                    body = PairingCompleteResponse(
+                        success = true,
+                        deviceId = "device-123",
+                        previousDeviceReplaced = false
+                    ),
+                    code = 200
+                )
+            )
+        whenever(apiClient.getDeviceStatus(eq(testAccessToken))).thenReturn(
+            ApiResponse.Error(
+                code = 504,
+                message = "Gateway Timeout"
+            )
+        )
 
-        val testableRepository = createTestableRepository(testAccessToken)
+        val testableRepository = createTestableRepository(testAccessToken, "user-123")
 
         // When
-        val result = testableRepository.linkDevice("LINK-CODE", "fcm-token")
+        val result = testableRepository.linkDevice(pairingPayload)
+
+        // Then
+        assertTrue("Result should be success", result.isSuccess)
+        val linkedDevice = result.getOrNull()
+        assertEquals("device-123", linkedDevice?.deviceId)
+        assertEquals("Pixel Test", linkedDevice?.deviceName)
+        assertEquals("Google Pixel Test", linkedDevice?.deviceModel)
+    }
+
+    @Test
+    fun `Given pairing QR payload is invalid, When linkDevice is called, Then returns failure`() = runTest {
+        // Given
+        val testableRepository = createTestableRepository(testAccessToken, "user-123")
+
+        // When
+        val result = testableRepository.linkDevice("not-json")
 
         // Then
         assertTrue("Result should be failure", result.isFailure)
         val exception = result.exceptionOrNull()
         assertNotNull("Exception should not be null", exception)
-        assertTrue("Error message should mention wallet activation",
-            exception!!.message?.contains("activated") == true)
+        assertTrue(
+            "Error message should mention invalid QR code",
+            exception!!.message?.contains("Invalid pairing QR code") == true
+        )
     }
 
     @Test
     fun `Given not authenticated, When linkDevice is called, Then returns failure`() = runTest {
-        // Given - null token simulates unauthenticated state
-        val testableRepository = createTestableRepository(null)
+        // Given
+        val testableRepository = createTestableRepository(null, "user-123")
 
         // When
-        val result = testableRepository.linkDevice("LINK-CODE", "fcm-token")
+        val result = testableRepository.linkDevice("""{"t":"authbound_pair","v":1,"sid":"550e8400-e29b-41d4-a716-446655440000","cr":"challenge-response","url":"https://app.authbound.io/api/pairing/complete/550e8400-e29b-41d4-a716-446655440000","exp":4102444800}""")
 
         // Then
         assertTrue("Result should be failure", result.isFailure)
         val exception = result.exceptionOrNull()
         assertNotNull("Exception should not be null", exception)
-        assertTrue("Error message should mention authentication",
-            exception!!.message?.contains("authenticated") == true)
-    }
-
-    // endregion
-
-    // region Signature Payload Format Tests
-
-    @Test
-    fun `Given valid input, When signing action, Then payload format is correct`() = runTest {
-        // Given
-        var capturedPayload: ByteArray? = null
-        whenever(cryptoController.signData(any())).thenAnswer { invocation ->
-            capturedPayload = invocation.getArgument(0)
-            "signature".toByteArray()
-        }
-
-        val successResponse = ApiResponse.Success(
-            body = ActionRespondResponse(success = true, actionId = testActionId),
-            code = 200
+        assertTrue(
+            "Error message should mention authentication",
+            exception!!.message?.contains("authenticated") == true
         )
-        whenever(apiClient.respondToAction(eq(testActionId), any(), eq(testAccessToken)))
-            .thenReturn(successResponse)
-
-        val testableRepository = createTestableRepository(testAccessToken)
-
-        // When
-        testableRepository.acceptAction(testActionId, null, null)
-
-        // Then
-        assertNotNull("Payload should be captured", capturedPayload)
-        val payloadString = String(capturedPayload!!)
-
-        // Verify JSON format: {"actionId":"...","decision":"...","timestamp":...}
-        val json = org.json.JSONObject(payloadString)
-        assertEquals("actionId should match", testActionId, json.getString("actionId"))
-        assertEquals("decision should be accept", "accept", json.getString("decision"))
-
-        val timestamp = json.getLong("timestamp")
-        assertTrue("Timestamp should be recent",
-            timestamp > System.currentTimeMillis() - 5000)
     }
 
     // endregion
-
-    // region Helper Methods
 
     /**
      * Creates a testable repository that injects a mock auth token,
      * bypassing the need to mock Supabase extension properties.
      */
-    private fun createTestableRepository(mockAuthToken: String?): TestableActionsRepository {
+    private fun createTestableRepository(
+        mockAuthToken: String?,
+        mockUserId: String?
+    ): TestableActionsRepository {
         return TestableActionsRepository(
             apiClient = apiClient,
             supabaseClient = supabaseClient,
-            resourceProvider = resourceProvider,
             logController = logController,
-            cryptoController = cryptoController,
-            mockAuthToken = mockAuthToken
+            deviceController = deviceController,
+            localUnlockTracker = localUnlockTracker,
+            userScopedPushNotificationController = userScopedPushNotificationController,
+            mockAuthToken = mockAuthToken,
+            mockUserId = mockUserId
         )
     }
-
-    // endregion
 
     /**
      * Testable subclass that allows injecting a mock auth token
@@ -334,17 +471,22 @@ class TestActionsRepository {
     private class TestableActionsRepository(
         apiClient: ApiClient,
         supabaseClient: SupabaseClient,
-        resourceProvider: ResourceProvider,
         logController: LogController,
-        cryptoController: CryptoController,
-        private val mockAuthToken: String?
+        deviceController: DeviceController,
+        localUnlockTracker: LocalUnlockTracker,
+        userScopedPushNotificationController: UserScopedPushNotificationController,
+        private val mockAuthToken: String?,
+        private val mockUserId: String?
     ) : ActionsRepositoryImpl(
         apiClient = apiClient,
         supabaseClient = supabaseClient,
-        resourceProvider = resourceProvider,
         logController = logController,
-        cryptoController = cryptoController
+        deviceController = deviceController,
+        localUnlockTracker = localUnlockTracker,
+        userScopedPushNotificationController = userScopedPushNotificationController
     ) {
         override suspend fun getAuthToken(): String? = mockAuthToken
+
+        override suspend fun getCurrentUserId(): String? = mockUserId
     }
 }

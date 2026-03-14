@@ -16,10 +16,10 @@
 
 package eu.europa.ec.dashboardfeature.repository
 
-import android.util.Base64
-import eu.europa.ec.businesslogic.controller.crypto.CryptoController
+import android.net.Uri
+import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
+import eu.europa.ec.businesslogic.controller.device.DeviceController
 import eu.europa.ec.businesslogic.controller.log.LogController
-import eu.europa.ec.dashboardfeature.BuildConfig
 import eu.europa.ec.dashboardfeature.ui.actions.model.ActionRequest
 import eu.europa.ec.dashboardfeature.ui.actions.model.ActionStatus
 import eu.europa.ec.dashboardfeature.ui.actions.model.ActionType
@@ -27,17 +27,22 @@ import eu.europa.ec.dashboardfeature.ui.actions.model.DeviceLinkStatus
 import eu.europa.ec.dashboardfeature.ui.actions.model.LinkedDeviceInfo
 import eu.europa.ec.networklogic.api.ApiClient
 import eu.europa.ec.networklogic.model.request.ActionRespondRequest
-import eu.europa.ec.networklogic.model.request.DeviceInfoDto
-import eu.europa.ec.networklogic.model.request.DeviceLinkRequest
+import eu.europa.ec.networklogic.model.request.CompletePairingRequest
 import eu.europa.ec.networklogic.model.request.PresentationSubmissionDto
 import eu.europa.ec.networklogic.model.response.ActionDto
-import eu.europa.ec.resourceslogic.R
-import eu.europa.ec.resourceslogic.provider.ResourceProvider
+import eu.europa.ec.notificationlogic.controller.UserScopedPushNotificationController
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
-import org.json.JSONObject
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
 import java.time.Instant
 import java.time.format.DateTimeParseException
+import java.util.UUID
 
 /**
  * Repository for Actions feature backend integration.
@@ -71,17 +76,14 @@ interface ActionsRepository {
     ): Result<Unit>
 
     /**
-     * Links this device to the Authbound portal using a linking code.
+     * Completes device pairing after scanning the portal QR code.
      */
-    suspend fun linkDevice(
-        linkingCode: String,
-        fcmToken: String?
-    ): Result<LinkedDeviceInfo>
+    suspend fun linkDevice(pairingPayload: String): Result<LinkedDeviceInfo>
 
     /**
      * Unlinks the current device from the portal.
      */
-    suspend fun unlinkDevice(deviceId: String): Result<Unit>
+    suspend fun unlinkDevice(): Result<Unit>
 
     /**
      * Gets the current device linking status.
@@ -100,13 +102,39 @@ data class DeviceLinkStatusResult(
 open class ActionsRepositoryImpl(
     private val apiClient: ApiClient,
     private val supabaseClient: SupabaseClient,
-    private val resourceProvider: ResourceProvider,
     private val logController: LogController,
-    private val cryptoController: CryptoController
+    private val deviceController: DeviceController,
+    private val localUnlockTracker: LocalUnlockTracker,
+    private val userScopedPushNotificationController: UserScopedPushNotificationController
 ) : ActionsRepository {
 
     companion object {
         private const val TAG = "ActionsRepository"
+    }
+
+    @Serializable
+    private data class PairingQrPayload(
+        @SerialName("t")
+        val type: String,
+
+        @SerialName("v")
+        val version: Int,
+
+        @SerialName("sid")
+        val sessionId: String,
+
+        @SerialName("cr")
+        val challengeResponse: String,
+
+        @SerialName("url")
+        val completionUrl: String,
+
+        @SerialName("exp")
+        val expiresAtEpochSeconds: Long
+    )
+
+    private val pairingJson = Json {
+        ignoreUnknownKeys = true
     }
 
     /**
@@ -128,6 +156,14 @@ open class ActionsRepositoryImpl(
         return supabaseClient.auth.currentSessionOrNull()?.accessToken
     }
 
+    /**
+     * Gets the current authenticated user ID.
+     * Protected and open to allow overriding in tests.
+     */
+    protected open suspend fun getCurrentUserId(): String? {
+        return supabaseClient.auth.currentSessionOrNull()?.user?.id
+    }
+
     override suspend fun fetchActions(
         status: ActionStatus?,
         type: ActionType?
@@ -138,7 +174,10 @@ open class ActionsRepositoryImpl(
 
             val response = apiClient.getActions(
                 bearerToken = token,
-                status = status?.name,
+                status = when (status) {
+                    null, ActionStatus.PENDING -> "pending"
+                    else -> "all"
+                },
                 type = type?.name
             )
 
@@ -154,7 +193,7 @@ open class ActionsRepositoryImpl(
             val body = response.body()
                 ?: return Result.failure(Exception("Empty response"))
 
-            val actions = body.actions.map { dto -> mapActionDtoToRequest(dto) }
+            val actions = body.data.map { dto -> mapActionDtoToRequest(dto) }
             logController.d(TAG, "Fetched ${actions.size} actions")
             Result.success(actions)
         } catch (e: Exception) {
@@ -172,15 +211,14 @@ open class ActionsRepositoryImpl(
             val token = getAuthToken()
                 ?: return Result.failure(Exception("Not authenticated"))
 
-            val signatureResult = createWuaSignature(actionId, "accept")
-                ?: return Result.failure(Exception("Failed to sign action - wallet may not be activated"))
+            val responseContext = getActionResponseContext()
+                .getOrElse { return Result.failure(it) }
 
             val request = ActionRespondRequest(
-                decision = "accept",
-                vpToken = vpToken,
-                presentationSubmission = presentationSubmission,
-                wuaSignature = signatureResult.signature,
-                signatureTimestamp = signatureResult.timestamp
+                response = "accept",
+                deviceId = responseContext.deviceId,
+                biometricVerified = true,
+                payload = buildAcceptPayload(vpToken, presentationSubmission)
             )
 
             val response = apiClient.respondToAction(
@@ -210,14 +248,14 @@ open class ActionsRepositoryImpl(
             val token = getAuthToken()
                 ?: return Result.failure(Exception("Not authenticated"))
 
-            val signatureResult = createWuaSignature(actionId, "decline")
-                ?: return Result.failure(Exception("Failed to sign action - wallet may not be activated"))
+            val responseContext = getActionResponseContext()
+                .getOrElse { return Result.failure(it) }
 
             val request = ActionRespondRequest(
-                decision = "decline",
-                declineReason = reason,
-                wuaSignature = signatureResult.signature,
-                signatureTimestamp = signatureResult.timestamp
+                response = "decline",
+                deviceId = responseContext.deviceId,
+                biometricVerified = true,
+                payload = buildDeclinePayload(reason)
             )
 
             val response = apiClient.respondToAction(
@@ -239,35 +277,34 @@ open class ActionsRepositoryImpl(
         }
     }
 
-    override suspend fun linkDevice(
-        linkingCode: String,
-        fcmToken: String?
-    ): Result<LinkedDeviceInfo> {
+    override suspend fun linkDevice(pairingPayload: String): Result<LinkedDeviceInfo> {
         return try {
             val token = getAuthToken()
                 ?: return Result.failure(Exception("Not authenticated"))
+            val userId = getCurrentUserId()
+                ?: return Result.failure(Exception("Not authenticated"))
+            val parsedPayload = parsePairingPayload(pairingPayload)
+                .getOrElse { return Result.failure(it) }
+            val pushToken = userScopedPushNotificationController
+                .registerForPushNotifications(userId)
+                .getOrElse { error ->
+                    logController.w(TAG) { "Failed to register push notifications for pairing: ${error.message}" }
+                    return Result.failure(Exception("Unable to register this device for notifications", error))
+                }
 
-            val wuaPublicKey = cryptoController.getWuaPublicKey()
-            if (wuaPublicKey == null) {
-                logController.w(TAG) { "Cannot link device - WUA key not found. Wallet must be activated first." }
-                return Result.failure(Exception("Wallet not activated - please complete wallet activation before linking device"))
-            }
+            val deviceInfo = deviceController.getDeviceInfo()
+            val deviceName = deviceInfo.deviceName.ifBlank { android.os.Build.MODEL }
+            val deviceModel = deviceInfo.deviceModel.ifBlank { null }
 
-            val deviceInfo = DeviceInfoDto(
-                deviceName = android.os.Build.MODEL,
-                deviceModel = "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}",
-                osVersion = "Android ${android.os.Build.VERSION.RELEASE}",
-                appVersion = BuildConfig.APP_VERSION
+            val request = CompletePairingRequest(
+                deviceName = deviceName,
+                deviceModel = deviceModel,
+                fcmToken = pushToken,
+                challengeResponse = parsedPayload.challengeResponse
             )
 
-            val request = DeviceLinkRequest(
-                linkingCode = linkingCode,
-                deviceInfo = deviceInfo,
-                fcmToken = fcmToken,
-                wuaPublicKey = wuaPublicKey
-            )
-
-            val response = apiClient.linkDevice(
+            val response = apiClient.completePairing(
+                completionUrl = parsedPayload.completionUrl,
                 body = request,
                 bearerToken = token
             )
@@ -277,17 +314,25 @@ open class ActionsRepositoryImpl(
                 return Result.failure(Exception("HTTP ${response.code()}: ${response.message()}"))
             }
 
-            val body = response.body()
-                ?: return Result.failure(Exception("Empty response"))
+            val pairingResult = response.body()
+                ?: return Result.failure(Exception("Pairing completed but the server response was empty"))
+            if (!pairingResult.success) {
+                return Result.failure(Exception("Pairing could not be completed"))
+            }
 
-            val linkedDevice = LinkedDeviceInfo(
-                deviceId = body.deviceId,
-                deviceName = deviceInfo.deviceName,
-                deviceModel = deviceInfo.deviceModel,
-                linkedAt = body.linkedAt.parseInstantOrNull() ?: Instant.now()
-            )
+            val linkedDevice = getDeviceStatus().getOrNull()?.deviceInfo
+                ?: LinkedDeviceInfo(
+                    deviceId = pairingResult.deviceId,
+                    deviceName = deviceName,
+                    deviceModel = deviceModel ?: deviceName,
+                    linkedAt = Instant.now()
+                ).also {
+                    logController.w(TAG) {
+                        "Pairing succeeded but device status refresh was unavailable; using completion response as source of truth"
+                    }
+                }
 
-            logController.d(TAG, "Successfully linked device: ${body.deviceId}")
+            logController.d(TAG, "Successfully linked device: ${linkedDevice.deviceId}")
             Result.success(linkedDevice)
         } catch (e: Exception) {
             logController.e(TAG, e)
@@ -295,22 +340,19 @@ open class ActionsRepositoryImpl(
         }
     }
 
-    override suspend fun unlinkDevice(deviceId: String): Result<Unit> {
+    override suspend fun unlinkDevice(): Result<Unit> {
         return try {
             val token = getAuthToken()
                 ?: return Result.failure(Exception("Not authenticated"))
 
-            val response = apiClient.unlinkDevice(
-                deviceId = deviceId,
-                bearerToken = token
-            )
+            val response = apiClient.unlinkCurrentDevice(bearerToken = token)
 
             if (!response.isSuccessful) {
                 logController.w(TAG) { "Failed to unlink device: ${response.code()} ${response.message()}" }
                 return Result.failure(Exception("HTTP ${response.code()}: ${response.message()}"))
             }
 
-            logController.d(TAG, "Successfully unlinked device: $deviceId")
+            logController.d(TAG, "Successfully unlinked current device")
             Result.success(Unit)
         } catch (e: Exception) {
             logController.e(TAG, e)
@@ -337,12 +379,12 @@ open class ActionsRepositoryImpl(
             val body = response.body()
                 ?: return Result.failure(Exception("Empty response"))
 
-            val status = if (body.isLinked) DeviceLinkStatus.LINKED else DeviceLinkStatus.NOT_LINKED
-            val deviceInfo = body.deviceInfo?.let { dto ->
+            val status = if (body.hasLinkedDevice) DeviceLinkStatus.LINKED else DeviceLinkStatus.NOT_LINKED
+            val deviceInfo = body.device?.let { dto ->
                 LinkedDeviceInfo(
                     deviceId = dto.deviceId,
                     deviceName = dto.deviceName,
-                    deviceModel = dto.deviceModel,
+                    deviceModel = dto.deviceModel ?: dto.deviceName,
                     linkedAt = dto.linkedAt.parseInstantOrNull() ?: Instant.now()
                 )
             }
@@ -354,39 +396,86 @@ open class ActionsRepositoryImpl(
         }
     }
 
-    /**
-     * Result of creating a WUA signature containing both the signature and timestamp.
-     */
-    private data class WuaSignatureResult(
-        val signature: String,
-        val timestamp: Long
+    private data class ActionResponseContext(
+        val deviceId: String
     )
 
-    /**
-     * Creates a WUA signature for action responses.
-     *
-     * The signature payload is a JSON object containing actionId, decision, and timestamp.
-     * Using JSON encoding ensures special characters in actionId (like colons) don't
-     * corrupt the payload structure.
-     *
-     * @param actionId The action being responded to
-     * @param decision Either "accept" or "decline"
-     * @return WuaSignatureResult containing Base64-encoded signature and timestamp, or null if signing fails
-     */
-    private fun createWuaSignature(actionId: String, decision: String): WuaSignatureResult? {
-        val timestamp = System.currentTimeMillis()
-        val signaturePayload = JSONObject().apply {
-            put("actionId", actionId)
-            put("decision", decision)
-            put("timestamp", timestamp)
-        }.toString()
-        val signatureBytes = cryptoController.signData(signaturePayload.toByteArray())
-        if (signatureBytes == null) {
-            logController.w(TAG) { "WUA signing failed - key may not exist (wallet not activated)" }
+    private fun getActionResponseContext(): Result<ActionResponseContext> {
+        if (!localUnlockTracker.isUnlocked()) {
+            logController.w(TAG) { "Cannot respond to action - wallet is locked" }
+            return Result.failure(Exception("Unlock the wallet before responding to actions"))
+        }
+
+        val deviceId = deviceController.getDeviceInfo().deviceId
+        if (deviceId.isBlank()) {
+            logController.w(TAG) { "Cannot respond to action - device id missing" }
+            return Result.failure(Exception("Unable to determine this device"))
+        }
+
+        return Result.success(ActionResponseContext(deviceId = deviceId))
+    }
+
+    private fun parsePairingPayload(pairingPayload: String): Result<PairingQrPayload> {
+        return try {
+            val payload = pairingJson.decodeFromString(PairingQrPayload.serializer(), pairingPayload)
+
+            if (payload.type != "authbound_pair") {
+                return Result.failure(IllegalArgumentException("Unsupported pairing QR type"))
+            }
+            if (payload.version != 1) {
+                return Result.failure(IllegalArgumentException("Unsupported pairing QR version"))
+            }
+
+            UUID.fromString(payload.sessionId)
+
+            if (payload.challengeResponse.isBlank()) {
+                return Result.failure(IllegalArgumentException("Pairing QR challenge response is missing"))
+            }
+
+            val completionUri = Uri.parse(payload.completionUrl)
+            if (completionUri.scheme.isNullOrBlank() || completionUri.host.isNullOrBlank()) {
+                return Result.failure(IllegalArgumentException("Pairing QR completion URL is invalid"))
+            }
+
+            val nowEpochSeconds = Instant.now().epochSecond
+            if (payload.expiresAtEpochSeconds <= nowEpochSeconds) {
+                return Result.failure(IllegalArgumentException("Pairing session has expired"))
+            }
+
+            Result.success(payload)
+        } catch (e: Exception) {
+            logController.w(TAG) { "Invalid pairing QR payload: ${e.message}" }
+            Result.failure(IllegalArgumentException("Invalid pairing QR code", e))
+        }
+    }
+
+    private fun buildAcceptPayload(
+        vpToken: String?,
+        presentationSubmission: PresentationSubmissionDto?
+    ): JsonObject? {
+        if (vpToken == null && presentationSubmission == null) {
             return null
         }
-        val signature = Base64.encodeToString(signatureBytes, Base64.NO_WRAP)
-        return WuaSignatureResult(signature, timestamp)
+
+        return buildJsonObject {
+            vpToken?.let { put("vp_token", JsonPrimitive(it)) }
+            presentationSubmission?.let {
+                put(
+                    "presentation_submission",
+                    Json.encodeToJsonElement(PresentationSubmissionDto.serializer(), it)
+                )
+            }
+        }
+    }
+
+    private fun buildDeclinePayload(reason: String): JsonObject? {
+        if (reason.isBlank()) {
+            return null
+        }
+
+        return buildJsonObject {
+            put("reason", JsonPrimitive(reason))
+        }
     }
 
     private fun mapActionDtoToRequest(dto: ActionDto): ActionRequest {
@@ -394,38 +483,34 @@ open class ActionsRepositoryImpl(
             "VERIFY_REQUEST" -> ActionType.VERIFY_REQUEST
             "SIGN_REQUEST" -> ActionType.SIGN_REQUEST
             "DATA_REQUEST" -> ActionType.DATA_REQUEST
-            else -> ActionType.VERIFY_REQUEST
-        }
-
-        val status = when (dto.status.uppercase()) {
-            "PENDING" -> ActionStatus.PENDING
-            "ACCEPTED" -> ActionStatus.ACCEPTED
-            "DECLINED" -> ActionStatus.DECLINED
-            "EXPIRED" -> ActionStatus.EXPIRED
-            else -> ActionStatus.PENDING
-        }
-
-        val title = when (type) {
-            ActionType.SIGN_REQUEST -> resourceProvider.getString(R.string.actions_type_sign_request)
-            ActionType.VERIFY_REQUEST -> resourceProvider.getString(R.string.actions_type_verify_request)
-            ActionType.DATA_REQUEST -> resourceProvider.getString(R.string.actions_type_data_request)
+            "CREDENTIAL_OFFER" -> ActionType.DATA_REQUEST
+            else -> {
+                logController.w(TAG) { "Unknown action type from backend: ${dto.type}" }
+                ActionType.VERIFY_REQUEST
+            }
         }
 
         return ActionRequest(
             id = dto.id,
             type = type,
-            title = title,
+            title = dto.title,
             requesterName = dto.requester.name,
             requesterLogoUrl = dto.requester.logoUrl,
             description = dto.description,
             timestamp = dto.createdAt.parseInstantOrNull() ?: Instant.now(),
             expiresAt = dto.expiresAt?.let { it.parseInstantOrNull() },
-            status = status,
+            status = ActionStatus.PENDING,
             metadata = buildMap {
-                dto.openId4VpRequestUri?.let { put("openId4VpRequestUri", it) }
-                dto.requestedCredentials?.let { put("requestedCredentials", it.joinToString(",")) }
-                dto.requestedClaims?.let { put("requestedClaims", it.joinToString(",")) }
-                dto.requester.verifierDid?.let { put("verifierDid", it) }
+                dto.priority?.let { put("priority", it) }
+                dto.payload.forEach { (key, value) ->
+                    put(
+                        key,
+                        when (value) {
+                            is JsonPrimitive -> value.contentOrNull ?: value.toString()
+                            else -> value.toString()
+                        }
+                    )
+                }
             }
         )
     }
