@@ -109,6 +109,7 @@ internal val mockedScopedDocuments: List<ScopedDocumentDomain>
             name = mockedPidDocName,
             configurationId = mockedConfigIssuerId,
             credentialIssuerId = mockedIssuerId,
+            credentialIssuerOrder = 0,
             isPid = true,
             formatType = mockedMdocPidFormat.docType
         ),
@@ -116,6 +117,7 @@ internal val mockedScopedDocuments: List<ScopedDocumentDomain>
             name = mockedPidDocName,
             configurationId = mockedSdJwtPidConfigId,
             credentialIssuerId = mockedIssuerId,
+            credentialIssuerOrder = 0,
             isPid = true,
             formatType = mockedSdJwtPidVct
         ),
@@ -123,6 +125,7 @@ internal val mockedScopedDocuments: List<ScopedDocumentDomain>
             name = mockedMdlDocName,
             configurationId = mockedConfigIssuerId,
             credentialIssuerId = mockedIssuerId,
+            credentialIssuerOrder = 0,
             isPid = false,
             formatType = mockedMdocMdlFormat.docType
         ),
@@ -130,6 +133,7 @@ internal val mockedScopedDocuments: List<ScopedDocumentDomain>
             name = mockedAgeVerificationDocName,
             configurationId = mockedConfigIssuerId,
             credentialIssuerId = mockedIssuerId,
+            credentialIssuerOrder = 0,
             isPid = false,
             formatType = mockedMdocAgeVerificationFormat.docType
         ),
@@ -137,6 +141,7 @@ internal val mockedScopedDocuments: List<ScopedDocumentDomain>
             name = mockedPhotoIdDocName,
             configurationId = mockedConfigIssuerId,
             credentialIssuerId = mockedIssuerId,
+            credentialIssuerOrder = 0,
             isPid = false,
             formatType = mockedMdocPhotoIdFormat.docType
         )

@@ -21,6 +21,7 @@ import androidx.core.net.toUri
 import eu.europa.ec.authenticationlogic.controller.authentication.DeviceAuthenticationResult
 import eu.europa.ec.authenticationlogic.model.BiometricCrypto
 import eu.europa.ec.businesslogic.extension.safeAsync
+import eu.europa.ec.corelogic.config.VciConfig
 import eu.europa.ec.corelogic.config.WalletCoreConfig
 import eu.europa.ec.corelogic.extension.documentIdentifier
 import eu.europa.ec.corelogic.extension.getLocalizedDisplayName
@@ -229,9 +230,9 @@ class WalletCoreDocumentsControllerImpl(
     private val documentErrorMessage
         get() = resourceProvider.getString(R.string.issuance_generic_error)
 
-    private val openId4VciManagers by lazy {
-        walletCoreConfig.vciConfig.associate { config ->
-            config.issuerUrl to eudiWallet.createOpenId4VciManager(config = config)
+    private val openId4VciManagers: Map<VciConfig, OpenId4VciManager> by lazy {
+        walletCoreConfig.issuersConfig.associateWith { vciConfig ->
+            eudiWallet.createOpenId4VciManager(config = vciConfig.config)
         }
     }
 
@@ -249,21 +250,21 @@ class WalletCoreDocumentsControllerImpl(
             runCatching {
 
                 // Fetch metadata from each issuer, gracefully handling failures
-                val metadata: Map<String, CredentialIssuerMetadata> =
-                    openId4VciManagers.mapNotNull { (issuerUrl, manager) ->
+                val metadata: Map<VciConfig, CredentialIssuerMetadata> =
+                    openId4VciManagers.mapNotNull { (vciConfig, manager) ->
                         manager.getIssuerMetadata()
                             .onFailure { error ->
                                 Log.w(
                                     "WalletCoreDocumentsController",
-                                    "Failed to fetch metadata from issuer: $issuerUrl - ${error.message}"
+                                    "Failed to fetch metadata from issuer: ${vciConfig.config.issuerUrl} - ${error.message}"
                                 )
                             }
                             .getOrNull()
-                            ?.let { issuerUrl to it }
+                            ?.let { vciConfig to it }
                     }.toMap()
 
                 val documents: List<ScopedDocumentDomain> =
-                    metadata.flatMap { (issuer, meta) ->
+                    metadata.flatMap { (vciConfig, meta) ->
                         meta.credentialConfigurationsSupported.map { (id, config) ->
 
                             val name: String = config.credentialMetadata.getLocalizedDisplayName(
@@ -286,7 +287,8 @@ class WalletCoreDocumentsControllerImpl(
                             ScopedDocumentDomain(
                                 name = name,
                                 configurationId = id.value,
-                                credentialIssuerId = issuer,
+                                credentialIssuerId = vciConfig.config.issuerUrl,
+                                credentialIssuerOrder = vciConfig.order,
                                 formatType = formatType,
                                 isPid = isPid
                             )
@@ -400,7 +402,8 @@ class WalletCoreDocumentsControllerImpl(
                 .credentialIssuerIdentifier
                 .toString()
 
-            val manager = openId4VciManagers[issuerId]
+            val manager = openId4VciManagers.entries
+                .find { (vciConfig, _) -> vciConfig.config.issuerUrl == issuerId }?.value
                 ?: openId4VciManagers.values.firstOrNull()
 
             require(manager != null) { documentErrorMessage }
@@ -512,10 +515,12 @@ class WalletCoreDocumentsControllerImpl(
         callbackFlow {
             val issuerId = extractCredentialIssuerFromOfferUri(offerUri).getOrNull()
             val managerEntries = if (issuerId != null) {
-                val preferred = openId4VciManagers[issuerId]?.let { manager -> issuerId to manager }
+                val preferred = openId4VciManagers.entries
+                    .find { (vciConfig, _) -> vciConfig.config.issuerUrl == issuerId }
+                    ?.let { (vciConfig, manager) -> vciConfig.config.issuerUrl to manager }
                 listOfNotNull(preferred)
             } else {
-                openId4VciManagers.map { entry -> entry.key to entry.value }
+                openId4VciManagers.map { (vciConfig, manager) -> vciConfig.config.issuerUrl to manager }
             }
             Log.d(
                 "WalletCoreDocumentsController",
@@ -590,7 +595,7 @@ class WalletCoreDocumentsControllerImpl(
             (getDocumentById(docId) as? DeferredDocument)?.let { deferredDoc ->
 
                 val manager = deferredDoc.issuerMetadata?.credentialIssuerIdentifier
-                    ?.let(openId4VciManagers::get)
+                    ?.let { id -> openId4VciManagers.entries.find { (vciConfig, _) -> vciConfig.config.issuerUrl == id }?.value }
                     ?: openId4VciManagers.values.firstOrNull()
 
                 require(manager != null) { documentErrorMessage }
@@ -755,7 +760,8 @@ class WalletCoreDocumentsControllerImpl(
     ): Flow<IssueDocumentsPartialState> =
         callbackFlow {
 
-            val manager = openId4VciManagers[issuerId]
+            val manager = openId4VciManagers.entries
+                .find { (vciConfig, _) -> vciConfig.config.issuerUrl == issuerId }?.value
             require(manager != null) { documentErrorMessage }
 
             manager.issueDocumentByConfigurationIdentifiers(

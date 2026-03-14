@@ -113,6 +113,10 @@
 -keepclassmembers class * implements eu.europa.ec.uilogic.serializer.UiSerializableParser { *; }
 -keepclassmembers class * implements eu.europa.ec.uilogic.serializer.UiSerializable { *; }
 
+# WalletCoreConfig
+-keep interface eu.europa.ec.corelogic.config.WalletCoreConfig
+-keepclassmembers class * implements eu.europa.ec.corelogic.config.WalletCoreConfig { *; }
+
 # Bouncycastle
 -keep class org.bouncycastle.** { *; }
 -keep class org.bouncycastle.jce.provider.BouncyCastleProvider { *; }

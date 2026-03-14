@@ -14,13 +14,18 @@
  * governing permissions and limitations under the Licence.
  */
 
-package eu.europa.ec.corelogic.model
+package eu.europa.ec.corelogic.config
 
-data class ScopedDocumentDomain(
-    val name: String,
-    val configurationId: String,
-    val credentialIssuerId: String,
-    val credentialIssuerOrder: Int,
-    val formatType: FormatType?,
-    val isPid: Boolean
+import eu.europa.ec.eudi.wallet.issue.openid4vci.OpenId4VciManager
+
+/**
+ * Configuration class that associates an [OpenId4VciManager.Config] with a specific display order
+ * in the AddDocument screen.
+ *
+ * @property config The [OpenId4VciManager.Config] instance containing the Issuer configuration.
+ * @property order An integer defining the priority of this configuration.
+ */
+data class VciConfig(
+    val config: OpenId4VciManager.Config,
+    val order: Int,
 )
