@@ -21,6 +21,7 @@ import androidx.core.net.toUri
 import eu.europa.ec.authenticationlogic.controller.authentication.DeviceAuthenticationResult
 import eu.europa.ec.authenticationlogic.model.BiometricCrypto
 import eu.europa.ec.businesslogic.extension.safeAsync
+import eu.europa.ec.corelogic.config.VciConfig
 import eu.europa.ec.corelogic.config.WalletCoreConfig
 import eu.europa.ec.corelogic.extension.documentIdentifier
 import eu.europa.ec.corelogic.extension.getLocalizedDisplayName
@@ -80,18 +81,6 @@ import java.util.Locale
 
 enum class IssuanceMethod {
     OPENID4VCI
-}
-
-sealed class IssueDocumentPartialState {
-    data class Success(val documentId: String) : IssueDocumentPartialState()
-    data class DeferredSuccess(val deferredDocuments: Map<String, String>) :
-        IssueDocumentPartialState()
-
-    data class Failure(val errorMessage: String) : IssueDocumentPartialState()
-    data class UserAuthRequired(
-        val crypto: BiometricCrypto,
-        val resultHandler: DeviceAuthenticationResult,
-    ) : IssueDocumentPartialState()
 }
 
 sealed class IssueDocumentsPartialState {
@@ -170,15 +159,17 @@ interface WalletCoreDocumentsController {
 
     fun getMainPidDocument(): IssuedDocument?
 
-    fun issueDocument(
+    fun issueDocuments(
         issuanceMethod: IssuanceMethod,
-        configId: String,
-        issuerId: String
-    ): Flow<IssueDocumentPartialState>
+        configIds: List<String>,
+        issuerId: String,
+        prioritizeDeferred: Boolean = false
+    ): Flow<IssueDocumentsPartialState>
 
     fun issueDocumentsByOffer(
         offer: Offer,
         txCode: String? = null,
+        prioritizeDeferred: Boolean = true
     ): Flow<IssueDocumentsPartialState>
 
     fun deleteDocument(
@@ -239,9 +230,9 @@ class WalletCoreDocumentsControllerImpl(
     private val documentErrorMessage
         get() = resourceProvider.getString(R.string.issuance_generic_error)
 
-    private val openId4VciManagers by lazy {
-        walletCoreConfig.vciConfig.associate { config ->
-            config.issuerUrl to eudiWallet.createOpenId4VciManager(config = config)
+    private val openId4VciManagers: Map<VciConfig, OpenId4VciManager> by lazy {
+        walletCoreConfig.issuersConfig.associateWith { vciConfig ->
+            eudiWallet.createOpenId4VciManager(config = vciConfig.config)
         }
     }
 
@@ -259,21 +250,21 @@ class WalletCoreDocumentsControllerImpl(
             runCatching {
 
                 // Fetch metadata from each issuer, gracefully handling failures
-                val metadata: Map<String, CredentialIssuerMetadata> =
-                    openId4VciManagers.mapNotNull { (issuerUrl, manager) ->
+                val metadata: Map<VciConfig, CredentialIssuerMetadata> =
+                    openId4VciManagers.mapNotNull { (vciConfig, manager) ->
                         manager.getIssuerMetadata()
                             .onFailure { error ->
                                 Log.w(
                                     "WalletCoreDocumentsController",
-                                    "Failed to fetch metadata from issuer: $issuerUrl - ${error.message}"
+                                    "Failed to fetch metadata from issuer: ${vciConfig.config.issuerUrl} - ${error.message}"
                                 )
                             }
                             .getOrNull()
-                            ?.let { issuerUrl to it }
+                            ?.let { vciConfig to it }
                     }.toMap()
 
                 val documents: List<ScopedDocumentDomain> =
-                    metadata.flatMap { (issuer, meta) ->
+                    metadata.flatMap { (vciConfig, meta) ->
                         meta.credentialConfigurationsSupported.map { (id, config) ->
 
                             val name: String = config.credentialMetadata.getLocalizedDisplayName(
@@ -296,7 +287,8 @@ class WalletCoreDocumentsControllerImpl(
                             ScopedDocumentDomain(
                                 name = name,
                                 configurationId = id.value,
-                                credentialIssuerId = issuer,
+                                credentialIssuerId = vciConfig.config.issuerUrl,
+                                credentialIssuerOrder = vciConfig.order,
                                 formatType = formatType,
                                 isPid = isPid
                             )
@@ -347,42 +339,47 @@ class WalletCoreDocumentsControllerImpl(
             )
         ).minByOrNull { it.createdAt }
 
-    override fun issueDocument(
+    override fun issueDocuments(
         issuanceMethod: IssuanceMethod,
-        configId: String,
-        issuerId: String
-    ): Flow<IssueDocumentPartialState> = flow {
+        configIds: List<String>,
+        issuerId: String,
+        prioritizeDeferred: Boolean
+    ): Flow<IssueDocumentsPartialState> = flow {
         when (issuanceMethod) {
             IssuanceMethod.OPENID4VCI -> {
-                issueDocumentWithOpenId4VCI(configId, issuerId).collect { response ->
+                issueDocumentsWithOpenId4VCI(
+                    configIds,
+                    issuerId,
+                    prioritizeDeferred
+                ).collect { response ->
                     when (response) {
                         is IssueDocumentsPartialState.Failure -> emit(
-                            IssueDocumentPartialState.Failure(
+                            IssueDocumentsPartialState.Failure(
                                 errorMessage = documentErrorMessage
                             )
                         )
 
                         is IssueDocumentsPartialState.Success -> emit(
-                            IssueDocumentPartialState.Success(
-                                response.documentIds.first()
+                            IssueDocumentsPartialState.Success(
+                                response.documentIds
                             )
                         )
 
                         is IssueDocumentsPartialState.UserAuthRequired -> emit(
-                            IssueDocumentPartialState.UserAuthRequired(
+                            IssueDocumentsPartialState.UserAuthRequired(
                                 crypto = response.crypto,
                                 resultHandler = response.resultHandler
                             )
                         )
 
                         is IssueDocumentsPartialState.PartialSuccess -> emit(
-                            IssueDocumentPartialState.Success(
-                                response.documentIds.first()
+                            IssueDocumentsPartialState.Success(
+                                response.documentIds
                             )
                         )
 
                         is IssueDocumentsPartialState.DeferredSuccess -> emit(
-                            IssueDocumentPartialState.DeferredSuccess(
+                            IssueDocumentsPartialState.DeferredSuccess(
                                 response.deferredDocuments
                             )
                         )
@@ -391,12 +388,13 @@ class WalletCoreDocumentsControllerImpl(
             }
         }
     }.safeAsync {
-        IssueDocumentPartialState.Failure(errorMessage = documentErrorMessage)
+        IssueDocumentsPartialState.Failure(errorMessage = documentErrorMessage)
     }
 
     override fun issueDocumentsByOffer(
         offer: Offer,
         txCode: String?,
+        prioritizeDeferred: Boolean
     ): Flow<IssueDocumentsPartialState> =
         callbackFlow {
             val issuerId = offer
@@ -404,14 +402,15 @@ class WalletCoreDocumentsControllerImpl(
                 .credentialIssuerIdentifier
                 .toString()
 
-            val manager = openId4VciManagers[issuerId]
+            val manager = openId4VciManagers.entries
+                .find { (vciConfig, _) -> vciConfig.config.issuerUrl == issuerId }?.value
                 ?: openId4VciManagers.values.firstOrNull()
 
             require(manager != null) { documentErrorMessage }
 
             manager.issueDocumentByOffer(
                 offer = offer,
-                onIssueEvent = issuanceCallback(),
+                onIssueEvent = issuanceCallback(prioritizeDeferred),
                 txCode = txCode,
             )
 
@@ -516,10 +515,12 @@ class WalletCoreDocumentsControllerImpl(
         callbackFlow {
             val issuerId = extractCredentialIssuerFromOfferUri(offerUri).getOrNull()
             val managerEntries = if (issuerId != null) {
-                val preferred = openId4VciManagers[issuerId]?.let { manager -> issuerId to manager }
+                val preferred = openId4VciManagers.entries
+                    .find { (vciConfig, _) -> vciConfig.config.issuerUrl == issuerId }
+                    ?.let { (vciConfig, manager) -> vciConfig.config.issuerUrl to manager }
                 listOfNotNull(preferred)
             } else {
-                openId4VciManagers.map { entry -> entry.key to entry.value }
+                openId4VciManagers.map { (vciConfig, manager) -> vciConfig.config.issuerUrl to manager }
             }
             Log.d(
                 "WalletCoreDocumentsController",
@@ -594,7 +595,7 @@ class WalletCoreDocumentsControllerImpl(
             (getDocumentById(docId) as? DeferredDocument)?.let { deferredDoc ->
 
                 val manager = deferredDoc.issuerMetadata?.credentialIssuerIdentifier
-                    ?.let(openId4VciManagers::get)
+                    ?.let { id -> openId4VciManagers.entries.find { (vciConfig, _) -> vciConfig.config.issuerUrl == id }?.value }
                     ?: openId4VciManagers.values.firstOrNull()
 
                 require(manager != null) { documentErrorMessage }
@@ -752,18 +753,20 @@ class WalletCoreDocumentsControllerImpl(
     override suspend fun resolveDocumentStatus(document: IssuedDocument): Result<Status> =
         eudiWallet.resolveStatus(document)
 
-    private fun issueDocumentWithOpenId4VCI(
-        configId: String,
-        issuerId: String
+    private fun issueDocumentsWithOpenId4VCI(
+        configIds: List<String>,
+        issuerId: String,
+        prioritizeDeferred: Boolean
     ): Flow<IssueDocumentsPartialState> =
         callbackFlow {
 
-            val manager = openId4VciManagers[issuerId]
+            val manager = openId4VciManagers.entries
+                .find { (vciConfig, _) -> vciConfig.config.issuerUrl == issuerId }?.value
             require(manager != null) { documentErrorMessage }
 
-            manager.issueDocumentByConfigurationIdentifier(
-                credentialConfigurationId = configId,
-                onIssueEvent = issuanceCallback()
+            manager.issueDocumentByConfigurationIdentifiers(
+                credentialConfigurationIds = configIds,
+                onIssueEvent = issuanceCallback(prioritizeDeferred)
             )
 
             awaitClose()
@@ -774,7 +777,9 @@ class WalletCoreDocumentsControllerImpl(
             )
         }
 
-    private fun ProducerScope<IssueDocumentsPartialState>.issuanceCallback(): OpenId4VciManager.OnIssueEvent {
+    private fun ProducerScope<IssueDocumentsPartialState>.issuanceCallback(
+        prioritizeDeferred: Boolean = true
+    ): OpenId4VciManager.OnIssueEvent {
 
         var totalDocumentsToBeIssued = 0
         val nonIssuedDocuments: MutableMap<FormatType, String> = mutableMapOf()
@@ -839,7 +844,7 @@ class WalletCoreDocumentsControllerImpl(
 
                 is IssueEvent.Finished -> {
 
-                    if (deferredDocuments.isNotEmpty()) {
+                    if (deferredDocuments.isNotEmpty() && (prioritizeDeferred || (issuedDocuments.isEmpty()))) {
                         trySendBlocking(IssueDocumentsPartialState.DeferredSuccess(deferredDocuments))
                         return@OnIssueEvent
                     }

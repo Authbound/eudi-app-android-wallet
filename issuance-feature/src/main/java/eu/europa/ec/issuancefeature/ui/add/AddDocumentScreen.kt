@@ -313,7 +313,7 @@ private fun MainContent(
                                                 Event.IssueDocument(
                                                     issuanceMethod = IssuanceMethod.OPENID4VCI,
                                                     issuerId = featured.credentialIssuerId,
-                                                    configId = featured.configurationId,
+                                                    configIds = featured.configurationIds,
                                                     context = context
                                                 )
                                             )
@@ -368,12 +368,12 @@ private fun MainContent(
                                 onToggle = {
                                     onEventSend(Event.ToggleCategoryExpansion(group.category.id))
                                 },
-                                onCredentialClick = { configId, issuerId ->
+                                onCredentialClick = { configIds, issuerId ->
                                     onEventSend(
                                         Event.IssueDocument(
                                             issuanceMethod = IssuanceMethod.OPENID4VCI,
                                             issuerId = issuerId,
-                                            configId = configId,
+                                            configIds = configIds,
                                             context = context
                                         )
                                     )
@@ -472,7 +472,7 @@ private fun FeaturedCredentialTile(
 private fun CategorySection(
     group: CategoryGroupUi,
     onToggle: () -> Unit,
-    onCredentialClick: (configId: String, issuerId: String) -> Unit,
+    onCredentialClick: (configIds: List<String>, issuerId: String) -> Unit,
 ) {
     WrapExpandableCard(
         isExpanded = group.isExpanded,
@@ -514,9 +514,9 @@ private fun CategorySection(
                         item = credential.itemData,
                         mainContentVerticalPadding = SPACING_MEDIUM.dp,
                         mainContentTextStyle = MaterialTheme.typography.bodyLarge,
-                        onItemClick = { clicked ->
+                        onItemClick = {
                             onCredentialClick(
-                                clicked.itemId,
+                                credential.configurationIds,
                                 credential.credentialIssuerId
                             )
                         }
@@ -587,7 +587,7 @@ private fun IssuanceAddDocumentScreenPreview() {
                 featuredCredentials = listOf(
                     FeaturedCredentialUi(
                         credentialIssuerId = "issuer1",
-                        configurationId = "pid",
+                        configurationIds = listOf("pid"),
                         name = "National ID",
                         description = "Your core digital identity",
                         category = DocumentCategory.Government,
@@ -595,7 +595,7 @@ private fun IssuanceAddDocumentScreenPreview() {
                     ),
                     FeaturedCredentialUi(
                         credentialIssuerId = "issuer1",
-                        configurationId = "mdl",
+                        configurationIds = listOf("mdl"),
                         name = "Driving License",
                         description = "Digital driving license",
                         category = DocumentCategory.Travel,
@@ -609,7 +609,7 @@ private fun IssuanceAddDocumentScreenPreview() {
                         credentials = listOf(
                             AddDocumentUi(
                                 credentialIssuerId = "issuer1",
-                                configurationId = "ehic",
+                                configurationIds = listOf("ehic"),
                                 category = DocumentCategory.Health,
                                 itemData = ListItemDataUi(
                                     itemId = "ehic",
@@ -651,7 +651,7 @@ private fun DashboardAddDocumentScreenPreview() {
                 featuredCredentials = listOf(
                     FeaturedCredentialUi(
                         credentialIssuerId = "issuer1",
-                        configurationId = "pid",
+                        configurationIds = listOf("pid"),
                         name = "National ID",
                         description = "Your core digital identity",
                         category = DocumentCategory.Government,
@@ -659,7 +659,7 @@ private fun DashboardAddDocumentScreenPreview() {
                     ),
                     FeaturedCredentialUi(
                         credentialIssuerId = "issuer1",
-                        configurationId = "mdl",
+                        configurationIds = listOf("mdl"),
                         name = "Driving License",
                         description = "Digital driving license",
                         category = DocumentCategory.Travel,
@@ -667,7 +667,7 @@ private fun DashboardAddDocumentScreenPreview() {
                     ),
                     FeaturedCredentialUi(
                         credentialIssuerId = "issuer1",
-                        configurationId = "ehic",
+                        configurationIds = listOf("ehic"),
                         name = "EHIC",
                         description = "European health insurance",
                         category = DocumentCategory.Health,

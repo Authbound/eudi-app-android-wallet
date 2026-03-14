@@ -107,7 +107,7 @@ class TestPinViewModel {
     @Test
     fun `Given CREATE flow, When initialized, Then state is ENTER`() {
         // Given/When
-        val viewModel = createViewModel(PinFlow.CREATE)
+        val viewModel = createViewModel(PinFlow.CREATE_WITHOUT_ACTIVATION)
 
         // Then
         assertEquals(PinValidationState.ENTER, viewModel.viewState.value.pinState)
@@ -118,7 +118,7 @@ class TestPinViewModel {
     @Test
     fun `Given CREATE flow, When checking action, Then returns NONE`() {
         // Given/When
-        val viewModel = createViewModel(PinFlow.CREATE)
+        val viewModel = createViewModel(PinFlow.CREATE_WITHOUT_ACTIVATION)
 
         // Then
         assertEquals(ScreenNavigateAction.NONE, viewModel.viewState.value.action)
@@ -129,7 +129,7 @@ class TestPinViewModel {
     fun `Given CREATE ENTER state, When NextButtonPressed, Then transitions to REENTER`() =
         coroutineRule.runTest {
             // Given
-            val viewModel = createViewModel(PinFlow.CREATE)
+            val viewModel = createViewModel(PinFlow.CREATE_WITHOUT_ACTIVATION)
             assertEquals(PinValidationState.ENTER, viewModel.viewState.value.pinState)
 
             // When
@@ -202,7 +202,7 @@ class TestPinViewModel {
             // Given
             whenever(interactor.validateForm(any<Form>()))
                 .thenReturn(FormValidationResult(isValid = true))
-            val viewModel = createViewModel(PinFlow.CREATE)
+            val viewModel = createViewModel(PinFlow.CREATE_WITHOUT_ACTIVATION)
 
             // When
             viewModel.setEvent(Event.OnQuickPinEntered("123456"))
@@ -219,7 +219,7 @@ class TestPinViewModel {
             // Given
             whenever(interactor.validateForm(any<Form>()))
                 .thenReturn(FormValidationResult(isValid = false))
-            val viewModel = createViewModel(PinFlow.CREATE)
+            val viewModel = createViewModel(PinFlow.CREATE_WITHOUT_ACTIVATION)
 
             // When
             viewModel.setEvent(Event.OnQuickPinEntered("12345"))
@@ -236,7 +236,7 @@ class TestPinViewModel {
             // Given
             whenever(interactor.validateForm(any<Form>()))
                 .thenReturn(FormValidationResult(isValid = false, message = "Only numbers allowed"))
-            val viewModel = createViewModel(PinFlow.CREATE)
+            val viewModel = createViewModel(PinFlow.CREATE_WITHOUT_ACTIVATION)
 
             // When
             viewModel.setEvent(Event.OnQuickPinEntered("abc123"))
@@ -255,7 +255,7 @@ class TestPinViewModel {
     @Test
     fun `Given any flow, When checking quickPinSize, Then returns 6`() {
         // Given/When
-        val viewModel = createViewModel(PinFlow.CREATE)
+        val viewModel = createViewModel(PinFlow.CREATE_WITHOUT_ACTIVATION)
 
         // Then
         assertEquals(6, viewModel.viewState.value.quickPinSize)
@@ -265,7 +265,7 @@ class TestPinViewModel {
     @Test
     fun `Given new ViewModel, When created, Then isLoading is false`() {
         // Given/When
-        val viewModel = createViewModel(PinFlow.CREATE)
+        val viewModel = createViewModel(PinFlow.CREATE_WITHOUT_ACTIVATION)
 
         // Then
         assertFalse(viewModel.viewState.value.isLoading)
@@ -275,7 +275,7 @@ class TestPinViewModel {
     @Test
     fun `Given new ViewModel, When created, Then isButtonEnabled is false`() {
         // Given/When
-        val viewModel = createViewModel(PinFlow.CREATE)
+        val viewModel = createViewModel(PinFlow.CREATE_WITHOUT_ACTIVATION)
 
         // Then
         assertFalse(viewModel.viewState.value.isButtonEnabled)
@@ -285,7 +285,7 @@ class TestPinViewModel {
     @Test
     fun `Given new ViewModel, When created, Then pin is empty`() {
         // Given/When
-        val viewModel = createViewModel(PinFlow.CREATE)
+        val viewModel = createViewModel(PinFlow.CREATE_WITHOUT_ACTIVATION)
 
         // Then
         assertEquals("", viewModel.viewState.value.pin)
@@ -295,7 +295,7 @@ class TestPinViewModel {
     @Test
     fun `Given new ViewModel, When created, Then resetPin is false`() {
         // Given/When
-        val viewModel = createViewModel(PinFlow.CREATE)
+        val viewModel = createViewModel(PinFlow.CREATE_WITHOUT_ACTIVATION)
 
         // Then
         assertFalse(viewModel.viewState.value.resetPin)
@@ -309,7 +309,7 @@ class TestPinViewModel {
     @Test
     fun `Given CREATE flow, When checking onBackEvent, Then returns Finish`() {
         // Given/When
-        val viewModel = createViewModel(PinFlow.CREATE)
+        val viewModel = createViewModel(PinFlow.CREATE_WITHOUT_ACTIVATION)
 
         // Then
         assertEquals(Event.Finish, viewModel.viewState.value.onBackEvent)
@@ -343,10 +343,10 @@ class TestPinViewModel {
     @Test
     fun `Given ENTER state, When checking buttonText, Then returns Next`() {
         // Given/When
-        val viewModel = createViewModel(PinFlow.CREATE)
+        val viewModel = createViewModel(PinFlow.CREATE_WITHOUT_ACTIVATION)
 
         // Then
-        assertEquals("Next", viewModel.viewState.value.buttonText)
+        assertEquals("Continue", viewModel.viewState.value.buttonText)
     }
 
     // Case 20: VERIFY flow button text is "Verify"
@@ -364,13 +364,13 @@ class TestPinViewModel {
     fun `Given REENTER state, When checking buttonText, Then returns Confirm`() =
         coroutineRule.runTest {
             // Given
-            val viewModel = createViewModel(PinFlow.CREATE)
+            val viewModel = createViewModel(PinFlow.CREATE_WITHOUT_ACTIVATION)
             viewModel.setEvent(Event.NextButtonPressed(pin = "123456"))
             testScope.advanceUntilIdle()
 
             // Then
             assertEquals(PinValidationState.REENTER, viewModel.viewState.value.pinState)
-            assertEquals("Confirm", viewModel.viewState.value.buttonText)
+            assertEquals("Confirm Passcode", viewModel.viewState.value.buttonText)
         }
 
     //endregion
@@ -391,6 +391,9 @@ class TestPinViewModel {
         whenever(resourceProvider.getString(R.string.generic_confirm_capitalized)).thenReturn("Confirm")
         whenever(resourceProvider.getString(R.string.generic_verify_capitalized)).thenReturn("Verify")
         whenever(resourceProvider.getString(R.string.quick_pin_numerical_rule_invalid_error_message)).thenReturn("Only numbers allowed")
+        whenever(resourceProvider.getString(R.string.quick_pin_create_button_continue)).thenReturn("Continue")
+        whenever(resourceProvider.getString(R.string.quick_pin_create_button_confirm)).thenReturn("Confirm Passcode")
+        whenever(resourceProvider.getString(R.string.quick_pin_verify_button_unlock)).thenReturn("Unlock")
     }
 
     private fun createViewModel(pinFlow: PinFlow): PinViewModel {

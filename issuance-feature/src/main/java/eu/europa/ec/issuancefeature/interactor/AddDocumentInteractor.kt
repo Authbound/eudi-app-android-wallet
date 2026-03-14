@@ -26,13 +26,14 @@ import eu.europa.ec.commonfeature.config.SuccessUIConfig
 import eu.europa.ec.commonfeature.interactor.DeviceAuthenticationInteractor
 import eu.europa.ec.corelogic.controller.FetchScopedDocumentsPartialState
 import eu.europa.ec.corelogic.controller.IssuanceMethod
-import eu.europa.ec.corelogic.controller.IssueDocumentPartialState
+import eu.europa.ec.corelogic.controller.IssueDocumentsPartialState
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
 import eu.europa.ec.corelogic.model.DocumentCategory
 import eu.europa.ec.corelogic.model.FormatType
 import eu.europa.ec.corelogic.model.ScopedDocumentDomain
 import eu.europa.ec.corelogic.model.toDocumentCategory
 import eu.europa.ec.corelogic.model.toDocumentIdentifier
+import eu.europa.ec.eudi.wallet.document.DocumentId
 import eu.europa.ec.issuancefeature.ui.add.model.AddDocumentUi
 import eu.europa.ec.issuancefeature.ui.add.model.CategoryGroupUi
 import eu.europa.ec.issuancefeature.ui.add.model.FeaturedCredentialUi
@@ -66,16 +67,31 @@ sealed class AddDocumentInteractorPartialState {
     data class Failure(val error: String) : AddDocumentInteractorPartialState()
 }
 
+sealed class AddDocumentInteractorIssueDocumentsPartialState {
+    data class Success(val documentIds: List<DocumentId>) :
+        AddDocumentInteractorIssueDocumentsPartialState()
+
+    data object DeferredSuccess : AddDocumentInteractorIssueDocumentsPartialState()
+
+    data class Failure(val errorMessage: String) : AddDocumentInteractorIssueDocumentsPartialState()
+
+    data class UserAuthRequired(
+        val crypto: BiometricCrypto,
+        val resultHandler: DeviceAuthenticationResult,
+    ) : AddDocumentInteractorIssueDocumentsPartialState()
+}
+
+
 interface AddDocumentInteractor {
     fun getAddDocumentOption(
         flowType: IssuanceFlowType,
     ): Flow<AddDocumentInteractorPartialState>
 
-    fun issueDocument(
+    fun issueDocuments(
         issuanceMethod: IssuanceMethod,
-        configId: String,
+        configIds: List<String>,
         issuerId: String
-    ): Flow<IssueDocumentPartialState>
+    ): Flow<AddDocumentInteractorIssueDocumentsPartialState>
 
     fun handleUserAuth(
         context: Context,
@@ -105,6 +121,7 @@ class AddDocumentInteractorImpl(
         flow {
             val state =
                 walletCoreDocumentsController.getScopedDocuments(resourceProvider.getLocale())
+
             when (state) {
                 is FetchScopedDocumentsPartialState.Failure -> emit(
                     AddDocumentInteractorPartialState.Failure(
@@ -123,9 +140,30 @@ class AddDocumentInteractorImpl(
                                 (flowType !is IssuanceFlowType.NoDocument || doc.isPid)
                     }
 
-                    val deduplicated = deduplicateDocuments(filtered)
+                    // Partition PIDs from non-PIDs: PIDs bypass dedup and get combined
+                    val (pidDocs, nonPidDocs) = filtered.partition { it.isPid }
 
-                    if (deduplicated.isEmpty()) {
+                    // Deduplicate only non-PID docs (PIDs are handled separately)
+                    val deduplicatedNonPid = deduplicateDocuments(nonPidDocs)
+
+                    // Group PID docs by issuer → collect all configIds and pick representative
+                    val pidsByIssuer = pidDocs.groupBy { it.credentialIssuerId }
+
+                    val combinedPidConfigIds: Map<String, List<String>> = pidsByIssuer
+                        .mapValues { (_, issuerPids) ->
+                            issuerPids.map { it.configurationId }
+                        }
+
+                    // Pick one representative PID per issuer, preferring Mdoc over SD-JWT
+                    val representativePidDocs = pidsByIssuer.values.mapNotNull { issuerPids ->
+                        issuerPids.sortedBy { doc ->
+                            if (doc.formatType.orEmpty().startsWith("urn:")) 1 else 0
+                        }.firstOrNull()
+                    }
+
+                    val allDocs = deduplicatedNonPid + representativePidDocs
+
+                    if (allDocs.isEmpty()) {
                         emit(
                             AddDocumentInteractorPartialState.NoOptions(
                                 errorMsg = resourceProvider.getString(R.string.issuance_add_document_no_options)
@@ -134,15 +172,15 @@ class AddDocumentInteractorImpl(
                         return@flow
                     }
 
-                    val categorizedDocs = deduplicated.map { doc ->
+                    val categorizedDocs = allDocs.map { doc ->
                         val formatType = doc.formatType.orEmpty()
                         val category = formatType.toDocumentIdentifier()
                             .toDocumentCategory(allCategories)
                         doc to category
                     }
 
-                    val featured = buildFeaturedList(categorizedDocs)
-                    val featuredKeys = featured.map { it.configurationId }.toSet()
+                    val featured = buildFeaturedList(categorizedDocs, combinedPidConfigIds)
+                    val featuredKeys = featured.flatMap { it.configurationIds }.toSet()
 
                     val categoryGroups = buildCategoryGroups(
                         categorizedDocs.filter { (doc, _) ->
@@ -196,7 +234,8 @@ class AddDocumentInteractorImpl(
     }
 
     private fun buildFeaturedList(
-        categorizedDocs: List<Pair<ScopedDocumentDomain, DocumentCategory>>
+        categorizedDocs: List<Pair<ScopedDocumentDomain, DocumentCategory>>,
+        combinedPidConfigIds: Map<String, List<String>> = emptyMap()
     ): List<FeaturedCredentialUi> {
         val docsByNormalized = categorizedDocs.associateBy { (doc, _) ->
             normalizeFormatType(doc.formatType.orEmpty())
@@ -205,10 +244,24 @@ class AddDocumentInteractorImpl(
         return FEATURED_FORMAT_TYPES.mapNotNull { featuredType ->
             val normalized = normalizeFormatType(featuredType)
             val (doc, category) = docsByNormalized[normalized] ?: return@mapNotNull null
+
+            val configIds = if (doc.isPid) {
+                combinedPidConfigIds[doc.credentialIssuerId]
+                    ?: listOf(doc.configurationId)
+            } else {
+                listOf(doc.configurationId)
+            }
+
+            val name = if (configIds.size > 1) {
+                resourceProvider.getString(R.string.issuance_add_document_pid_combined)
+            } else {
+                doc.name
+            }
+
             FeaturedCredentialUi(
                 credentialIssuerId = doc.credentialIssuerId,
-                configurationId = doc.configurationId,
-                name = doc.name,
+                configurationIds = configIds,
+                name = name,
                 description = getFeaturedDescription(normalized),
                 category = category,
                 categoryIcon = category.toIcon(),
@@ -237,7 +290,7 @@ class AddDocumentInteractorImpl(
                         .map { (doc, cat) ->
                             AddDocumentUi(
                                 credentialIssuerId = doc.credentialIssuerId,
-                                configurationId = doc.configurationId,
+                                configurationIds = listOf(doc.configurationId),
                                 category = cat,
                                 itemData = ListItemDataUi(
                                     itemId = doc.configurationId,
@@ -285,16 +338,67 @@ class AddDocumentInteractorImpl(
         }
     }
 
-    override fun issueDocument(
+    override fun issueDocuments(
         issuanceMethod: IssuanceMethod,
-        configId: String,
+        configIds: List<String>,
         issuerId: String
-    ): Flow<IssueDocumentPartialState> =
-        walletCoreDocumentsController.issueDocument(
+    ): Flow<AddDocumentInteractorIssueDocumentsPartialState> = flow {
+
+        walletCoreDocumentsController.issueDocuments(
             issuanceMethod = issuanceMethod,
-            configId = configId,
+            configIds = configIds,
             issuerId = issuerId
+        ).collect { state ->
+
+            val successIds: MutableList<String> = mutableListOf()
+            var isDeferred = false
+            var error: String? = null
+            var authenticationData: Pair<BiometricCrypto, DeviceAuthenticationResult>? = null
+
+            when (state) {
+                is IssueDocumentsPartialState.DeferredSuccess -> {
+                    isDeferred = true
+                }
+
+                is IssueDocumentsPartialState.Failure -> {
+                    error = state.errorMessage
+                }
+
+                is IssueDocumentsPartialState.PartialSuccess -> {
+                    successIds.addAll(state.documentIds)
+                }
+
+                is IssueDocumentsPartialState.Success -> {
+                    successIds.addAll(state.documentIds)
+                }
+
+                is IssueDocumentsPartialState.UserAuthRequired -> {
+                    authenticationData = state.crypto to state.resultHandler
+                }
+            }
+
+            val result = if (isDeferred) {
+                AddDocumentInteractorIssueDocumentsPartialState.DeferredSuccess
+            } else if (successIds.isNotEmpty()) {
+                AddDocumentInteractorIssueDocumentsPartialState.Success(successIds)
+            } else if (error != null) {
+                AddDocumentInteractorIssueDocumentsPartialState.Failure(error)
+            } else if (authenticationData != null) {
+                AddDocumentInteractorIssueDocumentsPartialState.UserAuthRequired(
+                    authenticationData.first,
+                    authenticationData.second
+                )
+            } else {
+                AddDocumentInteractorIssueDocumentsPartialState.Failure(genericErrorMsg)
+            }
+
+            emit(result)
+        }
+    }.safeAsync {
+        AddDocumentInteractorIssueDocumentsPartialState.Failure(
+            errorMessage = it.localizedMessage ?: genericErrorMsg
         )
+    }
 
     override fun handleUserAuth(
         context: Context,

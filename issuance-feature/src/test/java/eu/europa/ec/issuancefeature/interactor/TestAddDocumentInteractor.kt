@@ -25,7 +25,7 @@ import eu.europa.ec.commonfeature.config.SuccessUIConfig
 import eu.europa.ec.commonfeature.interactor.DeviceAuthenticationInteractor
 import eu.europa.ec.corelogic.controller.FetchScopedDocumentsPartialState
 import eu.europa.ec.corelogic.controller.IssuanceMethod
-import eu.europa.ec.corelogic.controller.IssueDocumentPartialState
+import eu.europa.ec.corelogic.controller.IssueDocumentsPartialState
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
 import eu.europa.ec.corelogic.model.DocumentCategories
 import eu.europa.ec.corelogic.model.DocumentCategory
@@ -34,6 +34,7 @@ import eu.europa.ec.issuancefeature.util.mockedConfigNavigationTypePopToScreen
 import eu.europa.ec.issuancefeature.util.mockedConfigNavigationTypePush
 import eu.europa.ec.issuancefeature.util.mockedIssuerId
 import eu.europa.ec.issuancefeature.util.mockedPrimaryButtonText
+import eu.europa.ec.issuancefeature.util.mockedCombinedPid
 import eu.europa.ec.issuancefeature.util.mockedRouteArguments
 import eu.europa.ec.issuancefeature.util.mockedScopedDocuments
 import eu.europa.ec.issuancefeature.util.mockedSuccessContentDescription
@@ -154,6 +155,8 @@ class TestAddDocumentInteractor {
                 val success = result as AddDocumentInteractorPartialState.Success
                 assertEquals(1, success.featured.size)
                 assertEquals(mockedIssuerId, success.featured[0].credentialIssuerId)
+                assertEquals(2, success.featured[0].configurationIds.size)
+                assertEquals(mockedCombinedPid, success.featured[0].name)
                 assertTrue(success.categoryGroups.isEmpty())
             }
         }
@@ -383,27 +386,27 @@ class TestAddDocumentInteractor {
         }
     }
 
-    //region issueDocument
+    //region issueDocuments
     @Test
-    fun `Given an issuance method and a document type, When issueDocument is called, Then it calls walletCoreDocumentsController#issueDocument`() {
+    fun `Given an issuance method and a document type, When issueDocuments is called, Then it calls walletCoreDocumentsController#issueDocuments`() {
         coroutineRule.runTest {
             // Given
             val mockedIssuanceMethod = IssuanceMethod.OPENID4VCI
-            val mockedConfigId = "id"
+            val mockedConfigIds = listOf("id")
             val mockedIssuerId = "issuerId"
 
             whenever(
-                walletCoreDocumentsController.issueDocument(
+                walletCoreDocumentsController.issueDocuments(
                     issuanceMethod = mockedIssuanceMethod,
-                    configId = mockedConfigId,
+                    configIds = mockedConfigIds,
                     issuerId = mockedIssuerId
                 )
-            ).thenReturn(IssueDocumentPartialState.Success(mockedPidId).toFlow())
+            ).thenReturn(IssueDocumentsPartialState.Success(listOf(mockedPidId)).toFlow())
 
             // When
-            interactor.issueDocument(
+            interactor.issueDocuments(
                 issuanceMethod = mockedIssuanceMethod,
-                configId = mockedConfigId,
+                configIds = mockedConfigIds,
                 issuerId = mockedIssuerId
             ).runFlowTest {
 
@@ -412,9 +415,9 @@ class TestAddDocumentInteractor {
                 // Then
                 @Suppress("UnusedFlow")
                 verify(walletCoreDocumentsController, times(1))
-                    .issueDocument(
+                    .issueDocuments(
                         issuanceMethod = mockedIssuanceMethod,
-                        configId = mockedConfigId,
+                        configIds = mockedConfigIds,
                         issuerId = mockedIssuerId
                     )
             }
@@ -648,6 +651,8 @@ class TestAddDocumentInteractor {
     //endregion
 
     private fun mockFeaturedDescriptionStrings() {
+        whenever(resourceProvider.getString(R.string.issuance_add_document_pid_combined))
+            .thenReturn(mockedCombinedPid)
         whenever(resourceProvider.getString(R.string.credential_desc_pid))
             .thenReturn("Your core digital identity")
         whenever(resourceProvider.getString(R.string.credential_desc_mdl))

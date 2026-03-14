@@ -45,7 +45,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -70,6 +69,7 @@ import eu.europa.ec.uilogic.component.wrap.WrapButton
 import eu.europa.ec.uilogic.component.wrap.WrapImage
 import eu.europa.ec.uilogic.config.ConfigNavigation
 import eu.europa.ec.uilogic.config.NavigationType
+import eu.europa.ec.uilogic.extension.applyTestTag
 import eu.europa.ec.uilogic.extension.cacheDeepLink
 import eu.europa.ec.uilogic.navigation.StartupScreens
 import kotlinx.coroutines.channels.Channel
@@ -311,7 +311,7 @@ private fun Button(
                     onClick = { onEventSent(Event.ButtonClicked(config)) },
                 ),
                 modifier = Modifier
-                    .testTag(TestTag.SuccessScreen.PRIMARY_BUTTON)
+                    .applyTestTag(TestTag.SuccessScreen.PRIMARY_BUTTON)
                     .fillMaxWidth(),
             ) {
                 ButtonRow(text = config.text)
@@ -325,7 +325,7 @@ private fun Button(
                     onClick = { onEventSent(Event.ButtonClicked(config)) },
                 ),
                 modifier = Modifier
-                    .testTag(TestTag.SuccessScreen.SECONDARY_BUTTON)
+                    .applyTestTag(TestTag.SuccessScreen.SECONDARY_BUTTON)
                     .fillMaxWidth(),
             ) {
                 ButtonRow(text = config.text)

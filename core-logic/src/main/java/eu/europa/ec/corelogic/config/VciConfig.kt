@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 European Commission
+ * Copyright (c) 2023 European Commission
  *
  * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
  * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
@@ -14,16 +14,18 @@
  * governing permissions and limitations under the Licence.
  */
 
-package eu.europa.ec.issuancefeature.ui.add.model
+package eu.europa.ec.corelogic.config
 
-import eu.europa.ec.corelogic.model.DocumentCategory
-import eu.europa.ec.uilogic.component.IconDataUi
+import eu.europa.ec.eudi.wallet.issue.openid4vci.OpenId4VciManager
 
-data class FeaturedCredentialUi(
-    val credentialIssuerId: String,
-    val configurationIds: List<String>,
-    val name: String,
-    val description: String,
-    val category: DocumentCategory,
-    val categoryIcon: IconDataUi,
+/**
+ * Configuration class that associates an [OpenId4VciManager.Config] with a specific display order
+ * in the AddDocument screen.
+ *
+ * @property config The [OpenId4VciManager.Config] instance containing the Issuer configuration.
+ * @property order An integer defining the priority of this configuration.
+ */
+data class VciConfig(
+    val config: OpenId4VciManager.Config,
+    val order: Int,
 )
