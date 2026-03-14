@@ -57,7 +57,7 @@ interface ActionsInteractor {
 
     // Device linking
     fun getDeviceLinkStatus(): Flow<DeviceLinkPartialState>
-    suspend fun linkDevice(linkingCode: String, fcmToken: String?): Result<LinkedDeviceInfo>
+    suspend fun linkDevice(pairingPayload: String): Result<LinkedDeviceInfo>
     suspend fun unlinkDevice(): Result<Unit>
 
     // Get action by ID for VP flow
@@ -178,8 +178,8 @@ class ActionsInteractorImpl(
         }
     }
 
-    override suspend fun linkDevice(linkingCode: String, fcmToken: String?): Result<LinkedDeviceInfo> {
-        val result = actionsRepository.linkDevice(linkingCode, fcmToken)
+    override suspend fun linkDevice(pairingPayload: String): Result<LinkedDeviceInfo> {
+        val result = actionsRepository.linkDevice(pairingPayload)
         result.onSuccess { deviceInfo ->
             cachedDeviceInfo = deviceInfo
         }
@@ -187,16 +187,13 @@ class ActionsInteractorImpl(
     }
 
     override suspend fun unlinkDevice(): Result<Unit> {
-        val deviceId = cachedDeviceInfo?.deviceId
-            ?: return Result.failure(IllegalStateException("No device linked"))
-
         // Store previous state for rollback on failure (optimistic update pattern)
         val previousDeviceInfo = cachedDeviceInfo
 
         // Clear cache optimistically
         cachedDeviceInfo = null
 
-        val result = actionsRepository.unlinkDevice(deviceId)
+        val result = actionsRepository.unlinkDevice()
         result.onFailure {
             // Restore cache on failure
             cachedDeviceInfo = previousDeviceInfo

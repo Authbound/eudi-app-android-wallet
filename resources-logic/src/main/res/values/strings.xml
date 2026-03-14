@@ -748,6 +748,7 @@
     <string name="actions_device_unlink">Unlink Device</string>
     <string name="actions_device_unlink_confirm_title">Unlink Device?</string>
     <string name="actions_device_unlink_confirm_message">You will no longer receive verification or signing requests on this device.</string>
+    <string name="actions_device_linked">Device linked successfully</string>
     <string name="actions_device_unlinked">Device unlinked successfully</string>
     <string name="actions_device_linked_since">Linked since %1$s</string>
 

@@ -17,7 +17,11 @@
 package eu.europa.ec.commonfeature.ui.qr_scan
 
 import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.viewModelScope
+import com.google.gson.Gson
+import com.google.gson.JsonParseException
+import com.google.gson.annotations.SerializedName
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.validator.Form
 import eu.europa.ec.businesslogic.validator.Rule
@@ -48,10 +52,31 @@ import eu.europa.ec.uilogic.serializer.UiSerializer
 import kotlinx.coroutines.launch
 import org.koin.android.annotation.KoinViewModel
 import org.koin.core.annotation.InjectedParam
+import java.util.UUID
 
 private const val MAX_ALLOWED_FAILED_SCANS = 5
-private const val MIN_LINKING_CODE_LENGTH = 6
 private const val TAG = "QrScanViewModel"
+const val DEVICE_LINKING_PAIRING_PAYLOAD_RESULT_KEY = "deviceLinkingPairingPayload"
+
+private data class PairingQrPayload(
+    @SerializedName("t")
+    val type: String,
+
+    @SerializedName("v")
+    val version: Int,
+
+    @SerializedName("sid")
+    val sessionId: String,
+
+    @SerializedName("cr")
+    val challengeResponse: String,
+
+    @SerializedName("url")
+    val completionUrl: String,
+
+    @SerializedName("exp")
+    val expiresAtEpochSeconds: Long
+)
 
 data class State(
     val hasCameraPermission: Boolean = false,
@@ -75,6 +100,7 @@ sealed class Event : ViewEvent {
 sealed class Effect : ViewSideEffect {
     sealed class Navigation : Effect() {
         data class SwitchScreen(val screenRoute: String) : Navigation()
+        data class PopWithDeviceLinkingPayload(val pairingPayload: String) : Navigation()
         data object Pop : Navigation()
         data object GoToAppSettings : Navigation()
     }
@@ -136,25 +162,12 @@ class QrScanViewModel(
         viewModelScope.launch {
             val currentState = viewState.value
 
-            // Validate the scanned QR code
-            val urlIsValid = validateForm(
-                form = Form(
-                    inputs = mapOf(
-                        listOf(
-                            Rule.ValidateUrl(
-                                errorMessage = "",
-                                shouldValidateSchema = true,
-                                shouldValidateHost = false,
-                                shouldValidatePath = false,
-                                shouldValidateQuery = true,
-                            )
-                        ) to scannedQr
-                    )
-                )
-            )
+            val scanIsValid = when (currentState.qrScannedConfig.qrScanFlow) {
+                is QrScanFlow.DeviceLinking -> parsePairingPayload(scannedQr) != null
+                else -> validateUrl(scannedQr)
+            }
 
-            // Handle valid QR code
-            if (urlIsValid) {
+            if (scanIsValid) {
                 calculateNextStep(
                     context = context,
                     qrScanFlow = currentState.qrScannedConfig.qrScanFlow,
@@ -183,6 +196,24 @@ class QrScanViewModel(
         return validationResult.isValid
     }
 
+    private suspend fun validateUrl(scanResult: String): Boolean {
+        return validateForm(
+            form = Form(
+                inputs = mapOf(
+                    listOf(
+                        Rule.ValidateUrl(
+                            errorMessage = "",
+                            shouldValidateSchema = true,
+                            shouldValidateHost = false,
+                            shouldValidatePath = false,
+                            shouldValidateQuery = true,
+                        )
+                    ) to scanResult
+                )
+            )
+        )
+    }
+
     private fun calculateNextStep(
         context: Context,
         qrScanFlow: QrScanFlow,
@@ -200,21 +231,10 @@ class QrScanViewModel(
     }
 
     private fun handleDeviceLinking(scanResult: String) {
-        // Parse authbound://link?code=xxx format
-        val linkingCode = parseLinkingCode(scanResult)
-        if (linkingCode != null) {
-            setEffect {
-                Effect.Navigation.SwitchScreen(
-                    screenRoute = generateComposableNavigationLink(
-                        screen = DashboardScreens.Dashboard,
-                        arguments = generateComposableArguments(
-                            mapOf("linkingCode" to linkingCode)
-                        )
-                    )
-                )
-            }
+        val pairingPayload = parsePairingPayload(scanResult)
+        if (pairingPayload != null) {
+            setEffect { Effect.Navigation.PopWithDeviceLinkingPayload(scanResult) }
         } else {
-            // Invalid linking code format
             setState {
                 copy(
                     failedScanAttempts = failedScanAttempts + 1,
@@ -226,37 +246,44 @@ class QrScanViewModel(
     }
 
     /**
-     * Parses a device linking QR code in the format: authbound://link?code=xxx
-     *
-     * Validates that:
-     * - The URI uses the correct scheme and host
-     * - The linking code is present and not empty
-     * - The linking code has minimum length (prevents malformed codes)
-     *
-     * @return The linking code if valid, null otherwise
+     * Validates the mobile-backend pairing QR payload emitted by the user portal.
      */
-    private fun parseLinkingCode(scanResult: String): String? {
+    private fun parsePairingPayload(scanResult: String): PairingQrPayload? {
         return try {
-            val uri = android.net.Uri.parse(scanResult)
-            if (uri.scheme != "authbound" || uri.host != "link") {
-                logController.w(TAG) { "Invalid linking URI scheme/host: ${uri.scheme}://${uri.host}" }
+            val payload = Gson().fromJson(scanResult, PairingQrPayload::class.java)
+            if (payload.type != "authbound_pair") {
+                logController.w(TAG) { "Invalid pairing QR type: ${payload.type}" }
+                return null
+            }
+            if (payload.version != 1) {
+                logController.w(TAG) { "Unsupported pairing QR version: ${payload.version}" }
                 return null
             }
 
-            val code = uri.getQueryParameter("code")
-            when {
-                code.isNullOrBlank() -> {
-                    logController.w(TAG) { "Linking code is empty or missing" }
-                    null
-                }
-                code.length < MIN_LINKING_CODE_LENGTH -> {
-                    logController.w(TAG) { "Linking code too short: ${code.length} chars (min: $MIN_LINKING_CODE_LENGTH)" }
-                    null
-                }
-                else -> code
+            UUID.fromString(payload.sessionId)
+
+            if (payload.challengeResponse.isBlank()) {
+                logController.w(TAG) { "Pairing QR challenge response is missing" }
+                return null
             }
-        } catch (e: Exception) {
-            logController.w(TAG) { "Failed to parse linking QR code: ${e.message}" }
+
+            val completionUri = Uri.parse(payload.completionUrl)
+            if (completionUri.scheme.isNullOrBlank() || completionUri.host.isNullOrBlank()) {
+                logController.w(TAG) { "Pairing QR completion URL is invalid: ${payload.completionUrl}" }
+                return null
+            }
+
+            if (payload.expiresAtEpochSeconds <= System.currentTimeMillis() / 1000) {
+                logController.w(TAG) { "Pairing QR session is already expired" }
+                return null
+            }
+
+            payload
+        } catch (e: IllegalArgumentException) {
+            logController.w(TAG) { "Invalid pairing QR session id: ${e.message}" }
+            null
+        } catch (e: JsonParseException) {
+            logController.w(TAG) { "Failed to parse pairing QR payload: ${e.message}" }
             null
         }
     }

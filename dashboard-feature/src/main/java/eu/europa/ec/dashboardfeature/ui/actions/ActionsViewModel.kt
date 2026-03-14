@@ -51,6 +51,7 @@ data class State(
     val error: ContentErrorConfig? = null,
 
     // Device linking state
+    val isLinkingDevice: Boolean = false,
     val deviceLinkStatus: DeviceLinkStatus = DeviceLinkStatus.CHECKING,
     val linkedDeviceInfo: LinkedDeviceInfo? = null,
     val showDeviceManagementSheet: Boolean = false,
@@ -77,6 +78,7 @@ sealed class Event : ViewEvent {
 
     // Device linking events
     data object LinkDevice : Event()
+    data class CompleteDeviceLinking(val pairingPayload: String) : Event()
     data object ManageDevice : Event()
     data object DismissDeviceManagement : Event()
     data object UnlinkDevice : Event()
@@ -131,6 +133,7 @@ class ActionsViewModel(
 
             // Device linking events
             is Event.LinkDevice -> handleLinkDevice()
+            is Event.CompleteDeviceLinking -> handleCompleteDeviceLinking(event.pairingPayload)
             is Event.ManageDevice -> setState { copy(showDeviceManagementSheet = true) }
             is Event.DismissDeviceManagement -> setState { copy(showDeviceManagementSheet = false) }
             is Event.UnlinkDevice -> setState {
@@ -185,7 +188,7 @@ class ActionsViewModel(
                                 QrScanUiConfig(
                                     title = resourceProvider.getString(R.string.qr_scan_title),
                                     subTitle = resourceProvider.getString(R.string.qr_scan_subtitle),
-                                    qrScanFlow = QrScanFlow.Presentation
+                                    qrScanFlow = QrScanFlow.DeviceLinking
                                 ),
                                 QrScanUiConfig.Parser
                             )
@@ -196,9 +199,55 @@ class ActionsViewModel(
         }
     }
 
+    private fun handleCompleteDeviceLinking(pairingPayload: String) {
+        if (viewState.value.isLinkingDevice) {
+            return
+        }
+
+        val previousStatus = viewState.value.deviceLinkStatus
+        val previousDeviceInfo = viewState.value.linkedDeviceInfo
+
+        setState {
+            copy(
+                isLinkingDevice = true,
+                deviceLinkStatus = DeviceLinkStatus.CHECKING
+            )
+        }
+
+        viewModelScope.launch {
+            interactor.linkDevice(pairingPayload).fold(
+                onSuccess = { deviceInfo ->
+                    setState {
+                        copy(
+                            isLinkingDevice = false,
+                            deviceLinkStatus = DeviceLinkStatus.LINKED,
+                            linkedDeviceInfo = deviceInfo
+                        )
+                    }
+                    setEffect {
+                        Effect.ShowToast(resourceProvider.getString(R.string.actions_device_linked))
+                    }
+                },
+                onFailure = { error ->
+                    setState {
+                        copy(
+                            isLinkingDevice = false,
+                            deviceLinkStatus = previousStatus,
+                            linkedDeviceInfo = previousDeviceInfo
+                        )
+                    }
+                    setEffect {
+                        Effect.ShowToast(error.localizedMessage ?: "Failed to link device")
+                    }
+                }
+            )
+        }
+    }
+
     private fun handleUnlinkDevice() {
         setState {
             copy(
+                isLinkingDevice = false,
                 isUnlinkingDevice = true,
                 showDeviceManagementSheet = false,
                 showUnlinkConfirmation = false
@@ -210,6 +259,7 @@ class ActionsViewModel(
                 onSuccess = {
                     setState {
                         copy(
+                            isLinkingDevice = false,
                             isUnlinkingDevice = false,
                             deviceLinkStatus = DeviceLinkStatus.NOT_LINKED,
                             linkedDeviceInfo = null
@@ -220,7 +270,7 @@ class ActionsViewModel(
                     }
                 },
                 onFailure = { error ->
-                    setState { copy(isUnlinkingDevice = false) }
+                    setState { copy(isLinkingDevice = false, isUnlinkingDevice = false) }
                     setEffect {
                         Effect.ShowToast(error.localizedMessage ?: "Failed to unlink device")
                     }

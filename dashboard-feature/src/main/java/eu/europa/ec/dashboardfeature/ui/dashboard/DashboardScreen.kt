@@ -47,6 +47,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import eu.europa.ec.businesslogic.extension.getParcelableArrayListExtra
 import eu.europa.ec.corelogic.model.RevokedDocumentDataDomain
+import eu.europa.ec.commonfeature.ui.qr_scan.DEVICE_LINKING_PAIRING_PAYLOAD_RESULT_KEY
 import eu.europa.ec.corelogic.util.CoreActions
 import eu.europa.ec.dashboardfeature.ui.component.BottomNavigationBar
 import eu.europa.ec.dashboardfeature.ui.component.BottomNavigationItem
@@ -231,7 +232,12 @@ internal fun DashboardScreen(
             .currentBackStackEntry
             ?.savedStateHandle
             ?.remove<Boolean>("openActions") == true
-        if (shouldOpenActions) {
+        val pairingPayload: String? = hostNavController
+            .currentBackStackEntry
+            ?.savedStateHandle
+            ?.remove<String>(DEVICE_LINKING_PAIRING_PAYLOAD_RESULT_KEY)
+
+        if (shouldOpenActions || pairingPayload != null) {
             bottomNavigationController.navigate(
                 "${BottomNavigationItem.Wallet.route}?tab=${WalletTab.Actions.routeValue}"
             ) {
@@ -242,6 +248,13 @@ internal fun DashboardScreen(
                 restoreState = true
             }
         }
+
+        pairingPayload?.let {
+            actionsViewModel.setEvent(
+                eu.europa.ec.dashboardfeature.ui.actions.Event.CompleteDeviceLinking(it)
+            )
+        }
+
         actionsViewModel.setEvent(eu.europa.ec.dashboardfeature.ui.actions.Event.OnResume)
         viewModel.setEvent(
             Event.Init(
