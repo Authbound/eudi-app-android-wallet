@@ -131,8 +131,9 @@ fun provideSupabaseAuthRepository(
 @Factory
 fun provideProfileRepository(
     apiClient: ApiClient,
-    supabaseClient: SupabaseClient
-): ProfileRepository = ProfileRepositoryImpl(apiClient, supabaseClient)
+    supabaseClient: SupabaseClient,
+    logController: LogController
+): ProfileRepository = ProfileRepositoryImpl(apiClient, supabaseClient, logController)
 
 // ============================================================
 // Use Cases
