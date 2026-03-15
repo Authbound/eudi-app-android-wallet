@@ -926,7 +926,14 @@ class WalletCoreDocumentsControllerImpl(
             else -> path.substringBeforeLast("/")
         }
         val issuerPath = if (basePath.endsWith("/service")) {
-            "$basePath/draft-13"
+            val candidate = uri.buildUpon().path(basePath).build().toString()
+            val matchedUrl = openId4VciManagers.keys.firstOrNull { configuredUrl ->
+                configuredUrl.startsWith(candidate)
+            }
+            if (matchedUrl != null) {
+                return matchedUrl
+            }
+            "$basePath/draft-15"
         } else {
             basePath
         }

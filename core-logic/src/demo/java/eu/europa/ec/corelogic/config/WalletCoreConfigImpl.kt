@@ -64,7 +64,6 @@ internal class WalletCoreConfigImpl(
         fun getLocalhostAddress(): String = if (isEmulator()) "10.0.2.2" else "127.0.0.1"
     }
 
-    // Use local helper to get correct localhost address for physical devices vs emulators
     private val localhostAddress: String
         get() = getLocalhostAddress()
 
@@ -73,6 +72,9 @@ internal class WalletCoreConfigImpl(
 
     private val openId4vpLocalVerifierApiUri: String
         get() = "http://$localhostAddress:8080"
+
+    private val igrantProxyIssuerUrl: String
+        get() = "http://$localhostAddress:3099/api/eudi-issuer/service/draft-15"
 
     private var _config: EudiWalletConfig? = null
 
@@ -156,6 +158,12 @@ internal class WalletCoreConfigImpl(
                     issuerUrl = "https://oid4vc.igrant.io/organisation/cc8f6303-c49f-468c-ad3c-ce93a865f963/service/draft-15"
                 )
                 .withClientAuthenticationType(OpenId4VciManager.ClientAuthenticationType.AttestationBased)
+                .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
+                .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
+                .withDPoPUsage(OpenId4VciManager.Config.DPoPUsage.IfSupported())
+                .build(),
+            OpenId4VciManager.Config.Builder()
+                .withIssuerUrl(issuerUrl = igrantProxyIssuerUrl)
                 .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
                 .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
                 .withDPoPUsage(OpenId4VciManager.Config.DPoPUsage.IfSupported())

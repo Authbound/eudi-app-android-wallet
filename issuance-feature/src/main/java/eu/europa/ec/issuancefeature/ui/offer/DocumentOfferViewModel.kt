@@ -306,7 +306,10 @@ class DocumentOfferViewModel(
 
     private fun isMaisaOffer(offerUri: String, offer: Offer?): Boolean {
         val issuer = offer?.credentialOffer?.credentialIssuerIdentifier?.toString().orEmpty()
-        return issuer.contains("oid4vc.igrant.io") || offerUri.contains("oid4vc.igrant.io")
+        return issuer.contains("oid4vc.igrant.io") ||
+                offerUri.contains("oid4vc.igrant.io") ||
+                issuer.contains("/api/eudi-issuer/service/") ||
+                offerUri.contains("/api/eudi-issuer/service/")
     }
 
     private fun issueDocuments(

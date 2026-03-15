@@ -212,7 +212,8 @@ class DocumentOfferCodeViewModel(
     }
 
     private fun resolveAutoSubmitPin(offerUri: String): String? {
-        return if (offerUri.contains("oid4vc.igrant.io")) {
+        return if (offerUri.contains("oid4vc.igrant.io") ||
+            offerUri.contains("/api/eudi-issuer/service/")) {
             "1234"
         } else {
             null
