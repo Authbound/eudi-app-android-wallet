@@ -369,6 +369,30 @@ class AddDocumentViewModel(
                             )
                         )
                     }
+
+                    is AddDocumentInteractorIssueDocumentsPartialState.UserAuthCancelled -> {
+                        setState {
+                            copy(
+                                isLoading = false,
+                                error = ContentErrorConfig(
+                                    errorSubTitle = resourceProvider.getString(
+                                        R.string.issuance_biometric_auth_cancelled
+                                    ),
+                                    onCancel = { setEvent(Event.DismissError) },
+                                    onRetry = {
+                                        setEvent(
+                                            Event.IssueDocument(
+                                                issuanceMethod = issuanceMethod,
+                                                issuerId = issuerId,
+                                                configIds = configIds,
+                                                context = context
+                                            )
+                                        )
+                                    }
+                                )
+                            )
+                        }
+                    }
                 }
             }
         }

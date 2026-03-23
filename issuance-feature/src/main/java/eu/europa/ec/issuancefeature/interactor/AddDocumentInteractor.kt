@@ -79,6 +79,8 @@ sealed class AddDocumentInteractorIssueDocumentsPartialState {
         val crypto: BiometricCrypto,
         val resultHandler: DeviceAuthenticationResult,
     ) : AddDocumentInteractorIssueDocumentsPartialState()
+
+    data object UserAuthCancelled : AddDocumentInteractorIssueDocumentsPartialState()
 }
 
 
@@ -354,6 +356,7 @@ class AddDocumentInteractorImpl(
             var isDeferred = false
             var error: String? = null
             var authenticationData: Pair<BiometricCrypto, DeviceAuthenticationResult>? = null
+            var authCancelled = false
 
             when (state) {
                 is IssueDocumentsPartialState.DeferredSuccess -> {
@@ -375,6 +378,10 @@ class AddDocumentInteractorImpl(
                 is IssueDocumentsPartialState.UserAuthRequired -> {
                     authenticationData = state.crypto to state.resultHandler
                 }
+
+                is IssueDocumentsPartialState.UserAuthCancelled -> {
+                    authCancelled = true
+                }
             }
 
             val result = if (isDeferred) {
@@ -383,6 +390,8 @@ class AddDocumentInteractorImpl(
                 AddDocumentInteractorIssueDocumentsPartialState.Success(successIds)
             } else if (error != null) {
                 AddDocumentInteractorIssueDocumentsPartialState.Failure(error)
+            } else if (authCancelled) {
+                AddDocumentInteractorIssueDocumentsPartialState.UserAuthCancelled
             } else if (authenticationData != null) {
                 AddDocumentInteractorIssueDocumentsPartialState.UserAuthRequired(
                     authenticationData.first,

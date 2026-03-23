@@ -88,6 +88,8 @@ sealed class IssueDocumentsInteractorPartialState {
         val crypto: BiometricCrypto,
         val resultHandler: DeviceAuthenticationResult
     ) : IssueDocumentsInteractorPartialState()
+
+    data object UserAuthCancelled : IssueDocumentsInteractorPartialState()
 }
 
 interface DocumentOfferInteractor {
@@ -270,6 +272,10 @@ class DocumentOfferInteractorImpl(
                                 )
                             )
                         }
+
+                        is IssueDocumentsPartialState.UserAuthCancelled -> {
+                            IssueDocumentsInteractorPartialState.UserAuthCancelled
+                        }
                     }
                 }.collect {
                     emit(it)
@@ -330,6 +336,10 @@ class DocumentOfferInteractorImpl(
                                 navigation = navigation
                             )
                         )
+                    }
+
+                    is IssueDocumentsPartialState.UserAuthCancelled -> {
+                        IssueDocumentsInteractorPartialState.UserAuthCancelled
                     }
                 }
             }.collect {

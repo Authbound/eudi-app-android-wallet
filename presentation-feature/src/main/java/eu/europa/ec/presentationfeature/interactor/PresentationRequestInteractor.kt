@@ -16,6 +16,7 @@
 
 package eu.europa.ec.presentationfeature.interactor
 
+import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.extension.safeAsync
 import eu.europa.ec.businesslogic.provider.UuidProvider
 import eu.europa.ec.commonfeature.config.RequestUriConfig
@@ -56,8 +57,13 @@ class PresentationRequestInteractorImpl(
     private val resourceProvider: ResourceProvider,
     private val uuidProvider: UuidProvider,
     private val walletCorePresentationController: WalletCorePresentationController,
-    private val walletCoreDocumentsController: WalletCoreDocumentsController
+    private val walletCoreDocumentsController: WalletCoreDocumentsController,
+    private val logController: LogController
 ) : PresentationRequestInteractor {
+
+    companion object {
+        private const val TAG = "PresentationRequest"
+    }
 
     private val genericErrorMsg
         get() = resourceProvider.genericErrorMessage()
@@ -105,6 +111,7 @@ class PresentationRequestInteractorImpl(
                 }
 
                 is TransferEventPartialState.Error -> {
+                    logController.e(TAG) { "Transfer error received in interactor: ${response.error}" }
                     PresentationRequestInteractorPartialState.Failure(error = response.error)
                 }
 
@@ -115,6 +122,8 @@ class PresentationRequestInteractorImpl(
                 else -> null
             }
         }.safeAsync {
+            logController.e(TAG) { "getRequestDocuments() flow exception: ${it::class.qualifiedName}: ${it.message}" }
+            logController.e(TAG, it)
             PresentationRequestInteractorPartialState.Failure(
                 error = it.localizedMessage ?: genericErrorMsg
             )

@@ -56,10 +56,6 @@ class Application : Application() {
         ProcessLifecycleOwner.get().lifecycle.addObserver(appLockLifecycleObserver)
     }
 
-    companion object {
-        private const val TAG = "AuthboundApp"
-    }
-
     private fun KoinApplication.initializeRqes() {
         EudiRQESUi.setup(
             application = this@Application,

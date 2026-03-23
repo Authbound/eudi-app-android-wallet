@@ -45,7 +45,6 @@ private typealias PinCode = String
 
 data class State(
     val offerCodeUiConfig: OfferCodeUiConfig,
-    val autoSubmitPin: String? = null,
     val isLoading: Boolean = false,
     val error: ContentErrorConfig? = null,
     val notifyOnAuthenticationFailure: Boolean = false,
@@ -85,7 +84,6 @@ class DocumentOfferCodeViewModel(
         ) ?: throw RuntimeException("OfferCodeUiConfig:: is Missing or invalid")
         return State(
             offerCodeUiConfig = deserializedOfferCodeUiConfig,
-            autoSubmitPin = resolveAutoSubmitPin(deserializedOfferCodeUiConfig.offerUri),
             screenTitle = calculateScreenTitle(issuerName = deserializedOfferCodeUiConfig.issuerName),
             screenSubtitle = calculateScreenCaption(txCodeLength = deserializedOfferCodeUiConfig.txCodeLength)
         )
@@ -182,6 +180,21 @@ class DocumentOfferCodeViewModel(
                             resultHandler = response.resultHandler
                         )
                     }
+
+                    is IssueDocumentsInteractorPartialState.UserAuthCancelled -> {
+                        setState {
+                            copy(
+                                isLoading = false,
+                                error = ContentErrorConfig(
+                                    errorSubTitle = resourceProvider.getString(
+                                        R.string.issuance_biometric_auth_cancelled
+                                    ),
+                                    onCancel = { setEvent(Event.DismissError) },
+                                    onRetry = { setEvent(Event.DismissError) }
+                                )
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -208,14 +221,6 @@ class DocumentOfferCodeViewModel(
                     )
                 )
             )
-        }
-    }
-
-    private fun resolveAutoSubmitPin(offerUri: String): String? {
-        return if (offerUri.contains("oid4vc.igrant.io")) {
-            "1234"
-        } else {
-            null
         }
     }
 

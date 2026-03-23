@@ -35,9 +35,6 @@ internal class WalletCoreConfigImpl(
 ) : WalletCoreConfig {
 
     private companion object {
-        const val VCI_ISSUER_URL = "https://issuer.eudiw.dev"
-        const val VCI_CLIENT_ID = "Verifier"
-        const val AUTHENTICATION_REQUIRED = false
 
         const val OPENID4VP_VERIFIER_LEGAL_NAME = "Authbound.io"
         const val OPENID4VP_VERIFIER_CLIENT_ID = "Verifier"
@@ -159,18 +156,6 @@ internal class WalletCoreConfigImpl(
                     .withDPopConfig(DPopConfig.Default)
                     .build(),
                 order = 1
-            ),
-            VciConfig(
-                config = OpenId4VciManager.Config.Builder()
-                    .withIssuerUrl(
-                        issuerUrl = "https://oid4vc.igrant.io/organisation/cc8f6303-c49f-468c-ad3c-ce93a865f963/service/version-01"
-                    )
-                    .withClientAuthenticationType(OpenId4VciManager.ClientAuthenticationType.AttestationBased)
-                    .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
-                    .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
-                    .withDPopConfig(DPopConfig.Default)
-                    .build(),
-                order = 2
             ),
         )
 

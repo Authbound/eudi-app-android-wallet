@@ -121,6 +121,10 @@ class QrScanViewModel(
             QrScanUiConfig::class.java,
             QrScanUiConfig.Parser
         ) ?: throw RuntimeException("QrScanUiConfig:: is Missing or invalid")
+        logController.d(
+            TAG,
+            "QrScanUiConfig deserialized | title=${deserializedConfig.title} | subTitle=${deserializedConfig.subTitle} | flow=${describeQrScanFlow(deserializedConfig.qrScanFlow)}"
+        )
         return State(
             qrScannedConfig = deserializedConfig,
             informativeText = calculateInformativeText(deserializedConfig.qrScanFlow)
@@ -161,16 +165,27 @@ class QrScanViewModel(
     private fun handleScannedQr(context: Context, scannedQr: String) {
         viewModelScope.launch {
             val currentState = viewState.value
+            val qrScanFlow = currentState.qrScannedConfig.qrScanFlow
 
-            val scanIsValid = when (currentState.qrScannedConfig.qrScanFlow) {
+            logController.d(
+                TAG,
+                "QR scanned | flow=${describeQrScanFlow(qrScanFlow)} | payload=$scannedQr"
+            )
+
+            val scanIsValid = when (qrScanFlow) {
                 is QrScanFlow.DeviceLinking -> parsePairingPayload(scannedQr) != null
                 else -> validateUrl(scannedQr)
             }
 
+            logController.d(
+                TAG,
+                "QR validation result | flow=${describeQrScanFlow(qrScanFlow)} | valid=$scanIsValid"
+            )
+
             if (scanIsValid) {
                 calculateNextStep(
                     context = context,
-                    qrScanFlow = currentState.qrScannedConfig.qrScanFlow,
+                    qrScanFlow = qrScanFlow,
                     scanResult = scannedQr
                 )
             } else {
@@ -219,6 +234,10 @@ class QrScanViewModel(
         qrScanFlow: QrScanFlow,
         scanResult: String,
     ) {
+        logController.d(
+            TAG,
+            "calculateNextStep | flow=${describeQrScanFlow(qrScanFlow)} | payload=$scanResult"
+        )
         when (qrScanFlow) {
             is QrScanFlow.Presentation -> navigateToPresentationRequest(scanResult)
             is QrScanFlow.Issuance -> navigateToDocumentOffer(
@@ -302,6 +321,9 @@ class QrScanViewModel(
     }
 
     private fun navigateToPresentationRequest(scanResult: String) {
+        logController.w(TAG) {
+            "Routing QR to PresentationRequest | payload=$scanResult"
+        }
         setEffect {
             getOrCreatePresentationScope()
             Effect.Navigation.SwitchScreen(
@@ -326,6 +348,10 @@ class QrScanViewModel(
     }
 
     private fun navigateToDocumentOffer(scanResult: String, issuanceFlowType: IssuanceFlowType) {
+        logController.d(
+            TAG,
+            "Routing QR to DocumentOffer | issuanceFlowType=${describeIssuanceFlowType(issuanceFlowType)} | payload=$scanResult"
+        )
         getOrCreateCredentialOfferScope()
         setEffect {
             Effect.Navigation.SwitchScreen(
@@ -396,6 +422,22 @@ class QrScanViewModel(
                     navigationType = NavigationType.Pop
                 )
             }
+        }
+    }
+
+    private fun describeQrScanFlow(flow: QrScanFlow): String {
+        return when (flow) {
+            is QrScanFlow.Presentation -> "Presentation"
+            is QrScanFlow.Signature -> "Signature"
+            is QrScanFlow.DeviceLinking -> "DeviceLinking"
+            is QrScanFlow.Issuance -> "Issuance(${describeIssuanceFlowType(flow.issuanceFlowType)})"
+        }
+    }
+
+    private fun describeIssuanceFlowType(flowType: IssuanceFlowType): String {
+        return when (flowType) {
+            is IssuanceFlowType.NoDocument -> "NoDocument"
+            is IssuanceFlowType.ExtraDocument -> "ExtraDocument(formatType=${flowType.formatType})"
         }
     }
 }

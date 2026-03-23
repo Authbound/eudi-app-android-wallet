@@ -16,6 +16,7 @@
 
 package eu.europa.ec.corelogic.controller
 
+import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.wallet.UserDocumentOwnershipController
 import eu.europa.ec.corelogic.config.WalletCoreConfig
 import eu.europa.ec.eudi.wallet.EudiWallet
@@ -76,6 +77,9 @@ class TestWalletCoreDocumentsControllerUserScoping {
     @Mock
     private lateinit var ownershipController: UserDocumentOwnershipController
 
+    @Mock
+    private lateinit var logController: LogController
+
     private lateinit var controller: WalletCoreDocumentsControllerImpl
     private lateinit var closeable: AutoCloseable
 
@@ -92,6 +96,7 @@ class TestWalletCoreDocumentsControllerUserScoping {
             transactionLogDao = transactionLogDao,
             revokedDocumentDao = revokedDocumentDao,
             ownershipController = ownershipController,
+            logController = logController,
             dispatcher = Dispatchers.Unconfined
         )
     }

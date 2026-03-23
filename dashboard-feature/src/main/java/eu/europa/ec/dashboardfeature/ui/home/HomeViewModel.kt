@@ -236,15 +236,6 @@ class HomeViewModel(
                     gradientEnd = Color(0xFF7C3AED),    // Purple light
                     accentColor = Color(0xFFA78BFA)     // Violet accent
                 ),
-                QuickActionConfig(
-                    id = "authboundpid",
-                    title = resourceProvider.getString(R.string.authboundpid_quick_action_title),
-                    description = resourceProvider.getString(R.string.authboundpid_quick_action_description),
-                    icon = AppIcons.Id,
-                    gradientStart = Color(0xFF164E63),  // Teal dark
-                    gradientEnd = Color(0xFF0E7490),    // Teal medium
-                    accentColor = Color(0xFF2DD4BF)     // Teal accent
-                ),
             )
 
         return State(
