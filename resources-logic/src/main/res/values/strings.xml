@@ -318,7 +318,7 @@
 
     <!-- QR Scan -->
     <string name="qr_scan_title">Scan QR Code</string>
-    <string name="qr_scan_subtitle">Scan a QR code to present your credentials or authenticate</string>
+    <string name="qr_scan_subtitle">Scan a credential offer from an issuer or a verification link from a relying party</string>
     <string name="qr_scan_fab_description">Scan QR code</string>
 
     <!-- Documents Screen -->
@@ -396,6 +396,7 @@
     <!-- Qr Scan -->
     <string name="qr_scan_permission_not_granted">Camera permission not provided\nOpen App Settings</string>
     <string name="qr_scan_informative_text_presentation_flow">Having trouble scanning the QR Code?\nPlease try an alternative way</string>
+    <string name="qr_scan_informative_text_universal_flow">Having trouble scanning the QR Code?\nYou can add credentials or verify — both types of links are supported</string>
     <string name="qr_scan_informative_text_issuance_flow">Having trouble scanning the QR Code?\nPlease try an alternative way</string>
     <string name="qr_scan_informative_text_signature_flow">Having trouble scanning the QR Code?\nPlease try an alternative way</string>
     <string name="qr_scan_informative_text_device_linking_flow">Having trouble scanning the QR Code?\nPlease try an alternative way</string>

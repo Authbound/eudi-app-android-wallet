@@ -33,6 +33,8 @@ moduleConfig {
 }
 
 dependencies {
+    testImplementation(libs.robolectric)
+
     implementation(libs.gson)
     implementation(libs.zxing)
     implementation(libs.androidx.camera.core)
