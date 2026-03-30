@@ -304,11 +304,6 @@ class DocumentOfferViewModel(
         )
     }
 
-    private fun isMaisaOffer(offerUri: String, offer: Offer?): Boolean {
-        val issuer = offer?.credentialOffer?.credentialIssuerIdentifier?.toString().orEmpty()
-        return issuer.contains("oid4vc.igrant.io") || offerUri.contains("oid4vc.igrant.io")
-    }
-
     private fun issueDocuments(
         context: Context,
         offerUri: String,
@@ -318,8 +313,7 @@ class DocumentOfferViewModel(
     ) {
         logController.d("DocumentOfferViewModel", "Issue documents requested offerUri=$offerUri txCodeLength=$txCodeLength")
         viewModelScope.launch {
-            val isMaisa = isMaisaOffer(offerUri, resolvedOffer)
-            if (txCodeLength != null && !isMaisa) {
+            if (txCodeLength != null) {
                 navigateToOfferCodeScreen(
                     offerUri = offerUri,
                     issuerName = issuerName,
@@ -328,7 +322,6 @@ class DocumentOfferViewModel(
                 )
                 return@launch
             }
-            val txCode = if (txCodeLength != null && isMaisa) "1234" else null
             setState {
                 copy(
                     isLoading = true,
@@ -340,13 +333,13 @@ class DocumentOfferViewModel(
                     offer = offer,
                     issuerName = issuerName,
                     navigation = onSuccessNavigation,
-                    txCode = txCode
+                    txCode = null
                 )
             } ?: documentOfferInteractor.issueDocuments(
                 offerUri = offerUri,
                 issuerName = issuerName,
                 navigation = onSuccessNavigation,
-                txCode = txCode
+                txCode = null
             )
             issueFlow.collect { response ->
                 when (response) {
@@ -393,6 +386,21 @@ class DocumentOfferViewModel(
                             notifyOnAuthenticationFailure = viewState.value.notifyOnAuthenticationFailure,
                             resultHandler = response.resultHandler
                         )
+                    }
+
+                    is IssueDocumentsInteractorPartialState.UserAuthCancelled -> {
+                        setState {
+                            copy(
+                                isLoading = false,
+                                error = ContentErrorConfig(
+                                    errorSubTitle = resourceProvider.getString(
+                                        R.string.issuance_biometric_auth_cancelled
+                                    ),
+                                    onCancel = { setEvent(Event.DismissError) },
+                                    onRetry = { setEvent(Event.StickyButtonPressed(context)) }
+                                )
+                            )
+                        }
                     }
                 }
             }

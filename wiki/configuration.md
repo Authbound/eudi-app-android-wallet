@@ -18,7 +18,7 @@ All core network and trust settings are centralized in the `WalletCoreConfig` in
 ```kotlin
 interface WalletCoreConfig {
     // 1. Issuing API
-    val vciConfig: List<OpenId4VciManager.Config>
+    val issuersConfig: List<VciConfig>
 
     // 2. Wallet Provider Host
     val walletProviderHost: String
@@ -38,18 +38,23 @@ Each flavor can use different issuer URLs, wallet provider hosts, and trust stor
 
 1. Issuing API
 
-   The Issuing API is configured via the `vciConfig` property:
+   The Issuing API is configured via the `issuersConfig` property. Each entry wraps an
+   `OpenId4VciManager.Config` inside a `VciConfig` data class that also carries an `order`
+   value controlling display priority in the AddDocument screen:
 
     ```kotlin
-    override val vciConfig: List<OpenId4VciManager.Config>
+    override val issuersConfig: List<VciConfig>
         get() = listOf(
-           OpenId4VciManager.Config.Builder()
-          .withIssuerUrl(issuerUrl = "https://issuer.eudiw.dev")
-          .withClientAuthenticationType(OpenId4VciManager.ClientAuthenticationType.AttestationBased)
-          .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
-          .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
-          .withDPoPUsage(OpenId4VciManager.Config.DPoPUsage.IfSupported())
-          .build()
+           VciConfig(
+               config = OpenId4VciManager.Config.Builder()
+                  .withIssuerUrl(issuerUrl = "https://issuer.eudiw.dev")
+                  .withClientAuthenticationType(OpenId4VciManager.ClientAuthenticationType.AttestationBased)
+                  .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
+                  .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
+                  .withDPopConfig(DPopConfig.Default)
+                  .build(),
+               order = 0
+           )
     )
     ```
 
@@ -170,6 +175,23 @@ Each flavor can use different issuer URLs, wallet provider hosts, and trust stor
                 shouldLog = should_log_option
             )
     }
+    ```
+
+6. Wallet Activation
+
+   You can enable or disable the PID Wallet Activation flow. If you choose to enable this feature, the Wallet will not be operational unless a PID is issued first.
+   With this feature disabled, there are no such limitations, and the Wallet can operate without a PID being issued beforehand.
+
+   Via the *ConfigLogic* interface inside the business-logic module.
+
+   ```kotlin
+   interface ConfigLogic {
+   
+         /**
+         * Set if the wallet requires PID Activation.
+         */
+        val forcePidActivation: Boolean get() = false
+   }
     ```
 
 ## DeepLink Schemas configuration
@@ -354,7 +376,7 @@ configureOpenId4Vp {
 
 ## Scoped Issuance Document Configuration
 
-The credential configuration is derived directly from the issuer's metadata. The issuer URL is configured per flavor via the *vciConfig* property inside the core-logic module at src/demo/config/WalletCoreConfigImpl and src/dev/config/WalletCoreConfigImpl.
+The credential configuration is derived directly from the issuer's metadata. The issuer URL is configured per flavor via the *issuersConfig* property inside the core-logic module at src/demo/config/WalletCoreConfigImpl and src/dev/config/WalletCoreConfigImpl.
 If you want to add or adjust the displayed scoped documents, you must modify the issuer's metadata, and the wallet will automatically resolve your changes.
 
 ## How to work with self-signed certificates

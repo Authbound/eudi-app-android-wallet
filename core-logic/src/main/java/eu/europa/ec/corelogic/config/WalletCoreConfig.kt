@@ -21,7 +21,6 @@ import eu.europa.ec.corelogic.model.DocumentCategory
 import eu.europa.ec.corelogic.model.DocumentIdentifier
 import eu.europa.ec.eudi.wallet.EudiWalletConfig
 import eu.europa.ec.eudi.wallet.document.CreateDocumentSettings.CredentialPolicy
-import eu.europa.ec.eudi.wallet.issue.openid4vci.OpenId4VciManager
 import java.time.Duration
 
 interface WalletCoreConfig {
@@ -35,9 +34,13 @@ interface WalletCoreConfig {
     val config: EudiWalletConfig
 
     /**
-     * List of Configurations for Verifiable Credentials Issuance (VCI).
+     * List of [VciConfig] entries for Verifiable Credentials Issuance (VCI).
+     *
+     * Each entry wraps an [eu.europa.ec.eudi.wallet.issue.openid4vci.OpenId4VciManager.Config]
+     * together with an [VciConfig.order] value that controls display ordering in the
+     * AddDocument screen.
      */
-    val vciConfig: List<OpenId4VciManager.Config>
+    val issuersConfig: List<VciConfig>
 
     /**
      * Returns a predefined set of document categories and their associated identifiers.
@@ -184,22 +187,6 @@ interface WalletCoreConfig {
      * Any document type not listed in `documentSpecificRules` will use the `defaultRule`.
      */
     val documentIssuanceConfig: DocumentIssuanceConfig
-        get() = DocumentIssuanceConfig(
-            defaultRule = DocumentIssuanceRule(
-                policy = CredentialPolicy.RotateUse,
-                numberOfCredentials = 1
-            ),
-            documentSpecificRules = mapOf(
-                DocumentIdentifier.MdocPid to DocumentIssuanceRule(
-                    policy = CredentialPolicy.OneTimeUse,
-                    numberOfCredentials = 10
-                ),
-                DocumentIdentifier.SdJwtPid to DocumentIssuanceRule(
-                    policy = CredentialPolicy.OneTimeUse,
-                    numberOfCredentials = 10
-                ),
-            )
-        )
 
     /**
      * Host for the Wallet Provider.

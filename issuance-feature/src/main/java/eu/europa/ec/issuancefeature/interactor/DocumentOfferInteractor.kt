@@ -21,6 +21,7 @@ import eu.europa.ec.authenticationlogic.controller.authentication.BiometricsAvai
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.authenticationlogic.controller.authentication.DeviceAuthenticationResult
 import eu.europa.ec.authenticationlogic.model.BiometricCrypto
+import eu.europa.ec.businesslogic.config.ConfigLogic
 import eu.europa.ec.businesslogic.extension.safeAsync
 import eu.europa.ec.businesslogic.util.safeLet
 import eu.europa.ec.commonfeature.config.SuccessUIConfig
@@ -87,6 +88,8 @@ sealed class IssueDocumentsInteractorPartialState {
         val crypto: BiometricCrypto,
         val resultHandler: DeviceAuthenticationResult
     ) : IssueDocumentsInteractorPartialState()
+
+    data object UserAuthCancelled : IssueDocumentsInteractorPartialState()
 }
 
 interface DocumentOfferInteractor {
@@ -126,7 +129,8 @@ class DocumentOfferInteractorImpl(
     private val deviceAuthenticationInteractor: DeviceAuthenticationInteractor,
     private val resourceProvider: ResourceProvider,
     private val uiSerializer: UiSerializer,
-    private val logController: LogController
+    private val logController: LogController,
+    private val configLogic: ConfigLogic
 ) : DocumentOfferInteractor {
 
     private val genericErrorMsg
@@ -181,16 +185,11 @@ class DocumentOfferInteractorImpl(
                                     val id = offeredDocument.documentIdentifier
                                     id == DocumentIdentifier.MdocPid || id == DocumentIdentifier.SdJwtPid
                                 }
-                            val offerHasOnlyNonPidDocuments =
-                                response.offer.offeredDocuments.isNotEmpty() &&
-                                    response.offer.offeredDocuments.none { offeredDocument ->
-                                        val id = offeredDocument.documentIdentifier
-                                        id == DocumentIdentifier.MdocPid || id == DocumentIdentifier.SdJwtPid
-                                    }
-                            if (hasMainPid || hasPidInOffer || offerHasOnlyNonPidDocuments) {
+
+                            if (hasMainPid || hasPidInOffer || !configLogic.forcePidActivation) {
                                 logController.d(
                                     "DocumentOfferInteractor",
-                                    "resolveDocumentOffer parsed issuer=${response.offer.credentialOffer.credentialIssuerIdentifier} txCode=${response.offer.txCodeSpec?.length} grants=${response.offer.credentialOffer.grants}"
+                                    "resolveDocumentOffer parsed issuer=${response.offer.credentialOffer?.credentialIssuerIdentifier} txCode=${response.offer.txCodeSpec?.length} grants=${response.offer.credentialOffer?.grants}"
                                 )
                                 ResolveDocumentOfferInteractorPartialState.Success(
                                     documents = response.offer.offeredDocuments.map { offeredDocument ->
@@ -273,6 +272,10 @@ class DocumentOfferInteractorImpl(
                                 )
                             )
                         }
+
+                        is IssueDocumentsPartialState.UserAuthCancelled -> {
+                            IssueDocumentsInteractorPartialState.UserAuthCancelled
+                        }
                     }
                 }.collect {
                     emit(it)
@@ -333,6 +336,10 @@ class DocumentOfferInteractorImpl(
                                 navigation = navigation
                             )
                         )
+                    }
+
+                    is IssueDocumentsPartialState.UserAuthCancelled -> {
+                        IssueDocumentsInteractorPartialState.UserAuthCancelled
                     }
                 }
             }.collect {

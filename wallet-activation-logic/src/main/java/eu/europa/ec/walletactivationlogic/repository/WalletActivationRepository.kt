@@ -152,6 +152,8 @@ open class WalletActivationRepositoryImpl(
                     )
                 }
             } else {
+                val errorBody = response.errorBody()
+                logController.e("WalletActivation") { "WUA HTTP ${response.code()}: $errorBody" }
                 val error = parseHttpError(response, challengeId)
                 logController.e("WalletActivation", Exception("WUA failed: ${error.message}"))
                 Result.failure(error)

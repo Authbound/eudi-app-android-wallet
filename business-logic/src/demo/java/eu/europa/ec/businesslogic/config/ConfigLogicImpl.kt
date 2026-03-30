@@ -17,7 +17,6 @@
 package eu.europa.ec.businesslogic.config
 
 import android.content.Context
-import eu.europa.ec.businesslogic.util.EmulatorDetector
 import eu.europa.ec.eudi.rqesui.infrastructure.config.EudiRQESUiConfig
 
 class ConfigLogicImpl(val context: Context) : ConfigLogic {
@@ -31,15 +30,9 @@ class ConfigLogicImpl(val context: Context) : ConfigLogic {
         get() = RQESConfigImpl(context)
 
     override val changelogUrl: String?
-        get() = "https://github.com/eu-digital-identity-wallet/eudi-app-android-wallet-ui/releases"
+        get() = null
 }
 
 private class DemoEnvironmentConfig : EnvironmentConfig() {
-    override fun getServerHost(): String = when (environment) {
-        ServerConfig.Debug -> {
-            val host = EmulatorDetector.getLocalhostAddress()
-            "http://$host:3009"
-        }
-        ServerConfig.Release -> "https://mobile-backend.authbound.io"
-    }
+    override fun getServerHost(): String = "https://mobile-backend.authbound.io"
 }

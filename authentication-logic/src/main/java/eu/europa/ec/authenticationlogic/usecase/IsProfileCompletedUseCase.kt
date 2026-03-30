@@ -38,7 +38,7 @@ class IsProfileCompletedUseCaseImpl(
 
         // (Optional) If you want to be stricter, verify from backend when logged in:
         val profile = profileRepository.getMyProfile().getOrNull()
-        val complete = profile?.handle?.isNotBlank() == true && profile.displayName.isNotBlank()
+        val complete = profile?.handle?.isNotBlank() == true && profile?.displayName?.isNotBlank() == true
         if (complete) prefKeys.setProfileCompleted(true)
         return complete
 

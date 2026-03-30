@@ -21,6 +21,7 @@ import eu.europa.ec.authenticationlogic.controller.authentication.BiometricsAvai
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.authenticationlogic.controller.authentication.DeviceAuthenticationResult
 import eu.europa.ec.authenticationlogic.model.BiometricCrypto
+import eu.europa.ec.businesslogic.config.ConfigLogic
 import eu.europa.ec.commonfeature.config.SuccessUIConfig
 import eu.europa.ec.commonfeature.interactor.DeviceAuthenticationInteractor
 import eu.europa.ec.corelogic.controller.IssueDocumentsPartialState
@@ -115,6 +116,9 @@ class TestDocumentOfferInteractor {
     private lateinit var logController: LogController
 
     @Mock
+    private lateinit var configLogic: ConfigLogic
+
+    @Mock
     private lateinit var resultHandler: DeviceAuthenticationResult
 
     @Mock
@@ -135,12 +139,14 @@ class TestDocumentOfferInteractor {
             deviceAuthenticationInteractor = deviceAuthenticationInteractor,
             resourceProvider = resourceProvider,
             uiSerializer = uiSerializer,
-            logController = logController
+            logController = logController,
+            configLogic = configLogic
         )
         biometricCrypto = BiometricCrypto(cryptoObject = null)
 
         whenever(resourceProvider.genericErrorMessage()).thenReturn(mockedGenericErrorMessage)
         whenever(resourceProvider.getLocale()).thenReturn(mockedDefaultLocale)
+        whenever(configLogic.forcePidActivation).thenReturn(true)
     }
 
     @After
@@ -389,6 +395,7 @@ class TestDocumentOfferInteractor {
                     issuerName = mockedIssuerName,
                     txCodeLength = mockedOffer.txCodeSpec?.length,
                     issuerLogo = null,
+                    offer = mockedOffer
                 )
 
                 // Then
@@ -414,6 +421,7 @@ class TestDocumentOfferInteractor {
     fun `Given Case 6, When resolveDocumentOffer is called, Then Case 6 Expected Result is returned`() =
         coroutineRule.runTest {
             // Given
+            whenever(configLogic.forcePidActivation).thenReturn(false)
             val mockedOffer = mockOffer(
                 issuerName = mockedIssuerName,
                 offeredDocuments = mockedOfferedDocumentsList,
@@ -439,6 +447,7 @@ class TestDocumentOfferInteractor {
                     issuerName = mockedIssuerName,
                     txCodeLength = mockedOffer.txCodeSpec?.length,
                     issuerLogo = null,
+                    offer = mockedOffer
                 )
                 // Then
                 assertEquals(expectedResult, awaitItem())

@@ -1,0 +1,215 @@
+/*
+ * Copyright (c) 2025 European Commission
+ *
+ * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
+ * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
+ * except in compliance with the Licence.
+ *
+ * You may obtain a copy of the Licence at:
+ * https://joinup.ec.europa.eu/software/page/eupl
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the Licence is distributed on an "AS IS" basis, WITHOUT WARRANTIES OR CONDITIONS OF
+ * ANY KIND, either express or implied. See the Licence for the specific language
+ * governing permissions and limitations under the Licence.
+ */
+
+package eu.europa.ec.dashboardfeature.ui.home
+
+import eu.europa.ec.corelogic.model.DocumentCategory
+import eu.europa.ec.corelogic.model.DocumentIdentifier
+import eu.europa.ec.dashboardfeature.interactor.HomeInteractor
+import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetCredentialsPartialState
+import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetHeroCredentialPartialState
+import eu.europa.ec.dashboardfeature.ui.documents.detail.model.DocumentIssuanceStateUi
+import eu.europa.ec.dashboardfeature.ui.documents.list.model.DocumentUi
+import eu.europa.ec.resourceslogic.provider.ResourceProvider
+import eu.europa.ec.testlogic.extension.runTest
+import eu.europa.ec.testlogic.rule.CoroutineTestRule
+import eu.europa.ec.uilogic.component.AppIcons
+import eu.europa.ec.uilogic.component.ListItemDataUi
+import eu.europa.ec.uilogic.component.ListItemLeadingContentDataUi
+import eu.europa.ec.uilogic.component.ListItemMainContentDataUi
+import eu.europa.ec.uilogic.serializer.UiSerializer
+import junit.framework.TestCase.assertEquals
+import junit.framework.TestCase.assertFalse
+import junit.framework.TestCase.assertTrue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Before
+import org.junit.Rule
+import org.junit.Test
+import org.mockito.Mock
+import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.any
+import org.mockito.kotlin.whenever
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class TestHomeViewModel {
+
+    private val testDispatcher = StandardTestDispatcher()
+    private val testScope = TestScope(testDispatcher)
+
+    @get:Rule
+    val coroutineRule = CoroutineTestRule(testDispatcher, testScope)
+
+    @Mock
+    private lateinit var homeInteractor: HomeInteractor
+
+    @Mock
+    private lateinit var uiSerializer: UiSerializer
+
+    @Mock
+    private lateinit var resourceProvider: ResourceProvider
+
+    private lateinit var closeable: AutoCloseable
+
+    @Before
+    fun before() {
+        closeable = MockitoAnnotations.openMocks(this)
+        Dispatchers.setMain(testDispatcher)
+        whenever(resourceProvider.getString(any<Int>())).thenReturn("")
+        whenever(homeInteractor.isBleCentralClientModeEnabled()).thenReturn(false)
+    }
+
+    @After
+    fun after() {
+        Dispatchers.resetMain()
+        closeable.close()
+    }
+
+    // Test 1: GetCredentials event fetches and updates credentials in state
+    @Test
+    fun `Given credentials available, When GetCredentials event, Then state contains credentials`() =
+        coroutineRule.runTest {
+            // Given
+            val mockCredentials = listOf(
+                DocumentCategory.Government to listOf(createDocumentUi("doc-1", "PID Document"))
+            )
+            whenever(homeInteractor.getCredentials()).thenReturn(
+                flow {
+                    emit(HomeInteractorGetCredentialsPartialState.Success(mockCredentials))
+                }
+            )
+            whenever(homeInteractor.getHeroCredential()).thenReturn(
+                flow {
+                    emit(HomeInteractorGetHeroCredentialPartialState.Success(emptyList()))
+                }
+            )
+
+            // When
+            val viewModel = createViewModel()
+            viewModel.setEvent(Event.GetCredentials)
+            testScope.advanceUntilIdle()
+
+            // Then
+            assertEquals(mockCredentials, viewModel.viewState.value.credentials)
+            assertFalse(viewModel.viewState.value.isLoadingCredentials)
+        }
+
+    // Test 2: GetCredentials refreshes with new data (simulates post-issuance refresh)
+    @Test
+    fun `Given new credential issued, When GetCredentials dispatched again, Then state updates with new credentials`() =
+        coroutineRule.runTest {
+            // Given - initial credentials
+            val oldCredentials = listOf(
+                DocumentCategory.Government to listOf(createDocumentUi("doc-1", "PID Document"))
+            )
+            whenever(homeInteractor.getCredentials()).thenReturn(
+                flow {
+                    emit(HomeInteractorGetCredentialsPartialState.Success(oldCredentials))
+                }
+            )
+            whenever(homeInteractor.getHeroCredential()).thenReturn(
+                flow {
+                    emit(HomeInteractorGetHeroCredentialPartialState.Success(emptyList()))
+                }
+            )
+
+            val viewModel = createViewModel()
+            viewModel.setEvent(Event.GetCredentials)
+            testScope.advanceUntilIdle()
+            assertEquals(oldCredentials, viewModel.viewState.value.credentials)
+
+            // When - new credential issued, GetCredentials dispatched again
+            val newCredentials = listOf(
+                DocumentCategory.Government to listOf(
+                    createDocumentUi("doc-1", "PID Document"),
+                    createDocumentUi("doc-2", "mDL Document")
+                )
+            )
+            whenever(homeInteractor.getCredentials()).thenReturn(
+                flow {
+                    emit(HomeInteractorGetCredentialsPartialState.Success(newCredentials))
+                }
+            )
+
+            viewModel.setEvent(Event.GetCredentials)
+            testScope.advanceUntilIdle()
+
+            // Then
+            assertEquals(newCredentials, viewModel.viewState.value.credentials)
+        }
+
+    // Test 3: GetCredentials failure shows empty message
+    @Test
+    fun `Given interactor fails, When GetCredentials event, Then showEmptyCredentialsMessage is true`() =
+        coroutineRule.runTest {
+            // Given
+            whenever(homeInteractor.getCredentials()).thenReturn(
+                flow {
+                    emit(HomeInteractorGetCredentialsPartialState.Failure("error"))
+                }
+            )
+            whenever(homeInteractor.getHeroCredential()).thenReturn(
+                flow {
+                    emit(HomeInteractorGetHeroCredentialPartialState.Success(emptyList()))
+                }
+            )
+
+            // When
+            val viewModel = createViewModel()
+            viewModel.setEvent(Event.GetCredentials)
+            testScope.advanceUntilIdle()
+
+            // Then
+            assertTrue(viewModel.viewState.value.showEmptyCredentialsMessage)
+            assertFalse(viewModel.viewState.value.isLoadingCredentials)
+        }
+
+    //region Helper Methods
+
+    private fun createViewModel(): HomeViewModel {
+        return HomeViewModel(
+            homeInteractor = homeInteractor,
+            uiSerializer = uiSerializer,
+            resourceProvider = resourceProvider
+        )
+    }
+
+    private fun createDocumentUi(id: String, name: String): DocumentUi {
+        return DocumentUi(
+            documentIssuanceState = DocumentIssuanceStateUi.Issued,
+            uiData = ListItemDataUi(
+                itemId = id,
+                mainContentData = ListItemMainContentDataUi.Text(text = name),
+                overlineText = null,
+                supportingText = null,
+                leadingContentData = ListItemLeadingContentDataUi.Icon(
+                    iconData = AppIcons.Documents
+                )
+            ),
+            documentIdentifier = DocumentIdentifier.MdocPid,
+            documentCategory = DocumentCategory.Government
+        )
+    }
+
+    //endregion
+}

@@ -87,7 +87,7 @@ data class State(
     val action: ScreenNavigateAction
         get() {
             return when (pinFlow) {
-                PinFlow.CREATE -> ScreenNavigateAction.NONE
+                PinFlow.CREATE_WITH_ACTIVATION, PinFlow.CREATE_WITHOUT_ACTIVATION -> ScreenNavigateAction.NONE
                 PinFlow.UPDATE -> ScreenNavigateAction.CANCELABLE
                 PinFlow.VERIFY -> ScreenNavigateAction.NONE
             }
@@ -99,7 +99,7 @@ data class State(
     val onBackEvent: Event
         get() {
             return when (pinFlow) {
-                PinFlow.CREATE -> Event.Finish
+                PinFlow.CREATE_WITH_ACTIVATION, PinFlow.CREATE_WITHOUT_ACTIVATION -> Event.Finish
                 PinFlow.UPDATE -> Event.CancelPressed
                 PinFlow.VERIFY -> Event.Finish
             }
@@ -166,11 +166,11 @@ class PinViewModel(
             biometricInteractor.getBiometricsPreferenceDecided()
         }
         val shouldPromptForBiometricsPreference: Boolean =
-                (pinFlow == PinFlow.CREATE || pinFlow == PinFlow.VERIFY) &&
+                (pinFlow == PinFlow.CREATE_WITH_ACTIVATION || pinFlow == PinFlow.CREATE_WITHOUT_ACTIVATION || pinFlow == PinFlow.VERIFY) &&
                         !hasBiometricsPreferenceBeenDecided
 
         when (pinFlow) {
-            PinFlow.CREATE -> {
+            PinFlow.CREATE_WITH_ACTIVATION, PinFlow.CREATE_WITHOUT_ACTIVATION -> {
                 title = resourceProvider.getString(R.string.quick_pin_create_title)
                 subtitle = resourceProvider.getString(R.string.quick_pin_create_enter_subtitle)
                 pinState = PinValidationState.ENTER
@@ -300,7 +300,7 @@ class PinViewModel(
                     setState { copy(pinSuccess = false, isTransitioning = false) }
                     setupEnterPhase()
                 }
-                PinFlow.CREATE -> {
+                PinFlow.CREATE_WITH_ACTIVATION, PinFlow.CREATE_WITHOUT_ACTIVATION -> {
                     setState { copy(pinSuccess = false, isTransitioning = false) }
                     setupEnterPhase()
                 }
@@ -475,7 +475,7 @@ class PinViewModel(
                             )
                 }
             }
-            PinFlow.CREATE -> {
+            PinFlow.CREATE_WITH_ACTIVATION, PinFlow.CREATE_WITHOUT_ACTIVATION -> {
                 when (pinState) {
                     PinValidationState.ENTER ->
                             resourceProvider.getString(R.string.quick_pin_create_enter_subtitle)
@@ -493,7 +493,7 @@ class PinViewModel(
 
     private fun calculateButtonText(pinState: PinValidationState): String {
         return when (pinFlow) {
-            PinFlow.CREATE ->
+            PinFlow.CREATE_WITH_ACTIVATION, PinFlow.CREATE_WITHOUT_ACTIVATION ->
                     when (pinState) {
                         PinValidationState.ENTER ->
                                 resourceProvider.getString(
@@ -534,103 +534,91 @@ class PinViewModel(
                                 ),
                 )
 
+        // After PIN creation without activation → Push to Dashboard
+        val navigationAfterCreateNoActivation = ConfigNavigation(
+            navigationType = NavigationType.PushScreen(
+                screen = DashboardScreens.Dashboard,
+                popUpToScreen = CommonScreens.QuickPin
+            ),
+        )
+
         // After PIN update (change) → Pop back to Dashboard (already in nav stack)
         val navigationAfterUpdate =
                 ConfigNavigation(
                         navigationType = NavigationType.PopTo(DashboardScreens.Dashboard),
                 )
 
-        val navigation =
-                when (pinFlow) {
-                    PinFlow.CREATE -> navigationAfterCreate
-                    PinFlow.UPDATE -> navigationAfterUpdate
-                    PinFlow.VERIFY -> error("Unreachable - checked above")
-                }
-
-        val (successText, successDescription, successButton) =
-                when (pinFlow) {
-                    PinFlow.CREATE ->
-                            Triple(
-                                    resourceProvider.getString(
-                                            R.string.quick_pin_create_success_text
-                                    ),
-                                    resourceProvider.getString(
-                                            R.string.quick_pin_create_success_description
-                                    ),
-                                    resourceProvider.getString(
-                                            R.string.quick_pin_create_success_btn
-                                    )
-                            )
-                    PinFlow.UPDATE ->
-                            Triple(
-                                    resourceProvider.getString(
-                                            R.string.quick_pin_change_success_text
-                                    ),
-                                    resourceProvider.getString(
-                                            R.string.quick_pin_change_success_description
-                                    ),
-                                    resourceProvider.getString(
-                                            R.string.quick_pin_change_success_btn
-                                    )
-                            )
-                    PinFlow.VERIFY -> error("Unreachable - checked above")
-                }
-
-        val imageConfig =
-                when (pinFlow) {
-                    PinFlow.CREATE ->
-                            SuccessUIConfig.ImageConfig(
-                                    type =
-                                            SuccessUIConfig.ImageConfig.Type.Drawable(
-                                                    icon = AppIcons.WalletSecured
-                                            ),
-                                    tint = null,
-                            )
-                    PinFlow.UPDATE -> SuccessUIConfig.ImageConfig()
-                    PinFlow.VERIFY -> error("Unreachable - checked above")
-                }
 
         return generateComposableNavigationLink(
-                screen = CommonScreens.Success,
-                arguments =
-                        generateComposableArguments(
-                                mapOf(
-                                        SuccessUIConfig.serializedKeyName to
-                                                uiSerializer
-                                                        .toBase64(
-                                                                SuccessUIConfig(
-                                                                        textElementsConfig =
-                                                                                SuccessUIConfig
-                                                                                        .TextElementsConfig(
-                                                                                                text =
-                                                                                                        successText,
-                                                                                                description =
-                                                                                                        successDescription
-                                                                                        ),
-                                                                        imageConfig = imageConfig,
-                                                                        buttonConfig =
-                                                                                listOf(
-                                                                                        SuccessUIConfig
-                                                                                                .ButtonConfig(
-                                                                                                        text =
-                                                                                                                successButton,
-                                                                                                        style =
-                                                                                                                SuccessUIConfig
-                                                                                                                        .ButtonConfig
-                                                                                                                        .Style
-                                                                                                                        .PRIMARY,
-                                                                                                        navigation =
-                                                                                                                navigation
-                                                                                                )
-                                                                                ),
-                                                                        onBackScreenToNavigate =
-                                                                                navigation,
-                                                                ),
-                                                                SuccessUIConfig.Parser
-                                                        )
-                                                        .orEmpty()
+            screen = CommonScreens.Success,
+            arguments = generateComposableArguments(
+                mapOf(
+                    SuccessUIConfig.serializedKeyName to uiSerializer.toBase64(
+                        SuccessUIConfig(
+                            textElementsConfig = SuccessUIConfig.TextElementsConfig(
+                                text = when (pinFlow) {
+                                    PinFlow.CREATE_WITH_ACTIVATION, PinFlow.CREATE_WITHOUT_ACTIVATION -> resourceProvider.getString(
+                                        R.string.quick_pin_create_success_text
+                                    )
+
+                                    PinFlow.UPDATE -> resourceProvider.getString(R.string.quick_pin_change_success_text)
+                                    PinFlow.VERIFY -> error("Unreachable - checked above")
+                                },
+                                description = when (pinFlow) {
+                                    PinFlow.CREATE_WITH_ACTIVATION -> resourceProvider.getString(R.string.quick_pin_create_success_description)
+                                    PinFlow.CREATE_WITHOUT_ACTIVATION -> resourceProvider.getString(
+                                        R.string.quick_pin_create_success_no_activation_description
+                                    )
+
+                                    PinFlow.UPDATE -> resourceProvider.getString(R.string.quick_pin_change_success_description)
+                                    PinFlow.VERIFY -> error("Unreachable - checked above")
+                                }
+                            ),
+                            imageConfig = when (pinFlow) {
+                                PinFlow.CREATE_WITH_ACTIVATION, PinFlow.CREATE_WITHOUT_ACTIVATION -> SuccessUIConfig.ImageConfig(
+                                    type = SuccessUIConfig.ImageConfig.Type.Drawable(
+                                        icon = AppIcons.WalletSecured
+                                    ),
+                                    tint = null,
                                 )
-                        )
+
+                                PinFlow.UPDATE -> SuccessUIConfig.ImageConfig()
+                                PinFlow.VERIFY -> error("Unreachable - checked above")
+                            },
+                            buttonConfig = listOf(
+                                SuccessUIConfig.ButtonConfig(
+                                    text = when (pinFlow) {
+                                        PinFlow.CREATE_WITH_ACTIVATION -> resourceProvider.getString(
+                                            R.string.quick_pin_create_success_btn
+                                        )
+
+                                        PinFlow.CREATE_WITHOUT_ACTIVATION -> resourceProvider.getString(
+                                            R.string.quick_pin_create_success_no_activation_btn
+                                        )
+
+                                        PinFlow.UPDATE -> resourceProvider.getString(R.string.quick_pin_change_success_btn)
+                                        PinFlow.VERIFY -> error("Unreachable - checked above")
+                                    },
+                                    style = SuccessUIConfig.ButtonConfig.Style.PRIMARY,
+                                    navigation = when (pinFlow) {
+                                        PinFlow.CREATE_WITH_ACTIVATION -> navigationAfterCreate
+                                        PinFlow.CREATE_WITHOUT_ACTIVATION -> navigationAfterCreateNoActivation
+                                        PinFlow.UPDATE -> navigationAfterUpdate
+                                        PinFlow.VERIFY -> error("Unreachable - checked above")
+                                    }
+                                )
+                            ),
+                            onBackScreenToNavigate = when (pinFlow) {
+                                PinFlow.CREATE_WITH_ACTIVATION -> navigationAfterCreate
+                                PinFlow.CREATE_WITHOUT_ACTIVATION -> navigationAfterCreateNoActivation
+                                PinFlow.UPDATE -> navigationAfterUpdate
+                                PinFlow.VERIFY -> error("Unreachable - checked above")
+                            },
+                        ),
+                        SuccessUIConfig.Parser
+                    ).orEmpty()
+                )
+            )
         )
     }
 

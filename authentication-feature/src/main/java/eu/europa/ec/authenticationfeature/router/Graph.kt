@@ -23,21 +23,35 @@ import eu.europa.ec.authenticationfeature.ui.DeviceSecurityRequiredScreen
 import eu.europa.ec.authenticationfeature.ui.LoginScreen
 import eu.europa.ec.authenticationfeature.ui.ProfileCompletionScreen
 import eu.europa.ec.authenticationfeature.ui.WalletSetupScreen
+import eu.europa.ec.commonfeature.model.PinFlow
 import eu.europa.ec.uilogic.navigation.AuthenticationScreens
+import eu.europa.ec.uilogic.navigation.CommonScreens
 import eu.europa.ec.uilogic.navigation.DashboardScreens
+import eu.europa.ec.uilogic.navigation.helper.generateComposableArguments
+import eu.europa.ec.uilogic.navigation.helper.generateComposableNavigationLink
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
 fun NavGraphBuilder.featureAuthenticationGraph(navController: NavController) {
     val navigateToPinCreate: () -> Unit = {
-        navController.navigate("QUICK_PIN?pinFlow=CREATE") {
+        navController.navigate(
+            generateComposableNavigationLink(
+                screen = CommonScreens.QuickPin,
+                arguments = generateComposableArguments(mapOf("pinFlow" to PinFlow.CREATE_WITH_ACTIVATION))
+            )
+        ) {
             popUpTo(0) { inclusive = true }
             launchSingleTop = true
         }
     }
 
     val navigateToPinVerify: () -> Unit = {
-        navController.navigate("QUICK_PIN?pinFlow=VERIFY") {
+        navController.navigate(
+            generateComposableNavigationLink(
+                screen = CommonScreens.QuickPin,
+                arguments = generateComposableArguments(mapOf("pinFlow" to PinFlow.VERIFY))
+            )
+        ) {
             popUpTo(0) { inclusive = true }
             launchSingleTop = true
         }

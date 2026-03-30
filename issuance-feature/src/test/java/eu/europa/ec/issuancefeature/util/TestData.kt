@@ -32,6 +32,7 @@ import eu.europa.ec.testfeature.util.mockedPhotoIdDocName
 import eu.europa.ec.testfeature.util.mockedPidDocName
 import eu.europa.ec.testfeature.util.mockedPidId
 import eu.europa.ec.testfeature.util.mockedSdJwtPidId
+import eu.europa.ec.testfeature.util.mockedSdJwtPidVct
 import eu.europa.ec.testfeature.util.mockedUuid
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.ListItemDataUi
@@ -54,25 +55,27 @@ internal const val mockedPrimaryButtonText = "Primary button text"
 internal const val mockedRouteArguments = "mockedRouteArguments"
 internal const val mockedTxCode = "mockedTxCode"
 internal const val mockedSuccessText = "Success text"
+internal const val mockedCombinedPid = "PID Combined"
 internal const val mockedSuccessDescription = "Success description"
 internal const val mockedErrorDescription = "Error description"
 internal const val mockedIssuerId = "issuerId"
 
 private const val mockedConfigIssuerId = "configurationId"
+internal const val mockedSdJwtPidConfigId = "sdJwtPidConfigId"
 
 internal val mockedPidOptionItemUi = AddDocumentUi(
     credentialIssuerId = mockedIssuerId,
-    configurationId = mockedConfigIssuerId,
+    configurationIds = listOf(mockedConfigIssuerId),
     itemData = ListItemDataUi(
-        itemId = mockedConfigIssuerId,
-        mainContentData = ListItemMainContentDataUi.Text(text = mockedPidDocName),
+        itemId = "${mockedIssuerId}_$mockedConfigIssuerId",
+        mainContentData = ListItemMainContentDataUi.Text(text = mockedCombinedPid),
         trailingContentData = ListItemTrailingContentDataUi.Icon(iconData = AppIcons.Add)
     ),
 )
 
 internal val mockedMdlOptionItemUi = AddDocumentUi(
     credentialIssuerId = mockedIssuerId,
-    configurationId = mockedConfigIssuerId,
+    configurationIds = listOf(mockedConfigIssuerId),
     itemData = ListItemDataUi(
         itemId = mockedConfigIssuerId,
         mainContentData = ListItemMainContentDataUi.Text(text = mockedMdlDocName),
@@ -82,7 +85,7 @@ internal val mockedMdlOptionItemUi = AddDocumentUi(
 
 internal val mockedAgeOptionItemUi = AddDocumentUi(
     credentialIssuerId = mockedIssuerId,
-    configurationId = mockedConfigIssuerId,
+    configurationIds = listOf(mockedConfigIssuerId),
     itemData = ListItemDataUi(
         itemId = mockedConfigIssuerId,
         mainContentData = ListItemMainContentDataUi.Text(text = mockedAgeVerificationDocName),
@@ -92,7 +95,7 @@ internal val mockedAgeOptionItemUi = AddDocumentUi(
 
 internal val mockedPhotoIdOptionItemUi = AddDocumentUi(
     credentialIssuerId = mockedIssuerId,
-    configurationId = mockedConfigIssuerId,
+    configurationIds = listOf(mockedConfigIssuerId),
     itemData = ListItemDataUi(
         itemId = mockedConfigIssuerId,
         mainContentData = ListItemMainContentDataUi.Text(text = mockedPhotoIdDocName),
@@ -106,13 +109,23 @@ internal val mockedScopedDocuments: List<ScopedDocumentDomain>
             name = mockedPidDocName,
             configurationId = mockedConfigIssuerId,
             credentialIssuerId = mockedIssuerId,
+            credentialIssuerOrder = 0,
             isPid = true,
             formatType = mockedMdocPidFormat.docType
+        ),
+        ScopedDocumentDomain(
+            name = mockedPidDocName,
+            configurationId = mockedSdJwtPidConfigId,
+            credentialIssuerId = mockedIssuerId,
+            credentialIssuerOrder = 0,
+            isPid = true,
+            formatType = mockedSdJwtPidVct
         ),
         ScopedDocumentDomain(
             name = mockedMdlDocName,
             configurationId = mockedConfigIssuerId,
             credentialIssuerId = mockedIssuerId,
+            credentialIssuerOrder = 0,
             isPid = false,
             formatType = mockedMdocMdlFormat.docType
         ),
@@ -120,6 +133,7 @@ internal val mockedScopedDocuments: List<ScopedDocumentDomain>
             name = mockedAgeVerificationDocName,
             configurationId = mockedConfigIssuerId,
             credentialIssuerId = mockedIssuerId,
+            credentialIssuerOrder = 0,
             isPid = false,
             formatType = mockedMdocAgeVerificationFormat.docType
         ),
@@ -127,6 +141,7 @@ internal val mockedScopedDocuments: List<ScopedDocumentDomain>
             name = mockedPhotoIdDocName,
             configurationId = mockedConfigIssuerId,
             credentialIssuerId = mockedIssuerId,
+            credentialIssuerOrder = 0,
             isPid = false,
             formatType = mockedMdocPhotoIdFormat.docType
         )

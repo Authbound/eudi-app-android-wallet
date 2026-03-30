@@ -51,7 +51,6 @@ object ProvideKtorHttpClient {
                 )
             }
             engine {
-                requestConfig
                 sslManager = { httpsURLConnection ->
                     httpsURLConnection.sslSocketFactory = SSLContext.getInstance("TLS").apply {
                         init(null, trustAllCerts, SecureRandom())

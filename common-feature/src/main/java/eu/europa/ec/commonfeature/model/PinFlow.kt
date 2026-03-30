@@ -19,12 +19,14 @@ package eu.europa.ec.commonfeature.model
 /**
  * Enum representing the different PIN flows in the application.
  *
- * - CREATE: First-time PIN setup (enter → re-enter for confirmation)
+ * - CREATE_WITHOUT_ACTIVATION: First-time PIN setup without PID activation
+ * - CREATE_WITH_ACTIVATION: First-time PIN setup with PID activation enforcement
  * - UPDATE: Change existing PIN (validate current → enter new → re-enter new)
  * - VERIFY: Verify existing PIN during startup (single entry, no re-enter)
  */
 enum class PinFlow {
-    CREATE,
+    CREATE_WITHOUT_ACTIVATION,
+    CREATE_WITH_ACTIVATION,
     UPDATE,
     VERIFY
 }

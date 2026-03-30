@@ -24,7 +24,7 @@ data class ProfileResponse(
     @SerialName("id")
     val id: String,
     @SerialName("handle")
-    val handle: String,
+    val handle: String? = null,
     @SerialName("display_name")
-    val displayName: String
+    val displayName: String? = null
 )

@@ -150,7 +150,8 @@ fun provideWalletCoreDocumentsController(
     bookmarkDao: BookmarkDao,
     transactionLogDao: TransactionLogDao,
     revokedDocumentDao: RevokedDocumentDao,
-    ownershipController: UserDocumentOwnershipController
+    ownershipController: UserDocumentOwnershipController,
+    logController: LogController
 ): WalletCoreDocumentsController =
     WalletCoreDocumentsControllerImpl(
         resourceProvider,
@@ -159,7 +160,8 @@ fun provideWalletCoreDocumentsController(
         bookmarkDao,
         transactionLogDao,
         revokedDocumentDao,
-        ownershipController
+        ownershipController,
+        logController
     )
 
 /**

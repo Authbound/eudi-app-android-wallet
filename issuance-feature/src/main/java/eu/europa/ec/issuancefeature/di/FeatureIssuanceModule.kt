@@ -16,6 +16,7 @@
 
 package eu.europa.ec.issuancefeature.di
 
+import eu.europa.ec.businesslogic.config.ConfigLogic
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.provider.UuidProvider
 import eu.europa.ec.commonfeature.interactor.DeviceAuthenticationInteractor
@@ -67,12 +68,14 @@ fun provideDocumentOfferInteractor(
     resourceProvider: ResourceProvider,
     deviceAuthenticationInteractor: DeviceAuthenticationInteractor,
     uiSerializer: UiSerializer,
-    logController: LogController
+    logController: LogController,
+    configLogic: ConfigLogic
 ): DocumentOfferInteractor =
     DocumentOfferInteractorImpl(
         walletCoreDocumentsController,
         deviceAuthenticationInteractor,
         resourceProvider,
         uiSerializer,
-        logController
+        logController,
+        configLogic
     )

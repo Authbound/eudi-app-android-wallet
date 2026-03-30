@@ -34,5 +34,5 @@ class ConfigLogicImpl(val context: Context) : ConfigLogic {
 }
 
 private class ProdEnvironmentConfig : EnvironmentConfig() {
-    override fun getServerHost(): String = "https://api.authbound.io"
+    override fun getServerHost(): String = "https://mobile-backend.authbound.io"
 }

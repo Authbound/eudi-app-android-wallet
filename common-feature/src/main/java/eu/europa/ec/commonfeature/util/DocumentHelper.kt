@@ -29,12 +29,9 @@ import eu.europa.ec.corelogic.model.ClaimDomain
 import eu.europa.ec.corelogic.model.ClaimPathDomain
 import eu.europa.ec.corelogic.model.ClaimType
 import eu.europa.ec.eudi.wallet.document.IssuedDocument
-import eu.europa.ec.eudi.wallet.document.NameSpace
 import eu.europa.ec.eudi.wallet.document.format.DocumentClaim
 import eu.europa.ec.eudi.wallet.document.format.MsoMdocClaim
-import eu.europa.ec.eudi.wallet.document.format.MsoMdocData
 import eu.europa.ec.eudi.wallet.document.format.SdJwtVcClaim
-import eu.europa.ec.eudi.wallet.document.format.SdJwtVcData
 import eu.europa.ec.eudi.wallet.document.metadata.IssuerMetadata
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
@@ -316,12 +313,6 @@ fun documentHasExpired(
     }
 }
 
-val IssuedDocument.docNamespace: NameSpace?
-    get() = when (val data = this.data) {
-        is MsoMdocData -> data.nameSpaces.keys.first()
-        is SdJwtVcData -> null
-    }
-
 private fun insertPath(
     tree: List<ClaimDomain>,
     path: ClaimPathDomain,
@@ -370,17 +361,21 @@ private fun insertPath(
     return if (path.value.size == 1) {
         // Leaf node (Primitive or Nested Structure)
         if (existingNode == null && currentClaim != null) {
-            val accumulatedClaims: MutableList<ClaimDomain> = mutableListOf()
-            createKeyValue(
-                item = currentClaim.value!!,
-                groupKey = currentClaim.identifier,
-                resourceProvider = resourceProvider,
-                uuidProvider = uuidProvider,
-                claimMetaData = currentClaim.issuerMetadata,
-                disclosurePath = disclosurePath,
-                allItems = accumulatedClaims,
-            )
-            tree + accumulatedClaims
+            currentClaim.value?.let { safeClaimValue ->
+                val accumulatedClaims: MutableList<ClaimDomain> = mutableListOf()
+
+                createKeyValue(
+                    item = safeClaimValue,
+                    groupKey = currentClaim.identifier,
+                    resourceProvider = resourceProvider,
+                    uuidProvider = uuidProvider,
+                    claimMetaData = currentClaim.issuerMetadata,
+                    disclosurePath = disclosurePath,
+                    allItems = accumulatedClaims,
+                )
+
+                tree + accumulatedClaims
+            } ?: tree // No value to add (claim value is null), return unchanged
         } else {
             tree // Already exists or not available, return unchanged
         }

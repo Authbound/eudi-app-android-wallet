@@ -27,6 +27,7 @@ import eu.europa.ec.corelogic.controller.WalletCorePresentationController
 import eu.europa.ec.eudi.wallet.document.IssuedDocument
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.testfeature.util.StringResourceProviderMocker.mockTransformToUiItemsStrings
+import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.testfeature.util.getMockedMdlWithBasicFields
 import eu.europa.ec.testfeature.util.getMockedPidWithBasicFields
 import eu.europa.ec.testfeature.util.mockedExceptionWithMessage
@@ -73,6 +74,9 @@ class TestPresentationRequestInteractor {
     private lateinit var walletCoreDocumentsController: WalletCoreDocumentsController
 
     @Mock
+    private lateinit var logController: LogController
+
+    @Mock
     private lateinit var uuidProvider: UuidProvider
 
     private lateinit var interactor: PresentationRequestInteractor
@@ -87,7 +91,8 @@ class TestPresentationRequestInteractor {
             resourceProvider = resourceProvider,
             walletCorePresentationController = walletCorePresentationController,
             walletCoreDocumentsController = walletCoreDocumentsController,
-            uuidProvider = uuidProvider
+            uuidProvider = uuidProvider,
+            logController = logController
         )
 
         whenever(resourceProvider.genericErrorMessage()).thenReturn(mockedGenericErrorMessage)

@@ -85,7 +85,7 @@ sealed class StartupState {
         override val screenRoute: String
             get() = generateComposableNavigationLink(
                 screen = CommonScreens.QuickPin,
-                arguments = generateComposableArguments(mapOf("pinFlow" to PinFlow.CREATE))
+                arguments = generateComposableArguments(mapOf("pinFlow" to PinFlow.CREATE_WITHOUT_ACTIVATION))
             )
         override val logMessage: String = "PIN not set → QuickPin (CREATE)"
     }

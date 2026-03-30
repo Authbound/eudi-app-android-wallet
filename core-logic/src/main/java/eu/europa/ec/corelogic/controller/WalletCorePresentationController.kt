@@ -18,6 +18,7 @@ package eu.europa.ec.corelogic.controller
 
 import androidx.activity.ComponentActivity
 import eu.europa.ec.authenticationlogic.model.BiometricCrypto
+import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.extension.addOrReplace
 import eu.europa.ec.businesslogic.extension.safeAsync
 import eu.europa.ec.businesslogic.extension.toUri
@@ -199,8 +200,13 @@ interface WalletCorePresentationController {
 class WalletCorePresentationControllerImpl(
     private val eudiWallet: EudiWallet,
     private val resourceProvider: ResourceProvider,
+    private val logController: LogController,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : WalletCorePresentationController {
+
+    companion object {
+        private const val TAG = "WalletPresentation"
+    }
 
     private val genericErrorMessage = resourceProvider.genericErrorMessage()
 
@@ -306,6 +312,8 @@ class WalletCorePresentationControllerImpl(
             eudiWallet.stopProximityPresentation()
         }
     }.safeAsync {
+        logController.e(TAG) { "Events flow caught exception: ${it::class.qualifiedName}: ${it.message}" }
+        logController.e(TAG, it)
         TransferEventPartialState.Error(
             error = it.localizedMessage ?: resourceProvider.genericErrorMessage()
         )
@@ -483,31 +491,32 @@ class WalletCorePresentationControllerImpl(
         val config = requireInit { _config }
         eudiWallet.addTransferEventListener(listener)
         if (config is PresentationControllerConfig.OpenId4VP) {
-            android.util.Log.d(
-                "WalletPresentation",
-                "Starting remote presentation with URI: ${config.uri}"
-            )
-            // Log decoded URI for debugging query parameters
             try {
                 val uri = config.uri.toUri()
-                android.util.Log.d("WalletPresentation", "Parsed URI scheme: ${uri.scheme}")
-                android.util.Log.d("WalletPresentation", "Parsed URI host: ${uri.host}")
-                android.util.Log.d("WalletPresentation", "Parsed URI path: ${uri.path}")
-                android.util.Log.d("WalletPresentation", "Parsed URI query: ${uri.query}")
-                uri.queryParameterNames.forEach { param ->
-                    val value = uri.getQueryParameter(param)
-                    // Truncate long values for readability
-                    val displayValue = if ((value?.length ?: 0) > 200) {
-                        "${value?.take(200)}... (truncated, total ${value?.length} chars)"
-                    } else {
-                        value
+                logController.d(TAG, "Starting remote presentation: scheme=${uri.scheme} host=${uri.host} path=${uri.path} params=${uri.queryParameterNames}")
+
+                val hasCredentialOffer = uri.getQueryParameter("credential_offer_uri") != null
+                        || uri.getQueryParameter("credential_offer") != null
+                if (hasCredentialOffer) {
+                    logController.w(TAG) {
+                        "URI contains credential_offer parameter — this looks like an " +
+                                "OpenID4VCI issuance offer, NOT an OpenID4VP presentation request. " +
+                                "The wallet core will likely reject this URI."
                     }
-                    android.util.Log.d("WalletPresentation", "  Query param '$param': $displayValue")
                 }
             } catch (e: Exception) {
-                android.util.Log.e("WalletPresentation", "Failed to parse URI for logging: ${e.message}")
+                logController.e(TAG) { "Failed to parse URI for logging: ${e.message}" }
             }
-            eudiWallet.startRemotePresentation(config.uri.toUri())
+
+            try {
+                logController.d(TAG, "Calling eudiWallet.startRemotePresentation()...")
+                eudiWallet.startRemotePresentation(config.uri.toUri())
+                logController.d(TAG, "startRemotePresentation() returned successfully")
+            } catch (e: Exception) {
+                logController.e(TAG) { "startRemotePresentation() threw exception: ${e::class.qualifiedName}: ${e.message}" }
+                logController.e(TAG, e)
+                throw e
+            }
         }
     }
 

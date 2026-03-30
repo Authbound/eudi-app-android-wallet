@@ -41,6 +41,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -68,11 +70,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import eu.europa.ec.authenticationlogic.model.OAuthProvider
 import eu.europa.ec.resourceslogic.R
@@ -81,6 +86,7 @@ import eu.europa.ec.uilogic.component.content.ImePaddingConfig
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
+import eu.europa.ec.uilogic.component.utils.SIZE_100
 import eu.europa.ec.uilogic.component.wrap.ButtonConfig
 import eu.europa.ec.uilogic.component.wrap.ButtonType
 import eu.europa.ec.uilogic.component.wrap.WrapButton
@@ -368,9 +374,11 @@ private fun LoginFormContent(
                         val textFieldColors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = if (isDarkTheme) Color(0xFF60A5FA) else MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = if (isDarkTheme) Color(0xFF5F6A85) else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                            focusedLabelColor = if (isDarkTheme) Color(0xFF93C5FD) else MaterialTheme.colorScheme.primary,
+                            focusedLabelColor = if (isDarkTheme) Color.White else MaterialTheme.colorScheme.primary,
                             unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            cursorColor = if (isDarkTheme) Color(0xFF60A5FA) else MaterialTheme.colorScheme.primary
+                            cursorColor = if (isDarkTheme) Color(0xFF60A5FA) else MaterialTheme.colorScheme.primary,
+                            focusedTextColor = if (isDarkTheme) Color.White else MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = if (isDarkTheme) Color.White.copy(alpha = 0.87f) else MaterialTheme.colorScheme.onSurface
                         )
 
                         OutlinedTextField(
@@ -466,39 +474,48 @@ private fun LoginFormContent(
                             )
                         }
 
-                        // Google OAuth button
-                        WrapButton(
+                        // Google OAuth button — follows Google branding guidelines:
+                        // white/light filled background, multicolor "G" logo, dark text
+                        Button(
+                            onClick = {
+                                onEvent(
+                                    Event.SignInWithOAuth(
+                                        OAuthProvider.GOOGLE,
+                                        context
+                                    )
+                                )
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(52.dp),
-                            buttonConfig = ButtonConfig(
-                                type = ButtonType.SECONDARY,
-                                onClick = {
-                                    onEvent(
-                                        Event.SignInWithOAuth(
-                                            OAuthProvider.GOOGLE,
-                                            context
-                                        )
-                                    )
-                                },
-                            )
+                            shape = RoundedCornerShape(SIZE_100.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isDarkTheme) Color(0xFF1F1F1F) else Color.White,
+                                contentColor = if (isDarkTheme) Color(0xFFE3E3E3) else Color(0xFF1F1F1F)
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(
+                                defaultElevation = 1.dp
+                            ),
+                            border = BorderStroke(
+                                width = 1.dp,
+                                color = if (isDarkTheme) Color(0xFF8E918F) else Color(0xFF747775)
+                            ),
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.Center
                             ) {
                                 Icon(
-                                    painter = painterResource(id = R.drawable.baseline_person_24),
+                                    painter = painterResource(id = R.drawable.ic_google_logo),
                                     contentDescription = null,
                                     modifier = Modifier.size(20.dp),
-                                    tint = linkTextColor
+                                    tint = Color.Unspecified
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Text(
                                     text = stringResource(id = R.string.login_with_google),
                                     fontWeight = FontWeight.Medium,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = if (isDarkTheme) Color.White else MaterialTheme.colorScheme.onSurface
+                                    style = MaterialTheme.typography.titleMedium
                                 )
                             }
                         }
@@ -521,12 +538,36 @@ private fun LoginFormContent(
                         .padding(top = 12.dp),
                     shape = RoundedCornerShape(12.dp)
                 ) {
+                    val questionPart = if (state.isSignUpMode) {
+                        "Already have an account? "
+                    } else {
+                        "Don\u2019t have an account? "
+                    }
+                    val actionPart = stringResource(
+                        id = if (state.isSignUpMode) R.string.sign_in else R.string.sign_up
+                    )
+                    val questionColor = if (isDarkTheme) Color.White.copy(alpha = 0.8f)
+                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    val actionColor = if (isDarkTheme) Color.White else accentBlue
                     Text(
-                        text = stringResource(
-                            id = if (state.isSignUpMode) R.string.already_have_account else R.string.dont_have_account
-                        ),
-                        color = linkTextColor,
-                        fontWeight = FontWeight.Medium
+                        text = buildAnnotatedString {
+                            withStyle(
+                                SpanStyle(
+                                    color = questionColor,
+                                    fontWeight = FontWeight.Normal
+                                )
+                            ) {
+                                append(questionPart)
+                            }
+                            withStyle(
+                                SpanStyle(
+                                    color = actionColor,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            ) {
+                                append(actionPart)
+                            }
+                        }
                     )
                 }
             }

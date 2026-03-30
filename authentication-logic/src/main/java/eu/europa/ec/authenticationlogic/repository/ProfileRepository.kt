@@ -15,12 +15,22 @@
  */
 package eu.europa.ec.authenticationlogic.repository
 
-import android.util.Log
 import eu.europa.ec.authenticationlogic.model.Profile
+import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.networklogic.api.ApiClient
 import eu.europa.ec.networklogic.model.request.CompleteProfileRequest
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
+
+/**
+ * Exception from profile API calls that preserves the HTTP status code.
+ * Allows downstream error classification (e.g., 400 server error vs network failure).
+ */
+class ProfileApiException(
+    val httpCode: Int,
+    val httpMessage: String,
+    val errorBody: String? = null
+) : Exception("HTTP $httpCode: $httpMessage")
 
 interface ProfileRepository {
     suspend fun completeProfile(request: CompleteProfileRequest): Result<Unit>
@@ -30,7 +40,8 @@ interface ProfileRepository {
 
 class ProfileRepositoryImpl(
     private val apiClient: ApiClient,
-    private val supabaseClient: SupabaseClient
+    private val supabaseClient: SupabaseClient,
+    private val logController: LogController
 ) : ProfileRepository {
 
     companion object {
@@ -46,7 +57,11 @@ class ProfileRepositoryImpl(
             if (response.isSuccessful) {
                 Result.success(Unit)
             } else {
-                Result.failure(Exception("HTTP ${response.code()}: ${response.message()}"))
+                Result.failure(ProfileApiException(
+                    httpCode = response.code(),
+                    httpMessage = response.message(),
+                    errorBody = response.errorBody()
+                ))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -55,33 +70,31 @@ class ProfileRepositoryImpl(
 
     override suspend fun checkHandle(handle: String): Result<Boolean> {
         return try {
-            Log.d(TAG, "checkHandle: Starting handle check for '$handle'")
+            logController.d(TAG, "checkHandle: Starting handle check for '$handle'")
 
             val session = supabaseClient.auth.currentSessionOrNull()
             val token = session?.accessToken
 
             if (token == null) {
-                Log.e(TAG, "checkHandle: No auth token available. Session: ${session != null}")
+                logController.e(TAG) { "checkHandle: No auth token available. Session: ${session != null}" }
                 return Result.failure(Exception("User not authenticated - no access token"))
             }
 
-            Log.d(TAG, "checkHandle: Got auth token (${token.take(20)}...), calling API")
-
             val response = apiClient.checkHandleAvailability(handle, token)
 
-            Log.d(TAG, "checkHandle: Response - isSuccessful=${response.isSuccessful}, code=${response.code()}")
+            logController.d(TAG, "checkHandle: Response code=${response.code()}")
 
             if (response.isSuccessful) {
                 val available = response.body()?.available ?: false
-                Log.d(TAG, "checkHandle: Handle '$handle' available=$available")
+                logController.d(TAG, "checkHandle: Handle '$handle' available=$available")
                 Result.success(available)
             } else {
                 val errorMsg = "HTTP ${response.code()}: ${response.message()}"
-                Log.e(TAG, "checkHandle: API error - $errorMsg, errorBody=${response.errorBody()}")
+                logController.e(TAG) { "checkHandle: API error - $errorMsg" }
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "checkHandle: Exception - ${e.javaClass.simpleName}: ${e.message}", e)
+            logController.e(TAG) { "checkHandle: Exception - ${e.javaClass.simpleName}: ${e.message}" }
             Result.failure(e)
         }
     }
@@ -95,7 +108,7 @@ class ProfileRepositoryImpl(
             if (response.isSuccessful) {
                 val profileResponse = response.body()
                     ?: return Result.failure(Exception("Empty response body"))
-                
+
                 // Convert NetworkLogic ProfileResponse to AuthenticationLogic Profile
                 val profile = Profile(
                     id = profileResponse.id,
@@ -104,7 +117,11 @@ class ProfileRepositoryImpl(
                 )
                 Result.success(profile)
             } else {
-                Result.failure(Exception("HTTP ${response.code()}: ${response.message()}"))
+                Result.failure(ProfileApiException(
+                    httpCode = response.code(),
+                    httpMessage = response.message(),
+                    errorBody = response.errorBody()
+                ))
             }
         } catch (e: Exception) {
             Result.failure(e)

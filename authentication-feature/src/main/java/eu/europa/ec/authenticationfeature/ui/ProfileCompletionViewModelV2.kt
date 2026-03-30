@@ -122,10 +122,10 @@ class ProfileCompletionViewModelV2(
                     val profile = profileResult.getOrNull()
                     if (profile != null) {
                         logController.d("ProfileCompletionV2", "Found existing profile: ${profile.handle}")
-                        setState { 
+                        setState {
                             copy(
-                                handle = profile.handle,
-                                displayName = profile.displayName,
+                                handle = profile.handle.orEmpty(),
+                                displayName = profile.displayName.orEmpty(),
                                 isHandleAvailable = true // If profile exists, handle was already validated
                             )
                         }
