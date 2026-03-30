@@ -63,6 +63,7 @@ internal class WalletCoreConfigImpl(
 
                     configureReaderTrustStore(
                         context,
+                        R.raw.authbound_verifier_root_ca,
                         R.raw.pidissuerca02_cz,
                         R.raw.pidissuerca02_ee,
                         R.raw.pidissuerca02_eu,
