@@ -33,8 +33,16 @@ enum class AppFlavor(
     val applicationIdSuffix: String? = null,
     val applicationNameSuffix: String? = null
 ) {
-    Dev(FlavorDimension.contentType, applicationIdSuffix = ".dev"),
-    Demo(FlavorDimension.contentType, applicationIdSuffix = ".demo"),
+    Dev(
+        FlavorDimension.contentType, 
+        applicationIdSuffix = ".dev",
+        applicationNameSuffix = " Dev"
+    ),
+    Demo(
+        FlavorDimension.contentType,
+        applicationIdSuffix = ".demo",
+        applicationNameSuffix = " Demo"
+    ),
     Prod(FlavorDimension.contentType)
 }
 

@@ -440,6 +440,10 @@ private fun Content(
                 is Effect.ShowBottomSheet -> {
                     onEventSend(Event.BottomSheet.UpdateBottomSheetState(isOpen = true))
                 }
+
+                is Effect.TriggerBiometricAuth -> {
+                    onEventSend(Event.OnBiometricLoginPressed(context = localContext))
+                }
             }
         }.collect()
     }

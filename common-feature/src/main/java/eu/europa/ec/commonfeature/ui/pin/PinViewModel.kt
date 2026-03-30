@@ -66,6 +66,7 @@ data class State(
         val quickPinError: String? = null,
         val isBiometricsEnabled: Boolean = false,
         val showBiometricsPreferencePrompt: Boolean = false,
+        val pendingNavigationRoute: String? = null,
         val validationResult: FormValidationResult = FormValidationResult(false),
         val subtitle: String = "",
         val title: String = "",
@@ -142,6 +143,7 @@ sealed class Effect : ViewSideEffect {
 
     data object ShowBottomSheet : Effect()
     data object CloseBottomSheet : Effect()
+    data object TriggerBiometricAuth : Effect()
 }
 
 @KoinViewModel
@@ -154,6 +156,9 @@ class PinViewModel(
         @InjectedParam private val pinFlow: PinFlow
 ) : MviViewModel<Event, State, Effect>() {
 
+    // Cached at init time so saveNewPin() can decide whether to show the prompt post-creation.
+    private var biometricsPreferenceNotYetDecided: Boolean = false
+
     override fun setInitialState(): State {
         val title: String
         val subtitle: String
@@ -165,9 +170,9 @@ class PinViewModel(
         val hasBiometricsPreferenceBeenDecided: Boolean = runBlocking {
             biometricInteractor.getBiometricsPreferenceDecided()
         }
-        val shouldPromptForBiometricsPreference: Boolean =
-                (pinFlow == PinFlow.CREATE_WITH_ACTIVATION || pinFlow == PinFlow.CREATE_WITHOUT_ACTIVATION || pinFlow == PinFlow.VERIFY) &&
-                        !hasBiometricsPreferenceBeenDecided
+        biometricsPreferenceNotYetDecided = !hasBiometricsPreferenceBeenDecided
+        // Prompt is always shown AFTER PIN is validated — never at screen start.
+        val shouldPromptForBiometricsPreference: Boolean = false
 
         when (pinFlow) {
             PinFlow.CREATE_WITH_ACTIVATION, PinFlow.CREATE_WITHOUT_ACTIVATION -> {
@@ -286,14 +291,21 @@ class PinViewModel(
         viewModelScope.launch {
             setState { copy(pinSuccess = true) }
             delay(250L)
-            setState { copy(isTransitioning = true) }
-            delay(75L)
             when (pinFlow) {
                 PinFlow.VERIFY -> {
-                    setEffect {
-                        Effect.Navigation.SwitchScreen(
-                                DashboardScreens.Dashboard.screenRoute
-                        )
+                    if (biometricsPreferenceNotYetDecided) {
+                        // PIN verified — now ask about biometrics before going to the dashboard.
+                        setState {
+                            copy(
+                                pinSuccess = false,
+                                pendingNavigationRoute = DashboardScreens.Dashboard.screenRoute,
+                                showBiometricsPreferencePrompt = true
+                            )
+                        }
+                    } else {
+                        setState { copy(isTransitioning = true) }
+                        delay(75L)
+                        setEffect { Effect.Navigation.SwitchScreen(DashboardScreens.Dashboard.screenRoute) }
                     }
                 }
                 PinFlow.UPDATE -> {
@@ -348,11 +360,23 @@ class PinViewModel(
                         setState { copy(quickPinError = it.errorMessage) }
                     }
                     is QuickPinInteractorSetPinPartialState.Success -> {
+                        val nextRoute = getNextScreenRoute()
                         setState { copy(pinSuccess = true) }
                         delay(250L)
-                        setState { copy(isTransitioning = true) }
-                        delay(75L)
-                        setEffect { Effect.Navigation.SwitchScreen(getNextScreenRoute()) }
+                        if (biometricsPreferenceNotYetDecided) {
+                            // Ask about biometrics now that the PIN is set, before proceeding.
+                            setState {
+                                copy(
+                                    pinSuccess = false,
+                                    pendingNavigationRoute = nextRoute,
+                                    showBiometricsPreferencePrompt = true
+                                )
+                            }
+                        } else {
+                            setState { copy(isTransitioning = true) }
+                            delay(75L)
+                            setEffect { Effect.Navigation.SwitchScreen(nextRoute) }
+                        }
                     }
                 }
             }
@@ -398,64 +422,106 @@ class PinViewModel(
         viewModelScope.launch {
             biometricInteractor.storeBiometricsUsageDecision(shouldUseBiometrics)
             biometricInteractor.storeBiometricsPreferenceDecided(true)
+            val pendingRoute = viewState.value.pendingNavigationRoute
             setState {
                 copy(
                         isBiometricsEnabled = shouldUseBiometrics,
                         showBiometricsPreferencePrompt = false,
+                        // Keep pendingNavigationRoute if biometrics enabled — authenticateWithBiometrics
+                        // needs it to decide what to do on completion. Cleared there.
+                        pendingNavigationRoute = if (shouldUseBiometrics) pendingNavigationRoute else null,
                         quickPinError = null
                 )
+            }
+            when {
+                shouldUseBiometrics -> {
+                    // Both CREATE and VERIFY: trigger biometric scan immediately after enabling.
+                    setEffect { Effect.TriggerBiometricAuth }
+                }
+                pendingRoute != null -> {
+                    // Biometrics declined after PIN verified — navigate forward without a scan.
+                    setState { copy(isTransitioning = true) }
+                    delay(75L)
+                    setEffect { Effect.Navigation.SwitchScreen(pendingRoute) }
+                }
             }
         }
     }
 
     private fun authenticateWithBiometrics(context: Context) {
         setState { copy(quickPinError = null) }
+        // Capture now — used inside the async callback to decide post-auth behaviour.
+        val pendingRoute = viewState.value.pendingNavigationRoute
         biometricInteractor.getBiometricsAvailability { availability ->
             when (availability) {
                 BiometricsAvailability.CanAuthenticate -> {
                     biometricInteractor.authenticateWithBiometrics(
                             context = context,
-                            notifyOnAuthenticationFailure = true
+                            notifyOnAuthenticationFailure = pendingRoute == null
                     ) { authResult ->
                         when (authResult) {
                             is BiometricsAuthenticate.Success -> {
-                                handlePinValidationSuccess()
-                            }
-                            is BiometricsAuthenticate.Failed -> {
-                                setState {
-                                    copy(
-                                            quickPinError = authResult.errorMessage,
-                                            pin = "",
-                                            resetPin = true
-                                    )
+                                if (pendingRoute != null) {
+                                    // CREATE flow: scan confirmed — proceed to success screen.
+                                    navigateAfterBiometricActivation(pendingRoute)
+                                } else {
+                                    // VERIFY flow: authenticated — go to dashboard.
+                                    handlePinValidationSuccess()
                                 }
                             }
-                            BiometricsAuthenticate.Cancelled -> Unit
+                            is BiometricsAuthenticate.Failed -> {
+                                if (pendingRoute != null) {
+                                    // CREATE flow: scan failed but preference is saved — proceed anyway.
+                                    navigateAfterBiometricActivation(pendingRoute)
+                                } else {
+                                    setState {
+                                        copy(quickPinError = authResult.errorMessage, pin = "", resetPin = true)
+                                    }
+                                }
+                            }
+                            BiometricsAuthenticate.Cancelled -> {
+                                if (pendingRoute != null) {
+                                    // CREATE flow: scan cancelled — proceed anyway.
+                                    navigateAfterBiometricActivation(pendingRoute)
+                                }
+                                // VERIFY flow cancelled: nothing — user can use PIN instead.
+                            }
                         }
                     }
                 }
                 BiometricsAvailability.NonEnrolled -> {
-                    setState {
-                        copy(
-                                quickPinError =
-                                        resourceProvider.getString(
-                                                R.string.quick_pin_biometric_not_enrolled_error
-                                        ),
-                                pin = "",
-                                resetPin = true
-                        )
+                    if (pendingRoute != null) {
+                        navigateAfterBiometricActivation(pendingRoute)
+                    } else {
+                        setState {
+                            copy(
+                                    quickPinError = resourceProvider.getString(
+                                            R.string.quick_pin_biometric_not_enrolled_error
+                                    ),
+                                    pin = "",
+                                    resetPin = true
+                            )
+                        }
                     }
                 }
                 is BiometricsAvailability.Failure -> {
-                    setState {
-                        copy(
-                                quickPinError = availability.errorMessage,
-                                pin = "",
-                                resetPin = true
-                        )
+                    if (pendingRoute != null) {
+                        navigateAfterBiometricActivation(pendingRoute)
+                    } else {
+                        setState {
+                            copy(quickPinError = availability.errorMessage, pin = "", resetPin = true)
+                        }
                     }
                 }
             }
+        }
+    }
+
+    private fun navigateAfterBiometricActivation(route: String) {
+        viewModelScope.launch {
+            setState { copy(pendingNavigationRoute = null, isTransitioning = true) }
+            delay(75L)
+            setEffect { Effect.Navigation.SwitchScreen(route) }
         }
     }
 

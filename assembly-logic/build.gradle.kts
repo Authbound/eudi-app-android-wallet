@@ -52,7 +52,7 @@ extensions.configure<LibraryExtension>("android") {
 
     defaultConfig {
         // App name
-        manifestPlaceholders["appName"] = "Authbound"
+        manifestPlaceholders["appName"] = "Authbound Wallet"
     }
 }
 

@@ -38,6 +38,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -63,11 +65,14 @@ import androidx.compose.runtime.setValue
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
@@ -75,6 +80,8 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
@@ -236,6 +243,10 @@ private fun LoginFormContent(
         toggleVisible = true
     }
 
+    val passwordFocusRequester = remember { FocusRequester() }
+    val confirmPasswordFocusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -388,7 +399,14 @@ private fun LoginFormContent(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
                             singleLine = true,
-                            colors = textFieldColors
+                            colors = textFieldColors,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Email,
+                                imeAction = ImeAction.Next
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onNext = { passwordFocusRequester.requestFocus() }
+                            )
                         )
 
                         OutlinedTextField(
@@ -396,10 +414,33 @@ private fun LoginFormContent(
                             onValueChange = { onEvent(Event.OnPasswordChanged(it)) },
                             label = { Text(stringResource(id = R.string.password)) },
                             visualTransformation = PasswordVisualTransformation(),
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(passwordFocusRequester),
                             shape = RoundedCornerShape(16.dp),
                             singleLine = true,
-                            colors = textFieldColors
+                            colors = textFieldColors,
+                            keyboardOptions = KeyboardOptions(
+                                imeAction = if (state.isSignUpMode) {
+                                    ImeAction.Next
+                                } else {
+                                    ImeAction.Done
+                                }
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onNext = {
+                                    if (state.isSignUpMode) {
+                                        confirmPasswordFocusRequester.requestFocus()
+                                    }
+                                },
+                                onDone = {
+                                    if (state.isSignUpMode) {
+                                        confirmPasswordFocusRequester.requestFocus()
+                                    } else {
+                                        keyboardController?.hide()
+                                    }
+                                }
+                            )
                         )
 
                         if (state.isSignUpMode) {
@@ -408,11 +449,16 @@ private fun LoginFormContent(
                                 onValueChange = { onEvent(Event.OnConfirmPasswordChanged(it)) },
                                 label = { Text(stringResource(id = R.string.confirm_password)) },
                                 visualTransformation = PasswordVisualTransformation(),
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .focusRequester(confirmPasswordFocusRequester),
                                 shape = RoundedCornerShape(16.dp),
                                 singleLine = true,
                                 isError = state.error != null,
-                                colors = textFieldColors
+                                colors = textFieldColors,
+                                keyboardOptions = KeyboardOptions(
+                                    imeAction = ImeAction.Done
+                                )
                             )
                         }
 
