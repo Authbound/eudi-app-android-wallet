@@ -158,6 +158,16 @@ internal class WalletCoreConfigImpl(
                     .build(),
                 order = 1
             ),
+            VciConfig(
+                config = OpenId4VciManager.Config.Builder()
+                    .withIssuerUrl(issuerUrl = "https://issuer.authbound.io/api/v1/openid4vci")
+                    .withClientAuthenticationType(OpenId4VciManager.ClientAuthenticationType.AttestationBased)
+                    .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
+                    .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
+                    .withDPopConfig(DPopConfig.Default)
+                    .build(),
+                order = 2
+            ),
         )
 
     override val documentIssuanceConfig: DocumentIssuanceConfig
