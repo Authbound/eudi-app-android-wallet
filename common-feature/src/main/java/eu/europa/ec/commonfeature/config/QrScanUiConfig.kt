@@ -27,6 +27,12 @@ sealed interface QrScanFlow {
     data class Issuance(val issuanceFlowType: IssuanceFlowType) : QrScanFlow
     data object Signature : QrScanFlow
     data object DeviceLinking : QrScanFlow
+
+    /**
+     * Main wallet QR entry: classifies OpenID4VCI credential offers vs OpenID4VP requests from the
+     * scanned URI (see [eu.europa.ec.commonfeature.logic.qr.QrPayloadRoutingClassifier]).
+     */
+    data object Universal : QrScanFlow
 }
 
 data class QrScanUiConfig(
