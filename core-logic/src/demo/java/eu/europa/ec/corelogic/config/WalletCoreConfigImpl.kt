@@ -18,6 +18,7 @@ package eu.europa.ec.corelogic.config
 
 import android.content.Context
 import android.os.Build
+import eu.europa.ec.businesslogic.config.ConfigLogic
 import eu.europa.ec.corelogic.BuildConfig
 import eu.europa.ec.corelogic.model.DocumentIdentifier
 import eu.europa.ec.eudi.wallet.EudiWalletConfig
@@ -31,7 +32,8 @@ import eu.europa.ec.resourceslogic.R
 import kotlin.time.Duration.Companion.seconds
 
 internal class WalletCoreConfigImpl(
-    private val context: Context
+    private val context: Context,
+    private val configLogic: ConfigLogic
 ) : WalletCoreConfig {
 
     private companion object {
@@ -189,5 +191,5 @@ internal class WalletCoreConfigImpl(
         )
 
     override val walletProviderHost: String
-        get() = "https://wallet-provider.eudiw.dev"
+        get() = "${configLogic.environmentConfig.getServerHost()}/api/mobile/wallet-provider"
 }

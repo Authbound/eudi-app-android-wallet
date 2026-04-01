@@ -49,6 +49,10 @@ class SupabaseAuthRepositoryImpl(
         return supabaseClient.auth.currentSessionOrNull()?.user?.id
     }
 
+    override suspend fun getAccessToken(): String? {
+        return supabaseClient.auth.currentAccessTokenOrNull()
+    }
+
     override fun observeAuthState(): Flow<SessionStatus> = supabaseClient.auth.sessionStatus
 
     override suspend fun signInWithEmailPassword(request: EmailPasswordRequest) {

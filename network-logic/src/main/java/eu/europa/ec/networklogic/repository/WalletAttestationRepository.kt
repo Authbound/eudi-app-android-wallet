@@ -17,11 +17,15 @@
 package eu.europa.ec.networklogic.repository
 
 import io.ktor.client.HttpClient
+import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
+import io.ktor.http.isSuccess
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -35,13 +39,15 @@ interface WalletAttestationRepository {
 
     suspend fun getWalletAttestation(
         baseUrl: String,
-        keyInfo: JsonObject
+        keyInfo: JsonObject,
+        bearerToken: String? = null
     ): Result<String>
 
     suspend fun getKeyAttestation(
         baseUrl: String,
         keys: List<JsonObject>,
-        nonce: String?
+        nonce: String?,
+        bearerToken: String? = null
     ): Result<String>
 }
 
@@ -56,16 +62,20 @@ class WalletAttestationRepositoryImpl(
 
     override suspend fun getWalletAttestation(
         baseUrl: String,
-        keyInfo: JsonObject
+        keyInfo: JsonObject,
+        bearerToken: String?
     ): Result<String> = runCatching {
-        httpClient.post(baseUrl + WALLET_INSTANCE_ATTESTATION_PATH) {
+        val response = httpClient.post(baseUrl + WALLET_INSTANCE_ATTESTATION_PATH) {
             contentType(ContentType.Application.Json)
+            bearerToken?.let { header(HttpHeaders.Authorization, "Bearer $it") }
             setBody(
                 buildJsonObject {
                     put("jwk", keyInfo)
                 }
             )
-        }.bodyAsText()
+        }
+        response.requireSuccess()
+        response.bodyAsText()
             .let { Json.decodeFromString<JsonObject>(it) }
             .let { it.jsonObject["walletInstanceAttestation"]?.jsonPrimitive?.content }
             ?: throw IllegalStateException("No attestation response")
@@ -74,10 +84,12 @@ class WalletAttestationRepositoryImpl(
     override suspend fun getKeyAttestation(
         baseUrl: String,
         keys: List<JsonObject>,
-        nonce: String?
+        nonce: String?,
+        bearerToken: String?
     ): Result<String> = runCatching {
-        httpClient.post(baseUrl + WALLET_UNIT_ATTESTATION_PATH) {
+        val response = httpClient.post(baseUrl + WALLET_UNIT_ATTESTATION_PATH) {
             contentType(ContentType.Application.Json)
+            bearerToken?.let { header(HttpHeaders.Authorization, "Bearer $it") }
             setBody(
                 buildJsonObject {
                     put("nonce", JsonPrimitive(nonce.orEmpty()))
@@ -88,9 +100,17 @@ class WalletAttestationRepositoryImpl(
                     }
                 }
             )
-        }.bodyAsText()
+        }
+        response.requireSuccess()
+        response.bodyAsText()
             .let { Json.decodeFromString<JsonObject>(it) }
             .let { it.jsonObject["walletUnitAttestation"]?.jsonPrimitive?.content }
             ?: throw IllegalStateException("No attestation response")
+    }
+
+    private fun HttpResponse.requireSuccess() {
+        if (!status.isSuccess()) {
+            throw IllegalStateException("Wallet attestation request failed: HTTP ${status.value}")
+        }
     }
 }

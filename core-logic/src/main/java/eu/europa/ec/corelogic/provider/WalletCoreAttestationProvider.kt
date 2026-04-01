@@ -16,6 +16,7 @@
 
 package eu.europa.ec.corelogic.provider
 
+import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
 import eu.europa.ec.corelogic.config.WalletCoreConfig
 import eu.europa.ec.eudi.openid4vci.Nonce
 import eu.europa.ec.eudi.wallet.provider.WalletAttestationsProvider
@@ -26,14 +27,16 @@ interface WalletCoreAttestationProvider : WalletAttestationsProvider
 
 class WalletCoreAttestationProviderImpl(
     private val walletCoreConfig: WalletCoreConfig,
-    private val walletAttestationRepository: WalletAttestationRepository
+    private val walletAttestationRepository: WalletAttestationRepository,
+    private val supabaseAuthRepository: SupabaseAuthRepository
 ) : WalletCoreAttestationProvider {
 
     override suspend fun getWalletAttestation(
         keyInfo: KeyInfo
     ): Result<String> = walletAttestationRepository.getWalletAttestation(
         baseUrl = walletCoreConfig.walletProviderHost,
-        keyInfo = keyInfo.publicKey.toJwk()
+        keyInfo = keyInfo.publicKey.toJwk(),
+        bearerToken = supabaseAuthRepository.getAccessToken()
     )
 
     override suspend fun getKeyAttestation(
@@ -42,6 +45,7 @@ class WalletCoreAttestationProviderImpl(
     ): Result<String> = walletAttestationRepository.getKeyAttestation(
         baseUrl = walletCoreConfig.walletProviderHost,
         keys = keys.map { it.publicKey.toJwk() },
-        nonce = nonce?.value
+        nonce = nonce?.value,
+        bearerToken = supabaseAuthRepository.getAccessToken()
     )
 }

@@ -17,11 +17,12 @@
 package eu.europa.ec.corelogic.di
 
 import android.content.Context
+import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
+import eu.europa.ec.businesslogic.config.ConfigLogic
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.provider.UuidProvider
 import eu.europa.ec.corelogic.config.WalletCoreConfig
 import eu.europa.ec.corelogic.config.WalletCoreConfigImpl
-import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
 import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
 import eu.europa.ec.businesslogic.controller.wallet.LocalWalletCleanupController
 import eu.europa.ec.businesslogic.controller.wallet.UserDocumentOwnershipController
@@ -78,7 +79,8 @@ fun provideEudiWallet(
 @Single
 fun provideWalletCoreConfig(
     context: Context,
-): WalletCoreConfig = WalletCoreConfigImpl(context)
+    configLogic: ConfigLogic,
+): WalletCoreConfig = WalletCoreConfigImpl(context, configLogic)
 
 @Single
 fun provideWalletCoreLogController(logController: LogController): WalletCoreLogController =
@@ -98,10 +100,12 @@ fun provideWalletCoreTransactionLogController(
 @Single
 fun provideWalletCoreAttestationProvider(
     walletCoreConfig: WalletCoreConfig,
-    walletAttestationRepository: WalletAttestationRepository
+    walletAttestationRepository: WalletAttestationRepository,
+    supabaseAuthRepository: SupabaseAuthRepository
 ): WalletCoreAttestationProvider = WalletCoreAttestationProviderImpl(
     walletCoreConfig = walletCoreConfig,
-    walletAttestationRepository = walletAttestationRepository
+    walletAttestationRepository = walletAttestationRepository,
+    supabaseAuthRepository = supabaseAuthRepository
 )
 
 @Single
