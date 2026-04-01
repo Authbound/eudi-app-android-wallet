@@ -33,7 +33,8 @@ import kotlin.time.Duration.Companion.seconds
 
 internal class WalletCoreConfigImpl(
     private val context: Context,
-    private val configLogic: ConfigLogic
+    private val configLogic: ConfigLogic,
+    @Suppress("unused") private val httpClient: io.ktor.client.HttpClient,
 ) : WalletCoreConfig {
 
     private companion object {

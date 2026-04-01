@@ -80,7 +80,8 @@ fun provideEudiWallet(
 fun provideWalletCoreConfig(
     context: Context,
     configLogic: ConfigLogic,
-): WalletCoreConfig = WalletCoreConfigImpl(context, configLogic)
+    httpClient: io.ktor.client.HttpClient,
+): WalletCoreConfig = WalletCoreConfigImpl(context, configLogic, httpClient)
 
 @Single
 fun provideWalletCoreLogController(logController: LogController): WalletCoreLogController =
