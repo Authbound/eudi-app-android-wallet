@@ -16,6 +16,8 @@
 
 package eu.europa.ec.businesslogic.controller.crypto
 
+import android.security.keystore.KeyPermanentlyInvalidatedException
+import android.security.keystore.UserNotAuthenticatedException
 import android.util.Base64
 import android.util.Log
 import java.security.KeyStore
@@ -26,6 +28,13 @@ import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 
 typealias GUID = String
+
+sealed interface WuaSigningResult {
+    data class Signed(val signature: ByteArray) : WuaSigningResult
+    data object MissingKey : WuaSigningResult
+    data object UserAuthRequired : WuaSigningResult
+    data class Failure(val cause: Throwable) : WuaSigningResult
+}
 
 interface CryptoController {
 
@@ -62,7 +71,9 @@ interface CryptoController {
      */
     fun deleteWuaKey(): Boolean
 
-    fun signData(data: ByteArray): ByteArray?
+    fun signWuaPayload(data: ByteArray): WuaSigningResult
+
+    fun signPayload(keyAlias: String, data: ByteArray): WuaSigningResult
 
     /**
      * Retrieves the WUA public key from the Android Keystore.
@@ -141,19 +152,29 @@ class CryptoControllerImpl(
         return keystoreController.deleteWuaKey()
     }
 
-    override fun signData(data: ByteArray): ByteArray? {
+    override fun signWuaPayload(data: ByteArray): WuaSigningResult {
+        return signPayload(WUA_KEY_ALIAS, data)
+    }
+
+    override fun signPayload(keyAlias: String, data: ByteArray): WuaSigningResult {
         return try {
             val keyStore = KeyStore.getInstance("AndroidKeyStore")
             keyStore.load(null)
-            val entry = keyStore.getEntry(WUA_KEY_ALIAS, null) as? KeyStore.PrivateKeyEntry
-                ?: return null
+            val entry = keyStore.getEntry(keyAlias, null) as? KeyStore.PrivateKeyEntry
+                ?: return WuaSigningResult.MissingKey
             val signature = Signature.getInstance("SHA256withECDSA")
             signature.initSign(entry.privateKey)
             signature.update(data)
-            signature.sign()
+            WuaSigningResult.Signed(signature.sign())
+        } catch (e: UserNotAuthenticatedException) {
+            Log.i(TAG, "Key signing requires user authentication for alias=$keyAlias")
+            WuaSigningResult.UserAuthRequired
+        } catch (e: KeyPermanentlyInvalidatedException) {
+            Log.w(TAG, "Signing key is invalidated for alias=$keyAlias: ${e.message}")
+            WuaSigningResult.MissingKey
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to sign data: ${e.message}")
-            null
+            Log.w(TAG, "Failed to sign data for alias=$keyAlias: ${e.message}")
+            WuaSigningResult.Failure(e)
         }
     }
 

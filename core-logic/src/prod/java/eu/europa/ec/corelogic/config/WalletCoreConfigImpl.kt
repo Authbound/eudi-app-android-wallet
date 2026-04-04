@@ -35,6 +35,14 @@ internal class WalletCoreConfigImpl(
     @Suppress("unused") private val httpClient: io.ktor.client.HttpClient,
 ) : WalletCoreConfig {
 
+    private val authboundWalletProviderConfig: WalletProviderConfig
+        get() = AuthboundWalletProviderConfig(
+            baseUrl = "${configLogic.environmentConfig.getServerHost()}/api/mobile/wallet-provider"
+        )
+
+    private val euWalletProviderConfig: WalletProviderConfig
+        get() = EuReferenceWalletProviderConfig()
+
     private var _config: EudiWalletConfig? = null
 
     override val config: EudiWalletConfig
@@ -87,18 +95,20 @@ internal class WalletCoreConfigImpl(
     override val issuersConfig: List<VciConfig>
         get() = listOf(
             VciConfig(
+                walletProviderConfig = authboundWalletProviderConfig,
+                order = 0,
                 config = OpenId4VciManager.Config.Builder()
-                    .withIssuerUrl(issuerUrl = "https://issuer.eudiw.dev")
+                    .withIssuerUrl(issuerUrl = "https://issuer.authbound.io/api/v1/openid4vci")
                     .withClientAuthenticationType(OpenId4VciManager.ClientAuthenticationType.AttestationBased)
                     .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
                     .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
                     .withDPopConfig(DPopConfig.Default)
                     .build(),
-                order = 0
             ),
             VciConfig(
+                walletProviderConfig = euWalletProviderConfig,
                 config = OpenId4VciManager.Config.Builder()
-                    .withIssuerUrl(issuerUrl = "https://issuer-backend.eudiw.dev")
+                    .withIssuerUrl(issuerUrl = "https://issuer.eudiw.dev")
                     .withClientAuthenticationType(OpenId4VciManager.ClientAuthenticationType.AttestationBased)
                     .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
                     .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
@@ -107,8 +117,9 @@ internal class WalletCoreConfigImpl(
                 order = 1
             ),
             VciConfig(
+                walletProviderConfig = euWalletProviderConfig,
                 config = OpenId4VciManager.Config.Builder()
-                    .withIssuerUrl(issuerUrl = "https://issuer.authbound.io/api/v1/openid4vci")
+                    .withIssuerUrl(issuerUrl = "https://issuer-backend.eudiw.dev")
                     .withClientAuthenticationType(OpenId4VciManager.ClientAuthenticationType.AttestationBased)
                     .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
                     .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
@@ -135,7 +146,4 @@ internal class WalletCoreConfigImpl(
                 ),
             )
         )
-
-    override val walletProviderHost: String
-        get() = "${configLogic.environmentConfig.getServerHost()}/api/mobile/wallet-provider"
 }

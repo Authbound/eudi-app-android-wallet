@@ -56,16 +56,23 @@ internal class WalletCoreConfigImpl(
         )
     }
 
+    private val authboundWalletProviderConfig: WalletProviderConfig
+        get() = AuthboundWalletProviderConfig(
+            baseUrl = "${configLogic.environmentConfig.getServerHost()}/api/mobile/wallet-provider"
+        )
+
+    private val euWalletProviderConfig: WalletProviderConfig
+        get() = EuReferenceWalletProviderConfig()
+
     // Dynamic trust data fetched once at config init time
     private val dynamicTrustData: DynamicTrustData by lazy {
         runBlocking {
             try {
-                val issuers = trustApiClient.fetchIssuerUrls()
                 val certs = trustApiClient.fetchTrustedCertificates()
-                DynamicTrustData(issuerUrls = issuers, certificates = certs)
+                DynamicTrustData(certificates = certs)
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to fetch dynamic trust data: ${e.message}")
-                DynamicTrustData(issuerUrls = null, certificates = null)
+                DynamicTrustData(certificates = null)
             }
         }
     }
@@ -128,8 +135,9 @@ internal class WalletCoreConfigImpl(
 
     private val defaultIssuers: List<VciConfig> = listOf(
         VciConfig(
+            walletProviderConfig = authboundWalletProviderConfig,
             config = OpenId4VciManager.Config.Builder()
-                .withIssuerUrl(issuerUrl = "https://ec.dev.issuer.eudiw.dev")
+                .withIssuerUrl(issuerUrl = "https://issuer.authbound.io/api/v1/openid4vci")
                 .withClientAuthenticationType(OpenId4VciManager.ClientAuthenticationType.AttestationBased)
                 .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
                 .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
@@ -138,8 +146,9 @@ internal class WalletCoreConfigImpl(
             order = 0
         ),
         VciConfig(
+            walletProviderConfig = euWalletProviderConfig,
             config = OpenId4VciManager.Config.Builder()
-                .withIssuerUrl(issuerUrl = "https://dev.issuer-backend.eudiw.dev")
+                .withIssuerUrl(issuerUrl = "https://issuer.eudiw.dev")
                 .withClientAuthenticationType(OpenId4VciManager.ClientAuthenticationType.AttestationBased)
                 .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
                 .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
@@ -148,39 +157,20 @@ internal class WalletCoreConfigImpl(
             order = 1
         ),
         VciConfig(
+            walletProviderConfig = euWalletProviderConfig,
             config = OpenId4VciManager.Config.Builder()
-                .withIssuerUrl(issuerUrl = "https://issuer.authbound.io/api/v1/openid4vci")
+                .withIssuerUrl(issuerUrl = "https://issuer-backend.eudiw.dev")
                 .withClientAuthenticationType(OpenId4VciManager.ClientAuthenticationType.AttestationBased)
                 .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
                 .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
                 .withDPopConfig(DPopConfig.Default)
                 .build(),
-            order = 2
+                order = 2
         ),
     )
 
-    override val issuersConfig: List<VciConfig> by lazy {
-        val dynamicUrls = dynamicTrustData.issuerUrls
-        if (dynamicUrls != null && dynamicUrls.isNotEmpty()) {
-            val dynamicIssuers = dynamicUrls.mapIndexed { index, issuerUrl ->
-                VciConfig(
-                    config = OpenId4VciManager.Config.Builder()
-                        .withIssuerUrl(issuerUrl = issuerUrl)
-                        .withClientAuthenticationType(OpenId4VciManager.ClientAuthenticationType.AttestationBased)
-                        .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
-                        .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
-                        .withDPopConfig(DPopConfig.Default)
-                        .build(),
-                    order = index
-                )
-            }
-            dynamicIssuers + defaultIssuers.mapIndexed { index, vci ->
-                vci.copy(order = dynamicUrls.size + index)
-            }
-        } else {
-            defaultIssuers
-        }
-    }
+    override val issuersConfig: List<VciConfig>
+        get() = defaultIssuers
 
     override val documentIssuanceConfig: DocumentIssuanceConfig
         get() = DocumentIssuanceConfig(
@@ -199,9 +189,6 @@ internal class WalletCoreConfigImpl(
                 ),
             )
         )
-
-    override val walletProviderHost: String
-        get() = "${configLogic.environmentConfig.getServerHost()}/api/mobile/wallet-provider"
 }
 
 private fun parseDynamicCertificates(pems: List<String>?): List<X509Certificate> {
@@ -221,6 +208,5 @@ private fun parseDynamicCertificates(pems: List<String>?): List<X509Certificate>
 }
 
 private data class DynamicTrustData(
-    val issuerUrls: List<String>?,
     val certificates: List<String>?,
 )

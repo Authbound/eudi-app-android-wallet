@@ -18,14 +18,28 @@ package eu.europa.ec.corelogic.config
 
 import eu.europa.ec.eudi.wallet.issue.openid4vci.OpenId4VciManager
 
+sealed interface WalletProviderConfig {
+    val baseUrl: String
+}
+
+data class EuReferenceWalletProviderConfig(
+    override val baseUrl: String = "https://wallet-provider.eudiw.dev",
+) : WalletProviderConfig
+
+data class AuthboundWalletProviderConfig(
+    override val baseUrl: String,
+) : WalletProviderConfig
+
 /**
  * Configuration class that associates an [OpenId4VciManager.Config] with a specific display order
  * in the AddDocument screen.
  *
  * @property config The [OpenId4VciManager.Config] instance containing the Issuer configuration.
  * @property order An integer defining the priority of this configuration.
+ * @property walletProviderConfig The Wallet Provider configuration to use for this issuer.
  */
 data class VciConfig(
     val config: OpenId4VciManager.Config,
     val order: Int,
+    val walletProviderConfig: WalletProviderConfig,
 )

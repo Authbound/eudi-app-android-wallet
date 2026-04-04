@@ -19,6 +19,7 @@ package eu.europa.ec.corelogic.di
 import android.content.Context
 import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
 import eu.europa.ec.businesslogic.config.ConfigLogic
+import eu.europa.ec.businesslogic.controller.crypto.CryptoController
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.provider.UuidProvider
 import eu.europa.ec.corelogic.config.WalletCoreConfig
@@ -34,8 +35,10 @@ import eu.europa.ec.corelogic.controller.WalletCoreLogController
 import eu.europa.ec.corelogic.controller.WalletCoreLogControllerImpl
 import eu.europa.ec.corelogic.controller.WalletCoreTransactionLogController
 import eu.europa.ec.corelogic.controller.WalletCoreTransactionLogControllerImpl
-import eu.europa.ec.corelogic.provider.WalletCoreAttestationProvider
-import eu.europa.ec.corelogic.provider.WalletCoreAttestationProviderImpl
+import eu.europa.ec.corelogic.provider.IssuerOpenId4VciManagerFactory
+import eu.europa.ec.corelogic.provider.IssuerOpenId4VciManagerFactoryImpl
+import eu.europa.ec.corelogic.provider.WalletCoreAttestationProviderFactory
+import eu.europa.ec.corelogic.provider.WalletCoreAttestationProviderFactoryImpl
 import eu.europa.ec.eudi.wallet.EudiWallet
 import eu.europa.ec.networklogic.repository.WalletAttestationRepository
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
@@ -62,11 +65,9 @@ fun provideEudiWallet(
     walletCoreConfig: WalletCoreConfig,
     walletCoreLogController: WalletCoreLogController,
     walletCoreTransactionLogController: WalletCoreTransactionLogController,
-    walletCoreAttestationProvider: WalletCoreAttestationProvider
 ): EudiWallet = EudiWallet(
     context = context,
     config = walletCoreConfig.config,
-    walletProvider = walletCoreAttestationProvider
 ) {
     withLogger(walletCoreLogController)
     withTransactionLogger(walletCoreTransactionLogController)
@@ -99,14 +100,23 @@ fun provideWalletCoreTransactionLogController(
 )
 
 @Single
-fun provideWalletCoreAttestationProvider(
-    walletCoreConfig: WalletCoreConfig,
+fun provideWalletCoreAttestationProviderFactory(
     walletAttestationRepository: WalletAttestationRepository,
-    supabaseAuthRepository: SupabaseAuthRepository
-): WalletCoreAttestationProvider = WalletCoreAttestationProviderImpl(
-    walletCoreConfig = walletCoreConfig,
+    supabaseAuthRepository: SupabaseAuthRepository,
+    cryptoController: CryptoController,
+): WalletCoreAttestationProviderFactory = WalletCoreAttestationProviderFactoryImpl(
     walletAttestationRepository = walletAttestationRepository,
-    supabaseAuthRepository = supabaseAuthRepository
+    supabaseAuthRepository = supabaseAuthRepository,
+    cryptoController = cryptoController,
+)
+
+@Single
+fun provideIssuerOpenId4VciManagerFactory(
+    context: Context,
+    walletCoreAttestationProviderFactory: WalletCoreAttestationProviderFactory,
+): IssuerOpenId4VciManagerFactory = IssuerOpenId4VciManagerFactoryImpl(
+    context = context,
+    walletCoreAttestationProviderFactory = walletCoreAttestationProviderFactory,
 )
 
 @Single
@@ -152,6 +162,7 @@ fun provideWalletCoreDocumentsController(
     resourceProvider: ResourceProvider,
     eudiWallet: EudiWallet,
     walletCoreConfig: WalletCoreConfig,
+    issuerOpenId4VciManagerFactory: IssuerOpenId4VciManagerFactory,
     bookmarkDao: BookmarkDao,
     transactionLogDao: TransactionLogDao,
     revokedDocumentDao: RevokedDocumentDao,
@@ -162,6 +173,7 @@ fun provideWalletCoreDocumentsController(
         resourceProvider,
         eudiWallet,
         walletCoreConfig,
+        issuerOpenId4VciManagerFactory,
         bookmarkDao,
         transactionLogDao,
         revokedDocumentDao,

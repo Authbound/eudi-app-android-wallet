@@ -19,6 +19,7 @@ package eu.europa.ec.corelogic.controller
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.wallet.UserDocumentOwnershipController
 import eu.europa.ec.corelogic.config.WalletCoreConfig
+import eu.europa.ec.corelogic.provider.IssuerOpenId4VciManagerFactory
 import eu.europa.ec.eudi.wallet.EudiWallet
 import eu.europa.ec.eudi.wallet.document.IssuedDocument
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
@@ -69,6 +70,9 @@ class TestWalletCoreDocumentsControllerUserScoping {
     private lateinit var bookmarkDao: BookmarkDao
 
     @Mock
+    private lateinit var issuerOpenId4VciManagerFactory: IssuerOpenId4VciManagerFactory
+
+    @Mock
     private lateinit var transactionLogDao: TransactionLogDao
 
     @Mock
@@ -92,6 +96,7 @@ class TestWalletCoreDocumentsControllerUserScoping {
             resourceProvider = resourceProvider,
             eudiWallet = eudiWallet,
             walletCoreConfig = walletCoreConfig,
+            issuerOpenId4VciManagerFactory = issuerOpenId4VciManagerFactory,
             bookmarkDao = bookmarkDao,
             transactionLogDao = transactionLogDao,
             revokedDocumentDao = revokedDocumentDao,
