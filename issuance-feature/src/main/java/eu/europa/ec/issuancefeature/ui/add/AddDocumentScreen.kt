@@ -51,7 +51,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -284,15 +283,9 @@ private fun MainContent(
                     item(key = "featured-header") {
                         Text(
                             text = stringResource(R.string.issuance_add_document_featured_title),
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                brush = Brush.linearGradient(
-                                    colors = listOf(
-                                        MaterialTheme.colorScheme.onSurface,
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-                                    )
-                                )
-                            ),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(bottom = SPACING_MEDIUM.dp)
                         )
                     }
@@ -348,15 +341,9 @@ private fun MainContent(
                         Spacer(modifier = Modifier.height(SPACING_LARGE.dp))
                         Text(
                             text = stringResource(R.string.issuance_add_document_browse_title),
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                brush = Brush.linearGradient(
-                                    colors = listOf(
-                                        MaterialTheme.colorScheme.onSurface,
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-                                    )
-                                )
-                            ),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(bottom = SPACING_SMALL.dp)
                         )
                     }
