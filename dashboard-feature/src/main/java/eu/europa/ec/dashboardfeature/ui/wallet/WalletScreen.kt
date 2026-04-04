@@ -211,7 +211,7 @@ private fun WalletTopBar(
             modifier = Modifier.align(Alignment.Center),
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.headlineMedium,
+            style = MaterialTheme.typography.titleLarge,
             text = stringResource(R.string.wallet_screen_title)
         )
         NotificationIconButton(

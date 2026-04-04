@@ -197,7 +197,7 @@ private fun VerificationTopBar(
             modifier = Modifier.align(Alignment.Center),
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.headlineMedium,
+            style = MaterialTheme.typography.titleLarge,
             text = stringResource(R.string.verification_quick_action_title)
         )
         NotificationIconButton(
@@ -262,7 +262,7 @@ private fun ActiveSessionsContent(
             }
 
             item {
-                Spacer(modifier = Modifier.height(90.dp))
+                Spacer(modifier = Modifier.height(72.dp))
             }
         }
     }
@@ -302,7 +302,7 @@ private fun HistorySessionsContent(
             }
 
             item {
-                Spacer(modifier = Modifier.height(90.dp))
+                Spacer(modifier = Modifier.height(72.dp))
             }
         }
     }
@@ -326,26 +326,26 @@ private fun CreateVerificationButton(
                 view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 onClick()
             },
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.primary,
         shadowElevation = 4.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(12.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
             WrapIcon(
                 iconData = AppIcons.Add,
                 customTint = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(18.dp)
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = stringResource(R.string.verification_home_create_button),
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onPrimary
             )
@@ -376,7 +376,7 @@ private fun VerificationSessionCard(
             ) {
                 view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             },
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surface,
         shadowElevation = 4.dp
     ) {
@@ -386,26 +386,26 @@ private fun VerificationSessionCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(statusColor.copy(alpha = 0.08f))
-                    .padding(16.dp),
+                    .padding(12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = session.title,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(3.dp))
                     Text(
                         text = stringResource(
                             R.string.verification_home_session_code,
                             session.sessionCode
                         ),
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontFamily = FontFamily.Monospace
                     )
@@ -430,13 +430,13 @@ private fun VerificationSessionCard(
             }
             // Content
             Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 if (session.description.isNotBlank()) {
                     Text(
                         text = session.description,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
@@ -514,7 +514,7 @@ private fun SessionActionButton(
     val interactionSource = remember { MutableInteractionSource() }
     Surface(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(10.dp))
             .clickable(
                 interactionSource = interactionSource,
                 indication = ripple(bounded = true)
@@ -522,25 +522,25 @@ private fun SessionActionButton(
                 view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 onClick()
             },
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(10.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(10.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
             WrapIcon(
                 iconData = icon,
                 customTint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(16.dp)
             )
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(5.dp))
             Text(
                 text = text,
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.primary
             )

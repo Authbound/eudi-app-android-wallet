@@ -539,7 +539,8 @@
     <string name="settings_change_password">Change Password</string>
     <string name="settings_change_password_description">Change your account password</string>
 
-    <!-- Privacy Section -->
+    <!-- Privacy Section — canonical URL for Google Play Data safety & in-app links -->
+    <string name="legal_privacy_policy_url" translatable="false">https://www.authbound.io/privacy</string>
     <string name="settings_privacy">Privacy &amp; Data</string>
     <string name="settings_data_sharing">Data Sharing</string>
     <string name="settings_data_sharing_description">Manage how your data is shared</string>

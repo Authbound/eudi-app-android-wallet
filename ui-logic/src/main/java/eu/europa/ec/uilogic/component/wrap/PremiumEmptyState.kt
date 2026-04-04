@@ -45,8 +45,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -145,7 +147,8 @@ fun PremiumEmptyState(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         if (shouldAnimate) {
@@ -167,7 +170,7 @@ fun PremiumEmptyState(
             )
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         if (shouldAnimate) {
             AnimatedVisibility(
@@ -176,7 +179,7 @@ fun PremiumEmptyState(
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurface
@@ -185,14 +188,14 @@ fun PremiumEmptyState(
         } else {
             Text(
                 text = title,
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurface
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         if (shouldAnimate) {
             AnimatedVisibility(
@@ -201,27 +204,27 @@ fun PremiumEmptyState(
             ) {
                 Text(
                     text = description,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
-                    lineHeight = 24.sp,
-                    modifier = Modifier.padding(horizontal = 16.dp)
+                    lineHeight = 20.sp,
+                    modifier = Modifier.padding(horizontal = 12.dp)
                 )
             }
         } else {
             Text(
                 text = description,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                lineHeight = 24.sp,
-                modifier = Modifier.padding(horizontal = 16.dp)
+                lineHeight = 20.sp,
+                modifier = Modifier.padding(horizontal = 12.dp)
             )
         }
 
         // Feature highlights
         if (!features.isNullOrEmpty()) {
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             if (shouldAnimate) {
                 AnimatedVisibility(
@@ -259,7 +262,7 @@ fun PremiumEmptyState(
 
         // Action button
         if (actionLabel != null && onActionClick != null) {
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             if (shouldAnimate) {
                 AnimatedVisibility(
@@ -354,7 +357,7 @@ private fun EmptyStateIllustrationComponent(
         primaryColor
     }
 
-    val illustrationSize = if (useActionsStyle) 140.dp else 120.dp
+    val illustrationSize = if (useActionsStyle) 110.dp else 96.dp
 
     Box(
         modifier = modifier
@@ -366,7 +369,7 @@ private fun EmptyStateIllustrationComponent(
             // Actions-style: outer glow ring with radial gradient
             Box(
                 modifier = Modifier
-                    .size(140.dp)
+                    .size(110.dp)
                     .clip(CircleShape)
                     .background(
                         Brush.radialGradient(
@@ -381,7 +384,7 @@ private fun EmptyStateIllustrationComponent(
             // Inner circle with gradient
             Box(
                 modifier = Modifier
-                    .size(100.dp)
+                    .size(80.dp)
                     .clip(CircleShape)
                     .background(
                         Brush.linearGradient(
@@ -395,15 +398,15 @@ private fun EmptyStateIllustrationComponent(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(56.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .size(46.dp)
+                        .clip(RoundedCornerShape(10.dp))
                         .background(MaterialTheme.colorScheme.surface),
                     contentAlignment = Alignment.Center
                 ) {
                     WrapIcon(
                         iconData = mainIcon,
                         customTint = highlightColor,
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(26.dp)
                     )
                 }
             }
@@ -412,8 +415,8 @@ private fun EmptyStateIllustrationComponent(
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(8.dp)
-                        .size(36.dp)
+                        .padding(4.dp)
+                        .size(30.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primary),
                     contentAlignment = Alignment.Center
@@ -421,7 +424,7 @@ private fun EmptyStateIllustrationComponent(
                     WrapIcon(
                         iconData = accentIcon,
                         customTint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }
@@ -429,7 +432,7 @@ private fun EmptyStateIllustrationComponent(
             // Original style
             Box(
                 modifier = Modifier
-                    .size(120.dp)
+                    .size(96.dp)
                     .clip(CircleShape)
                     .background(
                         Brush.radialGradient(
@@ -441,7 +444,7 @@ private fun EmptyStateIllustrationComponent(
                     )
             )
             Surface(
-                modifier = Modifier.size(80.dp),
+                modifier = Modifier.size(64.dp),
                 shape = CircleShape,
                 color = secondaryColor.copy(alpha = 0.4f),
                 shadowElevation = 4.dp
@@ -450,7 +453,7 @@ private fun EmptyStateIllustrationComponent(
                     WrapIcon(
                         iconData = mainIcon,
                         customTint = primaryColor,
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(32.dp)
                     )
                 }
             }
@@ -459,7 +462,7 @@ private fun EmptyStateIllustrationComponent(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .offset(x = (-4).dp, y = (-4).dp)
-                        .size(32.dp)
+                        .size(26.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primary),
                     contentAlignment = Alignment.Center
@@ -467,7 +470,7 @@ private fun EmptyStateIllustrationComponent(
                     WrapIcon(
                         iconData = accentIcon,
                         customTint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(14.dp)
                     )
                 }
             }
@@ -489,17 +492,17 @@ private fun FeatureHighlightCard(
     if (useActionsStyle) {
         Surface(
             modifier = modifier,
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(12.dp),
             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
             border = BorderStroke(1.dp, accentColor.copy(alpha = 0.2f))
         ) {
             Column(
-                modifier = Modifier.padding(vertical = 16.dp, horizontal = 8.dp),
+                modifier = Modifier.padding(vertical = 12.dp, horizontal = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(36.dp)
                         .clip(CircleShape)
                         .background(accentColor.copy(alpha = 0.15f)),
                     contentAlignment = Alignment.Center
@@ -507,13 +510,13 @@ private fun FeatureHighlightCard(
                     WrapIcon(
                         iconData = feature.icon,
                         customTint = accentColor,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = feature.title,
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center,
@@ -525,17 +528,17 @@ private fun FeatureHighlightCard(
     } else {
         Surface(
             modifier = modifier,
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(12.dp),
             color = MaterialTheme.colorScheme.surfaceContainerLow,
             shadowElevation = 2.dp
         ) {
             Column(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier.padding(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(32.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center
@@ -543,13 +546,13 @@ private fun FeatureHighlightCard(
                     WrapIcon(
                         iconData = feature.icon,
                         customTint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                 }
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = feature.title,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurface
@@ -557,7 +560,7 @@ private fun FeatureHighlightCard(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = feature.description,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
@@ -589,9 +592,9 @@ fun PremiumActionButton(
             onClick()
         },
         modifier = modifier
-            .height(56.dp)
+            .height(48.dp)
             .scale(scale),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.primary
         ),
@@ -605,13 +608,13 @@ fun PremiumActionButton(
             WrapIcon(
                 iconData = icon,
                 customTint = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(18.dp)
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(6.dp))
         }
         Text(
             text = text,
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.SemiBold
         )
     }

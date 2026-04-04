@@ -39,6 +39,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -283,39 +284,40 @@ private fun DeviceNotLinkedContent(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = SPACING_LARGE.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         DeviceLinkIllustration()
 
-        VSpacer.Large()
+        VSpacer.Medium()
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = stringResource(R.string.actions_device_not_linked_title),
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center
             )
-            VSpacer.Medium()
+            VSpacer.Small()
             Text(
                 text = stringResource(R.string.actions_device_not_linked_subtitle),
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                lineHeight = 24.sp
+                lineHeight = 20.sp
             )
         }
 
-        VSpacer.ExtraLarge()
+        VSpacer.Large()
 
         val featureIconColor = MaterialTheme.colorScheme.activeHighlight
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             FeatureHighlightCard(
                 modifier = Modifier.weight(1f),
@@ -337,7 +339,7 @@ private fun DeviceNotLinkedContent(
             )
         }
 
-        VSpacer.ExtraLarge()
+        VSpacer.Large()
 
         LinkDeviceButton(
             onClick = {
@@ -345,6 +347,8 @@ private fun DeviceNotLinkedContent(
                 onLinkDevice()
             }
         )
+
+        VSpacer.Medium()
     }
 }
 
@@ -353,13 +357,13 @@ private fun DeviceLinkIllustration() {
     val highlightColor = MaterialTheme.colorScheme.activeHighlight
     Box(
         modifier = Modifier
-            .size(140.dp),
+            .size(110.dp),
         contentAlignment = Alignment.Center
     ) {
         // Outer glow ring
         Box(
             modifier = Modifier
-                .size(140.dp)
+                .size(110.dp)
                 .clip(CircleShape)
                 .background(
                     Brush.radialGradient(
@@ -375,7 +379,7 @@ private fun DeviceLinkIllustration() {
         // Inner circle with gradient
         Box(
             modifier = Modifier
-                .size(100.dp)
+                .size(80.dp)
                 .clip(CircleShape)
                 .background(
                     Brush.linearGradient(
@@ -390,25 +394,25 @@ private fun DeviceLinkIllustration() {
             // Device + Link icon composition
             Box(
                 modifier = Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(10.dp))
                     .background(MaterialTheme.colorScheme.surface),
                 contentAlignment = Alignment.Center
             ) {
                 WrapIcon(
                     iconData = AppIcons.Id,
                     customTint = highlightColor,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(26.dp)
                 )
             }
         }
 
-        // Floating plus badge - keeps primary color as it's a CTA indicator
+        // Floating plus badge
         Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(8.dp)
-                .size(36.dp)
+                .padding(4.dp)
+                .size(30.dp)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.primary),
             contentAlignment = Alignment.Center
@@ -416,7 +420,7 @@ private fun DeviceLinkIllustration() {
             WrapIcon(
                 iconData = AppIcons.Add,
                 customTint = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(16.dp)
             )
         }
     }
@@ -431,18 +435,18 @@ private fun FeatureHighlightCard(
 ) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
         border = BorderStroke(1.dp, accentColor.copy(alpha = 0.2f))
     ) {
         Column(
             modifier = Modifier
-                .padding(vertical = 16.dp, horizontal = 8.dp),
+                .padding(vertical = 12.dp, horizontal = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(36.dp)
                     .clip(CircleShape)
                     .background(accentColor.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
@@ -450,13 +454,13 @@ private fun FeatureHighlightCard(
                 WrapIcon(
                     iconData = icon,
                     customTint = accentColor,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
-            VSpacer.Small()
+            VSpacer.ExtraSmall()
             Text(
                 text = title,
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
@@ -475,8 +479,8 @@ private fun LinkDeviceButton(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .height(56.dp),
-        shape = RoundedCornerShape(16.dp),
+            .height(48.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.primary
         )
@@ -484,12 +488,12 @@ private fun LinkDeviceButton(
         WrapIcon(
             iconData = AppIcons.Add,
             customTint = MaterialTheme.colorScheme.onPrimary,
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(18.dp)
         )
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(6.dp))
         Text(
             text = stringResource(R.string.actions_device_link_button),
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.SemiBold
         )
     }
