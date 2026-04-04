@@ -187,9 +187,4 @@ interface WalletCoreConfig {
      * Any document type not listed in `documentSpecificRules` will use the `defaultRule`.
      */
     val documentIssuanceConfig: DocumentIssuanceConfig
-
-    /**
-     * Host for the Wallet Provider.
-     */
-    val walletProviderHost: String
 }

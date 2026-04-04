@@ -20,10 +20,7 @@ interface WalletCoreConfig {
     // 1. Issuing API
     val issuersConfig: List<VciConfig>
 
-    // 2. Wallet Provider Host
-    val walletProviderHost: String
-
-    // 3. Trusted certificates
+    // 2. Trusted certificates
     val config: EudiWalletConfig
 }
 ```
@@ -34,13 +31,13 @@ variant:
 * `core-logic/src/demo/config/WalletCoreConfigImpl.kt`
 * `core-logic/src/dev/config/WalletCoreConfigImpl.kt`
 
-Each flavor can use different issuer URLs, wallet provider hosts, and trust stores.
+Each flavor can use different issuer URLs, issuer-scoped wallet providers, and trust stores.
 
 1. Issuing API
 
    The Issuing API is configured via the `issuersConfig` property. Each entry wraps an
-   `OpenId4VciManager.Config` inside a `VciConfig` data class that also carries an `order`
-   value controlling display priority in the AddDocument screen:
+   `OpenId4VciManager.Config` inside a `VciConfig` data class that carries both display order
+   and the wallet-provider configuration used for that issuer:
 
     ```kotlin
     override val issuersConfig: List<VciConfig>
@@ -53,25 +50,19 @@ Each flavor can use different issuer URLs, wallet provider hosts, and trust stor
                   .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
                   .withDPopConfig(DPopConfig.Default)
                   .build(),
-               order = 0
+               order = 0,
+               walletProviderConfig = AuthboundWalletProviderConfig(
+                   baseUrl = "https://mobile-backend.authbound.io/api/mobile/wallet-provider"
+               )
            )
     )
     ```
 
-   Adjust the configuration per flavor in the corresponding `WalletCoreConfigImpl`.
+   Use `EuReferenceWalletProviderConfig` for EU demo issuers and `AuthboundWalletProviderConfig`
+   for Authbound issuers. This allows the same build to talk to multiple issuers that trust
+   different wallet providers.
 
-2. Wallet Provider Host
-
-   The Wallet Provider Host is configured via the `walletProviderHost` property:
-
-    ```kotlin
-    override val walletProviderHost: String
-        get() = "https://wallet-provider.eudiw.dev"
-    ```
-
-   Again, set a different value per flavor in the corresponding `WalletCoreConfigImpl`.
-
-3. Trusted certificates
+2. Trusted certificates
 
    Trusted certificates are configured via the `config` property:
 
@@ -86,7 +77,7 @@ Each flavor can use different issuer URLs, wallet provider hosts, and trust stor
 
    Configure `EudiWalletConfig` per flavor inside the appropriate `WalletCoreConfigImpl`.
 
-4. Preregistered Client Scheme
+3. Preregistered Client Scheme
 
    If you plan to use the *ClientIdScheme.Preregistered* for OpenId4VP configuration, please add the
    following to the configuration files.
@@ -113,7 +104,7 @@ Each flavor can use different issuer URLs, wallet provider hosts, and trust stor
     }
     ```
 
-5. RQES
+4. RQES
 
    Via the *ConfigLogic* interface inside the business-logic module.
 

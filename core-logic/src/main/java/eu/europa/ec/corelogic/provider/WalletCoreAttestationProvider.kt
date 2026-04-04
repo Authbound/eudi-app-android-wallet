@@ -16,36 +16,352 @@
 
 package eu.europa.ec.corelogic.provider
 
+import android.util.Base64
+import com.nimbusds.jose.JWSAlgorithm
+import com.nimbusds.jose.crypto.impl.ECDSA
 import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
-import eu.europa.ec.corelogic.config.WalletCoreConfig
+import eu.europa.ec.businesslogic.controller.crypto.CryptoController
+import eu.europa.ec.businesslogic.controller.crypto.WuaSigningResult
+import eu.europa.ec.corelogic.config.AuthboundWalletProviderConfig
+import eu.europa.ec.corelogic.config.EuReferenceWalletProviderConfig
+import eu.europa.ec.corelogic.config.WalletProviderConfig
 import eu.europa.ec.eudi.openid4vci.Nonce
 import eu.europa.ec.eudi.wallet.provider.WalletAttestationsProvider
+import eu.europa.ec.networklogic.repository.WalletAttestationHttpHeaders
 import eu.europa.ec.networklogic.repository.WalletAttestationRepository
+import eu.europa.ec.networklogic.repository.WalletAttestationRequest
+import eu.europa.ec.networklogic.repository.WalletProofChallengeRequest
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
+import org.multipaz.crypto.X509CertChain
 import org.multipaz.securearea.KeyInfo
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
+import java.time.Instant
 
-interface WalletCoreAttestationProvider : WalletAttestationsProvider
+class WuaProofUserAuthRequiredException : IllegalStateException(
+    "Wallet unit attestation proof requires user authentication"
+)
 
-class WalletCoreAttestationProviderImpl(
-    private val walletCoreConfig: WalletCoreConfig,
+class MissingWuaKeyException : IllegalStateException(
+    "Wallet unit attestation key is not available"
+)
+
+class MissingKeyAttestationChainException(
+    keyAlias: String,
+) : IllegalStateException(
+    "Authbound issuance requires hardware-backed key attestation for alias=$keyAlias"
+)
+
+interface WalletCoreAttestationProviderFactory {
+    fun create(walletProviderConfig: WalletProviderConfig): WalletAttestationsProvider
+}
+
+class WalletCoreAttestationProviderFactoryImpl(
     private val walletAttestationRepository: WalletAttestationRepository,
-    private val supabaseAuthRepository: SupabaseAuthRepository
-) : WalletCoreAttestationProvider {
+    private val supabaseAuthRepository: SupabaseAuthRepository,
+    private val cryptoController: CryptoController,
+) : WalletCoreAttestationProviderFactory {
+
+    override fun create(walletProviderConfig: WalletProviderConfig): WalletAttestationsProvider =
+        when (walletProviderConfig) {
+            is EuReferenceWalletProviderConfig -> EuReferenceWalletAttestationProvider(
+                walletProviderConfig = walletProviderConfig,
+                walletAttestationRepository = walletAttestationRepository,
+            )
+
+            is AuthboundWalletProviderConfig -> AuthboundWalletAttestationProvider(
+                walletProviderConfig = walletProviderConfig,
+                walletAttestationRepository = walletAttestationRepository,
+                supabaseAuthRepository = supabaseAuthRepository,
+                cryptoController = cryptoController,
+            )
+        }
+}
+
+private class EuReferenceWalletAttestationProvider(
+    private val walletProviderConfig: EuReferenceWalletProviderConfig,
+    private val walletAttestationRepository: WalletAttestationRepository,
+) : WalletAttestationsProvider {
 
     override suspend fun getWalletAttestation(
         keyInfo: KeyInfo
     ): Result<String> = walletAttestationRepository.getWalletAttestation(
-        baseUrl = walletCoreConfig.walletProviderHost,
-        keyInfo = keyInfo.publicKey.toJwk(),
-        bearerToken = supabaseAuthRepository.getAccessToken()
+        baseUrl = walletProviderConfig.baseUrl,
+        request = WalletAttestationRequest(
+            body = buildJsonObject {
+                put("jwk", keyInfo.publicKey.toJwk())
+            }
+        )
     )
 
     override suspend fun getKeyAttestation(
         keys: List<KeyInfo>,
         nonce: Nonce?
     ): Result<String> = walletAttestationRepository.getKeyAttestation(
-        baseUrl = walletCoreConfig.walletProviderHost,
-        keys = keys.map { it.publicKey.toJwk() },
-        nonce = nonce?.value,
-        bearerToken = supabaseAuthRepository.getAccessToken()
+        baseUrl = walletProviderConfig.baseUrl,
+        request = WalletAttestationRequest(
+            body = buildJsonObject {
+                put("nonce", JsonPrimitive(nonce?.value.orEmpty()))
+                putJsonObject("jwkSet") {
+                    putJsonArray("keys") {
+                        keys.forEach { keyInfo ->
+                            add(keyInfo.publicKey.toJwk())
+                        }
+                    }
+                }
+            }
+        )
     )
+}
+
+private class AuthboundWalletAttestationProvider(
+    private val walletProviderConfig: AuthboundWalletProviderConfig,
+    private val walletAttestationRepository: WalletAttestationRepository,
+    private val supabaseAuthRepository: SupabaseAuthRepository,
+    private val cryptoController: CryptoController,
+) : WalletAttestationsProvider {
+
+    private companion object {
+        const val WALLET_INSTANCE_ATTESTATION_PATH = "/wallet-instance-attestation/jwk"
+        const val WALLET_UNIT_ATTESTATION_PATH = "/wallet-unit-attestation/jwk-set"
+        const val WALLET_INSTANCE_ATTESTATION_PURPOSE = "wallet_instance_attestation"
+        const val WALLET_UNIT_ATTESTATION_PURPOSE = "wallet_unit_attestation"
+    }
+
+    override suspend fun getWalletAttestation(
+        keyInfo: KeyInfo
+    ): Result<String> = runCatching {
+        val attestationChain = keyInfo.requireAttestationChain()
+        val baseRequestBody = buildJsonObject {
+            putJsonObject("key") {
+                put("jwk", keyInfo.publicKey.toJwk())
+                put("x5c", attestationChain.toX5c())
+            }
+        }
+        val authboundContext = buildAuthboundRequestContext(
+            requestBody = baseRequestBody,
+            requestPath = WALLET_INSTANCE_ATTESTATION_PATH,
+            purpose = WALLET_INSTANCE_ATTESTATION_PURPOSE,
+        )
+        val requestBody = buildJsonObject {
+            putJsonObject("key") {
+                put("jwk", keyInfo.publicKey.toJwk())
+                put("x5c", attestationChain.toX5c())
+                put(
+                    "proof",
+                    JsonPrimitive(
+                        createAttestedKeyProof(
+                            keyAlias = keyInfo.alias,
+                            attestationNonce = authboundContext.proofChallenge.attestationNonce,
+                            requestHash = authboundContext.requestHash,
+                            requestPath = WALLET_INSTANCE_ATTESTATION_PATH,
+                        )
+                    )
+                )
+            }
+        }
+
+        walletAttestationRepository.getWalletAttestation(
+            baseUrl = walletProviderConfig.baseUrl,
+            request = WalletAttestationRequest(
+                body = requestBody,
+                headers = authboundContext.headers
+            )
+        ).getOrThrow()
+    }
+
+    override suspend fun getKeyAttestation(
+        keys: List<KeyInfo>,
+        nonce: Nonce?
+    ): Result<String> = runCatching {
+        val attestedKeys = keys.map { keyInfo ->
+            keyInfo to keyInfo.requireAttestationChain()
+        }
+        val baseRequestBody = buildJsonObject {
+            put("nonce", JsonPrimitive(nonce?.value.orEmpty()))
+            putJsonArray("keys") {
+                attestedKeys.forEach { (keyInfo, attestationChain) ->
+                    add(
+                        buildJsonObject {
+                            put("jwk", keyInfo.publicKey.toJwk())
+                            put("x5c", attestationChain.toX5c())
+                        }
+                    )
+                }
+            }
+        }
+        val authboundContext = buildAuthboundRequestContext(
+            requestBody = baseRequestBody,
+            requestPath = WALLET_UNIT_ATTESTATION_PATH,
+            purpose = WALLET_UNIT_ATTESTATION_PURPOSE,
+        )
+        val requestBody = buildJsonObject {
+            put("nonce", JsonPrimitive(nonce?.value.orEmpty()))
+            putJsonArray("keys") {
+                attestedKeys.forEach { (keyInfo, attestationChain) ->
+                    add(
+                        buildJsonObject {
+                            put("jwk", keyInfo.publicKey.toJwk())
+                            put("x5c", attestationChain.toX5c())
+                            put(
+                                "proof",
+                                JsonPrimitive(
+                                    createAttestedKeyProof(
+                                        keyAlias = keyInfo.alias,
+                                        attestationNonce = authboundContext.proofChallenge.attestationNonce,
+                                        requestHash = authboundContext.requestHash,
+                                        requestPath = WALLET_UNIT_ATTESTATION_PATH,
+                                    )
+                                )
+                            )
+                        }
+                    )
+                }
+            }
+        }
+
+        walletAttestationRepository.getKeyAttestation(
+            baseUrl = walletProviderConfig.baseUrl,
+            request = WalletAttestationRequest(
+                body = requestBody,
+                headers = authboundContext.headers
+            )
+        ).getOrThrow()
+    }
+
+    private suspend fun buildAuthboundRequestContext(
+        requestBody: JsonObject,
+        requestPath: String,
+        purpose: String,
+    ): AuthboundRequestContext {
+        val bearerToken = requireNotNull(supabaseAuthRepository.getAccessToken()) {
+            "Authbound wallet attestation requires an authenticated user session"
+        }
+        val requestHash = requestBody.toCanonicalHash()
+        val proofChallenge = walletAttestationRepository.createProofChallenge(
+            baseUrl = walletProviderConfig.baseUrl,
+            bearerToken = bearerToken,
+            request = WalletProofChallengeRequest(
+                purpose = purpose,
+                requestHash = requestHash,
+            )
+        ).getOrThrow()
+
+        return AuthboundRequestContext(
+            requestHash = requestHash,
+            proofChallenge = proofChallenge,
+            headers = WalletAttestationHttpHeaders(
+                bearerToken = bearerToken,
+                wuaChallengeId = proofChallenge.challengeId,
+                wuaProof = createWuaProof(
+                    challengeId = proofChallenge.challengeId,
+                    challenge = proofChallenge.challenge,
+                    requestHash = requestHash,
+                    requestPath = requestPath,
+                )
+            )
+        )
+    }
+
+    private fun createWuaProof(
+        challengeId: String,
+        challenge: String,
+        requestHash: String,
+        requestPath: String,
+    ): String {
+        val header = buildJsonObject {
+            put("alg", JsonPrimitive("ES256"))
+            put("typ", JsonPrimitive("JWT"))
+        }
+
+        val issuedAt = Instant.now().epochSecond
+        val payload = buildJsonObject {
+            put("challengeId", JsonPrimitive(challengeId))
+            put("challenge", JsonPrimitive(challenge))
+            put("requestHash", JsonPrimitive(requestHash))
+            put("method", JsonPrimitive("POST"))
+            put("path", JsonPrimitive(requestPath))
+            put("iat", JsonPrimitive(issuedAt))
+            put("exp", JsonPrimitive(issuedAt + 300))
+        }
+
+        val signingInput = "${header.toBase64Url()}.${payload.toBase64Url()}"
+        val signature = when (val result = cryptoController.signWuaPayload(signingInput.toByteArray(StandardCharsets.UTF_8))) {
+            is WuaSigningResult.Signed -> result.signature
+            WuaSigningResult.MissingKey -> throw MissingWuaKeyException()
+            WuaSigningResult.UserAuthRequired -> throw WuaProofUserAuthRequiredException()
+            is WuaSigningResult.Failure -> throw result.cause
+        }
+
+        return signingInput + "." + signature.toJoseBase64Url()
+    }
+
+    private fun createAttestedKeyProof(
+        keyAlias: String,
+        attestationNonce: String,
+        requestHash: String,
+        requestPath: String,
+    ): String {
+        val header = buildJsonObject {
+            put("alg", JsonPrimitive("ES256"))
+            put("typ", JsonPrimitive("JWT"))
+        }
+
+        val issuedAt = Instant.now().epochSecond
+        val payload = buildJsonObject {
+            put("attestationNonce", JsonPrimitive(attestationNonce))
+            put("requestHash", JsonPrimitive(requestHash))
+            put("method", JsonPrimitive("POST"))
+            put("path", JsonPrimitive(requestPath))
+            put("iat", JsonPrimitive(issuedAt))
+            put("exp", JsonPrimitive(issuedAt + 300))
+        }
+
+        val signingInput = "${header.toBase64Url()}.${payload.toBase64Url()}"
+        val signature = when (val result = cryptoController.signPayload(keyAlias, signingInput.toByteArray(StandardCharsets.UTF_8))) {
+            is WuaSigningResult.Signed -> result.signature
+            WuaSigningResult.MissingKey -> throw IllegalStateException(
+                "Attested key is not available for alias=$keyAlias"
+            )
+
+            WuaSigningResult.UserAuthRequired -> throw WuaProofUserAuthRequiredException()
+            is WuaSigningResult.Failure -> throw result.cause
+        }
+
+        return signingInput + "." + signature.toJoseBase64Url()
+    }
+
+    private data class AuthboundRequestContext(
+        val requestHash: String,
+        val proofChallenge: eu.europa.ec.networklogic.repository.WalletProofChallenge,
+        val headers: WalletAttestationHttpHeaders,
+    )
+}
+
+private fun KeyInfo.requireAttestationChain(): X509CertChain =
+    attestation.certChain ?: throw MissingKeyAttestationChainException(alias)
+
+private fun JsonObject.toCanonicalHash(): String {
+    val digest = MessageDigest.getInstance("SHA-256")
+        .digest(toString().toByteArray(StandardCharsets.UTF_8))
+    return digest.toBase64Url()
+}
+
+private fun JsonObject.toBase64Url(): String =
+    toString().toByteArray(StandardCharsets.UTF_8).toBase64Url()
+
+private fun ByteArray.toBase64Url(): String =
+    Base64.encodeToString(this, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
+
+private fun ByteArray.toJoseBase64Url(): String {
+    val joseBytes = ECDSA.transcodeSignatureToConcat(
+        this,
+        ECDSA.getSignatureByteArrayLength(JWSAlgorithm.ES256)
+    )
+    return joseBytes.toBase64Url()
 }

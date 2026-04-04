@@ -17,6 +17,7 @@
 package eu.europa.ec.networklogic.repository
 
 import io.ktor.client.HttpClient
+import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -35,19 +36,47 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 
+data class WalletAttestationHttpHeaders(
+    val bearerToken: String? = null,
+    val wuaChallengeId: String? = null,
+    val wuaProof: String? = null,
+)
+
+data class WalletAttestationRequest(
+    val body: JsonObject,
+    val headers: WalletAttestationHttpHeaders = WalletAttestationHttpHeaders(),
+)
+
+data class WalletProofChallengeRequest(
+    val purpose: String,
+    val requestHash: String,
+)
+
+data class WalletProofChallenge(
+    val challengeId: String,
+    val challenge: String,
+    val expiresAt: String,
+    val algorithm: String,
+    val attestationNonce: String,
+    val attestationNonceExpiresAt: String,
+)
+
 interface WalletAttestationRepository {
+
+    suspend fun createProofChallenge(
+        baseUrl: String,
+        bearerToken: String,
+        request: WalletProofChallengeRequest,
+    ): Result<WalletProofChallenge>
 
     suspend fun getWalletAttestation(
         baseUrl: String,
-        keyInfo: JsonObject,
-        bearerToken: String? = null
+        request: WalletAttestationRequest,
     ): Result<String>
 
     suspend fun getKeyAttestation(
         baseUrl: String,
-        keys: List<JsonObject>,
-        nonce: String?,
-        bearerToken: String? = null
+        request: WalletAttestationRequest,
     ): Result<String>
 }
 
@@ -56,23 +85,57 @@ class WalletAttestationRepositoryImpl(
 ) : WalletAttestationRepository {
 
     private companion object {
+        const val PROOF_CHALLENGE_PATH = "/proof-challenges"
         const val WALLET_INSTANCE_ATTESTATION_PATH = "/wallet-instance-attestation/jwk"
         const val WALLET_UNIT_ATTESTATION_PATH = "/wallet-unit-attestation/jwk-set"
+        const val WUA_CHALLENGE_ID_HEADER = "X-WUA-Challenge-Id"
+        const val WUA_PROOF_HEADER = "X-WUA-Proof"
+    }
+
+    override suspend fun createProofChallenge(
+        baseUrl: String,
+        bearerToken: String,
+        request: WalletProofChallengeRequest,
+    ): Result<WalletProofChallenge> = runCatching {
+        val response = httpClient.post(baseUrl + PROOF_CHALLENGE_PATH) {
+            contentType(ContentType.Application.Json)
+            header(HttpHeaders.Authorization, "Bearer $bearerToken")
+            setBody(
+                buildJsonObject {
+                    put("purpose", JsonPrimitive(request.purpose))
+                    put("requestHash", JsonPrimitive(request.requestHash))
+                }
+            )
+        }
+        response.requireSuccess()
+        response.bodyAsText()
+            .let { Json.decodeFromString<JsonObject>(it) }
+            .let { payload ->
+                WalletProofChallenge(
+                    challengeId = payload.jsonObject["challengeId"]?.jsonPrimitive?.content
+                        ?: throw IllegalStateException("Missing challengeId"),
+                    challenge = payload.jsonObject["challenge"]?.jsonPrimitive?.content
+                        ?: throw IllegalStateException("Missing challenge"),
+                    expiresAt = payload.jsonObject["expiresAt"]?.jsonPrimitive?.content
+                        ?: throw IllegalStateException("Missing expiresAt"),
+                    algorithm = payload.jsonObject["algorithm"]?.jsonPrimitive?.content
+                        ?: throw IllegalStateException("Missing algorithm"),
+                    attestationNonce = payload.jsonObject["attestationNonce"]?.jsonPrimitive?.content
+                        ?: throw IllegalStateException("Missing attestationNonce"),
+                    attestationNonceExpiresAt = payload.jsonObject["attestationNonceExpiresAt"]?.jsonPrimitive?.content
+                        ?: throw IllegalStateException("Missing attestationNonceExpiresAt"),
+                )
+            }
     }
 
     override suspend fun getWalletAttestation(
         baseUrl: String,
-        keyInfo: JsonObject,
-        bearerToken: String?
+        request: WalletAttestationRequest,
     ): Result<String> = runCatching {
         val response = httpClient.post(baseUrl + WALLET_INSTANCE_ATTESTATION_PATH) {
             contentType(ContentType.Application.Json)
-            bearerToken?.let { header(HttpHeaders.Authorization, "Bearer $it") }
-            setBody(
-                buildJsonObject {
-                    put("jwk", keyInfo)
-                }
-            )
+            applyHeaders(request.headers)
+            setBody(request.body)
         }
         response.requireSuccess()
         response.bodyAsText()
@@ -83,29 +146,24 @@ class WalletAttestationRepositoryImpl(
 
     override suspend fun getKeyAttestation(
         baseUrl: String,
-        keys: List<JsonObject>,
-        nonce: String?,
-        bearerToken: String?
+        request: WalletAttestationRequest,
     ): Result<String> = runCatching {
         val response = httpClient.post(baseUrl + WALLET_UNIT_ATTESTATION_PATH) {
             contentType(ContentType.Application.Json)
-            bearerToken?.let { header(HttpHeaders.Authorization, "Bearer $it") }
-            setBody(
-                buildJsonObject {
-                    put("nonce", JsonPrimitive(nonce.orEmpty()))
-                    putJsonObject("jwkSet") {
-                        putJsonArray("keys") {
-                            keys.forEach { keyInfo -> add(keyInfo) }
-                        }
-                    }
-                }
-            )
+            applyHeaders(request.headers)
+            setBody(request.body)
         }
         response.requireSuccess()
         response.bodyAsText()
             .let { Json.decodeFromString<JsonObject>(it) }
             .let { it.jsonObject["walletUnitAttestation"]?.jsonPrimitive?.content }
             ?: throw IllegalStateException("No attestation response")
+    }
+
+    private fun HttpRequestBuilder.applyHeaders(headers: WalletAttestationHttpHeaders) {
+        headers.bearerToken?.let { header(HttpHeaders.Authorization, "Bearer $it") }
+        headers.wuaChallengeId?.let { header(WUA_CHALLENGE_ID_HEADER, it) }
+        headers.wuaProof?.let { header(WUA_PROOF_HEADER, it) }
     }
 
     private fun HttpResponse.requireSuccess() {

@@ -35,6 +35,9 @@ import eu.europa.ec.corelogic.model.FormatType
 import eu.europa.ec.corelogic.model.ScopedDocumentDomain
 import eu.europa.ec.corelogic.model.TransactionLogDataDomain
 import eu.europa.ec.corelogic.model.toDocumentIdentifier
+import eu.europa.ec.corelogic.provider.IssuerOpenId4VciManagerFactory
+import eu.europa.ec.corelogic.provider.MissingKeyAttestationChainException
+import eu.europa.ec.corelogic.provider.WuaProofUserAuthRequiredException
 import eu.europa.ec.eudi.openid4vci.CredentialIssuerMetadata
 import eu.europa.ec.eudi.openid4vci.MsoMdocCredential
 import eu.europa.ec.eudi.openid4vci.SdJwtVcCredential
@@ -221,6 +224,7 @@ class WalletCoreDocumentsControllerImpl(
     private val resourceProvider: ResourceProvider,
     private val eudiWallet: EudiWallet,
     private val walletCoreConfig: WalletCoreConfig,
+    private val issuerOpenId4VciManagerFactory: IssuerOpenId4VciManagerFactory,
     private val bookmarkDao: BookmarkDao,
     private val transactionLogDao: TransactionLogDao,
     private val revokedDocumentDao: RevokedDocumentDao,
@@ -243,7 +247,7 @@ class WalletCoreDocumentsControllerImpl(
 
     private val openId4VciManagers: Map<VciConfig, OpenId4VciManager> by lazy {
         walletCoreConfig.issuersConfig.associateWith { vciConfig ->
-            eudiWallet.createOpenId4VciManager(config = vciConfig.config)
+            issuerOpenId4VciManagerFactory.create(eudiWallet, vciConfig)
         }
     }
 
@@ -431,7 +435,16 @@ class WalletCoreDocumentsControllerImpl(
 
             manager.issueDocumentByOffer(
                 offer = offer,
-                onIssueEvent = issuanceCallback(prioritizeDeferred),
+                onIssueEvent = issuanceCallback(
+                    prioritizeDeferred = prioritizeDeferred,
+                    retryIssuance = { onIssueEvent ->
+                        manager.issueDocumentByOffer(
+                            offer = offer,
+                            txCode = txCode,
+                            onIssueEvent = onIssueEvent,
+                        )
+                    }
+                ),
                 txCode = txCode,
             )
 
@@ -780,9 +793,19 @@ class WalletCoreDocumentsControllerImpl(
                 .find { (vciConfig, _) -> vciConfig.config.issuerUrl == issuerId }?.value
             require(manager != null) { documentErrorMessage }
 
+            val onIssueEvent = issuanceCallback(
+                prioritizeDeferred = prioritizeDeferred,
+                retryIssuance = { onIssueEvent ->
+                    manager.issueDocumentByConfigurationIdentifiers(
+                        credentialConfigurationIds = configIds,
+                        onIssueEvent = onIssueEvent,
+                    )
+                }
+            )
+
             manager.issueDocumentByConfigurationIdentifiers(
                 credentialConfigurationIds = configIds,
-                onIssueEvent = issuanceCallback(prioritizeDeferred)
+                onIssueEvent = onIssueEvent,
             )
 
             awaitClose()
@@ -794,7 +817,8 @@ class WalletCoreDocumentsControllerImpl(
         }
 
     private fun ProducerScope<IssueDocumentsPartialState>.issuanceCallback(
-        prioritizeDeferred: Boolean = true
+        prioritizeDeferred: Boolean = true,
+        retryIssuance: (OpenId4VciManager.OnIssueEvent) -> Unit,
     ): OpenId4VciManager.OnIssueEvent {
 
         var totalDocumentsToBeIssued = 0
@@ -802,9 +826,12 @@ class WalletCoreDocumentsControllerImpl(
         val deferredDocuments: MutableMap<DocumentId, FormatType> = mutableMapOf()
         val issuedDocuments: MutableMap<DocumentId, FormatType> = mutableMapOf()
         val authCancelled = AtomicBoolean(false)
+        val awaitingWuaAuth = AtomicBoolean(false)
+        val superseded = AtomicBoolean(false)
 
-        val listener = OpenId4VciManager.OnIssueEvent { event ->
-            if (authCancelled.get()) return@OnIssueEvent
+        lateinit var listener: OpenId4VciManager.OnIssueEvent
+        listener = OpenId4VciManager.OnIssueEvent { event ->
+            if (authCancelled.get() || superseded.get()) return@OnIssueEvent
 
             when (event) {
                 is IssueEvent.DocumentFailed -> {
@@ -863,6 +890,37 @@ class WalletCoreDocumentsControllerImpl(
                 }
 
                 is IssueEvent.Failure -> {
+                    if (event.cause is WuaProofUserAuthRequiredException) {
+                        if (awaitingWuaAuth.getAndSet(true)) return@OnIssueEvent
+                        trySendBlocking(
+                            IssueDocumentsPartialState.UserAuthRequired(
+                                crypto = BiometricCrypto(null),
+                                resultHandler = DeviceAuthenticationResult(
+                                    onAuthenticationSuccess = {
+                                        awaitingWuaAuth.set(false)
+                                        if (!superseded.compareAndSet(false, true)) {
+                                            return@DeviceAuthenticationResult
+                                        }
+                                        retryIssuance(
+                                            issuanceCallback(
+                                                prioritizeDeferred = prioritizeDeferred,
+                                                retryIssuance = retryIssuance,
+                                            )
+                                        )
+                                    },
+                                    onAuthenticationError = {
+                                        authCancelled.set(true)
+                                        trySendBlocking(IssueDocumentsPartialState.UserAuthCancelled)
+                                        close()
+                                    }
+                                )
+                            )
+                        )
+                        return@OnIssueEvent
+                    }
+                    if (event.cause is MissingKeyAttestationChainException) {
+                        logController.w(TAG) { event.cause.message.orEmpty() }
+                    }
                     logController.e(TAG) { "Issuance FAILURE event received: ${event.cause::class.simpleName}: ${event.cause.message}" }
                     logController.e(TAG, event.cause)
                     trySendBlocking(
@@ -873,6 +931,10 @@ class WalletCoreDocumentsControllerImpl(
                 }
 
                 is IssueEvent.Finished -> {
+                    if (awaitingWuaAuth.get()) {
+                        logController.d(TAG, "Ignoring Finished event while waiting for WUA authentication")
+                        return@OnIssueEvent
+                    }
                     if (authCancelled.get()) {
                         logController.d(TAG, "Ignoring Finished event after auth cancellation")
                         return@OnIssueEvent
