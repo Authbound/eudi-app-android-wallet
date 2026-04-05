@@ -68,14 +68,12 @@ object DocumentDetailsTransformer {
         )
     }
 
-    suspend fun createDocumentCredentialsInfoUi(
-        document: IssuedDocument,
+    fun createDocumentCredentialsInfoUi(
+        availableCredentials: Int,
+        totalCredentials: Int,
         isLowOnCredentials: Boolean,
         resourceProvider: ResourceProvider,
     ): DocumentCredentialsInfoUi {
-        val availableCredentials = document.credentialsCount()
-        val totalCredentials = document.initialCredentialsCount()
-
         return DocumentCredentialsInfoUi(
             availableCredentials = availableCredentials,
             totalCredentials = totalCredentials,

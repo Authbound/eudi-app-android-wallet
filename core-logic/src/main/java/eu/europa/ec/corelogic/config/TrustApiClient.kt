@@ -6,6 +6,8 @@ import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.isSuccess
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 
 /**
@@ -19,21 +21,22 @@ internal class TrustApiClient(
 ) {
     companion object {
         private const val TAG = "TrustApiClient"
+        private const val REQUEST_TIMEOUT_MS = 3_000L
     }
 
     /**
      * Fetch issuer URLs from the Trust API.
-     * Returns a list of issuer URLs, or null on failure.
+     * Returns a list of issuer URLs, or null on failure or timeout.
      */
-    suspend fun fetchIssuerUrls(): List<String>? {
-        return try {
+    suspend fun fetchIssuerUrls(): List<String>? = withTimeoutOrNull(REQUEST_TIMEOUT_MS) {
+        try {
             val response = httpClient.get("$baseUrl/entities") {
                 parameter("type", "issuer")
             }
 
             if (!response.status.isSuccess()) {
                 Log.w(TAG, "Trust API returned ${response.status} for entities")
-                return null
+                return@withTimeoutOrNull null
             }
 
             val json = JSONObject(response.bodyAsText())
@@ -50,6 +53,8 @@ internal class TrustApiClient(
 
             Log.i(TAG, "Fetched ${urls.size} issuers from Trust API")
             urls
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.w(TAG, "Failed to fetch issuers from Trust API: ${e.message}")
             null
@@ -59,15 +64,15 @@ internal class TrustApiClient(
     /**
      * Fetch trusted CA certificates (PEM-encoded) from the Trust API.
      * These are used to populate the wallet's reader trust store.
-     * Returns a list of PEM strings, or null on failure.
+     * Returns a list of PEM strings, or null on failure or timeout.
      */
-    suspend fun fetchTrustedCertificates(): List<String>? {
-        return try {
+    suspend fun fetchTrustedCertificates(): List<String>? = withTimeoutOrNull(REQUEST_TIMEOUT_MS) {
+        try {
             val response = httpClient.get("$baseUrl/certificates")
 
             if (!response.status.isSuccess()) {
                 Log.w(TAG, "Trust API returned ${response.status} for certificates")
-                return null
+                return@withTimeoutOrNull null
             }
 
             val json = JSONObject(response.bodyAsText())
@@ -83,6 +88,8 @@ internal class TrustApiClient(
 
             Log.i(TAG, "Fetched ${certs.size} trusted certificates from Trust API")
             certs
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.w(TAG, "Failed to fetch certificates from Trust API: ${e.message}")
             null

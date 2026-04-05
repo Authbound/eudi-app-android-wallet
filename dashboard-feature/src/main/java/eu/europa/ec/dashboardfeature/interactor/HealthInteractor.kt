@@ -33,9 +33,11 @@ import eu.europa.ec.dashboardfeature.ui.health.PrescriptionUi
 import eu.europa.ec.dashboardfeature.ui.health.VaccinationUi
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import java.time.Duration
 import java.time.Instant
 
@@ -108,7 +110,7 @@ interface HealthInteractor {
     /**
      * Checks if any health data is available.
      */
-    fun hasHealthData(): Boolean
+    suspend fun hasHealthData(): Boolean
 }
 
 /**
@@ -286,7 +288,7 @@ class HealthInteractorImpl(
         } catch (e: Exception) {
             emit(HealthInteractorPartialState.Failure(e.localizedMessage ?: "Unknown error"))
         }
-    }
+    }.flowOn(Dispatchers.IO)
 
     override fun getConnectionStatus(): Flow<HealthConnectionPartialState> = flow {
         try {
@@ -302,7 +304,7 @@ class HealthInteractorImpl(
         } catch (e: Exception) {
             emit(HealthConnectionPartialState.Failure(e.localizedMessage ?: "Unknown error"))
         }
-    }
+    }.flowOn(Dispatchers.IO)
 
     override suspend fun connectToService(service: HealthService): Result<Unit> {
         return try {
@@ -356,7 +358,7 @@ class HealthInteractorImpl(
         }
     }
 
-    override fun hasHealthData(): Boolean {
+    override suspend fun hasHealthData(): Boolean {
         val isMaisaConnected = prefsController.safeBool(MAISA_CONNECTED_KEY, false)
         if (!isMaisaConnected) {
             return kantaConnected

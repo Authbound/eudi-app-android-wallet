@@ -563,12 +563,12 @@ class TestDocumentIssuanceSuccessInteractor {
             .thenReturn(mockedUuid)
     }
 
-    private fun mockGetDocumentByIdCall(response: IssuedDocument?) {
+    private suspend fun mockGetDocumentByIdCall(response: IssuedDocument?) {
         whenever(walletCoreDocumentsController.getDocumentById(anyString()))
             .thenReturn(response)
     }
 
-    private fun mockSdJwtGetDocumentByIdCall(docId: String, response: IssuedDocument?) {
+    private suspend fun mockSdJwtGetDocumentByIdCall(docId: String, response: IssuedDocument?) {
         whenever(walletCoreDocumentsController.getDocumentById(docId))
             .thenReturn(response)
     }

@@ -719,7 +719,7 @@ class TestProximityRequestInteractor {
             )
     }
 
-    private fun mockGetAllIssuedDocumentsCall(response: List<IssuedDocument>) {
+    private suspend fun mockGetAllIssuedDocumentsCall(response: List<IssuedDocument>) {
         whenever(walletCoreDocumentsController.getAllIssuedDocuments())
             .thenReturn(response)
     }

@@ -179,7 +179,7 @@ class DashboardInteractorImpl(
         }
     }
 
-    private fun getPidPortraitBase64(): String? {
+    private suspend fun getPidPortraitBase64(): String? {
         val mainPid = walletCoreDocumentsController.getMainPidDocument()
         val pidDocs = walletCoreDocumentsController.getAllDocumentsByType(
             documentIdentifiers = listOf(

@@ -1081,7 +1081,7 @@ class TestDocumentOfferInteractor {
     //endregion
 
     //region helper functions
-    private fun mockGetMainPidDocumentCall(mainPid: IssuedDocument?) {
+    private suspend fun mockGetMainPidDocumentCall(mainPid: IssuedDocument?) {
         whenever(walletCoreDocumentsController.getMainPidDocument())
             .thenReturn(mainPid)
     }

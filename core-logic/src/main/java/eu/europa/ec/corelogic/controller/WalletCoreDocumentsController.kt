@@ -80,7 +80,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.URLDecoder
@@ -158,15 +157,15 @@ interface WalletCoreDocumentsController {
     /**
      * @return All the documents from the Database.
      * */
-    fun getAllDocuments(): List<Document>
+    suspend fun getAllDocuments(): List<Document>
 
-    fun getAllIssuedDocuments(): List<IssuedDocument>
+    suspend fun getAllIssuedDocuments(): List<IssuedDocument>
 
-    fun getAllDocumentsByType(documentIdentifiers: List<DocumentIdentifier>): List<IssuedDocument>
+    suspend fun getAllDocumentsByType(documentIdentifiers: List<DocumentIdentifier>): List<IssuedDocument>
 
-    fun getDocumentById(documentId: DocumentId): Document?
+    suspend fun getDocumentById(documentId: DocumentId): Document?
 
-    fun getMainPidDocument(): IssuedDocument?
+    suspend fun getMainPidDocument(): IssuedDocument?
 
     fun issueDocuments(
         issuanceMethod: IssuanceMethod,
@@ -213,7 +212,7 @@ interface WalletCoreDocumentsController {
 
     suspend fun deleteBookmark(bookmarkId: DocumentId)
 
-    suspend fun isDocumentLowOnCredentials(document: IssuedDocument): Boolean
+    suspend fun isDocumentLowOnCredentials(document: IssuedDocument, availableCredentials: Int): Boolean
 
     suspend fun storeRevokedDocuments(revokedDocuments: List<IssuedDocument>)
 
@@ -251,13 +250,13 @@ class WalletCoreDocumentsControllerImpl(
         }
     }
 
-    override fun getAllDocuments(): List<Document> {
-        val ownedIds = runBlocking(dispatcher) { ownershipController.getCurrentUserDocumentIds() }
-        return eudiWallet.getDocuments { it is IssuedDocument || it is DeferredDocument }
+    override suspend fun getAllDocuments(): List<Document> = withContext(dispatcher) {
+        val ownedIds = ownershipController.getCurrentUserDocumentIds()
+        eudiWallet.getDocuments { it is IssuedDocument || it is DeferredDocument }
             .filter { it.id in ownedIds }
     }
 
-    override fun getAllIssuedDocuments(): List<IssuedDocument> =
+    override suspend fun getAllIssuedDocuments(): List<IssuedDocument> =
         getAllDocuments().filterIsInstance<IssuedDocument>()
 
     override suspend fun getScopedDocuments(locale: Locale): FetchScopedDocumentsPartialState {
@@ -322,7 +321,7 @@ class WalletCoreDocumentsControllerImpl(
         }
     }
 
-    override fun getAllDocumentsByType(documentIdentifiers: List<DocumentIdentifier>): List<IssuedDocument> =
+    override suspend fun getAllDocumentsByType(documentIdentifiers: List<DocumentIdentifier>): List<IssuedDocument> =
         getAllDocuments()
             .filterIsInstance<IssuedDocument>()
             .filter {
@@ -337,15 +336,13 @@ class WalletCoreDocumentsControllerImpl(
                 }
             }
 
-    override fun getDocumentById(documentId: DocumentId): Document? {
-        val isOwned = runBlocking(dispatcher) {
-            ownershipController.isDocumentOwnedByCurrentUser(documentId)
-        }
-        if (!isOwned) return null
-        return eudiWallet.getDocumentById(documentId = documentId)
+    override suspend fun getDocumentById(documentId: DocumentId): Document? = withContext(dispatcher) {
+        val isOwned = ownershipController.isDocumentOwnedByCurrentUser(documentId)
+        if (!isOwned) null
+        else eudiWallet.getDocumentById(documentId = documentId)
     }
 
-    override fun getMainPidDocument(): IssuedDocument? =
+    override suspend fun getMainPidDocument(): IssuedDocument? =
         getAllDocumentsByType(
             documentIdentifiers = listOf(
                 DocumentIdentifier.MdocPid,
@@ -750,11 +747,12 @@ class WalletCoreDocumentsControllerImpl(
         bookmarkDao.delete(bookmarkId, userId)
     }
 
-    override suspend fun isDocumentLowOnCredentials(document: IssuedDocument): Boolean {
-        val documentRemainingCredentials = document.credentialsCount()
-
+    override suspend fun isDocumentLowOnCredentials(
+        document: IssuedDocument,
+        availableCredentials: Int,
+    ): Boolean {
         return document.credentialPolicy == CreateDocumentSettings.CredentialPolicy.OneTimeUse
-                && documentRemainingCredentials <= 1
+                && availableCredentials <= 1
     }
 
     override suspend fun getRevokedDocumentIds(): List<String> {

@@ -371,7 +371,7 @@ class DocumentsInteractorImpl(
                                 )
 
                                 val documentLowOnCredentials = walletCoreDocumentsController
-                                    .isDocumentLowOnCredentials(document)
+                                    .isDocumentLowOnCredentials(document, documentAvailableCredentials)
 
                                 if (documentLowOnCredentials) {
                                     ListItemTrailingContentDataUi.TextWithIcon(

@@ -69,9 +69,9 @@ interface SettingsInteractor {
     suspend fun getCurrentUser(): UserInfo?
     suspend fun getMyProfile(): Result<Profile>
     suspend fun resetHealthData(): Result<Unit>
-    fun getCredentialCount(): Int
-    fun getCredentialSummaries(): List<CredentialSummaryUi>
-    fun getMainPidPortraitBase64(): String?
+    suspend fun getCredentialCount(): Int
+    suspend fun getCredentialSummaries(): List<CredentialSummaryUi>
+    suspend fun getMainPidPortraitBase64(): String?
 }
 
 data class CredentialSummaryUi(
@@ -253,7 +253,7 @@ class SettingsInteractorImpl(
         biometryStorageController.setBiometricsPreferenceDecided(value)
     }
 
-    override fun getMainPidPortraitBase64(): String? {
+    override suspend fun getMainPidPortraitBase64(): String? {
         val mainPid = walletCoreDocumentsController.getMainPidDocument()
         val pidDocs = walletCoreDocumentsController.getAllDocumentsByType(
             documentIdentifiers = listOf(
@@ -325,11 +325,11 @@ class SettingsInteractorImpl(
         return getMyProfileUseCase()
     }
 
-    override fun getCredentialCount(): Int {
+    override suspend fun getCredentialCount(): Int {
         return walletCoreDocumentsController.getAllIssuedDocuments().size
     }
 
-    override fun getCredentialSummaries(): List<CredentialSummaryUi> {
+    override suspend fun getCredentialSummaries(): List<CredentialSummaryUi> {
         val userLocale = resourceProvider.getLocale()
         return walletCoreDocumentsController.getAllIssuedDocuments().map { document ->
             CredentialSummaryUi(

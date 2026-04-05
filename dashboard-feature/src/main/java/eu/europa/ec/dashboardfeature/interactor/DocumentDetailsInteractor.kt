@@ -34,6 +34,8 @@ import eu.europa.ec.eudi.wallet.document.IssuedDocument
 import eu.europa.ec.eudi.wallet.document.format.MsoMdocFormat
 import eu.europa.ec.eudi.wallet.document.format.SdJwtVcFormat
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
@@ -110,43 +112,50 @@ class DocumentDetailsInteractorImpl(
                         as? IssuedDocument
 
             issuedDocument?.let { safeIssuedDocument ->
-                val documentDetailsDomainResult =
+                val documentDetailsDomain =
                     DocumentDetailsTransformer.transformToDocumentDetailsDomain(
                         document = safeIssuedDocument,
                         resourceProvider = resourceProvider,
                         uuidProvider = uuidProvider
-                    )
-                val documentDetailsDomain = documentDetailsDomainResult.getOrThrow()
-
-                val documentIsLowOnCredentials =
-                    walletCoreDocumentsController.isDocumentLowOnCredentials(
-                        document = safeIssuedDocument
-                    )
-                val documentCredentialsInfo = createDocumentCredentialsInfoUi(
-                    document = safeIssuedDocument,
-                    isLowOnCredentials = documentIsLowOnCredentials,
-                    resourceProvider = resourceProvider
-                )
+                    ).getOrThrow()
 
                 val userLocale = resourceProvider.getLocale()
-                val issuerName = safeIssuedDocument.localizedIssuerMetadata(userLocale)?.name
-                val issuerLogo = safeIssuedDocument.localizedIssuerMetadata(userLocale)?.logo
+                val issuerMetadata = safeIssuedDocument.localizedIssuerMetadata(userLocale)
 
-                val documentIsBookmarked =
-                    walletCoreDocumentsController.isDocumentBookmarked(documentId)
+                coroutineScope {
+                    val availableCredentialsAsync =
+                        async { safeIssuedDocument.credentialsCount() }
+                    val totalCredentialsAsync =
+                        async { safeIssuedDocument.initialCredentialsCount() }
+                    val isBookmarkedAsync =
+                        async { walletCoreDocumentsController.isDocumentBookmarked(documentId) }
+                    val isRevokedAsync =
+                        async { walletCoreDocumentsController.isDocumentRevoked(documentId) }
 
-                val documentIsRevoked = walletCoreDocumentsController.isDocumentRevoked(documentId)
-
-                emit(
-                    DocumentDetailsInteractorPartialState.Success(
-                        issuerName = issuerName,
-                        documentDetailsDomain = documentDetailsDomain,
-                        documentIsBookmarked = documentIsBookmarked,
-                        issuerLogo = issuerLogo?.uri,
-                        isRevoked = documentIsRevoked,
-                        documentCredentialsInfoUi = documentCredentialsInfo,
+                    val availableCredentials = availableCredentialsAsync.await()
+                    val isLowOnCredentials = walletCoreDocumentsController.isDocumentLowOnCredentials(
+                        document = safeIssuedDocument,
+                        availableCredentials = availableCredentials,
                     )
-                )
+
+                    val documentCredentialsInfo = createDocumentCredentialsInfoUi(
+                        availableCredentials = availableCredentials,
+                        totalCredentials = totalCredentialsAsync.await(),
+                        isLowOnCredentials = isLowOnCredentials,
+                        resourceProvider = resourceProvider
+                    )
+
+                    emit(
+                        DocumentDetailsInteractorPartialState.Success(
+                            issuerName = issuerMetadata?.name,
+                            documentDetailsDomain = documentDetailsDomain,
+                            documentIsBookmarked = isBookmarkedAsync.await(),
+                            issuerLogo = issuerMetadata?.logo?.uri,
+                            isRevoked = isRevokedAsync.await(),
+                            documentCredentialsInfoUi = documentCredentialsInfo,
+                        )
+                    )
+                }
             } ?: emit(DocumentDetailsInteractorPartialState.Failure(error = genericErrorMsg))
         }.safeAsync {
             DocumentDetailsInteractorPartialState.Failure(

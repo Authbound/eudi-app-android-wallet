@@ -47,7 +47,6 @@ import eu.europa.ec.storagelogic.dao.RevokedDocumentDao
 import eu.europa.ec.storagelogic.dao.TransactionLogDao
 import eu.europa.ec.storagelogic.dao.UserDocumentMappingDao
 import org.koin.core.annotation.ComponentScan
-import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Module
 import org.koin.core.annotation.Scope
 import org.koin.core.annotation.Single
@@ -157,7 +156,7 @@ fun provideLocalWalletCleanupController(
     logController
 )
 
-@Factory
+@Single
 fun provideWalletCoreDocumentsController(
     resourceProvider: ResourceProvider,
     eudiWallet: EudiWallet,

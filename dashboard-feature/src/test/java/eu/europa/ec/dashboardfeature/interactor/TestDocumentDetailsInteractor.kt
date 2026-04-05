@@ -58,6 +58,7 @@ import eu.europa.ec.testlogic.extension.runTest
 import eu.europa.ec.testlogic.extension.toFlow
 import eu.europa.ec.testlogic.rule.CoroutineTestRule
 import junit.framework.TestCase.assertEquals
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -103,6 +104,12 @@ class TestDocumentDetailsInteractor {
         whenever(resourceProvider.genericErrorMessage()).thenReturn(mockedGenericErrorMessage)
         whenever(resourceProvider.getLocale()).thenReturn(mockedDefaultLocale)
         whenever(configLogic.forcePidActivation).thenReturn(true)
+        // Default mock for suspend method: Mockito returns null (not empty list) for
+        // unstubbed suspend functions due to Continuation-based type erasure.
+        runBlocking {
+            whenever(walletCoreDocumentsController.getAllDocumentsByType(documentIdentifiers = any()))
+                .thenReturn(emptyList())
+        }
     }
 
     @After
@@ -840,22 +847,22 @@ class TestDocumentDetailsInteractor {
     //endregion
 
     //region helper functions
-    private fun mockGetAllDocumentsCall(response: List<IssuedDocument>) {
+    private suspend fun mockGetAllDocumentsCall(response: List<IssuedDocument>) {
         whenever(walletCoreDocumentsController.getAllDocuments())
             .thenReturn(response)
     }
 
-    private fun mockGetAllDocumentsWithTypeCall(response: List<IssuedDocument>) {
+    private suspend fun mockGetAllDocumentsWithTypeCall(response: List<IssuedDocument>) {
         whenever(walletCoreDocumentsController.getAllDocumentsByType(documentIdentifiers = any()))
             .thenReturn(response)
     }
 
-    private fun mockGetDocumentByIdCall(response: IssuedDocument?) {
+    private suspend fun mockGetDocumentByIdCall(response: IssuedDocument?) {
         whenever(walletCoreDocumentsController.getDocumentById(ArgumentMatchers.anyString()))
             .thenReturn(response)
     }
 
-    private fun mockGetMainPidDocument(response: IssuedDocument?) {
+    private suspend fun mockGetMainPidDocument(response: IssuedDocument?) {
         whenever(walletCoreDocumentsController.getMainPidDocument())
             .thenReturn(response)
     }
@@ -896,7 +903,7 @@ class TestDocumentDetailsInteractor {
     }
 
     private suspend fun mockIsDocumentLowOnCredentialsCall(response: Boolean) {
-        whenever(walletCoreDocumentsController.isDocumentLowOnCredentials(any()))
+        whenever(walletCoreDocumentsController.isDocumentLowOnCredentials(any(), any()))
             .thenReturn(response)
     }
 

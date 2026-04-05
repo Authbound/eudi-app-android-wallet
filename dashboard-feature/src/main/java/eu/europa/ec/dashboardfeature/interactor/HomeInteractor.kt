@@ -44,8 +44,10 @@ import eu.europa.ec.uilogic.component.ListItemDataUi
 import eu.europa.ec.uilogic.component.ListItemLeadingContentDataUi
 import eu.europa.ec.uilogic.component.ListItemMainContentDataUi
 import eu.europa.ec.dashboardfeature.ui.home.model.HeroCredentialUi
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -201,7 +203,7 @@ class HomeInteractorImpl(
             } catch (e: Exception) {
                 emit(HomeInteractorGetCredentialsPartialState.Failure(e.localizedMessage ?: genericErrorMsg))
             }
-        }
+        }.flowOn(Dispatchers.IO)
 
     override fun getHeroCredential(): Flow<HomeInteractorGetHeroCredentialPartialState> =
         flow {
@@ -231,7 +233,7 @@ class HomeInteractorImpl(
                     )
                 )
             }
-        }
+        }.flowOn(Dispatchers.IO)
 
     private suspend fun buildHeroCredential(
         document: IssuedDocument,
