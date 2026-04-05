@@ -337,8 +337,8 @@ private fun getCompactColors(type: CredentialVisualType): CredentialColorScheme 
     return when (type) {
         CredentialVisualType.PID ->
                 CredentialColorScheme(
-                        gradientStart = Color(0xFF1A1508), // Deep warm bronze-navy
-                        gradientEnd = Color(0xFF4D3C12), // Warm amber-dark
+                        gradientStart = Color(0xFF0A1A36), // Navy Deep (matches full card)
+                        gradientEnd = Color(0xFF1E3A5F), // Navy Medium
                         accent = Color(0xFFD4A84B),
                         textPrimary = Color.White,
                         textSecondary = Color.White.copy(alpha = 0.70f)
