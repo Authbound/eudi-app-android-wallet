@@ -4,7 +4,7 @@
 the [EUDI Wallet Reference Implementation project description](https://github.com/eu-digital-identity-wallet/.github/blob/main/profile/reference-implementation.md)
 
 ----
-
+ 
 ## Table of contents
 
 * [Overview](#overview)

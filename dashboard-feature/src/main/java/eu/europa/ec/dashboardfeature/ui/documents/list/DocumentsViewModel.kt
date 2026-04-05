@@ -64,6 +64,7 @@ import org.koin.android.annotation.KoinViewModel
 
 data class State(
     val isLoading: Boolean,
+    val isRefreshing: Boolean = false,
     val error: ContentErrorConfig? = null,
     val isBottomSheetOpen: Boolean = false,
     val sheetContent: DocumentsBottomSheetContent = Filters(filters = emptyList()),
@@ -84,6 +85,7 @@ data class State(
 sealed class Event : ViewEvent {
     data object Init : Event()
     data object GetDocuments : Event()
+    data object PullToRefresh : Event()
     data object OnPause : Event()
     data class TryIssuingDeferredDocuments(val deferredDocs: Map<DocumentId, FormatType>) : Event()
     data object Pop : Event()
@@ -192,6 +194,10 @@ class DocumentsViewModel(
                     event = event,
                     deferredFailedDocIds = viewState.value.deferredFailedDocIds,
                 )
+            }
+
+            is Event.PullToRefresh -> {
+                refreshDocuments()
             }
 
             is Event.OnPause -> {
@@ -303,6 +309,36 @@ class DocumentsViewModel(
                             copy(
                                 filtersUi = result.filters,
                                 sortOrder = sortOrder.copy(selectedButton = result.sortOrder)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun refreshDocuments() {
+        setState { copy(isRefreshing = true, isFromOnPause = true) }
+        fetchDocumentsJob?.cancel()
+        fetchDocumentsJob = viewModelScope.launch {
+            interactor.getDocuments().collect { response ->
+                when (response) {
+                    is DocumentInteractorGetDocumentsPartialState.Failure -> {
+                        setState { copy(isRefreshing = false) }
+                    }
+
+                    is DocumentInteractorGetDocumentsPartialState.Success -> {
+                        val documentsWithFailed =
+                            response.allDocuments
+                                .generateFailedDeferredDocs(viewState.value.deferredFailedDocIds)
+                        interactor.initializeFilters(filterableList = documentsWithFailed)
+                        interactor.applyFilters()
+                        setState {
+                            copy(
+                                isRefreshing = false,
+                                error = null,
+                                allowUserInteraction = response.shouldAllowUserInteraction,
+                                isFromOnPause = false
                             )
                         }
                     }

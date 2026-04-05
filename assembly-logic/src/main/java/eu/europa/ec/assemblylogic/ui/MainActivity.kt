@@ -74,14 +74,17 @@ class MainActivity : EudiComponentActivity() {
             val unlocked = localUnlockTracker.isUnlocked()
             Log.d(TAG, "    onStart() — was backgrounded, isUnlocked()=$unlocked")
             if (!unlocked) {
-                Log.d(TAG, "    onStart() — NOT unlocked, restarting clean (no saved state) to trigger PIN flow")
+                val deepLink = getPendingDeepLinkUri()
+                Log.d(TAG, "    onStart() — NOT unlocked, restarting clean (no saved state) to trigger PIN flow, pendingDeepLink=$deepLink")
                 // Must NOT use recreate() — it preserves savedInstanceState which
                 // restores the Compose Navigation back stack to Dashboard.
                 // Instead, launch a fresh MainActivity and finish this one.
-                val intent = Intent(this, MainActivity::class.java).apply {
+                // Preserve any pending deeplink so it survives the restart.
+                val restartIntent = Intent(this, MainActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    deepLink?.let { data = it }
                 }
-                startActivity(intent)
+                startActivity(restartIntent)
                 finish()
                 return
             } else {
