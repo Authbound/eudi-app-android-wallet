@@ -33,7 +33,6 @@ import eu.europa.ec.commonfeature.interactor.QuickPinInteractorSetPinPartialStat
 import eu.europa.ec.commonfeature.model.PinFlow
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
-import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
 import eu.europa.ec.uilogic.config.ConfigNavigation
 import eu.europa.ec.uilogic.config.NavigationType
@@ -590,30 +589,21 @@ class PinViewModel(
             "getNextScreenRoute() should not be called for VERIFY flow"
         }
 
-        // After PIN creation → Push to Dashboard (Dashboard not in nav stack yet)
-        val navigationAfterCreate =
-                ConfigNavigation(
-                        navigationType =
-                                NavigationType.PushScreen(
-                                        screen = DashboardScreens.Dashboard,
-                                        popUpToScreen = CommonScreens.QuickPin
-                                ),
-                )
+        // CREATE flows skip the intermediate "wallet secured" confirmation screen and
+        // navigate straight to the Dashboard. That screen was purely cosmetic — biometric
+        // preference is already resolved before this point, and device security is
+        // enforced earlier in the authentication graph (DeviceSecurityRequired). The
+        // QuickPin route is popped by handleNavigationEffect on Effect.Navigation.SwitchScreen.
+        if (pinFlow == PinFlow.CREATE_WITH_ACTIVATION || pinFlow == PinFlow.CREATE_WITHOUT_ACTIVATION) {
+            return DashboardScreens.Dashboard.screenRoute
+        }
 
-        // After PIN creation without activation → Push to Dashboard
-        val navigationAfterCreateNoActivation = ConfigNavigation(
-            navigationType = NavigationType.PushScreen(
-                screen = DashboardScreens.Dashboard,
-                popUpToScreen = CommonScreens.QuickPin
-            ),
-        )
-
-        // After PIN update (change) → Pop back to Dashboard (already in nav stack)
+        // UPDATE flow: show "PIN changed" confirmation, then pop back to Dashboard
+        // (which is already in the nav stack).
         val navigationAfterUpdate =
                 ConfigNavigation(
                         navigationType = NavigationType.PopTo(DashboardScreens.Dashboard),
                 )
-
 
         return generateComposableNavigationLink(
             screen = CommonScreens.Success,
@@ -622,64 +612,18 @@ class PinViewModel(
                     SuccessUIConfig.serializedKeyName to uiSerializer.toBase64(
                         SuccessUIConfig(
                             textElementsConfig = SuccessUIConfig.TextElementsConfig(
-                                text = when (pinFlow) {
-                                    PinFlow.CREATE_WITH_ACTIVATION, PinFlow.CREATE_WITHOUT_ACTIVATION -> resourceProvider.getString(
-                                        R.string.quick_pin_create_success_text
-                                    )
-
-                                    PinFlow.UPDATE -> resourceProvider.getString(R.string.quick_pin_change_success_text)
-                                    PinFlow.VERIFY -> error("Unreachable - checked above")
-                                },
-                                description = when (pinFlow) {
-                                    PinFlow.CREATE_WITH_ACTIVATION -> resourceProvider.getString(R.string.quick_pin_create_success_description)
-                                    PinFlow.CREATE_WITHOUT_ACTIVATION -> resourceProvider.getString(
-                                        R.string.quick_pin_create_success_no_activation_description
-                                    )
-
-                                    PinFlow.UPDATE -> resourceProvider.getString(R.string.quick_pin_change_success_description)
-                                    PinFlow.VERIFY -> error("Unreachable - checked above")
-                                }
+                                text = resourceProvider.getString(R.string.quick_pin_change_success_text),
+                                description = resourceProvider.getString(R.string.quick_pin_change_success_description),
                             ),
-                            imageConfig = when (pinFlow) {
-                                PinFlow.CREATE_WITH_ACTIVATION, PinFlow.CREATE_WITHOUT_ACTIVATION -> SuccessUIConfig.ImageConfig(
-                                    type = SuccessUIConfig.ImageConfig.Type.Drawable(
-                                        icon = AppIcons.WalletSecured
-                                    ),
-                                    tint = null,
-                                )
-
-                                PinFlow.UPDATE -> SuccessUIConfig.ImageConfig()
-                                PinFlow.VERIFY -> error("Unreachable - checked above")
-                            },
+                            imageConfig = SuccessUIConfig.ImageConfig(),
                             buttonConfig = listOf(
                                 SuccessUIConfig.ButtonConfig(
-                                    text = when (pinFlow) {
-                                        PinFlow.CREATE_WITH_ACTIVATION -> resourceProvider.getString(
-                                            R.string.quick_pin_create_success_btn
-                                        )
-
-                                        PinFlow.CREATE_WITHOUT_ACTIVATION -> resourceProvider.getString(
-                                            R.string.quick_pin_create_success_no_activation_btn
-                                        )
-
-                                        PinFlow.UPDATE -> resourceProvider.getString(R.string.quick_pin_change_success_btn)
-                                        PinFlow.VERIFY -> error("Unreachable - checked above")
-                                    },
+                                    text = resourceProvider.getString(R.string.quick_pin_change_success_btn),
                                     style = SuccessUIConfig.ButtonConfig.Style.PRIMARY,
-                                    navigation = when (pinFlow) {
-                                        PinFlow.CREATE_WITH_ACTIVATION -> navigationAfterCreate
-                                        PinFlow.CREATE_WITHOUT_ACTIVATION -> navigationAfterCreateNoActivation
-                                        PinFlow.UPDATE -> navigationAfterUpdate
-                                        PinFlow.VERIFY -> error("Unreachable - checked above")
-                                    }
+                                    navigation = navigationAfterUpdate,
                                 )
                             ),
-                            onBackScreenToNavigate = when (pinFlow) {
-                                PinFlow.CREATE_WITH_ACTIVATION -> navigationAfterCreate
-                                PinFlow.CREATE_WITHOUT_ACTIVATION -> navigationAfterCreateNoActivation
-                                PinFlow.UPDATE -> navigationAfterUpdate
-                                PinFlow.VERIFY -> error("Unreachable - checked above")
-                            },
+                            onBackScreenToNavigate = navigationAfterUpdate,
                         ),
                         SuccessUIConfig.Parser
                     ).orEmpty()

@@ -172,11 +172,6 @@
     <string name="quick_pin_biometrics_prompt_disable">Not Now</string>
     <string name="quick_pin_biometric_not_enrolled_error">No biometrics are enrolled on this device. Add biometrics in system settings and try again.</string>
 
-    <string name="quick_pin_create_success_text">Your wallet is secured!</string>
-    <string name="quick_pin_create_success_description">To activate your wallet, connect to your National System to add your Digital ID.</string>
-    <string name="quick_pin_create_success_no_activation_description">Your wallet is ready for use.</string>
-    <string name="quick_pin_create_success_btn">Add my Digital ID</string>
-    <string name="quick_pin_create_success_no_activation_btn">GO TO HOME</string>
     <string name="quick_pin_change_success_text">@string/generic_success</string>
     <string name="quick_pin_change_success_description">You successfully changed the passcode</string>
     <string name="quick_pin_change_success_btn">BACK TO HOME</string>
