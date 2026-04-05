@@ -99,6 +99,7 @@ sealed class Event : ViewEvent {
 sealed class Effect : ViewSideEffect {
     sealed class Navigation : Effect() {
         data object Pop : Navigation()
+        data class PopWithResult(val resultKey: String, val resultValue: Boolean) : Navigation()
         data class SwitchScreen(
             val screenRoute: String,
             val popUpToScreenRoute: String?,
@@ -332,7 +333,10 @@ class DocumentDetailsViewModel(
                         }
 
                         setEffect {
-                            Effect.Navigation.Pop
+                            Effect.Navigation.PopWithResult(
+                                resultKey = DOCUMENT_DELETED_RESULT_KEY,
+                                resultValue = true
+                            )
                         }
                     }
 
@@ -459,5 +463,9 @@ class DocumentDetailsViewModel(
                 inclusive = null
             )
         }
+    }
+
+    companion object {
+        const val DOCUMENT_DELETED_RESULT_KEY = "documentDeleted"
     }
 }

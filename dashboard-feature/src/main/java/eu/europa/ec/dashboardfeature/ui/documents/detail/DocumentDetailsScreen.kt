@@ -220,6 +220,13 @@ private fun handleNavigationEffect(
             }
         }
 
+        is Effect.Navigation.PopWithResult -> {
+            navController.previousBackStackEntry
+                ?.savedStateHandle
+                ?.set(navigationEffect.resultKey, navigationEffect.resultValue)
+            navController.popBackStack()
+        }
+
         is Effect.Navigation.Pop -> navController.popBackStack()
     }
 }

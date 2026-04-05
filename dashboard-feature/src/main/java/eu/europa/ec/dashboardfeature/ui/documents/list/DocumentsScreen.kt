@@ -37,6 +37,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -289,7 +290,9 @@ internal fun DocumentsContent(
     coroutineScope: CoroutineScope,
     modalBottomSheetState: SheetState,
 ) {
-    Box(
+    PullToRefreshBox(
+        isRefreshing = state.isRefreshing,
+        onRefresh = { onEventSend(Event.PullToRefresh) },
         modifier = Modifier
             .fillMaxSize()
             .paddingFrom(paddingValues, bottom = false)

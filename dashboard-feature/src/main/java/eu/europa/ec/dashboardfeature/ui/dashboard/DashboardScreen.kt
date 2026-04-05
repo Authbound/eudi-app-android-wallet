@@ -52,6 +52,7 @@ import eu.europa.ec.corelogic.util.CoreActions
 import eu.europa.ec.dashboardfeature.ui.component.BottomNavigationBar
 import eu.europa.ec.dashboardfeature.ui.component.BottomNavigationItem
 import eu.europa.ec.dashboardfeature.ui.dashboard.sidemenu.SideMenuScreen
+import eu.europa.ec.dashboardfeature.ui.documents.detail.DocumentDetailsViewModel
 import eu.europa.ec.dashboardfeature.ui.documents.list.DocumentsViewModel
 import eu.europa.ec.dashboardfeature.ui.home.HomeScreen
 import eu.europa.ec.dashboardfeature.ui.home.HomeViewModel
@@ -236,6 +237,10 @@ internal fun DashboardScreen(
             .currentBackStackEntry
             ?.savedStateHandle
             ?.remove<String>(DEVICE_LINKING_PAIRING_PAYLOAD_RESULT_KEY)
+        val documentDeleted: Boolean = hostNavController
+            .currentBackStackEntry
+            ?.savedStateHandle
+            ?.remove<Boolean>(DocumentDetailsViewModel.DOCUMENT_DELETED_RESULT_KEY) == true
 
         if (shouldOpenActions || pairingPayload != null) {
             bottomNavigationController.navigate(
@@ -259,6 +264,11 @@ internal fun DashboardScreen(
         homeViewModel.setEvent(
             eu.europa.ec.dashboardfeature.ui.home.Event.GetCredentials
         )
+        if (documentDeleted) {
+            documentsViewModel.setEvent(
+                eu.europa.ec.dashboardfeature.ui.documents.list.Event.GetDocuments
+            )
+        }
         viewModel.setEvent(
             Event.Init(
                 deepLinkUri = context.getPendingDeepLink()

@@ -52,6 +52,12 @@ open class EudiComponentActivity : FragmentActivity() {
         pendingDeepLink = intent?.data
     }
 
+    /**
+     * Returns the current pending deeplink URI, if any.
+     * Used by subclasses to preserve the deeplink across Activity restarts.
+     */
+    protected fun getPendingDeepLinkUri(): Uri? = pendingDeepLink
+
     @OptIn(KoinExperimentalAPI::class)
     @Composable
     protected fun Content(
