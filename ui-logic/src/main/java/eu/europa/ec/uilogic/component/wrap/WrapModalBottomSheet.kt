@@ -44,7 +44,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -60,7 +59,6 @@ import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
 import eu.europa.ec.uilogic.component.utils.ALPHA_DISABLED
 import eu.europa.ec.uilogic.component.utils.ALPHA_ENABLED
-import eu.europa.ec.uilogic.component.utils.DEFAULT_BIG_ICON_SIZE
 import eu.europa.ec.uilogic.component.utils.DEFAULT_ICON_SIZE
 import eu.europa.ec.uilogic.component.utils.HSpacer
 import eu.europa.ec.uilogic.component.utils.SIZE_SMALL
@@ -80,13 +78,6 @@ private val defaultBottomSheetPadding: PaddingValues = PaddingValues(
     end = SPACING_LARGE.dp,
     top = 0.dp,
     bottom = SPACING_LARGE.dp
-)
-
-private val bottomSheetWithTwoBigIconsPadding: PaddingValues = PaddingValues(
-    start = SPACING_LARGE.dp,
-    end = SPACING_LARGE.dp,
-    top = 0.dp,
-    bottom = 0.dp
 )
 
 private val bottomSheetDefaultBackgroundColor: Color
@@ -335,84 +326,96 @@ fun <T : ViewEvent> BottomSheetWithTwoBigIcons(
     if (options.size == 2) {
         BaseBottomSheet(
             textData = textData,
-            sheetPadding = bottomSheetWithTwoBigIconsPadding,
+            sheetPadding = defaultBottomSheetPadding,
             bodyContent = {
-                Row(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.Top,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp),
                 ) {
                     options.forEachIndexed { index, item ->
-                        if (index == 1) {
-                            Text(
-                                modifier = Modifier.align(Alignment.CenterVertically),
-                                text = stringResource(
-                                    R.string.documents_screen_add_document_option_or
-                                ),
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            )
-                        }
-
-                        Column(
+                        BottomSheetOptionCard(
                             modifier = Modifier
-                                .weight(1f)
-                                .padding(vertical = SPACING_MEDIUM.dp),
-                            verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            item.leadingIcon?.let { safeLeadingIcon ->
-                                WrapImage(
-                                    modifier = Modifier
-                                        .height(DEFAULT_BIG_ICON_SIZE.dp)
-                                        .let { modifier ->
-                                            if (safeLeadingIcon == AppIcons.Edit) {
-                                                modifier
-                                                    .width(DEFAULT_BIG_ICON_SIZE.dp)
-                                                    .padding(24.dp)
-                                            } else {
-                                                modifier
-                                            }
-                                        }
-                                        .alpha(
-                                            alpha = ALPHA_ENABLED.takeIf { item.enabled }
-                                                ?: ALPHA_DISABLED
-                                        ),
-                                    iconData = safeLeadingIcon,
-                                    contentScale = ContentScale.Fit,
-                                )
-                            }
-                            WrapButton(
-                                modifier = Modifier
-                                    .optionalTestTag(
-                                        hostTab?.let { safeHostTab ->
-                                            TestTag.buttonInBottomSheetWithTwoBigIcons(
-                                                hostTab = safeHostTab,
-                                                index = index
-                                            )
-                                        }
-                                    )
-                                    .wrapContentWidth(),
-                                buttonConfig = ButtonConfig(
-                                    type = ButtonType.PRIMARY,
-                                    onClick = { onEventSent(item.event) },
-                                    enabled = item.enabled
-                                )
-                            ) {
-                                Text(
-                                    text = item.title,
-                                    style = MaterialTheme.typography.labelLarge.copy(
-                                        color = MaterialTheme.colorScheme.onPrimary
-                                    ),
-                                    textAlign = TextAlign.Center,
-                                )
-                            }
-                        }
+                                .fillMaxWidth()
+                                .optionalTestTag(
+                                    hostTab?.let { safeHostTab ->
+                                        TestTag.buttonInBottomSheetWithTwoBigIcons(
+                                            hostTab = safeHostTab,
+                                            index = index
+                                        )
+                                    }
+                                ),
+                            title = item.title,
+                            icon = item.leadingIcon,
+                            iconTint = item.leadingIconTint,
+                            enabled = item.enabled,
+                            onClick = { onEventSent(item.event) }
+                        )
                     }
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun BottomSheetOptionCard(
+    modifier: Modifier = Modifier,
+    title: String,
+    icon: IconDataUi? = null,
+    iconTint: Color? = null,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    val surfaceColor = MaterialTheme.colorScheme.surfaceContainerHigh
+    val contentAlpha = if (enabled) ALPHA_ENABLED else ALPHA_DISABLED
+
+    androidx.compose.material3.Surface(
+        modifier = modifier
+            .alpha(contentAlpha),
+        onClick = onClick,
+        enabled = enabled,
+        shape = RoundedCornerShape(16.dp),
+        color = surfaceColor,
+        tonalElevation = 1.dp,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(SPACING_MEDIUM.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
+        ) {
+            icon?.let { safeIcon ->
+                androidx.compose.foundation.layout.Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    WrapIcon(
+                        iconData = safeIcon,
+                        customTint = iconTint ?: MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+
+            WrapIcon(
+                iconData = AppIcons.KeyboardArrowRight,
+                customTint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
 }
 
