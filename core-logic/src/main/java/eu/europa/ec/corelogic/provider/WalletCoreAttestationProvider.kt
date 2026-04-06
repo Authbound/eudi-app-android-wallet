@@ -16,6 +16,7 @@
 
 package eu.europa.ec.corelogic.provider
 
+import android.util.Log
 import android.util.Base64
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.crypto.impl.ECDSA
@@ -31,6 +32,8 @@ import eu.europa.ec.networklogic.repository.WalletAttestationHttpHeaders
 import eu.europa.ec.networklogic.repository.WalletAttestationRepository
 import eu.europa.ec.networklogic.repository.WalletAttestationRequest
 import eu.europa.ec.networklogic.repository.WalletProofChallengeRequest
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -127,6 +130,7 @@ private class AuthboundWalletAttestationProvider(
 ) : WalletAttestationsProvider {
 
     private companion object {
+        const val TAG = "AuthboundAttestation"
         const val WALLET_INSTANCE_ATTESTATION_PATH = "/wallet-instance-attestation/jwk"
         const val WALLET_UNIT_ATTESTATION_PATH = "/wallet-unit-attestation/jwk-set"
         const val WALLET_INSTANCE_ATTESTATION_PURPOSE = "wallet_instance_attestation"
@@ -137,34 +141,26 @@ private class AuthboundWalletAttestationProvider(
         keyInfo: KeyInfo
     ): Result<String> = runCatching {
         val attestationChain = keyInfo.requireAttestationChain()
-        val baseRequestBody = buildJsonObject {
-            putJsonObject("key") {
-                put("jwk", keyInfo.publicKey.toJwk())
-                put("x5c", attestationChain.toX5c())
-            }
-        }
+        val keyMaterial = keyInfo.toAuthboundAttestedKeyMaterial(attestationChain)
+        val baseRequestBody = buildWalletInstanceProofFreeRequest(keyMaterial)
         val authboundContext = buildAuthboundRequestContext(
             requestBody = baseRequestBody,
             requestPath = WALLET_INSTANCE_ATTESTATION_PATH,
             purpose = WALLET_INSTANCE_ATTESTATION_PURPOSE,
         )
-        val requestBody = buildJsonObject {
-            putJsonObject("key") {
-                put("jwk", keyInfo.publicKey.toJwk())
-                put("x5c", attestationChain.toX5c())
-                put(
-                    "proof",
-                    JsonPrimitive(
-                        createAttestedKeyProof(
-                            keyAlias = keyInfo.alias,
-                            attestationNonce = authboundContext.proofChallenge.attestationNonce,
-                            requestHash = authboundContext.requestHash,
-                            requestPath = WALLET_INSTANCE_ATTESTATION_PATH,
-                        )
-                    )
-                )
-            }
-        }
+        val requestBody = buildWalletInstanceRequest(
+            keyMaterial = keyMaterial,
+            proof = createAttestedKeyProof(
+                keyAlias = keyMaterial.keyAlias,
+                attestationNonce = authboundContext.proofChallenge.attestationNonce,
+                requestHash = authboundContext.requestHash,
+                requestPath = WALLET_INSTANCE_ATTESTATION_PATH,
+            ),
+        )
+        Log.d(
+            TAG,
+            "Submitting Authbound attestation purpose=$WALLET_INSTANCE_ATTESTATION_PURPOSE path=$WALLET_INSTANCE_ATTESTATION_PATH challengeId=${authboundContext.proofChallenge.challengeId} requestHash=${authboundContext.requestHash.shortForLog()}"
+        )
 
         walletAttestationRepository.getWalletAttestation(
             baseUrl = walletProviderConfig.baseUrl,
@@ -179,51 +175,36 @@ private class AuthboundWalletAttestationProvider(
         keys: List<KeyInfo>,
         nonce: Nonce?
     ): Result<String> = runCatching {
+        val nonceValue = nonce?.value.orEmpty()
         val attestedKeys = keys.map { keyInfo ->
-            keyInfo to keyInfo.requireAttestationChain()
+            keyInfo.toAuthboundAttestedKeyMaterial(keyInfo.requireAttestationChain())
         }
-        val baseRequestBody = buildJsonObject {
-            put("nonce", JsonPrimitive(nonce?.value.orEmpty()))
-            putJsonArray("keys") {
-                attestedKeys.forEach { (keyInfo, attestationChain) ->
-                    add(
-                        buildJsonObject {
-                            put("jwk", keyInfo.publicKey.toJwk())
-                            put("x5c", attestationChain.toX5c())
-                        }
-                    )
-                }
-            }
-        }
+        val baseRequestBody = buildWalletUnitProofFreeRequest(
+            nonce = nonceValue,
+            keys = attestedKeys,
+        )
         val authboundContext = buildAuthboundRequestContext(
             requestBody = baseRequestBody,
             requestPath = WALLET_UNIT_ATTESTATION_PATH,
             purpose = WALLET_UNIT_ATTESTATION_PURPOSE,
         )
-        val requestBody = buildJsonObject {
-            put("nonce", JsonPrimitive(nonce?.value.orEmpty()))
-            putJsonArray("keys") {
-                attestedKeys.forEach { (keyInfo, attestationChain) ->
-                    add(
-                        buildJsonObject {
-                            put("jwk", keyInfo.publicKey.toJwk())
-                            put("x5c", attestationChain.toX5c())
-                            put(
-                                "proof",
-                                JsonPrimitive(
-                                    createAttestedKeyProof(
-                                        keyAlias = keyInfo.alias,
-                                        attestationNonce = authboundContext.proofChallenge.attestationNonce,
-                                        requestHash = authboundContext.requestHash,
-                                        requestPath = WALLET_UNIT_ATTESTATION_PATH,
-                                    )
-                                )
-                            )
-                        }
-                    )
-                }
-            }
+        val proofsByKeyAlias = attestedKeys.associate { keyMaterial ->
+            keyMaterial.keyAlias to createAttestedKeyProof(
+                keyAlias = keyMaterial.keyAlias,
+                attestationNonce = authboundContext.proofChallenge.attestationNonce,
+                requestHash = authboundContext.requestHash,
+                requestPath = WALLET_UNIT_ATTESTATION_PATH,
+            )
         }
+        val requestBody = buildWalletUnitRequest(
+            nonce = nonceValue,
+            keys = attestedKeys,
+            proofsByKeyAlias = proofsByKeyAlias,
+        )
+        Log.d(
+            TAG,
+            "Submitting Authbound attestation purpose=$WALLET_UNIT_ATTESTATION_PURPOSE path=$WALLET_UNIT_ATTESTATION_PATH challengeId=${authboundContext.proofChallenge.challengeId} requestHash=${authboundContext.requestHash.shortForLog()}"
+        )
 
         walletAttestationRepository.getKeyAttestation(
             baseUrl = walletProviderConfig.baseUrl,
@@ -243,6 +224,10 @@ private class AuthboundWalletAttestationProvider(
             "Authbound wallet attestation requires an authenticated user session"
         }
         val requestHash = requestBody.toCanonicalHash()
+        Log.d(
+            TAG,
+            "Creating Authbound proof challenge purpose=$purpose path=$requestPath requestHash=${requestHash.shortForLog()}"
+        )
         val proofChallenge = walletAttestationRepository.createProofChallenge(
             baseUrl = walletProviderConfig.baseUrl,
             bearerToken = bearerToken,
@@ -251,6 +236,10 @@ private class AuthboundWalletAttestationProvider(
                 requestHash = requestHash,
             )
         ).getOrThrow()
+        Log.d(
+            TAG,
+            "Created Authbound proof challenge purpose=$purpose path=$requestPath challengeId=${proofChallenge.challengeId} requestHash=${requestHash.shortForLog()}"
+        )
 
         return AuthboundRequestContext(
             requestHash = requestHash,
@@ -346,14 +335,106 @@ private class AuthboundWalletAttestationProvider(
 private fun KeyInfo.requireAttestationChain(): X509CertChain =
     attestation.certChain ?: throw MissingKeyAttestationChainException(alias)
 
-private fun JsonObject.toCanonicalHash(): String {
+internal data class AuthboundAttestedKeyMaterial(
+    val keyAlias: String,
+    val jwk: JsonElement,
+    val x5c: JsonElement,
+)
+
+internal fun buildWalletInstanceProofFreeRequest(
+    keyMaterial: AuthboundAttestedKeyMaterial,
+): JsonObject = buildJsonObject {
+    putJsonObject("key") {
+        put("jwk", keyMaterial.jwk)
+        put("x5c", keyMaterial.x5c)
+    }
+}
+
+internal fun buildWalletInstanceRequest(
+    keyMaterial: AuthboundAttestedKeyMaterial,
+    proof: String,
+): JsonObject = buildJsonObject {
+    putJsonObject("key") {
+        put("jwk", keyMaterial.jwk)
+        put("x5c", keyMaterial.x5c)
+        put("proof", JsonPrimitive(proof))
+    }
+}
+
+internal fun buildWalletUnitProofFreeRequest(
+    nonce: String,
+    keys: List<AuthboundAttestedKeyMaterial>,
+): JsonObject = buildJsonObject {
+    put("nonce", JsonPrimitive(nonce))
+    putJsonArray("keys") {
+        keys.forEach { keyMaterial ->
+            add(keyMaterial.toJsonObject())
+        }
+    }
+}
+
+internal fun buildWalletUnitRequest(
+    nonce: String,
+    keys: List<AuthboundAttestedKeyMaterial>,
+    proofsByKeyAlias: Map<String, String>,
+): JsonObject = buildJsonObject {
+    put("nonce", JsonPrimitive(nonce))
+    putJsonArray("keys") {
+        keys.forEach { keyMaterial ->
+            add(
+                keyMaterial.toJsonObject(
+                    proof = requireNotNull(proofsByKeyAlias[keyMaterial.keyAlias]) {
+                        "Missing attested key proof for alias=${keyMaterial.keyAlias}"
+                    }
+                )
+            )
+        }
+    }
+}
+
+internal fun canonicalJsonString(element: JsonElement): String = canonicalizeJsonElement(element).toString()
+
+internal fun hashCanonicalJsonObject(body: JsonObject): String {
     val digest = MessageDigest.getInstance("SHA-256")
-        .digest(toString().toByteArray(StandardCharsets.UTF_8))
+        .digest(canonicalJsonString(body).toByteArray(StandardCharsets.UTF_8))
     return digest.toBase64Url()
 }
 
+private fun JsonObject.toCanonicalHash(): String {
+    return hashCanonicalJsonObject(this)
+}
+
 private fun JsonObject.toBase64Url(): String =
-    toString().toByteArray(StandardCharsets.UTF_8).toBase64Url()
+    canonicalJsonString(this).toByteArray(StandardCharsets.UTF_8).toBase64Url()
+
+private fun KeyInfo.toAuthboundAttestedKeyMaterial(
+    attestationChain: X509CertChain,
+): AuthboundAttestedKeyMaterial = AuthboundAttestedKeyMaterial(
+    keyAlias = alias,
+    jwk = publicKey.toJwk(),
+    x5c = attestationChain.toX5c(),
+)
+
+private fun AuthboundAttestedKeyMaterial.toJsonObject(proof: String? = null): JsonObject =
+    buildJsonObject {
+        put("jwk", jwk)
+        put("x5c", x5c)
+        if (proof != null) {
+            put("proof", JsonPrimitive(proof))
+        }
+    }
+
+private fun canonicalizeJsonElement(element: JsonElement): JsonElement =
+    when (element) {
+        is JsonObject -> JsonObject(
+            element.entries
+                .sortedBy { it.key }
+                .associate { (key, value) -> key to canonicalizeJsonElement(value) }
+        )
+
+        is JsonArray -> JsonArray(element.map(::canonicalizeJsonElement))
+        else -> element
+    }
 
 private fun ByteArray.toBase64Url(): String =
     Base64.encodeToString(this, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
@@ -365,3 +446,6 @@ private fun ByteArray.toJoseBase64Url(): String {
     )
     return joseBytes.toBase64Url()
 }
+
+private fun String.shortForLog(): String =
+    if (length <= 12) this else "${take(12)}..."
