@@ -33,6 +33,8 @@ import androidx.compose.foundation.verticalScroll
 import eu.europa.ec.uilogic.component.content.ContentScreen
 import eu.europa.ec.uilogic.component.content.ImePaddingConfig
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
+import eu.europa.ec.uilogic.extension.applyTestTag
+import eu.europa.ec.uilogic.test.AuthTestTags
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable
@@ -83,6 +85,7 @@ private fun ProfileCompletionContent(
             .fillMaxSize()
             .padding(paddingValues)
             .verticalScroll(rememberScrollState())
+            .applyTestTag(AuthTestTags.ProfileCompletion.ROOT)
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -106,7 +109,9 @@ private fun ProfileCompletionContent(
             onValueChange = { onEvent(ProfileCompletionEvent.OnHandleChanged(it)) },
             label = { Text("Handle") },
             leadingIcon = { Text("@") },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .applyTestTag(AuthTestTags.ProfileCompletion.HANDLE_FIELD),
             shape = RoundedCornerShape(16.dp),
             singleLine = true,
             isError = state.isHandleAvailable == false,
@@ -124,7 +129,9 @@ private fun ProfileCompletionContent(
             value = state.displayName,
             onValueChange = { onEvent(ProfileCompletionEvent.OnDisplayNameChanged(it)) },
             label = { Text("Display Name") },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .applyTestTag(AuthTestTags.ProfileCompletion.DISPLAY_NAME_FIELD),
             shape = RoundedCornerShape(16.dp),
             singleLine = true
         )
@@ -188,6 +195,7 @@ private fun ProfileCompletionContent(
             },
             modifier = Modifier
                 .fillMaxWidth()
+                .applyTestTag(AuthTestTags.ProfileCompletion.ACTIVATE_BUTTON)
                 .height(50.dp),
             enabled = (state.isHandleAvailable == true && state.displayName.isNotBlank() && !state.isLoading) || (state.canRetry && state.lastError != null && !state.isLoading)
         ) {
@@ -212,7 +220,9 @@ private fun ProfileCompletionContent(
         Spacer(modifier = Modifier.height(16.dp))
         TextButton(
             onClick = { onEvent(ProfileCompletionEvent.SignOut) },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .applyTestTag(AuthTestTags.ProfileCompletion.SIGN_OUT_BUTTON),
             enabled = !state.isLoading,
         ) {
             Text(

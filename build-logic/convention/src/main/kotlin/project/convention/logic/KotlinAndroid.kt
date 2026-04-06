@@ -45,6 +45,8 @@ internal fun Project.configureKotlinAndroid(
         buildFeatures.buildConfig = true
 
         packaging.resources.excludes.add("/META-INF/{AL2.0,LGPL2.1}")
+        packaging.resources.excludes.add("/META-INF/LICENSE.md")
+        packaging.resources.excludes.add("/META-INF/LICENSE-notice.md")
         packaging.resources.excludes.add("/META-INF/versions/9/OSGI-INF/MANIFEST.MF")
 
         packaging.jniLibs.pickFirsts.addAll(

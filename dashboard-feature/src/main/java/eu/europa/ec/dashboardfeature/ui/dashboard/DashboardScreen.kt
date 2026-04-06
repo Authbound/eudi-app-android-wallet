@@ -72,6 +72,7 @@ import eu.europa.ec.uilogic.component.utils.LifecycleEffect
 import eu.europa.ec.uilogic.component.wrap.BottomSheetTextDataUi
 import eu.europa.ec.uilogic.component.wrap.BottomSheetWithOptionsList
 import eu.europa.ec.uilogic.component.wrap.WrapModalBottomSheet
+import eu.europa.ec.uilogic.extension.applyTestTag
 import eu.europa.ec.uilogic.extension.finish
 import eu.europa.ec.uilogic.extension.getPendingDeepLink
 import eu.europa.ec.uilogic.extension.openAppSettings
@@ -79,6 +80,7 @@ import eu.europa.ec.uilogic.extension.openBleSettings
 import eu.europa.ec.uilogic.extension.openIntentChooser
 import eu.europa.ec.uilogic.extension.openUrl
 import eu.europa.ec.uilogic.navigation.helper.handleDeepLinkAction
+import eu.europa.ec.uilogic.test.DashboardTestTags
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
@@ -117,6 +119,7 @@ internal fun DashboardScreen(
         }
     }
     Scaffold(
+        modifier = Modifier.applyTestTag(DashboardTestTags.Screen.ROOT),
         bottomBar = {
             BottomNavigationBar(
                 navController = bottomNavigationController,

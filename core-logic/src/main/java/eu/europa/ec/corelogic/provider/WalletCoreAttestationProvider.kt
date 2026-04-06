@@ -279,6 +279,9 @@ private class AuthboundWalletAttestationProvider(
             put("exp", JsonPrimitive(issuedAt + 300))
         }
 
+        android.util.Log.d("WuaProof", "header=$header")
+        android.util.Log.d("WuaProof", "payload=$payload")
+
         val signingInput = "${header.toBase64Url()}.${payload.toBase64Url()}"
         val signature = when (val result = cryptoController.signWuaPayload(signingInput.toByteArray(StandardCharsets.UTF_8))) {
             is WuaSigningResult.Signed -> result.signature
@@ -287,7 +290,9 @@ private class AuthboundWalletAttestationProvider(
             is WuaSigningResult.Failure -> throw result.cause
         }
 
-        return signingInput + "." + signature.toJoseBase64Url()
+        val jwt = signingInput + "." + signature.toJoseBase64Url()
+        android.util.Log.d("WuaProof", "jwt=$jwt")
+        return jwt
     }
 
     private fun createAttestedKeyProof(

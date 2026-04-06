@@ -52,6 +52,7 @@ import eu.europa.ec.uilogic.component.IconDataUi
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
 import eu.europa.ec.uilogic.component.utils.SPACING_LARGE
+import eu.europa.ec.uilogic.extension.optionalTestTag
 
 @Composable
 fun WrapPinKeypad(
@@ -62,6 +63,10 @@ fun WrapPinKeypad(
     maxKeySize: Dp = 76.dp,
     leadingIconData: IconDataUi? = null,
     onLeadingPressed: (() -> Unit)? = null,
+    keypadTestTag: String? = null,
+    digitTestTagProvider: ((Int) -> String)? = null,
+    leadingButtonTestTag: String? = null,
+    backspaceTestTag: String? = null,
     onDigitPressed: (Int) -> Unit,
     onBackspacePressed: () -> Unit,
 ) {
@@ -71,7 +76,10 @@ fun WrapPinKeypad(
         val keySize = if (computedKeySize < maxKeySize) computedKeySize else maxKeySize
 
         Column(
-            modifier = Modifier.fillMaxWidth().padding(bottom = SPACING_LARGE.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .optionalTestTag(keypadTestTag)
+                .padding(bottom = SPACING_LARGE.dp),
             verticalArrangement = Arrangement.spacedBy(keySpacing),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -81,6 +89,7 @@ fun WrapPinKeypad(
                 keySpacing = keySpacing,
                 enabled = enabled,
                 keys = listOf(1, 2, 3),
+                digitTestTagProvider = digitTestTagProvider,
                 onDigitPressed = onDigitPressed
             )
             KeypadRow(
@@ -89,6 +98,7 @@ fun WrapPinKeypad(
                 keySpacing = keySpacing,
                 enabled = enabled,
                 keys = listOf(4, 5, 6),
+                digitTestTagProvider = digitTestTagProvider,
                 onDigitPressed = onDigitPressed
             )
             KeypadRow(
@@ -97,6 +107,7 @@ fun WrapPinKeypad(
                 keySpacing = keySpacing,
                 enabled = enabled,
                 keys = listOf(7, 8, 9),
+                digitTestTagProvider = digitTestTagProvider,
                 onDigitPressed = onDigitPressed
             )
             Row(
@@ -109,6 +120,7 @@ fun WrapPinKeypad(
                         modifier = Modifier.size(keySize),
                         keyShape = keyShape,
                         enabled = enabled,
+                        testTag = leadingButtonTestTag,
                         onClick = onLeadingPressed,
                         content = {
                             WrapIcon(iconData = leadingIconData)
@@ -123,6 +135,7 @@ fun WrapPinKeypad(
                     keyShape = keyShape,
                     enabled = enabled,
                     label = "0",
+                    testTag = digitTestTagProvider?.invoke(0),
                     onClick = { onDigitPressed(0) }
                 )
 
@@ -130,6 +143,7 @@ fun WrapPinKeypad(
                     modifier = Modifier.size(keySize),
                     keyShape = keyShape,
                     enabled = enabled,
+                    testTag = backspaceTestTag,
                     onClick = onBackspacePressed,
                     content = {
                         WrapIcon(
@@ -150,6 +164,7 @@ private fun KeypadRow(
     keySpacing: Dp,
     enabled: Boolean,
     keys: List<Int>,
+    digitTestTagProvider: ((Int) -> String)?,
     onDigitPressed: (Int) -> Unit,
 ) {
     Row(
@@ -163,6 +178,7 @@ private fun KeypadRow(
                 keyShape = keyShape,
                 enabled = enabled,
                 label = digit.toString(),
+                testTag = digitTestTagProvider?.invoke(digit),
                 onClick = { onDigitPressed(digit) }
             )
         }
@@ -175,6 +191,7 @@ private fun ModernKeyButton(
     keyShape: Shape,
     enabled: Boolean,
     label: String? = null,
+    testTag: String? = null,
     onClick: () -> Unit,
     content: (@Composable () -> Unit)? = null,
 ) {
@@ -192,6 +209,7 @@ private fun ModernKeyButton(
         modifier = modifier
             .scale(scale)
             .clip(keyShape)
+            .optionalTestTag(testTag)
             .clickable(
                 enabled = enabled,
                 interactionSource = interactionSource,

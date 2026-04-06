@@ -34,7 +34,9 @@ internal fun configureGradleManagedDevices(
     val pixelC = DeviceConfig("Pixel C", 30, "aosp-atd")
 
     val projectDevices = listOf(pixel4, pixel6, pixelC)
-    val ciDevices = listOf(pixel4, pixelC)
+    val smokeDevices = listOf(pixel6)
+    val nightlyDevices = listOf(pixel4, pixel6, pixelC)
+    val ciDevices = smokeDevices
 
     commonExtension.testOptions.managedDevices.apply {
         allDevices {
@@ -47,6 +49,16 @@ internal fun configureGradleManagedDevices(
             }
         }
         groups {
+            maybeCreate("smoke").apply {
+                smokeDevices.forEach { deviceConfig ->
+                    targetDevices.add(allDevices[deviceConfig.taskName])
+                }
+            }
+            maybeCreate("nightly").apply {
+                nightlyDevices.forEach { deviceConfig ->
+                    targetDevices.add(allDevices[deviceConfig.taskName])
+                }
+            }
             maybeCreate("ci").apply {
                 ciDevices.forEach { deviceConfig ->
                     targetDevices.add(allDevices[deviceConfig.taskName])

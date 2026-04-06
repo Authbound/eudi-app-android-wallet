@@ -78,9 +78,11 @@ import eu.europa.ec.uilogic.component.wrap.DialogBottomSheet
 import eu.europa.ec.uilogic.component.wrap.WrapModalBottomSheet
 import eu.europa.ec.uilogic.component.wrap.PinIndicator
 import eu.europa.ec.uilogic.component.wrap.WrapPinKeypad
+import eu.europa.ec.uilogic.extension.applyTestTag
 import eu.europa.ec.uilogic.extension.finish
 import eu.europa.ec.uilogic.navigation.AuthenticationScreens
 import eu.europa.ec.uilogic.navigation.CommonScreens
+import eu.europa.ec.uilogic.test.AuthTestTags
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -271,6 +273,7 @@ private fun Content(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .applyTestTag(AuthTestTags.QuickPin.ROOT)
         ) {
             Column(
                 modifier = Modifier.fillMaxSize()
@@ -294,7 +297,9 @@ private fun Content(
                             fontWeight = FontWeight.Bold
                         ),
                         color = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.padding(bottom = titleToSubtitleSpacing)
+                        modifier = Modifier
+                            .applyTestTag(AuthTestTags.QuickPin.TITLE)
+                            .padding(bottom = titleToSubtitleSpacing)
                     )
 
                     // Subtitle — e.g., "Enter a 6-digit passcode"
@@ -302,7 +307,9 @@ private fun Content(
                         text = state.subtitle,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 32.dp, vertical = 4.dp),
+                        modifier = Modifier
+                            .applyTestTag(AuthTestTags.QuickPin.SUBTITLE)
+                            .padding(horizontal = 32.dp, vertical = 4.dp),
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                 }
@@ -331,6 +338,10 @@ private fun Content(
                             )
                         }
                     } else null,
+                    keypadTestTag = AuthTestTags.QuickPin.KEYPAD,
+                    digitTestTagProvider = AuthTestTags.QuickPin::digit,
+                    leadingButtonTestTag = AuthTestTags.QuickPin.BIOMETRIC_CTA,
+                    backspaceTestTag = AuthTestTags.QuickPin.BACKSPACE,
                     onDigitPressed = { digit ->
                         val current = state.pin
                         val next = if (!state.quickPinError.isNullOrEmpty()) {
@@ -379,6 +390,7 @@ private fun Content(
                     .offset(y = (-6).dp)
             ) {
                 IconButton(
+                    modifier = Modifier.applyTestTag(AuthTestTags.QuickPin.OVERFLOW_BUTTON),
                     onClick = { onEventSend(Event.OverflowMenuToggled(true)) }
                 ) {
                     Icon(
@@ -396,6 +408,7 @@ private fun Content(
                         text = {
                             Text(text = stringResource(id = R.string.quick_pin_forgot_menu_item))
                         },
+                        modifier = Modifier.applyTestTag(AuthTestTags.QuickPin.FORGOT_PIN_ACTION),
                         onClick = {
                             onEventSend(Event.OverflowMenuToggled(false))
                             onEventSend(Event.ForgotPinPressed)
@@ -493,6 +506,8 @@ private fun PinFieldLayout(
         hasError = !state.quickPinError.isNullOrEmpty(),
         hasSuccess = state.pinSuccess,
         errorMessage = state.quickPinError,
+        errorMessageTestTag = AuthTestTags.QuickPin.ERROR_MESSAGE,
+        indicatorTestTagProvider = AuthTestTags.QuickPin::indicator,
         circleSize = 16.dp,
         circleSpacing = 20.dp
     )
@@ -528,4 +543,3 @@ private fun SheetContentCancelPreview() {
         )
     }
 }
-

@@ -32,8 +32,9 @@ import eu.europa.ec.eudi.rqesui.infrastructure.EudiRQESUi
 
 import org.koin.android.ext.android.inject
 import org.koin.core.KoinApplication
+import org.koin.core.module.Module
 
-class Application : Application() {
+open class Application : Application() {
 
     private val analyticsController: AnalyticsController by inject()
     private val configLogic: ConfigLogic by inject()
@@ -42,10 +43,19 @@ class Application : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        initializeKoin().initializeRqes()
-        initializeReporting()
-        initializeRevocationWorkManager()
-        initializeAppLockLifecycleObserver()
+        val koinApplication = initializeKoin()
+        if (shouldInitializeRqes()) {
+            koinApplication.initializeRqes()
+        }
+        if (shouldInitializeReporting()) {
+            initializeReporting()
+        }
+        if (shouldInitializeRevocationWorkManager()) {
+            initializeRevocationWorkManager()
+        }
+        if (shouldInitializeAppLockLifecycleObserver()) {
+            initializeAppLockLifecycleObserver()
+        }
     }
 
     /**
@@ -64,8 +74,11 @@ class Application : Application() {
         )
     }
 
-    private fun initializeKoin(): KoinApplication {
-        return setupKoin()
+    protected open fun initializeKoin(): KoinApplication {
+        return setupKoin(
+            additionalModules = additionalKoinModules(),
+            allowOverride = allowKoinOverride()
+        )
     }
 
     private fun initializeReporting() {
@@ -85,4 +98,16 @@ class Application : Application() {
             periodicWorkRequest
         )
     }
+
+    protected open fun additionalKoinModules(): List<Module> = emptyList()
+
+    protected open fun allowKoinOverride(): Boolean? = null
+
+    protected open fun shouldInitializeRqes(): Boolean = true
+
+    protected open fun shouldInitializeReporting(): Boolean = true
+
+    protected open fun shouldInitializeRevocationWorkManager(): Boolean = true
+
+    protected open fun shouldInitializeAppLockLifecycleObserver(): Boolean = true
 }

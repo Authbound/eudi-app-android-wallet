@@ -50,6 +50,8 @@ import eu.europa.ec.uilogic.component.content.ToolbarConfig
 import eu.europa.ec.uilogic.component.wrap.ButtonConfig
 import eu.europa.ec.uilogic.component.wrap.ButtonType
 import eu.europa.ec.uilogic.component.wrap.WrapButton
+import eu.europa.ec.uilogic.extension.applyTestTag
+import eu.europa.ec.uilogic.test.AuthTestTags
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.androidx.compose.koinViewModel
 
@@ -80,6 +82,7 @@ fun DeviceSecurityRequiredScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .applyTestTag(AuthTestTags.DeviceSecurityRequired.ROOT)
                 .padding(24.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
@@ -115,7 +118,9 @@ fun DeviceSecurityRequiredScreen(
             }
             Spacer(modifier = Modifier.height(32.dp))
             WrapButton(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .applyTestTag(AuthTestTags.DeviceSecurityRequired.RETRY_BUTTON),
                 buttonConfig = ButtonConfig(
                     type = ButtonType.PRIMARY,
                     enabled = !state.isChecking,
@@ -126,7 +131,9 @@ fun DeviceSecurityRequiredScreen(
             }
             Spacer(modifier = Modifier.height(16.dp))
             WrapButton(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .applyTestTag(AuthTestTags.DeviceSecurityRequired.OPEN_SETTINGS_BUTTON),
                 buttonConfig = ButtonConfig(
                     type = ButtonType.SECONDARY,
                     enabled = !state.isChecking,

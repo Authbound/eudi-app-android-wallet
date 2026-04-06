@@ -16,6 +16,7 @@
 
 package eu.europa.ec.networklogic.repository
 
+import android.util.Log
 import io.ktor.client.HttpClient
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.header
@@ -85,6 +86,7 @@ class WalletAttestationRepositoryImpl(
 ) : WalletAttestationRepository {
 
     private companion object {
+        const val TAG = "WalletAttestRepo"
         const val PROOF_CHALLENGE_PATH = "/proof-challenges"
         const val WALLET_INSTANCE_ATTESTATION_PATH = "/wallet-instance-attestation/jwk"
         const val WALLET_UNIT_ATTESTATION_PATH = "/wallet-unit-attestation/jwk-set"
@@ -97,7 +99,9 @@ class WalletAttestationRepositoryImpl(
         bearerToken: String,
         request: WalletProofChallengeRequest,
     ): Result<WalletProofChallenge> = runCatching {
-        val response = httpClient.post(baseUrl + PROOF_CHALLENGE_PATH) {
+        val url = baseUrl + PROOF_CHALLENGE_PATH
+        Log.d(TAG, "createProofChallenge POST $url")
+        val response = httpClient.post(url) {
             contentType(ContentType.Application.Json)
             header(HttpHeaders.Authorization, "Bearer $bearerToken")
             setBody(
@@ -107,7 +111,7 @@ class WalletAttestationRepositoryImpl(
                 }
             )
         }
-        response.requireSuccess()
+        response.requireSuccess(url)
         response.bodyAsText()
             .let { Json.decodeFromString<JsonObject>(it) }
             .let { payload ->
@@ -132,12 +136,14 @@ class WalletAttestationRepositoryImpl(
         baseUrl: String,
         request: WalletAttestationRequest,
     ): Result<String> = runCatching {
-        val response = httpClient.post(baseUrl + WALLET_INSTANCE_ATTESTATION_PATH) {
+        val url = baseUrl + WALLET_INSTANCE_ATTESTATION_PATH
+        Log.d(TAG, "getWalletAttestation POST $url")
+        val response = httpClient.post(url) {
             contentType(ContentType.Application.Json)
             applyHeaders(request.headers)
             setBody(request.body)
         }
-        response.requireSuccess()
+        response.requireSuccess(url)
         response.bodyAsText()
             .let { Json.decodeFromString<JsonObject>(it) }
             .let { it.jsonObject["walletInstanceAttestation"]?.jsonPrimitive?.content }
@@ -148,12 +154,14 @@ class WalletAttestationRepositoryImpl(
         baseUrl: String,
         request: WalletAttestationRequest,
     ): Result<String> = runCatching {
-        val response = httpClient.post(baseUrl + WALLET_UNIT_ATTESTATION_PATH) {
+        val url = baseUrl + WALLET_UNIT_ATTESTATION_PATH
+        Log.d(TAG, "getKeyAttestation POST $url")
+        val response = httpClient.post(url) {
             contentType(ContentType.Application.Json)
             applyHeaders(request.headers)
             setBody(request.body)
         }
-        response.requireSuccess()
+        response.requireSuccess(url)
         response.bodyAsText()
             .let { Json.decodeFromString<JsonObject>(it) }
             .let { it.jsonObject["walletUnitAttestation"]?.jsonPrimitive?.content }
@@ -166,9 +174,13 @@ class WalletAttestationRepositoryImpl(
         headers.wuaProof?.let { header(WUA_PROOF_HEADER, it) }
     }
 
-    private fun HttpResponse.requireSuccess() {
+    private suspend fun HttpResponse.requireSuccess(endpoint: String) {
         if (!status.isSuccess()) {
-            throw IllegalStateException("Wallet attestation request failed: HTTP ${status.value}")
+            val body = runCatching { bodyAsText() }.getOrDefault("<unreadable>")
+            Log.e(TAG, "HTTP ${status.value} from $endpoint — response: $body")
+            throw IllegalStateException(
+                "Wallet attestation request failed: HTTP ${status.value} from $endpoint — $body"
+            )
         }
     }
 }

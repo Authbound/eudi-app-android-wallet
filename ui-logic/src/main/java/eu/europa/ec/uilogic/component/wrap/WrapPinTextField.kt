@@ -88,6 +88,7 @@ import eu.europa.ec.uilogic.component.utils.OneTimeLaunchedEffect
 import eu.europa.ec.uilogic.component.utils.SIZE_SMALL
 import androidx.compose.ui.platform.testTag
 import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
+import eu.europa.ec.uilogic.extension.optionalTestTag
 
 @Composable
 fun WrapPinTextField(
@@ -366,6 +367,8 @@ fun PinIndicator(
     hasError: Boolean = false,
     hasSuccess: Boolean = false,
     errorMessage: String? = null,
+    errorMessageTestTag: String? = null,
+    indicatorTestTagProvider: ((Int) -> String)? = null,
     circleSize: Dp = 16.dp,
     circleSpacing: Dp = 16.dp,
     filledColor: Color = MaterialTheme.colorScheme.primary,
@@ -433,7 +436,7 @@ fun PinIndicator(
                                 )
                             }
                         )
-                        .testTag("pin_indicator_$index")
+                        .testTag(indicatorTestTagProvider?.invoke(index) ?: "pin_indicator_$index")
                 )
             }
         }
@@ -445,7 +448,9 @@ fun PinIndicator(
         ) {
             errorMessage?.let {
                 Text(
-                    modifier = Modifier.padding(top = SPACING_SMALL.dp),
+                    modifier = Modifier
+                        .padding(top = SPACING_SMALL.dp)
+                        .optionalTestTag(errorMessageTestTag),
                     text = it,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,

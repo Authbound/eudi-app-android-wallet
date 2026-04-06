@@ -35,7 +35,7 @@ import eu.europa.ec.uilogic.component.utils.NfcTagHandler
 import eu.europa.ec.uilogic.container.EudiComponentActivity
 import org.koin.android.ext.android.inject
 
-class MainActivity : EudiComponentActivity() {
+open class MainActivity : EudiComponentActivity() {
 
     private val nfcTagHandler: NfcTagHandler by inject()
     private val localUnlockTracker: LocalUnlockTracker by inject()
@@ -50,10 +50,14 @@ class MainActivity : EudiComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.d(TAG, ">>> onCreate() — wasBackgrounded=$wasBackgrounded, savedInstanceState=${savedInstanceState != null}")
+        initializeActivityUi(intent)
+    }
+
+    internal open fun initializeActivityUi(startIntent: Intent?) {
         nfcTagHandler.initialize(this)
         enableEdgeToEdge()
         setContent {
-            Content(intent) {
+            Content(startIntent) {
                 featureStartupGraph(it)
                 featureCommonGraph(it)
                 featureDashboardGraph(it)

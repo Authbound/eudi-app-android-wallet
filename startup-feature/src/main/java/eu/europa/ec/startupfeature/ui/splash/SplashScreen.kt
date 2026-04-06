@@ -49,8 +49,10 @@ import androidx.navigation.NavController
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.utils.OneTimeLaunchedEffect
 import eu.europa.ec.uilogic.component.wrap.WrapImage
+import eu.europa.ec.uilogic.extension.applyTestTag
 import eu.europa.ec.uilogic.navigation.ModuleRoute
 import eu.europa.ec.uilogic.navigation.StartupScreens
+import eu.europa.ec.uilogic.test.StartupTestTags
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
@@ -113,6 +115,7 @@ private fun Content(
             Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .applyTestTag(StartupTestTags.Splash.ROOT)
                 .background(
                     brush = Brush.linearGradient(
                         colors = listOf(gradientStart, gradientEnd),

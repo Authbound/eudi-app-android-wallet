@@ -51,6 +51,8 @@ import eu.europa.ec.uilogic.component.content.ToolbarConfig
 import eu.europa.ec.uilogic.component.wrap.ButtonConfig
 import eu.europa.ec.uilogic.component.wrap.ButtonType
 import eu.europa.ec.uilogic.component.wrap.WrapButton
+import eu.europa.ec.uilogic.extension.applyTestTag
+import eu.europa.ec.uilogic.test.AuthTestTags
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.androidx.compose.koinViewModel
 
@@ -141,88 +143,102 @@ fun WalletSetupScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .applyTestTag(AuthTestTags.WalletSetup.ROOT)
                 .padding(24.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (state.isWalletAlreadyActivated) {
                 // Wallet already activated - show success message with action buttons
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_success),
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-                Text(
-                    text = "Wallet Already Activated",
-                    style = MaterialTheme.typography.headlineLarge,
-                    textAlign = TextAlign.Center,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Your wallet is already set up and ready to use.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(32.dp))
-                // Continue button to navigate to home
-                WrapButton(
-                    modifier = Modifier.fillMaxWidth(),
-                    buttonConfig = ButtonConfig(
-                        type = ButtonType.PRIMARY,
-                        onClick = {
-                            logController.d("WalletSetupScreen", "Continue to Home button pressed")
-                            viewModel.setEvent(WalletSetupEvent.ContinueToHome)
-                        },
-                    )
+                Column(
+                    modifier = Modifier.applyTestTag(AuthTestTags.WalletSetup.ALREADY_ACTIVATED_STATE),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(text = "Continue to Home")
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                // Sign out button as fallback escape
-                WrapButton(
-                    modifier = Modifier.fillMaxWidth(),
-                    buttonConfig = ButtonConfig(
-                        type = ButtonType.SECONDARY,
-                        onClick = {
-                            logController.d("WalletSetupScreen", "Sign Out button pressed (already activated)")
-                            viewModel.setEvent(WalletSetupEvent.SignOut)
-                        },
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_success),
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.primary
                     )
-                ) {
-                    Text(text = "Sign Out")
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        text = "Wallet Already Activated",
+                        style = MaterialTheme.typography.headlineLarge,
+                        textAlign = TextAlign.Center,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Your wallet is already set up and ready to use.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(32.dp))
+                    WrapButton(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .applyTestTag(AuthTestTags.WalletSetup.CONTINUE_TO_HOME_BUTTON),
+                        buttonConfig = ButtonConfig(
+                            type = ButtonType.PRIMARY,
+                            onClick = {
+                                logController.d("WalletSetupScreen", "Continue to Home button pressed")
+                                viewModel.setEvent(WalletSetupEvent.ContinueToHome)
+                            },
+                        )
+                    ) {
+                        Text(text = "Continue to Home")
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    WrapButton(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .applyTestTag(AuthTestTags.WalletSetup.ALREADY_ACTIVATED_SIGN_OUT_BUTTON),
+                        buttonConfig = ButtonConfig(
+                            type = ButtonType.SECONDARY,
+                            onClick = {
+                                logController.d("WalletSetupScreen", "Sign Out button pressed (already activated)")
+                                viewModel.setEvent(WalletSetupEvent.SignOut)
+                            },
+                        )
+                    ) {
+                        Text(text = "Sign Out")
+                    }
                 }
             } else {
                 // Capture error in local val for smart cast
                 val activationError = state.activationError
                 when {
                     activationError != null -> {
-                        // Error state with enhanced UX based on error type
-                        WalletActivationErrorContent(
-                            error = activationError,
-                            retryCountdown = state.retryCountdown,
-                            isDeleting = state.isDeleting,
-                            onRetry = {
-                                logController.d("WalletSetupScreen", "Retry button pressed")
-                                viewModel.setEvent(WalletSetupEvent.Retry)
-                            },
-                            onSignOut = {
-                                logController.d("WalletSetupScreen", "Sign Out button pressed")
-                                viewModel.setEvent(WalletSetupEvent.SignOut)
-                            },
-                            onDeleteWallet = {
-                                logController.d("WalletSetupScreen", "Delete Wallet button pressed")
-                                viewModel.setEvent(WalletSetupEvent.DeleteWallet)
-                            }
-                        )
+                        Column(
+                            modifier = Modifier.applyTestTag(AuthTestTags.WalletSetup.ERROR_STATE),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            WalletActivationErrorContent(
+                                error = activationError,
+                                retryCountdown = state.retryCountdown,
+                                isDeleting = state.isDeleting,
+                                onRetry = {
+                                    logController.d("WalletSetupScreen", "Retry button pressed")
+                                    viewModel.setEvent(WalletSetupEvent.Retry)
+                                },
+                                onSignOut = {
+                                    logController.d("WalletSetupScreen", "Sign Out button pressed")
+                                    viewModel.setEvent(WalletSetupEvent.SignOut)
+                                },
+                                onDeleteWallet = {
+                                    logController.d("WalletSetupScreen", "Delete Wallet button pressed")
+                                    viewModel.setEvent(WalletSetupEvent.DeleteWallet)
+                                }
+                            )
+                        }
                     }
                     state.autoRetrying -> {
                         // Auto-retry state
                         CircularProgressIndicator(
-                            modifier = Modifier.size(48.dp),
+                            modifier = Modifier
+                                .size(48.dp)
+                                .applyTestTag(AuthTestTags.WalletSetup.LOADING_STATE),
                             strokeWidth = 4.dp
                         )
                         Spacer(modifier = Modifier.height(24.dp))
@@ -243,7 +259,9 @@ fun WalletSetupScreen(
                     else -> {
                         // Loading state - wallet activation in progress
                         CircularProgressIndicator(
-                            modifier = Modifier.size(64.dp),
+                            modifier = Modifier
+                                .size(64.dp)
+                                .applyTestTag(AuthTestTags.WalletSetup.LOADING_STATE),
                             strokeWidth = 6.dp
                         )
                         Spacer(modifier = Modifier.height(24.dp))
@@ -268,9 +286,10 @@ fun WalletSetupScreen(
         // Confirmation dialog for canceling setup during activation
         if (state.showConfirmationDialog) {
             AlertDialog(
-                onDismissRequest = { 
+                modifier = Modifier.applyTestTag(AuthTestTags.WalletSetup.CANCEL_CONFIRMATION_DIALOG),
+                onDismissRequest = {
                     logController.d("WalletSetupScreen", "Confirmation dialog dismissed")
-                    viewModel.setEvent(WalletSetupEvent.DismissConfirmationDialog) 
+                    viewModel.setEvent(WalletSetupEvent.DismissConfirmationDialog)
                 },
                 title = { Text("Cancel Wallet Setup?") },
                 text = {
@@ -281,6 +300,7 @@ fun WalletSetupScreen(
                 },
                 confirmButton = {
                     TextButton(
+                        modifier = Modifier.applyTestTag(AuthTestTags.WalletSetup.CANCEL_CONFIRM_BUTTON),
                         onClick = {
                             logController.d("WalletSetupScreen", "Confirmation dialog - Yes, Cancel pressed")
                             viewModel.setEvent(WalletSetupEvent.ConfirmCancelSetup)
@@ -291,6 +311,7 @@ fun WalletSetupScreen(
                 },
                 dismissButton = {
                     TextButton(
+                        modifier = Modifier.applyTestTag(AuthTestTags.WalletSetup.CANCEL_DISMISS_BUTTON),
                         onClick = {
                             logController.d("WalletSetupScreen", "Confirmation dialog - Continue Setup pressed")
                             viewModel.setEvent(WalletSetupEvent.DismissConfirmationDialog)
@@ -305,9 +326,10 @@ fun WalletSetupScreen(
         // Delete confirmation dialog
         if (state.showDeleteConfirmationDialog) {
             AlertDialog(
-                onDismissRequest = { 
+                modifier = Modifier.applyTestTag(AuthTestTags.WalletSetup.DELETE_CONFIRMATION_DIALOG),
+                onDismissRequest = {
                     logController.d("WalletSetupScreen", "Delete confirmation dialog dismissed")
-                    viewModel.setEvent(WalletSetupEvent.DismissDeleteConfirmationDialog) 
+                    viewModel.setEvent(WalletSetupEvent.DismissDeleteConfirmationDialog)
                 },
                 title = { Text("Delete Wallet Activation?") },
                 text = {
@@ -318,6 +340,7 @@ fun WalletSetupScreen(
                 },
                 confirmButton = {
                     TextButton(
+                        modifier = Modifier.applyTestTag(AuthTestTags.WalletSetup.DELETE_CONFIRM_BUTTON),
                         onClick = {
                             logController.d("WalletSetupScreen", "Delete confirmation dialog - Yes, Delete pressed")
                             viewModel.setEvent(WalletSetupEvent.ConfirmDeleteWallet)
@@ -328,6 +351,7 @@ fun WalletSetupScreen(
                 },
                 dismissButton = {
                     TextButton(
+                        modifier = Modifier.applyTestTag(AuthTestTags.WalletSetup.DELETE_DISMISS_BUTTON),
                         onClick = {
                             logController.d("WalletSetupScreen", "Delete confirmation dialog - Cancel pressed")
                             viewModel.setEvent(WalletSetupEvent.DismissDeleteConfirmationDialog)
@@ -457,7 +481,9 @@ private fun WalletActivationErrorContent(
     // Action buttons based on error type
     if (error.isRetryable() && retryCountdown == null) {
         WrapButton(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .applyTestTag(AuthTestTags.WalletSetup.RETRY_BUTTON),
             buttonConfig = ButtonConfig(
                 type = ButtonType.PRIMARY,
                 onClick = onRetry,
@@ -470,7 +496,9 @@ private fun WalletActivationErrorContent(
 
     // Always show Sign Out option
     WrapButton(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .applyTestTag(AuthTestTags.WalletSetup.ERROR_SIGN_OUT_BUTTON),
         buttonConfig = ButtonConfig(
             type = ButtonType.SECONDARY,
             onClick = onSignOut,
@@ -483,7 +511,9 @@ private fun WalletActivationErrorContent(
     if (error.isPermanent()) {
         Spacer(modifier = Modifier.height(16.dp))
         WrapButton(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .applyTestTag(AuthTestTags.WalletSetup.DELETE_WALLET_BUTTON),
             buttonConfig = ButtonConfig(
                 type = ButtonType.SECONDARY,
                 onClick = onDeleteWallet,

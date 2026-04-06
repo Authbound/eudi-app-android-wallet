@@ -88,6 +88,8 @@ dependencies {
     api(project(AuthboundPidLogic.path))
     api(project(AuthboundPidFeature.path))
 
+    testImplementation(libs.truth)
+
 
     // Modules Kover Report
     koverModules.forEach {

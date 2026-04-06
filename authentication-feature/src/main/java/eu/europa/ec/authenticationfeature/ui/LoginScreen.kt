@@ -97,6 +97,8 @@ import eu.europa.ec.uilogic.component.utils.SIZE_100
 import eu.europa.ec.uilogic.component.wrap.ButtonConfig
 import eu.europa.ec.uilogic.component.wrap.ButtonType
 import eu.europa.ec.uilogic.component.wrap.WrapButton
+import eu.europa.ec.uilogic.extension.applyTestTag
+import eu.europa.ec.uilogic.test.AuthTestTags
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 
@@ -250,6 +252,7 @@ private fun LoginFormContent(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .applyTestTag(AuthTestTags.Login.ROOT)
             .background(MaterialTheme.colorScheme.surface)
     ) {
         // Header background with wave shape and diagonal gradient
@@ -396,7 +399,9 @@ private fun LoginFormContent(
                             value = state.email,
                             onValueChange = { onEvent(Event.OnEmailChanged(it)) },
                             label = { Text(stringResource(id = R.string.email)) },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .applyTestTag(AuthTestTags.Login.EMAIL_FIELD),
                             shape = RoundedCornerShape(16.dp),
                             singleLine = true,
                             colors = textFieldColors,
@@ -416,6 +421,7 @@ private fun LoginFormContent(
                             visualTransformation = PasswordVisualTransformation(),
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .applyTestTag(AuthTestTags.Login.PASSWORD_FIELD)
                                 .focusRequester(passwordFocusRequester),
                             shape = RoundedCornerShape(16.dp),
                             singleLine = true,
@@ -466,6 +472,7 @@ private fun LoginFormContent(
                         WrapButton(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .applyTestTag(AuthTestTags.Login.PRIMARY_BUTTON)
                                 .height(52.dp),
                             buttonConfig = ButtonConfig(
                                 type = ButtonType.PRIMARY,
@@ -533,6 +540,7 @@ private fun LoginFormContent(
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .applyTestTag(AuthTestTags.Login.GOOGLE_BUTTON)
                                 .height(52.dp),
                             shape = RoundedCornerShape(SIZE_100.dp),
                             colors = ButtonDefaults.buttonColors(
@@ -581,6 +589,7 @@ private fun LoginFormContent(
                     onClick = { onEvent(Event.ToggleMode) },
                     modifier = Modifier
                         .fillMaxWidth()
+                        .applyTestTag(AuthTestTags.Login.TOGGLE_MODE_BUTTON)
                         .padding(top = 12.dp),
                     shape = RoundedCornerShape(12.dp)
                 ) {

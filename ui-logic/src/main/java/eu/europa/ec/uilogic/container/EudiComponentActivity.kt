@@ -52,6 +52,10 @@ open class EudiComponentActivity : FragmentActivity() {
         pendingDeepLink = intent?.data
     }
 
+    protected fun cacheDeepLink(uri: Uri?) {
+        pendingDeepLink = uri
+    }
+
     /**
      * Returns the current pending deeplink URI, if any.
      * Used by subclasses to preserve the deeplink across Activity restarts.

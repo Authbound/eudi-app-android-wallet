@@ -457,8 +457,7 @@ class WalletSetupViewModel(
                         canNavigateBack = true
                     ) 
                 }
-                // Note: Navigation will be handled by AuthenticationViewModel.observeAuthState() 
-                // when it detects SessionStatus.NotAuthenticated after SignOutUseCase completes
+                setEffect { WalletSetupEffect.NavigateToLogin }
                 
             } catch (e: Exception) {
                 logController.e("WalletSetupViewModel", e)

@@ -24,6 +24,12 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+val useAuthTestApplication: Boolean = providers
+    .gradleProperty("android.testInstrumentationRunnerArguments.auth_test_application")
+    .orElse("false")
+    .get()
+    .toBoolean()
+
 android {
 
     signingConfigs {
@@ -44,10 +50,16 @@ android {
         applicationId = "eu.europa.ec.euidi"
         versionCode = 1
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "eu.europa.ec.euidi.test.AuthTestRunner"
+        buildConfigField("boolean", "USE_AUTH_TEST_APPLICATION", useAuthTestApplication.toString())
         vectorDrawables {
             useSupportLibrary = true
         }
+    }
+
+    testOptions {
+        execution = "ANDROIDX_TEST_ORCHESTRATOR"
+        animationsDisabled = true
     }
 
     buildTypes {
@@ -74,4 +86,15 @@ android {
 dependencies {
     implementation(project(LibraryModule.AssemblyLogic.path))
     "baselineProfile"(project(LibraryModule.BaselineProfileLogic.path))
+    androidTestImplementation(platform(libs.bom))
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.ext)
+    androidTestImplementation(libs.androidx.test.rules)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.navigation.testing)
+    androidTestImplementation(libs.koin.test)
+    androidTestImplementation(libs.mockk.android)
+    androidTestImplementation(libs.supabase.auth.kt)
+    androidTestImplementation(libs.truth)
+    androidTestUtil(libs.androidx.test.orchestrator)
 }
