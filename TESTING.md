@@ -5,6 +5,7 @@ The auth-gate smoke suite lives in [`/Users/lassi/dev/eudi-app-android-wallet/ap
 
 Key test infrastructure:
 - `AuthTestRunner` swaps in `AuthTestApplication` only when `auth_test_application=true` is passed as an instrumentation runner argument.
+- `AuthTestRunner` only allows the fake test `Application` on debug variants; release instrumentation always boots the real app.
 - `AuthTestApplication` enables Koin overrides and disables reporting/background work that would add noise to instrumentation.
 - `AuthScenarioDriver` controls auth, onboarding, wallet activation, PIN, and local-unlock state without live services.
 - `AuthScenarioState.walletSetupAttemptOutcomes` scripts per-attempt wallet setup results so smoke tests can exercise retry, destructive recovery, and stuck-loading cases.
@@ -32,6 +33,8 @@ If you run managed devices in CI or on headless Linux, use:
 - `smoke`: one phone emulator for PR-blocking auth smoke coverage
 - `nightly`: phone + tablet + latest repo-standard phone coverage
 - `ci`: compatibility alias that currently matches `smoke`
+
+Use the group tasks above as the supported interface. Direct per-device managed-device task names are internal and may change when the backing system image changes.
 
 ## Current Smoke Coverage
 - Cold start unauthenticated -> login

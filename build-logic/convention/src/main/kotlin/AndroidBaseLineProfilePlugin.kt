@@ -45,7 +45,7 @@ class AndroidBaseLineProfilePlugin : Plugin<Project> {
             }
 
             extensions.configure<BaselineProfileProducerExtension> {
-                managedDevices += "pixel6api34google"
+                managedDevices += "pixel6api34aospatd"
                 useConnectedDevices = false
             }
 

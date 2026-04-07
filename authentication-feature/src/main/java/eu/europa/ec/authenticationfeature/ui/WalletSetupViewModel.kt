@@ -448,8 +448,6 @@ class WalletSetupViewModel(
                 deleteWalletActivationUseCase().getOrThrow()
                 
                 logController.d("WalletSetupViewModel", "Wallet activation deleted successfully")
-                // Don't navigate manually - let the authentication state observer handle navigation
-                // after the user is signed out by the DeleteWalletActivationUseCase
                 setState { 
                     copy(
                         isDeleting = false,

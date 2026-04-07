@@ -18,17 +18,16 @@ import project.convention.logic.AppBuildType
 import project.convention.logic.config.LibraryModule
 import project.convention.logic.getProperty
 
+val authTestApplicationEnabled: String = providers
+    .gradleProperty("android.testInstrumentationRunnerArguments.auth_test_application")
+    .orElse("false")
+    .get()
+
 plugins {
     id("project.android.application")
     id("project.android.application.compose")
     id("com.google.gms.google-services")
 }
-
-val useAuthTestApplication: Boolean = providers
-    .gradleProperty("android.testInstrumentationRunnerArguments.auth_test_application")
-    .orElse("false")
-    .get()
-    .toBoolean()
 
 android {
 
@@ -51,7 +50,6 @@ android {
         versionCode = 1
 
         testInstrumentationRunner = "eu.europa.ec.euidi.test.AuthTestRunner"
-        buildConfigField("boolean", "USE_AUTH_TEST_APPLICATION", useAuthTestApplication.toString())
         vectorDrawables {
             useSupportLibrary = true
         }
@@ -67,11 +65,13 @@ android {
             isDebuggable = true
             isMinifyEnabled = false
             applicationIdSuffix = AppBuildType.DEBUG.applicationIdSuffix
+            manifestPlaceholders["authTestApplicationEnabled"] = authTestApplicationEnabled
         }
         release {
             isDebuggable = false
             isMinifyEnabled = true
             applicationIdSuffix = AppBuildType.RELEASE.applicationIdSuffix
+            manifestPlaceholders["authTestApplicationEnabled"] = authTestApplicationEnabled
             signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

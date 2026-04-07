@@ -44,6 +44,7 @@ import eu.europa.ec.uilogic.test.AuthTestTags
 import eu.europa.ec.uilogic.test.DashboardTestTags
 import eu.europa.ec.uilogic.test.StartupTestTags
 import org.junit.After
+import org.junit.Assert.assertThrows
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -323,11 +324,14 @@ class AuthGateSmokeTest {
 
         waitForTag(DashboardTestTags.Screen.ROOT)
 
-        activityScenario?.moveToState(Lifecycle.State.CREATED)
+        val activeScenario = requireNotNull(activityScenario)
+        activeScenario.moveToState(Lifecycle.State.CREATED)
         AuthScenarioDriver.expireUnlockSession()
-        runCatching {
-            activityScenario?.moveToState(Lifecycle.State.STARTED)
+        val lifecycleFailure = assertThrows(AssertionError::class.java) {
+            activeScenario.moveToState(Lifecycle.State.STARTED)
         }
+
+        assertThat(lifecycleFailure).hasMessageThat().contains("last lifecycle transition = \"DESTROYED\"")
 
         waitForTag(AuthTestTags.QuickPin.ROOT)
     }
@@ -404,8 +408,7 @@ class AuthGateSmokeTest {
     ) {
         try {
             composeRule.waitUntil(timeoutMillis) {
-                composeRule.onAllNodesWithTag(resolvedTag(tag), useUnmergedTree = true)
-                    .fetchSemanticsNodes().isNotEmpty()
+                hasVisibleNodesForTag(tag)
             }
         } catch (exception: ComposeTimeoutException) {
             throw AssertionError(
@@ -422,11 +425,36 @@ class AuthGateSmokeTest {
         timeoutMillis: Long = 10_000L,
     ) {
         composeRule.waitUntil(timeoutMillis) {
-            composeRule.onAllNodesWithText(text, useUnmergedTree = true)
-                .fetchSemanticsNodes().isNotEmpty()
+            hasVisibleNodesForText(text)
         }
 
         composeRule.onNodeWithText(text, useUnmergedTree = true).assertIsDisplayed()
+    }
+
+    private fun hasVisibleNodesForTag(tag: String): Boolean {
+        return try {
+            composeRule.onAllNodesWithTag(resolvedTag(tag), useUnmergedTree = true)
+                .fetchSemanticsNodes().isNotEmpty()
+        } catch (exception: IllegalStateException) {
+            if (exception.message?.contains("No compose hierarchies found") == true) {
+                false
+            } else {
+                throw exception
+            }
+        }
+    }
+
+    private fun hasVisibleNodesForText(text: String): Boolean {
+        return try {
+            composeRule.onAllNodesWithText(text, useUnmergedTree = true)
+                .fetchSemanticsNodes().isNotEmpty()
+        } catch (exception: IllegalStateException) {
+            if (exception.message?.contains("No compose hierarchies found") == true) {
+                false
+            } else {
+                throw exception
+            }
+        }
     }
 
     private fun enterPin(pin: String) {

@@ -18,17 +18,35 @@ package eu.europa.ec.euidi.test
 
 import android.app.Application
 import android.content.Context
+import android.content.pm.PackageManager
 import androidx.test.runner.AndroidJUnitRunner
 import eu.europa.ec.euidi.BuildConfig
 
 class AuthTestRunner : AndroidJUnitRunner() {
     override fun newApplication(cl: ClassLoader, name: String?, context: Context): Application {
-        val applicationName = if (BuildConfig.USE_AUTH_TEST_APPLICATION) {
+        val useAuthTestApplication = shouldUseAuthTestApplication()
+
+        check(!useAuthTestApplication || BuildConfig.DEBUG) {
+            "auth_test_application=true is only supported for debug variants"
+        }
+
+        val applicationName = if (useAuthTestApplication) {
             AuthTestApplication::class.java.name
         } else {
             name
         }
         return super.newApplication(cl, applicationName, context)
+    }
+
+    private fun shouldUseAuthTestApplication(): Boolean {
+        val instrumentationContext: Context = this.context
+        val applicationInfo = instrumentationContext.packageManager.getApplicationInfo(
+            instrumentationContext.packageName,
+            PackageManager.GET_META_DATA
+        )
+
+        return applicationInfo.metaData
+            ?.getBoolean(AUTH_TEST_APPLICATION_ARGUMENT, false) == true
     }
 
     companion object {

@@ -16,7 +16,6 @@
 
 package eu.europa.ec.uilogic.extension
 
-import android.annotation.SuppressLint
 import androidx.compose.foundation.Indication
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
@@ -43,12 +42,19 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.SemanticsModifierNode
+import androidx.compose.ui.node.currentValueOf
+import androidx.compose.ui.node.invalidateSemantics
+import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.debugInspectorInfo
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -213,15 +219,44 @@ fun Modifier.exposeTestTagsAsResourceId(): Modifier {
         }
 }
 
-@SuppressLint("UnnecessaryComposedModifier")
-fun Modifier.applyTestTag(testTag: String): Modifier = composed {
-    val finalTestTag = createTestTag(
-        applicationId = LocalContext.current.packageName,
-        testTag = testTag
-    )
-    return@composed this.then(Modifier.testTag(finalTestTag))
+fun Modifier.applyTestTag(testTag: String): Modifier {
+    return this.then(TestTagElement(testTag))
 }
 
 private fun createTestTag(applicationId: String, testTag: String): String {
     return "$applicationId:id/$testTag"
+}
+
+private data class TestTagElement(
+    private val testTag: String,
+) : ModifierNodeElement<TestTagNode>() {
+    override fun create(): TestTagNode = TestTagNode(testTag)
+
+    override fun update(node: TestTagNode) {
+        node.updateTestTag(testTag)
+    }
+
+    override fun InspectorInfo.inspectableProperties() {
+        name = "applyTestTag"
+        properties["testTag"] = testTag
+    }
+}
+
+private class TestTagNode(
+    private var tagValue: String,
+) : Modifier.Node(), CompositionLocalConsumerModifierNode, SemanticsModifierNode {
+    override fun SemanticsPropertyReceiver.applySemantics() {
+        testTag = createTestTag(
+            applicationId = currentValueOf(LocalContext).packageName,
+            testTag = tagValue
+        )
+    }
+
+    fun updateTestTag(testTag: String) {
+        if (tagValue == testTag) {
+            return
+        }
+        tagValue = testTag
+        invalidateSemantics()
+    }
 }
