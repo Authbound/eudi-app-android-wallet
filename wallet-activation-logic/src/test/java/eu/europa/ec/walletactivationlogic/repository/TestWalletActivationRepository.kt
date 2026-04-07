@@ -100,7 +100,6 @@ class TestWalletActivationRepository {
 
             // When
             val result = repository.activateWallet(
-                publicKey = mockCertificate,
                 attestationChain = arrayOf(mockCertificate),
                 challengeId = "test-challenge-id",
                 deviceInfo = MOCK_DEVICE_INFO,
