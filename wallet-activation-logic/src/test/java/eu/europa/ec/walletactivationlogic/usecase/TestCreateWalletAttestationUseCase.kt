@@ -239,7 +239,7 @@ class TestCreateWalletAttestationUseCase {
 
             val activationError = WalletActivationError.ChallengeExpired("test-challenge-id")
             whenever(walletActivationRepository.activateWallet(
-                any(), any(), any(), any(), any()
+                any(), any(), any(), any()
             )).thenReturn(Result.failure(activationError))
 
             whenever(cryptoController.deleteWuaKey()).thenReturn(true)
@@ -266,7 +266,7 @@ class TestCreateWalletAttestationUseCase {
             // ChallengeNotFound should trigger auto-retry, but we still need cleanup
             val challengeNotFound = WalletActivationError.ChallengeNotFound("test-id")
             whenever(walletActivationRepository.activateWallet(
-                any(), any(), any(), any(), any()
+                any(), any(), any(), any()
             )).thenReturn(Result.failure(challengeNotFound))
 
             whenever(cryptoController.deleteWuaKey()).thenReturn(true)
@@ -310,7 +310,7 @@ class TestCreateWalletAttestationUseCase {
 
             val successResponse = WalletActivationResponse(wua = "wua-token-123")
             whenever(walletActivationRepository.activateWallet(
-                any(), any(), any(), any(), any()
+                any(), any(), any(), any()
             )).thenReturn(Result.success(successResponse))
 
             // When
@@ -346,7 +346,7 @@ class TestCreateWalletAttestationUseCase {
 
             val successResponse = WalletActivationResponse(wua = "wua-token-123")
             whenever(walletActivationRepository.activateWallet(
-                any(), any(), any(), any(), any()
+                any(), any(), any(), any()
             )).thenReturn(Result.success(successResponse))
 
             // When
@@ -376,7 +376,7 @@ class TestCreateWalletAttestationUseCase {
 
             val successResponse = WalletActivationResponse(wua = "wua-token-123")
             whenever(walletActivationRepository.activateWallet(
-                any(), any(), eq(challengeId), any(), any()
+                any(), eq(challengeId), any(), any()
             )).thenReturn(Result.success(successResponse))
 
             // When
@@ -384,7 +384,7 @@ class TestCreateWalletAttestationUseCase {
 
             // Then
             verify(walletActivationRepository).activateWallet(
-                any(), any(), eq(challengeId), any(), any()
+                any(), eq(challengeId), any(), any()
             )
         }
 
@@ -398,7 +398,7 @@ class TestCreateWalletAttestationUseCase {
 
             val successResponse = WalletActivationResponse(wua = "wua-token-123")
             whenever(walletActivationRepository.activateWallet(
-                any(), any(), any(), eq(MOCK_DEVICE_INFO), eq(MOCK_PUSH_TOKEN)
+                any(), any(), eq(MOCK_DEVICE_INFO), eq(MOCK_PUSH_TOKEN)
             )).thenReturn(Result.success(successResponse))
 
             // When
@@ -406,7 +406,7 @@ class TestCreateWalletAttestationUseCase {
 
             // Then
             verify(walletActivationRepository).activateWallet(
-                any(), any(), any(), eq(MOCK_DEVICE_INFO), eq(MOCK_PUSH_TOKEN)
+                any(), any(), eq(MOCK_DEVICE_INFO), eq(MOCK_PUSH_TOKEN)
             )
         }
 
@@ -431,7 +431,7 @@ class TestCreateWalletAttestationUseCase {
             whenever(cryptoController.generateWuaKeyPair(any())).thenReturn(certChain)
 
             whenever(walletActivationRepository.activateWallet(
-                any(), any(), any(), any(), any()
+                any(), any(), any(), any()
             )).thenReturn(Result.success(WalletActivationResponse(wua = "wua-token")))
 
             // When
@@ -471,7 +471,7 @@ class TestCreateWalletAttestationUseCase {
 
             val conflictError = WalletActivationError.WalletAlreadyExists()
             val successResponse = WalletActivationResponse(wua = "wua-token-123")
-            whenever(walletActivationRepository.activateWallet(any(), any(), any(), any(), any()))
+            whenever(walletActivationRepository.activateWallet(any(), any(), any(), any()))
                 .thenReturn(Result.failure(conflictError))
                 .thenReturn(Result.success(successResponse))
 
@@ -485,7 +485,7 @@ class TestCreateWalletAttestationUseCase {
             assertTrue("Result should be success after conflict recovery", result.isSuccess)
             assertEquals(successResponse, result.getOrNull())
             verify(walletActivationRepository).deleteWalletActivation()
-            verify(walletActivationRepository, times(2)).activateWallet(any(), any(), any(), any(), any())
+            verify(walletActivationRepository, times(2)).activateWallet(any(), any(), any(), any())
         }
 
     @Test
@@ -498,7 +498,7 @@ class TestCreateWalletAttestationUseCase {
             whenever(cryptoController.deleteWuaKey()).thenReturn(true)
 
             val conflictError = WalletActivationError.WalletAlreadyExists()
-            whenever(walletActivationRepository.activateWallet(any(), any(), any(), any(), any()))
+            whenever(walletActivationRepository.activateWallet(any(), any(), any(), any()))
                 .thenReturn(Result.failure(conflictError))
 
             whenever(walletActivationRepository.deleteWalletActivation())
@@ -511,7 +511,7 @@ class TestCreateWalletAttestationUseCase {
             assertTrue("Result should be failure", result.isFailure)
             assertTrue("Should be WalletAlreadyExists", result.exceptionOrNull() is WalletActivationError.WalletAlreadyExists)
             // Should not retry activation since delete failed
-            verify(walletActivationRepository, times(1)).activateWallet(any(), any(), any(), any(), any())
+            verify(walletActivationRepository, times(1)).activateWallet(any(), any(), any(), any())
         }
 
     @Test
@@ -540,7 +540,7 @@ class TestCreateWalletAttestationUseCase {
 
             val conflictError = WalletActivationError.WalletAlreadyExists()
             // Both activate calls return 409
-            whenever(walletActivationRepository.activateWallet(any(), any(), any(), any(), any()))
+            whenever(walletActivationRepository.activateWallet(any(), any(), any(), any()))
                 .thenReturn(Result.failure(conflictError))
 
             whenever(walletActivationRepository.deleteWalletActivation())
@@ -553,7 +553,7 @@ class TestCreateWalletAttestationUseCase {
             assertTrue("Result should be failure", result.isFailure)
             assertTrue("Should be WalletAlreadyExists", result.exceptionOrNull() is WalletActivationError.WalletAlreadyExists)
             // Should have tried activation exactly twice (initial + one retry)
-            verify(walletActivationRepository, times(2)).activateWallet(any(), any(), any(), any(), any())
+            verify(walletActivationRepository, times(2)).activateWallet(any(), any(), any(), any())
             // Should have deleted old WUA only once (on first 409)
             verify(walletActivationRepository, times(1)).deleteWalletActivation()
         }

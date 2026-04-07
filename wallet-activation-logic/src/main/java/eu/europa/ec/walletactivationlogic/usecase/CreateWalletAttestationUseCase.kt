@@ -92,11 +92,8 @@ class CreateWalletAttestationUseCaseImpl(
             )
         }
 
-        val publicKey = certificateChain.first()
-
         // Step 4: Activate wallet with attestation chain and challenge ID
         val activationResult = walletActivationRepository.activateWallet(
-            publicKey = publicKey,
             attestationChain = certificateChain,
             challengeId = challengeResponse.challengeId,
             deviceInfo = deviceInfo,
@@ -133,4 +130,4 @@ class CreateWalletAttestationUseCaseImpl(
 
         return activationResult
     }
-} 
+}

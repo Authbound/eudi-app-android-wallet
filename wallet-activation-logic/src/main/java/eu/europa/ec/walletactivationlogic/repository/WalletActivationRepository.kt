@@ -15,34 +15,26 @@
  */
 package eu.europa.ec.walletactivationlogic.repository
 
-
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
-
-import android.util.Base64
 import eu.europa.ec.businesslogic.controller.log.LogController
+import eu.europa.ec.businesslogic.model.DeviceInfo
 import eu.europa.ec.businesslogic.model.error.HttpErrorResponse
 import eu.europa.ec.businesslogic.model.error.WalletActivationError
 import eu.europa.ec.businesslogic.model.error.toWalletActivationError
-import eu.europa.ec.businesslogic.model.DeviceInfo
-
 import eu.europa.ec.networklogic.api.ApiClient
 import eu.europa.ec.networklogic.model.ApiResponse
-
-import eu.europa.ec.networklogic.model.request.WalletActivationRequest
 import eu.europa.ec.networklogic.model.request.EnhancedDeviceInfo
+import eu.europa.ec.networklogic.model.request.WalletActivationRequest
 import eu.europa.ec.networklogic.model.response.AttestationChallengeResponse
 import eu.europa.ec.networklogic.model.response.WalletActivationResponse
-
+import android.util.Base64
 import java.security.cert.Certificate
-
-
 
 interface WalletActivationRepository {
     suspend fun getAttestationChallenge(): Result<AttestationChallengeResponse>
 
     suspend fun activateWallet(
-        publicKey: Certificate,
         attestationChain: Array<Certificate>,
         challengeId: String,
         deviceInfo: DeviceInfo,
@@ -105,7 +97,6 @@ open class WalletActivationRepositoryImpl(
     }
 
     override suspend fun activateWallet(
-        publicKey: Certificate,
         attestationChain: Array<Certificate>,
         challengeId: String,
         deviceInfo: DeviceInfo,
@@ -126,7 +117,6 @@ open class WalletActivationRepositoryImpl(
             }
 
             val request = WalletActivationRequest(
-                wuaPublicKey = Base64.encodeToString(publicKey.encoded, Base64.NO_WRAP),
                 attestationChain = base64AttestationChain,
                 challengeId = challengeId,
                 deviceInfo = enhancedDeviceInfo,
