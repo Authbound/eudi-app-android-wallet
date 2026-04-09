@@ -20,13 +20,16 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.viewModelScope
+import eu.europa.ec.authenticationlogic.model.LegalAcceptanceSnapshot
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricAuthenticationController
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricsAuthenticate
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricsAvailability
+import eu.europa.ec.authenticationlogic.usecase.RequestAccountDeletionUseCase
+import eu.europa.ec.authenticationlogic.usecase.SignOutMode
+import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.businesslogic.extension.toUri
 import eu.europa.ec.dashboardfeature.interactor.CredentialSummaryUi
 import eu.europa.ec.dashboardfeature.interactor.SettingsInteractor
-import eu.europa.ec.walletactivationlogic.usecase.DeleteWalletActivationUseCase
 import eu.europa.ec.dashboardfeature.ui.settings.model.SettingsItemUi
 import eu.europa.ec.dashboardfeature.ui.settings.model.SettingsMenuItemType
 import eu.europa.ec.resourceslogic.R
@@ -56,10 +59,14 @@ data class State(
     val settingsItems: List<SettingsItemUi> = emptyList(),
     val appVersion: String = "",
     val changelogUrl: String?,
+    val termsUrl: String = "",
+    val privacyPolicyUrl: String = "",
+    val accountDeletionUrl: String = "",
+    val legalAcceptance: LegalAcceptanceSnapshot = LegalAcceptanceSnapshot(),
     val isBiometricAuthenticationEnabled: Boolean = false,
     val isBiometricToggleInProgress: Boolean = false,
     val userEmail: String? = null,
-    val showDeleteWalletConfirmation: Boolean = false,
+    val showDeleteAccountConfirmation: Boolean = false,
     val isDeleting: Boolean = false,
     val authInfo: AuthInfoUi = AuthInfoUi(),
     val credentialCount: Int = 0,
@@ -72,7 +79,8 @@ sealed class Event : ViewEvent {
     data class ItemClicked(val itemType: SettingsMenuItemType) : Event()
     data class ToggleBiometricAuthentication(val context: Context) : Event()
     data object Logout : Event()
-    data object ConfirmDeleteWallet : Event()
+    data object RequestDeleteAccount : Event()
+    data object ConfirmDeleteAccount : Event()
     data object DismissDeleteConfirmation : Event()
     data object RefreshPidPortrait : Event()
 }
@@ -97,7 +105,8 @@ sealed class Effect : ViewSideEffect {
 @KoinViewModel
 class SettingsViewModel(
     private val settingsInteractor: SettingsInteractor,
-    private val deleteWalletActivationUseCase: DeleteWalletActivationUseCase,
+    private val requestAccountDeletionUseCase: RequestAccountDeletionUseCase,
+    private val signOutUseCase: SignOutUseCase,
     private val biometricAuthenticationController: BiometricAuthenticationController,
     private val resourceProvider: ResourceProvider,
 ) : MviViewModel<Event, State, Effect>() {
@@ -114,6 +123,10 @@ class SettingsViewModel(
         viewModelScope.launch {
             try {
                 val changelogUrl = settingsInteractor.getChangelogUrl()
+                val termsUrl = settingsInteractor.getTermsUrl()
+                val privacyPolicyUrl = settingsInteractor.getPrivacyPolicyUrl()
+                val accountDeletionUrl = settingsInteractor.getAccountDeletionUrl()
+                val legalAcceptance = settingsInteractor.getCachedLegalAcceptance()
                 val isAuthenticated = settingsInteractor.isUserAuthenticated()
                 val user = settingsInteractor.getCurrentUser()
                 val profile = settingsInteractor.getMyProfile().getOrNull()
@@ -130,6 +143,10 @@ class SettingsViewModel(
                 setState {
                     copy(
                         changelogUrl = changelogUrl,
+                        termsUrl = termsUrl,
+                        privacyPolicyUrl = privacyPolicyUrl,
+                        accountDeletionUrl = accountDeletionUrl,
+                        legalAcceptance = legalAcceptance,
                         isBiometricAuthenticationEnabled = isBiometricAuthenticationEnabled,
                         settingsItems = settingsItems,
                         appVersion = appVersion,
@@ -159,7 +176,8 @@ class SettingsViewModel(
             is Event.ToggleBiometricAuthentication -> toggleBiometricAuthentication(event.context)
 
             is Event.Logout -> logout()
-            is Event.ConfirmDeleteWallet -> deleteWalletActivation()
+            is Event.RequestDeleteAccount -> requestDeleteAccount()
+            is Event.ConfirmDeleteAccount -> deleteAccount()
             is Event.DismissDeleteConfirmation -> dismissDeleteConfirmation()
             is Event.RefreshPidPortrait -> refreshPidPortrait()
         }
@@ -231,6 +249,38 @@ class SettingsViewModel(
                 }
             }
 
+            SettingsMenuItemType.PRIVACY_AND_DATA -> {
+                setEffect {
+                    Effect.Navigation.SwitchScreen(
+                        screenRoute = DashboardScreens.PrivacyData.screenRoute
+                    )
+                }
+            }
+
+            SettingsMenuItemType.TERMS_OF_SERVICE -> {
+                setEffect {
+                    Effect.Navigation.OpenUrlExternally(
+                        url = viewState.value.termsUrl.toUri()
+                    )
+                }
+            }
+
+            SettingsMenuItemType.PRIVACY_POLICY -> {
+                setEffect {
+                    Effect.Navigation.OpenUrlExternally(
+                        url = viewState.value.privacyPolicyUrl.toUri()
+                    )
+                }
+            }
+
+            SettingsMenuItemType.ACCOUNT_DELETION_INFO -> {
+                setEffect {
+                    Effect.Navigation.OpenUrlExternally(
+                        url = viewState.value.accountDeletionUrl.toUri()
+                    )
+                }
+            }
+
             SettingsMenuItemType.CHANGE_PIN -> {
                 val nextScreenRoute = generateComposableNavigationLink(
                     screen = CommonScreens.QuickPin,
@@ -275,12 +325,11 @@ class SettingsViewModel(
             SettingsMenuItemType.RESET_HEALTH_DATA -> {
                 resetHealthData()
             }
-
-            SettingsMenuItemType.DELETE_WALLET_ACTIVATION -> {
-                setState { copy(showDeleteWalletConfirmation = true) }
-            }
-
         }
+    }
+
+    private fun requestDeleteAccount() {
+        setState { copy(showDeleteAccountConfirmation = true) }
     }
 
     private fun toggleBiometricAuthentication(context: Context) {
@@ -356,15 +405,20 @@ class SettingsViewModel(
         }
     }
 
-    private fun deleteWalletActivation() {
+    private fun deleteAccount() {
         viewModelScope.launch {
-            setState { copy(showDeleteWalletConfirmation = false, isDeleting = true) }
-            deleteWalletActivationUseCase().fold(
-                onSuccess = {
+            setState { copy(showDeleteAccountConfirmation = false, isDeleting = true) }
+            requestAccountDeletionUseCase().fold(
+                onSuccess = { accountDeletion ->
+                    runCatching { signOutUseCase(SignOutMode.Soft) }
                     setState { copy(isDeleting = false) }
                     setEffect {
                         Effect.ShowToast(
-                            resourceProvider.getString(R.string.settings_delete_wallet_success)
+                            resourceProvider.getString(
+                                R.string.settings_delete_account_success,
+                                accountDeletion.scheduledFor
+                                    ?: resourceProvider.getString(R.string.settings_not_available)
+                            )
                         )
                     }
                     setEffect {
@@ -379,7 +433,7 @@ class SettingsViewModel(
                     setState { copy(isDeleting = false) }
                     setEffect {
                         Effect.ShowToast(
-                            resourceProvider.getString(R.string.settings_delete_wallet_error)
+                            resourceProvider.getString(R.string.settings_delete_account_error)
                         )
                     }
                 }
@@ -388,7 +442,7 @@ class SettingsViewModel(
     }
 
     private fun dismissDeleteConfirmation() {
-        setState { copy(showDeleteWalletConfirmation = false) }
+        setState { copy(showDeleteAccountConfirmation = false) }
     }
 
     private fun resetHealthData() {

@@ -535,8 +535,29 @@
     <string name="settings_change_password_description">Change your account password</string>
 
     <!-- Privacy Section — canonical URL for Google Play Data safety & in-app links -->
+    <string name="legal_terms_alpha_url" translatable="false">https://www.authbound.io/wallet-alpha-terms</string>
     <string name="legal_privacy_policy_url" translatable="false">https://www.authbound.io/privacy</string>
+    <string name="legal_account_deletion_url" translatable="false">https://www.authbound.io/delete-account</string>
+    <string name="legal_terms_alpha_updated_at">April 8, 2026</string>
+    <string name="legal_privacy_policy_updated_at">April 8, 2026</string>
     <string name="settings_privacy">Privacy &amp; Data</string>
+    <string name="settings_privacy_data_title">Privacy &amp; Data</string>
+    <string name="settings_privacy_data_description">Review the documents that govern this closed alpha, check the versions last accepted on this device, and manage account deletion.</string>
+    <string name="settings_terms_of_service_description">Read the Authbound Wallet Alpha Terms that apply to invited testers using this pre-release app.</string>
+    <string name="settings_privacy_policy_description">Read how Authbound handles wallet account data, app diagnostics, and on-device versus server-side processing.</string>
+    <string name="settings_open_link">Open link</string>
+    <string name="settings_accepted_documents_title">Accepted legal documents</string>
+    <string name="settings_required_terms_version">Required terms version</string>
+    <string name="settings_accepted_terms_version">Accepted terms version</string>
+    <string name="settings_terms_accepted_at">Terms accepted at</string>
+    <string name="settings_required_privacy_version">Required privacy version</string>
+    <string name="settings_acknowledged_privacy_version">Acknowledged privacy version</string>
+    <string name="settings_privacy_acknowledged_at">Privacy acknowledged at</string>
+    <string name="settings_not_available">Not available</string>
+    <string name="settings_account_deletion_title">Account deletion</string>
+    <string name="settings_account_deletion_description">Request deletion of your Authbound wallet account and related server-side data. We schedule deletion with a 30-day grace period, block access during that period, and sign you out until you either cancel the request or deletion enters processing.</string>
+    <string name="settings_account_deletion_learn_more">Deletion page</string>
+    <string name="settings_delete_account_button">Request account deletion</string>
     <string name="settings_data_sharing">Data Sharing</string>
     <string name="settings_data_sharing_description">Manage how your data is shared</string>
     <string name="settings_activity_log">Activity Log</string>
@@ -548,13 +569,47 @@
     <string name="settings_delete_data_confirm">Delete</string>
     <string name="settings_delete_data_cancel">Cancel</string>
 
-    <!-- Delete Wallet Activation -->
-    <string name="settings_delete_wallet_title">Delete Wallet Activation?</string>
-    <string name="settings_delete_wallet_message">This will permanently delete your wallet activation from the server. You\'ll need to set up your wallet again from the beginning. This action cannot be undone.</string>
-    <string name="settings_delete_wallet_confirm">Delete</string>
-    <string name="settings_delete_wallet_cancel">Cancel</string>
-    <string name="settings_delete_wallet_success">Wallet deleted successfully</string>
-    <string name="settings_delete_wallet_error">Failed to delete wallet. Please try again.</string>
+    <!-- Account deletion -->
+    <string name="settings_delete_account_title">Request account deletion?</string>
+    <string name="settings_delete_account_message">This schedules deletion of your Authbound wallet account and related server-side data after a 30-day grace period. Your access will be locked during that period, and this device will be signed out. If you sign back in before the grace period ends, you can cancel the request and restore access.</string>
+    <string name="settings_delete_account_confirm">Request deletion</string>
+    <string name="settings_delete_account_cancel">Cancel</string>
+    <string name="settings_delete_account_success">Account deletion scheduled for %1$s. Sign back in during the grace period to cancel and restore access.</string>
+    <string name="settings_delete_account_error">Failed to schedule account deletion. Please try again.</string>
+
+    <!-- Legal acceptance -->
+    <string name="legal_acceptance_title">Before you continue</string>
+    <string name="legal_acceptance_description">This closed alpha requires you to review the wallet alpha terms and the current privacy policy before you can finish setup or access the dashboard.</string>
+    <string name="legal_acceptance_terms_title">Authbound Wallet Alpha Terms</string>
+    <string name="legal_acceptance_privacy_title">Privacy Policy</string>
+    <string name="legal_acceptance_open_terms">Open terms</string>
+    <string name="legal_acceptance_open_privacy">Open privacy policy</string>
+    <string name="legal_acceptance_terms_checkbox">I accept the Authbound Wallet Alpha Terms for this version.</string>
+    <string name="legal_acceptance_privacy_checkbox">I acknowledge the Authbound Privacy Policy for this version.</string>
+    <string name="legal_acceptance_continue">Continue</string>
+    <string name="legal_acceptance_sign_out">Sign out</string>
+    <string name="legal_acceptance_retry">Retry sync</string>
+    <string name="legal_acceptance_version_label">Version: %1$s</string>
+    <string name="legal_acceptance_updated_label">Updated: %1$s</string>
+    <string name="legal_acceptance_version_unavailable">Unavailable</string>
+    <string name="legal_acceptance_alpha_notice_title">Closed alpha notice</string>
+    <string name="legal_acceptance_alpha_notice_body">This build is invite-only, experimental, and may change or stop working without notice. Do not rely on it for critical identity, recovery, or compliance workflows.</string>
+
+    <!-- Pending account deletion -->
+    <string name="account_deletion_scheduled_title">Account deletion scheduled</string>
+    <string name="account_deletion_scheduled_description">Your Authbound Wallet account is scheduled for deletion. Normal wallet access is locked during the grace period. Cancel the request before the grace period ends to restore access after sign-in.</string>
+    <string name="account_deletion_processing_title">Account deletion in progress</string>
+    <string name="account_deletion_processing_description">Your deletion request is now being processed. Normal wallet access remains blocked, and the request can no longer be canceled.</string>
+    <string name="account_deletion_scheduled_for_label">Scheduled deletion time</string>
+    <string name="account_deletion_cancel_button">Cancel deletion request</string>
+    <string name="account_deletion_sign_out">Sign out</string>
+    <string name="account_deletion_retry">Retry</string>
+
+    <!-- Login legal notice -->
+    <string name="login_legal_notice">Terms and privacy details are available before sign-in. Acceptance is recorded separately inside the wallet after authentication.</string>
+    <string name="login_terms_link">Alpha Terms</string>
+    <string name="login_privacy_link">Privacy Policy</string>
+    <string name="login_legal_separator">|</string>
 
     <!-- Notifications Section -->
     <string name="settings_notifications">Notifications</string>

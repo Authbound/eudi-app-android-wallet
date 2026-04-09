@@ -87,6 +87,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import eu.europa.ec.authenticationlogic.model.OAuthProvider
+import eu.europa.ec.businesslogic.extension.toUri
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.uilogic.component.content.ContentScreen
 import eu.europa.ec.uilogic.component.content.ImePaddingConfig
@@ -98,6 +99,7 @@ import eu.europa.ec.uilogic.component.wrap.ButtonConfig
 import eu.europa.ec.uilogic.component.wrap.ButtonType
 import eu.europa.ec.uilogic.component.wrap.WrapButton
 import eu.europa.ec.uilogic.extension.applyTestTag
+import eu.europa.ec.uilogic.extension.openUrl
 import eu.europa.ec.uilogic.test.AuthTestTags
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -106,6 +108,7 @@ import kotlinx.coroutines.flow.collectLatest
 fun LoginScreen(
     viewModel: AuthenticationViewModel,
     onNavigateToHome: () -> Unit,
+    onNavigateToStartup: () -> Unit,
     onNavigateToWalletSetup: () -> Unit,
     onNavigateToProfileCompletion: () -> Unit,
     onNavigateToPinCreate: () -> Unit,
@@ -136,6 +139,7 @@ fun LoginScreen(
                     Toast.makeText(context, effect.message, Toast.LENGTH_LONG).show()
                 }
 
+                is Effect.Navigation.NavigateToStartup -> onNavigateToStartup()
                 is Effect.Navigation.NavigateToWalletSetup -> onNavigateToWalletSetup()
                 is Effect.Navigation.NavigateToProfileCompletion -> onNavigateToProfileCompletion()
                 is Effect.Navigation.NavigateToPinCreate -> onNavigateToPinCreate()
@@ -224,6 +228,8 @@ private fun LoginFormContent(
     } else {
         navyDeep.copy(alpha = 0.08f)
     }
+    val termsUrl = stringResource(R.string.legal_terms_alpha_url)
+    val privacyPolicyUrl = stringResource(R.string.legal_privacy_policy_url)
 
     val linkTextColor = if (isDarkTheme) {
         Color(0xFF93C5FD)
@@ -624,6 +630,54 @@ private fun LoginFormContent(
                             }
                         }
                     )
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = stringResource(R.string.login_legal_notice),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(
+                        onClick = {
+                            context.openUrl(
+                                termsUrl.toUri()
+                            )
+                        }
+                    ) {
+                        Text(
+                            text = stringResource(R.string.login_terms_link),
+                            color = linkTextColor
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.login_legal_separator),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    TextButton(
+                        onClick = {
+                            context.openUrl(
+                                privacyPolicyUrl.toUri()
+                            )
+                        }
+                    ) {
+                        Text(
+                            text = stringResource(R.string.login_privacy_link),
+                            color = linkTextColor
+                        )
+                    }
                 }
             }
 

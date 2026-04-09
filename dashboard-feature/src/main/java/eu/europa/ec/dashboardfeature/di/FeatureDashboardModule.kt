@@ -18,6 +18,7 @@ package eu.europa.ec.dashboardfeature.di
 
 import eu.europa.ec.businesslogic.config.ConfigLogic
 import eu.europa.ec.businesslogic.controller.device.DeviceController
+import eu.europa.ec.authenticationlogic.usecase.GetCachedLegalAcceptanceUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsUserAuthenticatedUseCase
@@ -155,6 +156,7 @@ fun provideSettingsInteractor(
     prefKeys: PrefKeys,
     prefsController: PrefsControllerV2,
     biometryStorageController: BiometryStorageController,
+    getCachedLegalAcceptanceUseCase: GetCachedLegalAcceptanceUseCase,
     walletCoreDocumentsController: WalletCoreDocumentsController,
     getCurrentUserUseCase: GetCurrentUserUseCase,
     signOutUseCase: SignOutUseCase,
@@ -167,6 +169,7 @@ fun provideSettingsInteractor(
     prefKeys,
     prefsController,
     biometryStorageController,
+    getCachedLegalAcceptanceUseCase,
     walletCoreDocumentsController,
     getCurrentUserUseCase,
     signOutUseCase,

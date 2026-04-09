@@ -61,6 +61,16 @@ sealed class StartupState {
         override val logMessage: String = "Profile incomplete → ProfileCompletion"
     }
 
+    data object AccountDeletionScheduled : StartupState() {
+        override val screenRoute: String = AuthenticationScreens.AccountDeletionScheduled.screenRoute
+        override val logMessage: String = "Account deletion scheduled → AccountDeletionScheduled"
+    }
+
+    data object LegalAcceptanceRequired : StartupState() {
+        override val screenRoute: String = AuthenticationScreens.LegalAcceptance.screenRoute
+        override val logMessage: String = "Legal acceptance required → LegalAcceptance"
+    }
+
     /**
      * Wallet Unit Attestation (WUA) not activated. Route to device security preflight.
      */

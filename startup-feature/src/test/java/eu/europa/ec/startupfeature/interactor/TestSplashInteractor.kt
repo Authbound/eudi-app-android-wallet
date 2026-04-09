@@ -17,7 +17,12 @@
 package eu.europa.ec.startupfeature.interactor
 
 import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
+import eu.europa.ec.authenticationlogic.model.AccountDeletion
+import eu.europa.ec.authenticationlogic.model.LegalAcceptanceSnapshot
+import eu.europa.ec.authenticationlogic.model.Profile
 import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
+import eu.europa.ec.authenticationlogic.usecase.GetLegalAcceptanceStateUseCase
+import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsProfileCompletedUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsWalletActivatedUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
@@ -75,6 +80,12 @@ class TestSplashInteractor {
     private lateinit var logController: LogController
 
     @Mock
+    private lateinit var getLegalAcceptanceStateUseCase: GetLegalAcceptanceStateUseCase
+
+    @Mock
+    private lateinit var getMyProfileUseCase: GetMyProfileUseCase
+
+    @Mock
     private lateinit var isWalletActivatedUseCase: IsWalletActivatedUseCase
 
     @Mock
@@ -111,11 +122,36 @@ class TestSplashInteractor {
         whenever(prefsController.hasAuthenticatedUser()).thenReturn(true)
         // Default: migration already completed (for most tests)
         runBlocking { whenever(ownershipController.isMigrationCompleted()).thenReturn(true) }
+        runBlocking {
+            whenever(getMyProfileUseCase()).thenReturn(
+                Result.success(
+                    Profile(
+                        id = "user-1",
+                        handle = "lassi",
+                        displayName = "Lassi"
+                    )
+                )
+            )
+            whenever(getLegalAcceptanceStateUseCase()).thenReturn(
+                Result.success(
+                    LegalAcceptanceSnapshot(
+                        requiredTermsVersion = "wallet-alpha-2026-04-08",
+                        acceptedTermsVersion = "wallet-alpha-2026-04-08",
+                        acceptedTermsAt = "2026-04-08T00:00:00Z",
+                        requiredPrivacyVersion = "privacy-2026-04-08",
+                        acknowledgedPrivacyVersion = "privacy-2026-04-08",
+                        acknowledgedPrivacyAt = "2026-04-08T00:00:00Z"
+                    )
+                )
+            )
+        }
         interactor = SplashInteractorImpl(
             supabaseAuthRepository = supabaseAuthRepository,
             prefKeys = prefKeys,
             prefsController = prefsController,
             logController = logController,
+            getMyProfileUseCase = getMyProfileUseCase,
+            getLegalAcceptanceStateUseCase = getLegalAcceptanceStateUseCase,
             isWalletActivatedUseCase = isWalletActivatedUseCase,
             isProfileCompletedUseCase = isProfileCompletedUseCase,
             quickPinInteractor = quickPinInteractor,
@@ -253,6 +289,75 @@ class TestSplashInteractor {
             // Then
             assertEquals(StartupState.ProfileIncomplete, result)
             verify(isWalletActivatedUseCase, never()).invoke()
+        }
+
+    @Test
+    fun `Given authenticated but legal acceptance is missing, When determineStartupState is called, Then returns LegalAcceptanceRequired`() =
+        coroutineRule.runTest {
+            setupAuthenticatedSession()
+            whenever(getLegalAcceptanceStateUseCase()).thenReturn(
+                Result.success(
+                    LegalAcceptanceSnapshot(
+                        requiredTermsVersion = "wallet-alpha-2026-04-08",
+                        requiredPrivacyVersion = "privacy-2026-04-08"
+                    )
+                )
+            )
+
+            val result = interactor.determineStartupState()
+
+            assertEquals(StartupState.LegalAcceptanceRequired, result)
+            verify(isProfileCompletedUseCase, never()).invoke()
+        }
+
+    @Test
+    fun `Given authenticated and account deletion is scheduled, When determineStartupState is called, Then returns AccountDeletionScheduled`() =
+        coroutineRule.runTest {
+            setupAuthenticatedSession()
+            whenever(getMyProfileUseCase()).thenReturn(
+                Result.success(
+                    Profile(
+                        id = "user-1",
+                        handle = "lassi",
+                        displayName = "Lassi",
+                        accountDeletion = AccountDeletion(
+                            status = "scheduled",
+                            scheduledFor = "2026-05-08T10:15:00Z",
+                            canCancel = true
+                        )
+                    )
+                )
+            )
+
+            val result = interactor.determineStartupState()
+
+            assertEquals(StartupState.AccountDeletionScheduled, result)
+            verify(isProfileCompletedUseCase, never()).invoke()
+        }
+
+    @Test
+    fun `Given authenticated and account deletion is processing, When determineStartupState is called, Then returns AccountDeletionScheduled`() =
+        coroutineRule.runTest {
+            setupAuthenticatedSession()
+            whenever(getMyProfileUseCase()).thenReturn(
+                Result.success(
+                    Profile(
+                        id = "user-1",
+                        handle = "lassi",
+                        displayName = "Lassi",
+                        accountDeletion = AccountDeletion(
+                            status = "processing",
+                            scheduledFor = "2026-05-08T10:15:00Z",
+                            canCancel = false
+                        )
+                    )
+                )
+            )
+
+            val result = interactor.determineStartupState()
+
+            assertEquals(StartupState.AccountDeletionScheduled, result)
+            verify(isProfileCompletedUseCase, never()).invoke()
         }
 
     @Test

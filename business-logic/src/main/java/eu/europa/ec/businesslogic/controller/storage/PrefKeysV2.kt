@@ -38,11 +38,29 @@ interface PrefKeysV2 {
     suspend fun setWalletActivated(isActivated: Boolean)
     suspend fun isProfileCompleted(): Boolean
     suspend fun setProfileCompleted(value: Boolean)
+    suspend fun getRequiredTermsVersion(): String
+    suspend fun setRequiredTermsVersion(value: String)
+    suspend fun getAcceptedTermsVersion(): String
+    suspend fun setAcceptedTermsVersion(value: String)
+    suspend fun getAcceptedTermsAt(): String
+    suspend fun setAcceptedTermsAt(value: String)
+    suspend fun getRequiredPrivacyVersion(): String
+    suspend fun setRequiredPrivacyVersion(value: String)
+    suspend fun getAcknowledgedPrivacyVersion(): String
+    suspend fun setAcknowledgedPrivacyVersion(value: String)
+    suspend fun getAcknowledgedPrivacyAt(): String
+    suspend fun setAcknowledgedPrivacyAt(value: String)
 
     // Safe methods (return defaults if no session)
     fun isWalletActivatedSafe(): Boolean
     fun getBiometricAliasSafe(): String
     fun isProfileCompletedSafe(): Boolean
+    fun getRequiredTermsVersionSafe(): String
+    fun getAcceptedTermsVersionSafe(): String
+    fun getAcceptedTermsAtSafe(): String
+    fun getRequiredPrivacyVersionSafe(): String
+    fun getAcknowledgedPrivacyVersionSafe(): String
+    fun getAcknowledgedPrivacyAtSafe(): String
 }
 
 class PrefKeysV2Impl(
@@ -89,6 +107,54 @@ class PrefKeysV2Impl(
         prefsController.setBool("profile_completed", value)
     }
 
+    override suspend fun getRequiredTermsVersion(): String {
+        return prefsController.getString("required_terms_version", "")
+    }
+
+    override suspend fun setRequiredTermsVersion(value: String) {
+        prefsController.setString("required_terms_version", value)
+    }
+
+    override suspend fun getAcceptedTermsVersion(): String {
+        return prefsController.getString("accepted_terms_version", "")
+    }
+
+    override suspend fun setAcceptedTermsVersion(value: String) {
+        prefsController.setString("accepted_terms_version", value)
+    }
+
+    override suspend fun getAcceptedTermsAt(): String {
+        return prefsController.getString("accepted_terms_at", "")
+    }
+
+    override suspend fun setAcceptedTermsAt(value: String) {
+        prefsController.setString("accepted_terms_at", value)
+    }
+
+    override suspend fun getRequiredPrivacyVersion(): String {
+        return prefsController.getString("required_privacy_version", "")
+    }
+
+    override suspend fun setRequiredPrivacyVersion(value: String) {
+        prefsController.setString("required_privacy_version", value)
+    }
+
+    override suspend fun getAcknowledgedPrivacyVersion(): String {
+        return prefsController.getString("acknowledged_privacy_version", "")
+    }
+
+    override suspend fun setAcknowledgedPrivacyVersion(value: String) {
+        prefsController.setString("acknowledged_privacy_version", value)
+    }
+
+    override suspend fun getAcknowledgedPrivacyAt(): String {
+        return prefsController.getString("acknowledged_privacy_at", "")
+    }
+
+    override suspend fun setAcknowledgedPrivacyAt(value: String) {
+        prefsController.setString("acknowledged_privacy_at", value)
+    }
+
     // ============================================================
     // Safe Methods (Return Defaults If No Session)
     // ============================================================
@@ -103,5 +169,29 @@ class PrefKeysV2Impl(
 
     override fun isProfileCompletedSafe(): Boolean {
         return prefsController.safeBool("profile_completed", false)
+    }
+
+    override fun getRequiredTermsVersionSafe(): String {
+        return prefsController.safeString("required_terms_version", "")
+    }
+
+    override fun getAcceptedTermsVersionSafe(): String {
+        return prefsController.safeString("accepted_terms_version", "")
+    }
+
+    override fun getAcceptedTermsAtSafe(): String {
+        return prefsController.safeString("accepted_terms_at", "")
+    }
+
+    override fun getRequiredPrivacyVersionSafe(): String {
+        return prefsController.safeString("required_privacy_version", "")
+    }
+
+    override fun getAcknowledgedPrivacyVersionSafe(): String {
+        return prefsController.safeString("acknowledged_privacy_version", "")
+    }
+
+    override fun getAcknowledgedPrivacyAtSafe(): String {
+        return prefsController.safeString("acknowledged_privacy_at", "")
     }
 }

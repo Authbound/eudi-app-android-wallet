@@ -18,6 +18,7 @@ package eu.europa.ec.dashboardfeature.interactor
 
 import android.net.Uri
 import eu.europa.ec.authenticationlogic.controller.storage.BiometryStorageController
+import eu.europa.ec.authenticationlogic.usecase.GetCachedLegalAcceptanceUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsUserAuthenticatedUseCase
@@ -70,6 +71,9 @@ class TestSettingsInteractor {
     private lateinit var biometryStorageController: BiometryStorageController
 
     @Mock
+    private lateinit var getCachedLegalAcceptanceUseCase: GetCachedLegalAcceptanceUseCase
+
+    @Mock
     private lateinit var walletCoreDocumentsController: WalletCoreDocumentsController
 
     @Mock
@@ -99,6 +103,7 @@ class TestSettingsInteractor {
             prefKeys = prefKeys,
             prefsController = prefsController,
             biometryStorageController = biometryStorageController,
+            getCachedLegalAcceptanceUseCase = getCachedLegalAcceptanceUseCase,
             walletCoreDocumentsController = walletCoreDocumentsController,
             getCurrentUserUseCase = getCurrentUserUseCase,
             signOutUseCase = signOutUseCase,
@@ -191,7 +196,7 @@ class TestSettingsInteractor {
             changelogUrl = mockedChangeLogUrl,
             isBiometricsEnabled = false
         )
-        assertEquals(4, settingsItems.size)
+        assertEquals(5, settingsItems.size)
 
         val accountDetailsItem = settingsItems[0]
         assertEquals(SettingsMenuItemType.ACCOUNT_DETAILS, accountDetailsItem.type)
@@ -231,7 +236,20 @@ class TestSettingsInteractor {
             biometricItem.data.trailingContentData as ListItemTrailingContentDataUi.Switch
         assertEquals(false, biometricTrailing.switchData.isChecked)
 
-        val retrieveLogsItem = settingsItems[3]
+        val privacyDataItem = settingsItems[3]
+        assertEquals(SettingsMenuItemType.PRIVACY_AND_DATA, privacyDataItem.type)
+        assertEquals(privacyDataIdString, privacyDataItem.data.itemId)
+        val privacyDataMain =
+            privacyDataItem.data.mainContentData as ListItemMainContentDataUi.Text
+        assertEquals(privacyDataText, privacyDataMain.text)
+        val privacyDataLeading =
+            privacyDataItem.data.leadingContentData as ListItemLeadingContentDataUi.Icon
+        assertEquals(AppIcons.Info, privacyDataLeading.iconData)
+        val privacyDataTrailing =
+            privacyDataItem.data.trailingContentData as ListItemTrailingContentDataUi.Icon
+        assertEquals(AppIcons.KeyboardArrowRight, privacyDataTrailing.iconData)
+
+        val retrieveLogsItem = settingsItems[4]
         assertEquals(SettingsMenuItemType.RETRIEVE_LOGS, retrieveLogsItem.type)
         assertEquals(retrieveLogsIdString, retrieveLogsItem.data.itemId)
         val retrieveLogsMain =
@@ -246,7 +264,7 @@ class TestSettingsInteractor {
     }
 
     @Test
-    fun `Given debug build, When getSettingsItemsUi is called, Then delete wallet activation is included`() {
+    fun `Given debug build, When getSettingsItemsUi is called, Then privacy item is still included and no extra debug item is added`() {
         whenever(configLogic.appBuildType).thenReturn(AppBuildType.DEBUG)
         mockStringsNeededForGetSettingsItemsUi(resourcesProvider = resourceProvider)
         val settingsItems = interactor.getSettingsItemsUi(
@@ -258,18 +276,9 @@ class TestSettingsInteractor {
         val biometricTrailing =
             biometricItem.data.trailingContentData as ListItemTrailingContentDataUi.Switch
         assertEquals(true, biometricTrailing.switchData.isChecked)
-        val deleteWalletItem = settingsItems[4]
-        assertEquals(SettingsMenuItemType.DELETE_WALLET_ACTIVATION, deleteWalletItem.type)
-        assertEquals(deleteWalletActivationIdString, deleteWalletItem.data.itemId)
-        val deleteWalletMain =
-            deleteWalletItem.data.mainContentData as ListItemMainContentDataUi.Text
-        assertEquals(deleteWalletActivationText, deleteWalletMain.text)
-        val deleteWalletLeading =
-            deleteWalletItem.data.leadingContentData as ListItemLeadingContentDataUi.Icon
-        assertEquals(AppIcons.Delete, deleteWalletLeading.iconData)
-        val deleteWalletTrailing =
-            deleteWalletItem.data.trailingContentData as ListItemTrailingContentDataUi.Icon
-        assertEquals(AppIcons.KeyboardArrowRight, deleteWalletTrailing.iconData)
+        val privacyDataItem = settingsItems[3]
+        assertEquals(SettingsMenuItemType.PRIVACY_AND_DATA, privacyDataItem.type)
+        assertEquals(privacyDataIdString, privacyDataItem.data.itemId)
     }
     //endregion
 
@@ -281,6 +290,7 @@ class TestSettingsInteractor {
                 R.string.dashboard_side_menu_option_change_pin_id to changePinIdString,
                 R.string.dashboard_side_menu_option_change_pin to changePinText,
                 R.string.settings_biometric_authentication to biometricAuthenticationText,
+                R.string.settings_privacy to privacyDataText,
                 R.string.settings_screen_option_retrieve_logs_id to retrieveLogsIdString,
                 R.string.settings_screen_option_retrieve_logs to retrieveLogsText,
             )
@@ -295,9 +305,9 @@ class TestSettingsInteractor {
     private val changePinText = "Change PIN"
     private val biometricAuthenticationIdString = "biometric_authentication"
     private val biometricAuthenticationText = "Biometrics"
+    private val privacyDataIdString = "privacy_and_data"
+    private val privacyDataText = "Privacy & Data"
     private val retrieveLogsIdString = "retrieveLogsId"
     private val retrieveLogsText = "Retrieve logs"
-    private val deleteWalletActivationIdString = "delete_wallet_activation"
-    private val deleteWalletActivationText = "Delete Wallet Activation"
     //endregion
 }

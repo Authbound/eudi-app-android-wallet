@@ -17,7 +17,6 @@ package eu.europa.ec.authenticationfeature.ui
 
 import android.content.Context
 import androidx.lifecycle.viewModelScope
-import eu.europa.ec.authenticationlogic.controller.storage.PinStorageController
 import eu.europa.ec.authenticationlogic.model.EmailPasswordRequest
 import eu.europa.ec.authenticationlogic.model.OAuthProvider
 import eu.europa.ec.authenticationlogic.usecase.ObserveAuthStateUseCase
@@ -25,10 +24,8 @@ import eu.europa.ec.authenticationlogic.usecase.SignInWithEmailPasswordUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignInWithOAuthUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignUpWithEmailPasswordUseCase
-import eu.europa.ec.authenticationlogic.usecase.IsProfileCompletedUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignOutMode
 import eu.europa.ec.businesslogic.controller.log.LogController
-import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
 import eu.europa.ec.uilogic.mvi.MviViewModel
 import eu.europa.ec.uilogic.mvi.ViewEvent
 import eu.europa.ec.uilogic.mvi.ViewSideEffect
@@ -69,6 +66,7 @@ sealed class Effect : ViewSideEffect {
     data class ShowInfo(val message: String) : Effect()
     
     sealed class Navigation : Effect() {
+        data object NavigateToStartup : Navigation()
         data object NavigateToWalletSetup : Navigation()
         data object NavigateToProfileCompletion : Navigation()
         data object NavigateToPinCreate : Navigation()
@@ -86,10 +84,7 @@ class AuthenticationViewModel(
     private val signInWithOAuthUseCase: SignInWithOAuthUseCase,
     private val signOutUseCase: SignOutUseCase,
     private val observeAuthStateUseCase: ObserveAuthStateUseCase,
-    private val isProfileCompletedUseCase: IsProfileCompletedUseCase,
-    private val prefKeys: PrefKeysV2,
     private val logController: LogController,
-    private val pinStorageController: PinStorageController
 ) : MviViewModel<Event, State, Effect>() {
     
     private var isInitialized: Boolean = false
@@ -333,45 +328,8 @@ class AuthenticationViewModel(
                                 }
                                 shouldHandleAuthenticatedNavigation = false
                             } else {
-                                // Keep loading visible until navigation is determined
-                                // to prevent the login form from flashing during async checks
-                                // EUDI-ARF: Wallet is device-bound, check local activation status
-                                try {
-                                    if (prefKeys.isWalletActivatedSafe()) {
-                                        val hasPin = try {
-                                            pinStorageController.retrievePin().isNotBlank()
-                                        } catch (e: Exception) {
-                                            logController.w("AuthViewModel") { "Failed to check PIN status: ${e.message}" }
-                                            false
-                                        }
-                                        if (hasPin) {
-                                            logController.d("AuthViewModel", "User authenticated with wallet + PIN - navigating to PIN verify")
-                                            setEffect { Effect.Navigation.NavigateToPinVerify }
-                                        } else {
-                                            logController.d("AuthViewModel", "User authenticated with wallet but no PIN - navigating to PIN create")
-                                            setEffect { Effect.Navigation.NavigateToPinCreate }
-                                        }
-                                    } else {
-                                        // Check if profile is complete
-                                        val isProfileCompleted = isProfileCompletedUseCase()
-                                        if (isProfileCompleted) {
-                                            logController.d("AuthViewModel", "User authenticated but wallet not activated - navigating to setup")
-                                            setEffect { Effect.Navigation.NavigateToWalletSetup }
-                                        } else {
-                                            logController.d("AuthViewModel", "User authenticated but profile not complete - navigating to profile completion")
-                                            setEffect { Effect.Navigation.NavigateToProfileCompletion }
-                                        }
-                                    }
-                                } catch (e: SecurityException) {
-                                    logController.w("AuthViewModel") {
-                                        "Security error checking wallet activation: ${e.message}. Navigating to wallet setup."
-                                    }
-                                    setEffect { Effect.Navigation.NavigateToWalletSetup }
-                                } catch (e: Exception) {
-                                    logController.e("AuthViewModel", e)
-                                    setState { copy(isLoading = false) }
-                                    setEffect { Effect.ShowError("Navigation error. Please restart the app.") }
-                                }
+                                logController.d("AuthViewModel", "User authenticated - delegating post-auth routing to splash")
+                                setEffect { Effect.Navigation.NavigateToStartup }
                                 shouldHandleAuthenticatedNavigation = false
                             }
                         }

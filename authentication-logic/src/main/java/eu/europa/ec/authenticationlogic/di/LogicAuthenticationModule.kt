@@ -201,6 +201,37 @@ fun provideGetMyProfileUseCase(
     profileRepository: ProfileRepository
 ): GetMyProfileUseCase = GetMyProfileUseCaseImpl(profileRepository)
 
+@Factory
+fun provideRequestAccountDeletionUseCase(
+    profileRepository: ProfileRepository
+): RequestAccountDeletionUseCase = RequestAccountDeletionUseCaseImpl(profileRepository)
+
+@Factory
+fun provideCancelAccountDeletionUseCase(
+    profileRepository: ProfileRepository
+): CancelAccountDeletionUseCase = CancelAccountDeletionUseCaseImpl(profileRepository)
+
+@Factory
+fun provideGetLegalAcceptanceStateUseCase(
+    prefKeys: PrefKeysV2,
+    profileRepository: ProfileRepository,
+    logController: LogController
+): GetLegalAcceptanceStateUseCase =
+    GetLegalAcceptanceStateUseCaseImpl(prefKeys, profileRepository, logController)
+
+@Factory
+fun provideGetCachedLegalAcceptanceUseCase(
+    prefKeys: PrefKeysV2
+): GetCachedLegalAcceptanceUseCase = GetCachedLegalAcceptanceUseCaseImpl(prefKeys)
+
+@Factory
+fun provideRecordLegalAcceptanceUseCase(
+    profileRepository: ProfileRepository,
+    prefKeys: PrefKeysV2,
+    configLogic: eu.europa.ec.businesslogic.config.ConfigLogic
+): RecordLegalAcceptanceUseCase =
+    RecordLegalAcceptanceUseCaseImpl(profileRepository, prefKeys, configLogic)
+
 @Single
 fun provideIsProfileCompletedUseCase(
     prefKeys: PrefKeysV2,

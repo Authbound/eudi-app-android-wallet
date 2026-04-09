@@ -20,6 +20,7 @@ import eu.europa.ec.networklogic.model.ApiResponse
 import eu.europa.ec.networklogic.model.request.ActionRespondRequest
 import eu.europa.ec.networklogic.model.request.CompletePairingRequest
 import eu.europa.ec.networklogic.model.request.CompleteProfileRequest
+import eu.europa.ec.networklogic.model.request.RecordLegalAcceptanceRequest
 import eu.europa.ec.networklogic.model.request.CreateAuthboundPidSessionRequest
 import eu.europa.ec.networklogic.model.request.DummyRequest
 import eu.europa.ec.networklogic.model.request.MaisaExchangeRequest
@@ -27,11 +28,13 @@ import eu.europa.ec.networklogic.model.request.MaisaIssueRequest
 import eu.europa.ec.networklogic.model.request.WalletActivationRequest
 import eu.europa.ec.networklogic.model.response.AttestationChallengeResponse
 
+import eu.europa.ec.networklogic.model.response.AccountDeletionEnvelopeResponse
 import eu.europa.ec.networklogic.model.response.AuthboundPidSessionStatus
 import eu.europa.ec.networklogic.model.response.CheckHandleResponse
 import eu.europa.ec.networklogic.model.response.CreateAuthboundPidSessionResponse
 import eu.europa.ec.networklogic.model.response.DummyResponse
 
+import eu.europa.ec.networklogic.model.response.LegalAcceptanceEnvelopeResponse
 import eu.europa.ec.networklogic.model.response.MaisaAuthorizeResponse
 import eu.europa.ec.networklogic.model.response.MaisaExchangeResponse
 import eu.europa.ec.networklogic.model.response.MaisaIssueResponse
@@ -75,6 +78,9 @@ interface ApiClient {
     suspend fun completeProfile(body: CompleteProfileRequest, bearerToken: String): ApiResponse<Unit>
     suspend fun checkHandleAvailability(handle: String, bearerToken: String): ApiResponse<CheckHandleResponse>
     suspend fun getMyProfile(bearerToken: String): ApiResponse<ProfileResponse>
+    suspend fun recordLegalAcceptance(body: RecordLegalAcceptanceRequest, bearerToken: String): ApiResponse<LegalAcceptanceEnvelopeResponse>
+    suspend fun requestAccountDeletion(bearerToken: String): ApiResponse<AccountDeletionEnvelopeResponse>
+    suspend fun cancelAccountDeletion(bearerToken: String): ApiResponse<AccountDeletionEnvelopeResponse>
 
     // Maisa mobile endpoints
     suspend fun startMaisaAuth(bearerToken: String?): ApiResponse<MaisaAuthorizeResponse>
@@ -272,6 +278,39 @@ class KtorApiClient(
     override suspend fun getMyProfile(bearerToken: String): ApiResponse<ProfileResponse> {
         return executeRequest {
             httpClient.get("$baseUrl/api/profiles/me") {
+                header(HttpHeaders.Authorization, "Bearer $bearerToken")
+            }
+        }
+    }
+
+    override suspend fun recordLegalAcceptance(
+        body: RecordLegalAcceptanceRequest,
+        bearerToken: String
+    ): ApiResponse<LegalAcceptanceEnvelopeResponse> {
+        return executeRequest {
+            httpClient.post("$baseUrl/api/profiles/legal-acceptance") {
+                contentType(ContentType.Application.Json)
+                header(HttpHeaders.Authorization, "Bearer $bearerToken")
+                setBody(body)
+            }
+        }
+    }
+
+    override suspend fun requestAccountDeletion(
+        bearerToken: String
+    ): ApiResponse<AccountDeletionEnvelopeResponse> {
+        return executeRequest {
+            httpClient.delete("$baseUrl/api/profiles/account") {
+                header(HttpHeaders.Authorization, "Bearer $bearerToken")
+            }
+        }
+    }
+
+    override suspend fun cancelAccountDeletion(
+        bearerToken: String
+    ): ApiResponse<AccountDeletionEnvelopeResponse> {
+        return executeRequest {
+            httpClient.post("$baseUrl/api/profiles/account/cancel-deletion") {
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
             }
         }

@@ -19,7 +19,9 @@ package eu.europa.ec.authenticationfeature.router
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
+import eu.europa.ec.authenticationfeature.ui.AccountDeletionScheduledScreen
 import eu.europa.ec.authenticationfeature.ui.DeviceSecurityRequiredScreen
+import eu.europa.ec.authenticationfeature.ui.LegalAcceptanceScreen
 import eu.europa.ec.authenticationfeature.ui.LoginScreen
 import eu.europa.ec.authenticationfeature.ui.ProfileCompletionScreen
 import eu.europa.ec.authenticationfeature.ui.WalletSetupScreen
@@ -27,6 +29,7 @@ import eu.europa.ec.commonfeature.model.PinFlow
 import eu.europa.ec.uilogic.navigation.AuthenticationScreens
 import eu.europa.ec.uilogic.navigation.CommonScreens
 import eu.europa.ec.uilogic.navigation.DashboardScreens
+import eu.europa.ec.uilogic.navigation.StartupScreens
 import eu.europa.ec.uilogic.navigation.helper.generateComposableArguments
 import eu.europa.ec.uilogic.navigation.helper.generateComposableNavigationLink
 import org.koin.androidx.compose.koinViewModel
@@ -75,6 +78,12 @@ fun NavGraphBuilder.featureAuthenticationGraph(navController: NavController) {
                     launchSingleTop = true
                 }
             },
+            onNavigateToStartup = {
+                navController.navigate(StartupScreens.Splash.screenRoute) {
+                    popUpTo(0) { inclusive = true }
+                    launchSingleTop = true
+                }
+            },
             onNavigateToWalletSetup = {
                 navController.navigate(AuthenticationScreens.DeviceSecurityRequired.screenRoute)
             },
@@ -83,6 +92,46 @@ fun NavGraphBuilder.featureAuthenticationGraph(navController: NavController) {
             },
             onNavigateToPinCreate = navigateToPinCreate,
             onNavigateToPinVerify = navigateToPinVerify
+        )
+    }
+
+    composable(
+        route = AuthenticationScreens.AccountDeletionScheduled.screenRoute,
+    ) {
+        AccountDeletionScheduledScreen(
+            viewModel = koinViewModel(),
+            onNavigateToStartup = {
+                navController.navigate(StartupScreens.Splash.screenRoute) {
+                    popUpTo(0) { inclusive = true }
+                    launchSingleTop = true
+                }
+            },
+            onNavigateToLogin = {
+                navController.navigate(AuthenticationScreens.Login.screenRoute) {
+                    popUpTo(0) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
+        )
+    }
+
+    composable(
+        route = AuthenticationScreens.LegalAcceptance.screenRoute,
+    ) {
+        LegalAcceptanceScreen(
+            viewModel = koinViewModel(),
+            onNavigateToStartup = {
+                navController.navigate(StartupScreens.Splash.screenRoute) {
+                    popUpTo(0) { inclusive = true }
+                    launchSingleTop = true
+                }
+            },
+            onNavigateToLogin = {
+                navController.navigate(AuthenticationScreens.Login.screenRoute) {
+                    popUpTo(0) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
         )
     }
 

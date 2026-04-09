@@ -32,6 +32,7 @@ import eu.europa.ec.dashboardfeature.ui.dashboard.DashboardScreen
 import eu.europa.ec.dashboardfeature.ui.document_sign.DocumentSignScreen
 import eu.europa.ec.dashboardfeature.ui.documents.detail.DocumentDetailsScreen
 import eu.europa.ec.dashboardfeature.ui.mydata.MyDataScreen
+import eu.europa.ec.dashboardfeature.ui.settings.PrivacyDataScreen
 import eu.europa.ec.dashboardfeature.ui.settings.SettingsScreen
 import eu.europa.ec.dashboardfeature.ui.settings.AccountDetailsScreen
 import eu.europa.ec.dashboardfeature.ui.transactions.detail.TransactionDetailsScreen
@@ -99,6 +100,21 @@ fun NavGraphBuilder.featureDashboardGraph(navController: NavController) {
                 viewModel = koinViewModel(),
                 notificationCount = actionsState.pendingCount,
                 onNotificationsClick = onNotificationsClick,
+            )
+        }
+
+        composable(
+            route = DashboardScreens.PrivacyData.screenRoute,
+            deepLinks = listOf(
+                navDeepLink {
+                    uriPattern =
+                        BuildConfig.DEEPLINK + DashboardScreens.PrivacyData.screenRoute
+                }
+            ),
+        ) {
+            PrivacyDataScreen(
+                navController = navController,
+                viewModel = koinViewModel()
             )
         }
 

@@ -48,6 +48,8 @@ sealed class DashboardScreens {
 
     data object Settings : Screen(name = "SETTINGS")
 
+    data object PrivacyData : Screen(name = "PRIVACY_DATA")
+
     data object AccountDetails : Screen(name = "ACCOUNT_DETAILS")
 
     data object DocumentSign : Screen(name = "DOCUMENT_SIGN")
@@ -148,6 +150,8 @@ sealed class ModuleRoute(val route: String) : NavigatableItem {
 
 sealed class AuthenticationScreens(name: String, parameters: String = "") : Screen(name, parameters) {
     data object Login : AuthenticationScreens("login")
+    data object AccountDeletionScheduled : AuthenticationScreens("account_deletion_scheduled")
+    data object LegalAcceptance : AuthenticationScreens("legal_acceptance")
     data object WalletSetup : AuthenticationScreens("wallet_setup")
     data object DeviceSecurityRequired : AuthenticationScreens("device_security_required")
     data object ProfileCompletion : AuthenticationScreens("profileCompletion")

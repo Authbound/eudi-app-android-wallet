@@ -17,7 +17,10 @@
 package eu.europa.ec.startupfeature.interactor
 
 import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
+import eu.europa.ec.authenticationlogic.model.Profile
 import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
+import eu.europa.ec.authenticationlogic.usecase.GetLegalAcceptanceStateUseCase
+import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsProfileCompletedUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsWalletActivatedUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignOutMode
@@ -30,6 +33,7 @@ import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
 import eu.europa.ec.businesslogic.controller.wallet.UserDocumentOwnershipController
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractor
 import eu.europa.ec.startupfeature.model.StartupState
+import eu.europa.ec.startupfeature.BuildConfig
 import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -64,6 +68,8 @@ class SplashInteractorImpl(
     private val prefKeys: PrefKeysV2,
     private val prefsController: PrefsControllerV2,
     private val logController: LogController,
+    private val getMyProfileUseCase: GetMyProfileUseCase,
+    private val getLegalAcceptanceStateUseCase: GetLegalAcceptanceStateUseCase,
     private val isWalletActivatedUseCase: IsWalletActivatedUseCase,
     private val isProfileCompletedUseCase: IsProfileCompletedUseCase,
     private val quickPinInteractor: QuickPinInteractor,
@@ -84,6 +90,13 @@ class SplashInteractorImpl(
         try {
             logController.i(TAG) { "Starting startup state determination..." }
 
+            if (BuildConfig.E2E_MODE) {
+                logController.i(TAG) { "E2E mode enabled, bypassing auth and onboarding gates" }
+                val unlockState = checkLocalUnlockState()
+                logController.i(TAG) { unlockState.logMessage }
+                return unlockState
+            }
+
             // Level 1: Authentication Check
             val authState = checkAuthenticationState()
             if (authState != null) {
@@ -94,14 +107,28 @@ class SplashInteractorImpl(
             // Migrate orphaned documents to current user (one-time per user)
             migrateOrphanedDocumentsIfNeeded()
 
-            // Level 2: Onboarding Check (Profile + WUA)
+            // Level 2: Account Deletion Check
+            val accountDeletionState = checkAccountDeletionState()
+            if (accountDeletionState != null) {
+                logController.i(TAG) { accountDeletionState.logMessage }
+                return accountDeletionState
+            }
+
+            // Level 3: Legal Acceptance Check
+            val legalState = checkLegalAcceptanceState()
+            if (legalState != null) {
+                logController.i(TAG) { legalState.logMessage }
+                return legalState
+            }
+
+            // Level 4: Onboarding Check (Profile + WUA)
             val onboardingState = checkOnboardingState()
             if (onboardingState != null) {
                 logController.i(TAG) { onboardingState.logMessage }
                 return onboardingState
             }
 
-            // Level 3: Local Unlock Check (PIN/Biometric)
+            // Level 5: Local Unlock Check (PIN/Biometric)
             val unlockState = checkLocalUnlockState()
             logController.i(TAG) { unlockState.logMessage }
             return unlockState
@@ -177,13 +204,34 @@ class SplashInteractorImpl(
         return false
     }
 
+    private suspend fun checkLegalAcceptanceState(): StartupState? {
+        logController.d(TAG, "Level 3: Checking legal acceptance status...")
+        val snapshot = getLegalAcceptanceStateUseCase().getOrNull()
+            ?: return StartupState.LegalAcceptanceRequired
+        return if (snapshot.isAccepted) {
+            null
+        } else {
+            StartupState.LegalAcceptanceRequired
+        }
+    }
+
+    private suspend fun checkAccountDeletionState(): StartupState? {
+        logController.d(TAG, "Level 2: Checking account deletion status...")
+        val profile: Profile = getMyProfileUseCase().getOrNull() ?: return null
+        return if (profile.accountDeletion?.isBlocked == true) {
+            StartupState.AccountDeletionScheduled
+        } else {
+            null
+        }
+    }
+
     /**
-     * Level 2: Check onboarding status (profile + wallet activation).
+     * Level 3: Check onboarding status (profile + wallet activation).
      *
      * @return StartupState if onboarding incomplete, null if complete
      */
     private suspend fun checkOnboardingState(): StartupState? {
-        logController.d(TAG, "Level 2: Checking onboarding status...")
+        logController.d(TAG, "Level 3: Checking onboarding status...")
         val profileCompleted = isProfileCompletedUseCase()
         logController.d(TAG, "Profile completed: $profileCompleted")
         if (!profileCompleted) {
@@ -237,14 +285,14 @@ class SplashInteractorImpl(
     }
 
     /**
-     * Level 3: Check local unlock status (PIN/biometric).
+     * Level 4: Check local unlock status (PIN/biometric).
      *
      * This determines whether the user needs to verify their PIN or can go directly to dashboard.
      *
      * @return StartupState for the appropriate screen
      */
     private suspend fun checkLocalUnlockState(): StartupState {
-        logController.d(TAG, "Level 3: Checking local unlock status...")
+        logController.d(TAG, "Level 4: Checking local unlock status...")
 
         // Check if PIN exists
         val hasPin = quickPinInteractor.hasPin()

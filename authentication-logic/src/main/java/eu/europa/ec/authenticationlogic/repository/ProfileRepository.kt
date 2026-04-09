@@ -15,10 +15,14 @@
  */
 package eu.europa.ec.authenticationlogic.repository
 
+import eu.europa.ec.authenticationlogic.model.AccountDeletion
+import eu.europa.ec.authenticationlogic.model.LegalAcceptanceSnapshot
+import eu.europa.ec.authenticationlogic.model.LegalAcceptance
 import eu.europa.ec.authenticationlogic.model.Profile
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.networklogic.api.ApiClient
 import eu.europa.ec.networklogic.model.request.CompleteProfileRequest
+import eu.europa.ec.networklogic.model.request.RecordLegalAcceptanceRequest
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 
@@ -36,6 +40,9 @@ interface ProfileRepository {
     suspend fun completeProfile(request: CompleteProfileRequest): Result<Unit>
     suspend fun checkHandle(handle: String): Result<Boolean>
     suspend fun getMyProfile(): Result<Profile>
+    suspend fun recordLegalAcceptance(request: RecordLegalAcceptanceRequest): Result<LegalAcceptanceSnapshot>
+    suspend fun requestAccountDeletion(): Result<AccountDeletion>
+    suspend fun cancelAccountDeletion(): Result<AccountDeletion>
 }
 
 class ProfileRepositoryImpl(
@@ -113,7 +120,25 @@ class ProfileRepositoryImpl(
                 val profile = Profile(
                     id = profileResponse.id,
                     handle = profileResponse.handle,
-                    displayName = profileResponse.displayName
+                    displayName = profileResponse.displayName,
+                    legalAcceptance = profileResponse.legalAcceptance?.let { legalAcceptance ->
+                        LegalAcceptance(
+                            requiredTermsVersion = legalAcceptance.requiredTermsVersion,
+                            acceptedTermsVersion = legalAcceptance.acceptedTermsVersion,
+                            acceptedTermsAt = legalAcceptance.acceptedTermsAt,
+                            requiredPrivacyVersion = legalAcceptance.requiredPrivacyVersion,
+                            acknowledgedPrivacyVersion = legalAcceptance.acknowledgedPrivacyVersion,
+                            acknowledgedPrivacyAt = legalAcceptance.acknowledgedPrivacyAt
+                        )
+                    },
+                    accountDeletion = profileResponse.accountDeletion?.let { accountDeletion ->
+                        AccountDeletion(
+                            status = accountDeletion.status,
+                            requestedAt = accountDeletion.requestedAt,
+                            scheduledFor = accountDeletion.scheduledFor,
+                            canCancel = accountDeletion.canCancel
+                        )
+                    },
                 )
                 Result.success(profile)
             } else {
@@ -127,4 +152,90 @@ class ProfileRepositoryImpl(
             Result.failure(e)
         }
     }
-} 
+
+    override suspend fun recordLegalAcceptance(request: RecordLegalAcceptanceRequest): Result<LegalAcceptanceSnapshot> {
+        return try {
+            val token = supabaseClient.auth.currentSessionOrNull()?.accessToken
+                ?: return Result.failure(Exception("User not authenticated"))
+            val response = apiClient.recordLegalAcceptance(request, token)
+            if (response.isSuccessful) {
+                val legalAcceptance = response.body()?.legalAcceptance
+                    ?: return Result.failure(Exception("Empty legal acceptance response"))
+                Result.success(
+                    LegalAcceptanceSnapshot(
+                        requiredTermsVersion = legalAcceptance.requiredTermsVersion.orEmpty(),
+                        acceptedTermsVersion = legalAcceptance.acceptedTermsVersion,
+                        acceptedTermsAt = legalAcceptance.acceptedTermsAt,
+                        requiredPrivacyVersion = legalAcceptance.requiredPrivacyVersion.orEmpty(),
+                        acknowledgedPrivacyVersion = legalAcceptance.acknowledgedPrivacyVersion,
+                        acknowledgedPrivacyAt = legalAcceptance.acknowledgedPrivacyAt
+                    )
+                )
+            } else {
+                Result.failure(ProfileApiException(
+                    httpCode = response.code(),
+                    httpMessage = response.message(),
+                    errorBody = response.errorBody()
+                ))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun requestAccountDeletion(): Result<AccountDeletion> {
+        return try {
+            val token = supabaseClient.auth.currentSessionOrNull()?.accessToken
+                ?: return Result.failure(Exception("User not authenticated"))
+            val response = apiClient.requestAccountDeletion(token)
+            if (response.isSuccessful) {
+                val accountDeletion = response.body()?.accountDeletion
+                    ?: return Result.failure(Exception("Empty account deletion response"))
+                Result.success(
+                    AccountDeletion(
+                        status = accountDeletion.status,
+                        requestedAt = accountDeletion.requestedAt,
+                        scheduledFor = accountDeletion.scheduledFor,
+                        canCancel = accountDeletion.canCancel
+                    )
+                )
+            } else {
+                Result.failure(ProfileApiException(
+                    httpCode = response.code(),
+                    httpMessage = response.message(),
+                    errorBody = response.errorBody()
+                ))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun cancelAccountDeletion(): Result<AccountDeletion> {
+        return try {
+            val token = supabaseClient.auth.currentSessionOrNull()?.accessToken
+                ?: return Result.failure(Exception("User not authenticated"))
+            val response = apiClient.cancelAccountDeletion(token)
+            if (response.isSuccessful) {
+                val accountDeletion = response.body()?.accountDeletion
+                    ?: return Result.failure(Exception("Empty account deletion response"))
+                Result.success(
+                    AccountDeletion(
+                        status = accountDeletion.status,
+                        requestedAt = accountDeletion.requestedAt,
+                        scheduledFor = accountDeletion.scheduledFor,
+                        canCancel = accountDeletion.canCancel
+                    )
+                )
+            } else {
+                Result.failure(ProfileApiException(
+                    httpCode = response.code(),
+                    httpMessage = response.message(),
+                    errorBody = response.errorBody()
+                ))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+}

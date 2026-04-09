@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 European Commission
+ * Copyright (c) 2026 European Commission
  *
  * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
  * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
@@ -15,17 +15,24 @@
  */
 package eu.europa.ec.authenticationlogic.model
 
-import com.google.gson.annotations.SerializedName
+data class AccountDeletion(
+    val status: String = STATUS_NONE,
+    val requestedAt: String? = null,
+    val scheduledFor: String? = null,
+    val canCancel: Boolean = false,
+) {
+    val isScheduled: Boolean
+        get() = status == STATUS_SCHEDULED
 
-data class Profile(
-    @SerializedName("id")
-    val id: String,
-    @SerializedName("handle")
-    val handle: String? = null,
-    @SerializedName("display_name")
-    val displayName: String? = null,
-    @SerializedName("legal_acceptance")
-    val legalAcceptance: LegalAcceptance? = null,
-    @SerializedName("account_deletion")
-    val accountDeletion: AccountDeletion? = null,
-)
+    val isProcessing: Boolean
+        get() = status == STATUS_PROCESSING
+
+    val isBlocked: Boolean
+        get() = isScheduled || isProcessing
+
+    companion object {
+        const val STATUS_NONE: String = "none"
+        const val STATUS_SCHEDULED: String = "scheduled"
+        const val STATUS_PROCESSING: String = "processing"
+    }
+}

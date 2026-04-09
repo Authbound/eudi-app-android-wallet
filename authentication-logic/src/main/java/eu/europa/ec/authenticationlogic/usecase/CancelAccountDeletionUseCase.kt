@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 European Commission
+ * Copyright (c) 2026 European Commission
  *
  * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
  * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
@@ -13,26 +13,19 @@
  * ANY KIND, either express or implied. See the Licence for the specific language
  * governing permissions and limitations under the Licence.
  */
+package eu.europa.ec.authenticationlogic.usecase
 
-package eu.europa.ec.dashboardfeature.ui.settings.model
+import eu.europa.ec.authenticationlogic.model.AccountDeletion
+import eu.europa.ec.authenticationlogic.repository.ProfileRepository
 
-import eu.europa.ec.uilogic.component.ListItemDataUi
+interface CancelAccountDeletionUseCase {
+    suspend operator fun invoke(): Result<AccountDeletion>
+}
 
-data class SettingsItemUi(
-    val type: SettingsMenuItemType,
-    val data: ListItemDataUi,
-)
-
-enum class SettingsMenuItemType {
-    ACCOUNT_DETAILS,
-    PRIVACY_AND_DATA,
-    TERMS_OF_SERVICE,
-    PRIVACY_POLICY,
-    ACCOUNT_DELETION_INFO,
-    MY_DATA,
-    BIOMETRIC_AUTHENTICATION,
-    CHANGE_PIN,
-    RETRIEVE_LOGS,
-    CHANGELOG,
-    RESET_HEALTH_DATA,
+class CancelAccountDeletionUseCaseImpl(
+    private val profileRepository: ProfileRepository
+) : CancelAccountDeletionUseCase {
+    override suspend fun invoke(): Result<AccountDeletion> {
+        return profileRepository.cancelAccountDeletion()
+    }
 }

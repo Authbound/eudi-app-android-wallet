@@ -137,6 +137,44 @@ class TestSplashViewModel {
             }
         }
 
+    @Test
+    fun `Given interactor returns LegalAcceptanceRequired, When Initialize event, Then navigates to LegalAcceptance`() =
+        coroutineRule.runTest {
+            whenever(interactor.determineStartupState())
+                .thenReturn(StartupState.LegalAcceptanceRequired)
+            val viewModel = createViewModel()
+
+            viewModel.setEvent(Event.Initialize)
+
+            viewModel.effect.test {
+                val effect = awaitItem()
+                assertTrue(effect is Effect.Navigation.SwitchScreen)
+                assertEquals(
+                    AuthenticationScreens.LegalAcceptance.screenRoute,
+                    (effect as Effect.Navigation.SwitchScreen).route
+                )
+            }
+        }
+
+    @Test
+    fun `Given interactor returns AccountDeletionScheduled, When Initialize event, Then navigates to AccountDeletionScheduled`() =
+        coroutineRule.runTest {
+            whenever(interactor.determineStartupState())
+                .thenReturn(StartupState.AccountDeletionScheduled)
+            val viewModel = createViewModel()
+
+            viewModel.setEvent(Event.Initialize)
+
+            viewModel.effect.test {
+                val effect = awaitItem()
+                assertTrue(effect is Effect.Navigation.SwitchScreen)
+                assertEquals(
+                    AuthenticationScreens.AccountDeletionScheduled.screenRoute,
+                    (effect as Effect.Navigation.SwitchScreen).route
+                )
+            }
+        }
+
     // Case 4:
     // Interactor returns PinVerificationRequired.
     // Expected: Navigates to QuickPin with VERIFY flow.
@@ -201,11 +239,8 @@ class TestSplashViewModel {
                 .thenReturn(StartupState.WalletNotActivated("No private key"))
             val viewModel = createViewModel()
 
-            // When
-            viewModel.setEvent(Event.Initialize)
-
-            // Then
             viewModel.effect.test {
+                viewModel.setEvent(Event.Initialize)
                 val effect = awaitItem()
                 assertTrue(effect is Effect.Navigation.SwitchScreen)
                 assertEquals(

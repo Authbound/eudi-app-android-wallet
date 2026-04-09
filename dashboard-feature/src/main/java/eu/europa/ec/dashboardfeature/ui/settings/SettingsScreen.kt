@@ -296,36 +296,6 @@ private fun Content(
         }.collect()
     }
 
-    // Delete wallet confirmation dialog
-    if (state.showDeleteWalletConfirmation) {
-        AlertDialog(
-            onDismissRequest = { onEventSend(Event.DismissDeleteConfirmation) },
-            title = { Text(stringResource(R.string.settings_delete_wallet_title)) },
-            text = {
-                Text(
-                    stringResource(R.string.settings_delete_wallet_message),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = { onEventSend(Event.ConfirmDeleteWallet) }
-                ) {
-                    Text(
-                        stringResource(R.string.settings_delete_wallet_confirm),
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { onEventSend(Event.DismissDeleteConfirmation) }
-                ) {
-                    Text(stringResource(R.string.settings_delete_wallet_cancel))
-                }
-            }
-        )
-    }
 }
 
 @Composable

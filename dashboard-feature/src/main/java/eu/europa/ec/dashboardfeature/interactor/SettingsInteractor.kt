@@ -18,7 +18,9 @@ package eu.europa.ec.dashboardfeature.interactor
 
 import android.net.Uri
 import android.util.Base64
+import eu.europa.ec.authenticationlogic.model.LegalAcceptanceSnapshot
 import eu.europa.ec.authenticationlogic.controller.storage.BiometryStorageController
+import eu.europa.ec.authenticationlogic.usecase.GetCachedLegalAcceptanceUseCase
 import eu.europa.ec.businesslogic.config.AppBuildType
 import eu.europa.ec.businesslogic.config.ConfigLogic
 import eu.europa.ec.businesslogic.controller.log.LogController
@@ -56,6 +58,10 @@ import kotlinx.coroutines.flow.collect
 interface SettingsInteractor {
     fun getAppVersion(): String
     fun getChangelogUrl(): String?
+    fun getTermsUrl(): String
+    fun getPrivacyPolicyUrl(): String
+    fun getAccountDeletionUrl(): String
+    fun getCachedLegalAcceptance(): LegalAcceptanceSnapshot
     fun retrieveLogFileUris(): ArrayList<Uri>
     fun getSettingsItemsUi(changelogUrl: String?, isBiometricsEnabled: Boolean): List<SettingsItemUi>
     fun getShowBatchIssuanceCounter(): Boolean
@@ -87,6 +93,7 @@ class SettingsInteractorImpl(
     private val prefKeys: PrefKeys,
     private val prefsController: PrefsControllerV2,
     private val biometryStorageController: BiometryStorageController,
+    private val getCachedLegalAcceptanceUseCase: GetCachedLegalAcceptanceUseCase,
     private val walletCoreDocumentsController: WalletCoreDocumentsController,
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
     private val signOutUseCase: SignOutUseCase,
@@ -97,6 +104,14 @@ class SettingsInteractorImpl(
     override fun getAppVersion(): String = configLogic.appVersion
 
     override fun getChangelogUrl(): String? = configLogic.changelogUrl
+
+    override fun getTermsUrl(): String = resourceProvider.getString(R.string.legal_terms_alpha_url)
+
+    override fun getPrivacyPolicyUrl(): String = resourceProvider.getString(R.string.legal_privacy_policy_url)
+
+    override fun getAccountDeletionUrl(): String = resourceProvider.getString(R.string.legal_account_deletion_url)
+
+    override fun getCachedLegalAcceptance(): LegalAcceptanceSnapshot = getCachedLegalAcceptanceUseCase()
 
     override fun retrieveLogFileUris(): ArrayList<Uri> {
         return ArrayList(logController.retrieveLogFileUris())
@@ -162,6 +177,24 @@ class SettingsInteractorImpl(
 
             add(
                 SettingsItemUi(
+                    type = SettingsMenuItemType.PRIVACY_AND_DATA,
+                    data = ListItemDataUi(
+                        itemId = "privacy_and_data",
+                        mainContentData = ListItemMainContentDataUi.Text(
+                            text = resourceProvider.getString(R.string.settings_privacy)
+                        ),
+                        leadingContentData = ListItemLeadingContentDataUi.Icon(
+                            iconData = AppIcons.Info
+                        ),
+                        trailingContentData = ListItemTrailingContentDataUi.Icon(
+                            iconData = AppIcons.KeyboardArrowRight
+                        )
+                    )
+                )
+            )
+
+            add(
+                SettingsItemUi(
                     type = SettingsMenuItemType.RETRIEVE_LOGS,
                     data = ListItemDataUi(
                         itemId = resourceProvider.getString(R.string.settings_screen_option_retrieve_logs_id),
@@ -218,26 +251,6 @@ class SettingsInteractorImpl(
                 )
             } */
 
-            // Add delete wallet activation option for development/debugging
-            if (configLogic.appBuildType == AppBuildType.DEBUG) {
-                add(
-                    SettingsItemUi(
-                        type = SettingsMenuItemType.DELETE_WALLET_ACTIVATION,
-                        data = ListItemDataUi(
-                            itemId = "delete_wallet_activation",
-                            mainContentData = ListItemMainContentDataUi.Text(
-                                text = "Delete Wallet Activation"
-                            ),
-                            leadingContentData = ListItemLeadingContentDataUi.Icon(
-                                iconData = AppIcons.Delete
-                            ),
-                            trailingContentData = ListItemTrailingContentDataUi.Icon(
-                                iconData = AppIcons.KeyboardArrowRight
-                            )
-                        )
-                    )
-                )
-            }
         }
     }
 

@@ -40,6 +40,14 @@ object AuthTestTags {
         const val SIGN_OUT_BUTTON = "profile_completion_sign_out_button"
     }
 
+    object LegalAcceptance {
+        const val ROOT = "legal_acceptance_screen_root"
+        const val TERMS_CHECKBOX = "legal_acceptance_terms_checkbox"
+        const val PRIVACY_CHECKBOX = "legal_acceptance_privacy_checkbox"
+        const val CONTINUE_BUTTON = "legal_acceptance_continue_button"
+        const val SIGN_OUT_BUTTON = "legal_acceptance_sign_out_button"
+    }
+
     object DeviceSecurityRequired {
         const val ROOT = "device_security_required_screen_root"
         const val RETRY_BUTTON = "device_security_required_retry_button"
@@ -83,5 +91,10 @@ object AuthTestTags {
 object DashboardTestTags {
     object Screen {
         const val ROOT = "dashboard_screen_root"
+    }
+
+    object Documents {
+        const val ROOT = "dashboard_documents_screen_root"
+        const val PID_CARD = "dashboard_documents_pid_card"
     }
 }

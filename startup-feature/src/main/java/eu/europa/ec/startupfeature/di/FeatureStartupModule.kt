@@ -18,6 +18,8 @@ package eu.europa.ec.startupfeature.di
 
 import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
+import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
+import eu.europa.ec.authenticationlogic.usecase.GetLegalAcceptanceStateUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsProfileCompletedUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsWalletActivatedUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
@@ -43,6 +45,8 @@ fun provideSplashInteractor(
     prefKeys: PrefKeysV2,
     prefsController: PrefsControllerV2,
     logController: LogController,
+    getMyProfileUseCase: GetMyProfileUseCase,
+    getLegalAcceptanceStateUseCase: GetLegalAcceptanceStateUseCase,
     isWalletActivatedUseCase: IsWalletActivatedUseCase,
     isProfileCompletedUseCase: IsProfileCompletedUseCase,
     quickPinInteractor: QuickPinInteractor,
@@ -55,6 +59,8 @@ fun provideSplashInteractor(
     prefKeys,
     prefsController,
     logController,
+    getMyProfileUseCase,
+    getLegalAcceptanceStateUseCase,
     isWalletActivatedUseCase,
     isProfileCompletedUseCase,
     quickPinInteractor,

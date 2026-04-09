@@ -16,12 +16,17 @@
 
 package eu.europa.ec.authenticationfeature.di
 
+import eu.europa.ec.authenticationfeature.ui.LegalAcceptanceViewModel
+import eu.europa.ec.authenticationfeature.ui.AccountDeletionScheduledViewModel
+import eu.europa.ec.authenticationlogic.usecase.CancelAccountDeletionUseCase
+import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignUpWithEmailPasswordUseCase
 import eu.europa.ec.businesslogic.controller.device.DeviceController
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
 import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
 import eu.europa.ec.notificationlogic.controller.PushNotificationController
+import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.walletactivationlogic.usecase.CreateWalletAttestationUseCase
 import eu.europa.ec.walletactivationlogic.usecase.DeleteWalletActivationUseCase
 import org.koin.core.annotation.ComponentScan
@@ -35,8 +40,9 @@ import eu.europa.ec.authenticationlogic.controller.storage.PinStorageController
 import eu.europa.ec.authenticationlogic.usecase.CheckHandleAvailabilityUseCase
 import eu.europa.ec.authenticationlogic.usecase.CompleteProfileUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
-import eu.europa.ec.authenticationlogic.usecase.IsProfileCompletedUseCase
+import eu.europa.ec.authenticationlogic.usecase.GetLegalAcceptanceStateUseCase
 import eu.europa.ec.authenticationlogic.usecase.ObserveAuthStateUseCase
+import eu.europa.ec.authenticationlogic.usecase.RecordLegalAcceptanceUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignInWithEmailPasswordUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignInWithOAuthUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
@@ -55,20 +61,40 @@ fun provideAuthenticationViewModel(
     signInWithOAuthUseCase: SignInWithOAuthUseCase,
     signOutUseCase: SignOutUseCase,
     observeAuthStateUseCase: ObserveAuthStateUseCase,
-    isProfileCompletedUseCase: IsProfileCompletedUseCase,
-    prefKeys: PrefKeysV2,
     logController: LogController,
-    pinStorageController: PinStorageController
 ): AuthenticationViewModel = AuthenticationViewModel(
     signInWithEmailPasswordUseCase,
     signUpWithEmailPasswordUseCase,
     signInWithOAuthUseCase,
     signOutUseCase,
     observeAuthStateUseCase,
-    isProfileCompletedUseCase,
-    prefKeys,
-    logController,
-    pinStorageController
+    logController
+)
+
+@Factory
+fun provideLegalAcceptanceViewModel(
+    getLegalAcceptanceStateUseCase: GetLegalAcceptanceStateUseCase,
+    recordLegalAcceptanceUseCase: RecordLegalAcceptanceUseCase,
+    signOutUseCase: SignOutUseCase,
+    resourceProvider: ResourceProvider,
+): LegalAcceptanceViewModel = LegalAcceptanceViewModel(
+    getLegalAcceptanceStateUseCase,
+    recordLegalAcceptanceUseCase,
+    signOutUseCase,
+    resourceProvider
+)
+
+@Factory
+fun provideAccountDeletionScheduledViewModel(
+    getMyProfileUseCase: GetMyProfileUseCase,
+    cancelAccountDeletionUseCase: CancelAccountDeletionUseCase,
+    signOutUseCase: SignOutUseCase,
+    resourceProvider: ResourceProvider,
+): AccountDeletionScheduledViewModel = AccountDeletionScheduledViewModel(
+    getMyProfileUseCase,
+    cancelAccountDeletionUseCase,
+    signOutUseCase,
+    resourceProvider
 )
 
 @Factory
