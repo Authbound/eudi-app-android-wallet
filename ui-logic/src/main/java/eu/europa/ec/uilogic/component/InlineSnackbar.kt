@@ -16,6 +16,7 @@
 
 package eu.europa.ec.uilogic.component
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -38,7 +39,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isUnspecified
@@ -74,6 +77,7 @@ fun InlineSnackbar(
         modifier = modifier,
         maxMessageLines = maxMessageLines,
         severity = error.severity,
+        showBrandMarkForError = true,
     )
 }
 
@@ -85,12 +89,17 @@ fun InlineSnackbar(
     modifier: Modifier = Modifier,
     maxMessageLines: Int = 4,
     severity: ErrorSeverity? = null,
+    showBrandMarkForError: Boolean = false,
 ) {
     val severityColors = severity?.let { resolveSeverityColors(it) }
     val surfaceColor = severityColors?.container
         ?: MaterialTheme.colorScheme.inverseSurface
     val contentColor = severityColors?.onContainer
         ?: MaterialTheme.colorScheme.inverseOnSurface
+    val showAuthboundMark = showBrandMarkForError && when (severity) {
+        null, ErrorSeverity.ERROR, ErrorSeverity.CRITICAL -> true
+        ErrorSeverity.INFO, ErrorSeverity.WARNING -> false
+    }
 
     Box(modifier) {
         Surface(
@@ -104,6 +113,16 @@ fun InlineSnackbar(
                     .padding(horizontal = SPACING_MEDIUM.dp, vertical = SPACING_SMALL.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                if (showAuthboundMark) {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_authbound_logo),
+                        contentDescription = stringResource(R.string.content_description_logo_plain_icon),
+                        modifier = Modifier
+                            .size(SIZE_MEDIUM.dp)
+                            .padding(end = SPACING_SMALL.dp),
+                        contentScale = ContentScale.Fit,
+                    )
+                }
                 // Compute “maxMessageLines” max height
                 val style = MaterialTheme.typography.bodyMedium
                 val lineHeightSp =
