@@ -535,7 +535,7 @@
     <string name="settings_change_password_description">Change your account password</string>
 
     <!-- Privacy Section — canonical URL for Google Play Data safety & in-app links -->
-    <string name="legal_terms_alpha_url" translatable="false">https://authbound.io/wallet-alpha-terms</string>
+    <string name="legal_terms_alpha_url" translatable="false">https://authbound.io/terms</string>
     <string name="legal_privacy_policy_url" translatable="false">https://authbound.io/privacy</string>
     <string name="legal_account_deletion_url" translatable="false">https://authbound.io/delete-account</string>
     <string name="legal_terms_alpha_updated_at">April 8, 2026</string>
@@ -543,7 +543,7 @@
     <string name="settings_privacy">Privacy &amp; Data</string>
     <string name="settings_privacy_data_title">Privacy &amp; Data</string>
     <string name="settings_privacy_data_description">Review the documents that govern this closed alpha, check the versions last accepted on this device, and manage account deletion.</string>
-    <string name="settings_terms_of_service_description">Read the Authbound Wallet Alpha Terms that apply to invited testers using this pre-release app.</string>
+    <string name="settings_terms_of_service_description">Read the Terms and Conditions that apply to invited testers using this pre-release app.</string>
     <string name="settings_privacy_policy_description">Read how Authbound handles wallet account data, app diagnostics, and on-device versus server-side processing.</string>
     <string name="settings_open_link">Open link</string>
     <string name="settings_accepted_documents_title">Accepted legal documents</string>
@@ -580,11 +580,11 @@
     <!-- Legal acceptance -->
     <string name="legal_acceptance_title">Terms &amp; Privacy</string>
     <string name="legal_acceptance_description">Please review the documents below before continuing to use the alpha build.</string>
-    <string name="legal_acceptance_terms_title">Authbound Wallet Alpha Terms</string>
+    <string name="legal_acceptance_terms_title">Terms and Conditions</string>
     <string name="legal_acceptance_privacy_title">Privacy Policy</string>
     <string name="legal_acceptance_open_terms">Review terms</string>
     <string name="legal_acceptance_open_privacy">Review privacy policy</string>
-    <string name="legal_acceptance_terms_checkbox">I reviewed and accept the Authbound Wallet Alpha Terms for this build.</string>
+    <string name="legal_acceptance_terms_checkbox">I reviewed and accept the Terms and Conditions for this build.</string>
     <string name="legal_acceptance_privacy_checkbox">I reviewed the current Authbound Privacy Policy for this build.</string>
     <string name="legal_acceptance_continue">Continue</string>
     <string name="legal_acceptance_sign_out">Sign out</string>
@@ -608,7 +608,7 @@
     <string name="account_deletion_retry">Retry</string>
 
     <!-- Login legal notice -->
-    <string name="login_terms_link">Alpha Terms</string>
+    <string name="login_terms_link">Terms</string>
     <string name="login_privacy_link">Privacy</string>
     <string name="login_legal_separator">•</string>
 

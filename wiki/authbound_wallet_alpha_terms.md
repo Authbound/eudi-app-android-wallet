@@ -6,7 +6,7 @@ This document defines the wallet-specific terms that should be published for the
 
 ## Planned Public URL
 
-- `https://www.authbound.io/wallet-alpha-terms`
+- `https://www.authbound.io/terms`
 
 ## Versioning
 

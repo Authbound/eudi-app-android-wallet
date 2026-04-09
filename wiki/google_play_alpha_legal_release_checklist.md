@@ -6,7 +6,7 @@ This checklist covers the app-side and release-console work needed for the close
 
 ## Website Publication
 
-- Publish wallet alpha terms at `https://www.authbound.io/wallet-alpha-terms`
+- Publish terms at `https://www.authbound.io/terms`
 - Update public privacy policy at `https://www.authbound.io/privacy`
 - Publish public account deletion page at `https://www.authbound.io/delete-account`
 - Confirm all three pages are reachable without authentication
