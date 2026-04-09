@@ -168,6 +168,7 @@ private fun SuccessScreenView(
 
     Column(
         modifier = Modifier
+            .applyTestTag(TestTag.SuccessScreen.ROOT)
             .fillMaxSize()
             .padding(paddingValues)
             .padding(horizontal = 24.dp),

@@ -142,6 +142,7 @@ private fun Content(
 ) {
     Column(
         modifier = Modifier
+            .applyTestTag(TestTag.DocumentSuccessScreen.ROOT)
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(paddingValues)

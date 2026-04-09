@@ -24,11 +24,13 @@ object TestTag {
     }
 
     object SuccessScreen {
+        const val ROOT = "success_screen_root"
         const val PRIMARY_BUTTON = "success_screen_primary_button"
         const val SECONDARY_BUTTON = "success_screen_secondary_button"
     }
 
     object DocumentSuccessScreen {
+        const val ROOT = "document_success_screen_root"
         const val CONTENT_HEADER_DESCRIPTION = "document_success_screen_content_header_description"
         const val BUTTON = "document_success_screen_button"
 
@@ -36,6 +38,8 @@ object TestTag {
     }
 
     object RequestScreen {
+        const val ROOT = "request_screen_root"
+        const val EMPTY_STATE = "request_screen_empty_state"
         const val CONTENT_HEADER_DESCRIPTION = "request_screen_content_header_description"
         const val BUTTON = "request_screen_button"
 

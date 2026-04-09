@@ -113,8 +113,10 @@ import eu.europa.ec.uilogic.component.wrap.WrapIconButton
 import eu.europa.ec.uilogic.component.wrap.WrapListItem
 import eu.europa.ec.uilogic.component.wrap.WrapModalBottomSheet
 import eu.europa.ec.uilogic.component.loader.SkeletonDocumentList
+import eu.europa.ec.uilogic.extension.applyTestTag
 import eu.europa.ec.uilogic.extension.finish
 import eu.europa.ec.uilogic.extension.paddingFrom
+import eu.europa.ec.uilogic.test.DashboardTestTags
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -294,6 +296,7 @@ internal fun DocumentsContent(
         isRefreshing = state.isRefreshing,
         onRefresh = { onEventSend(Event.PullToRefresh) },
         modifier = Modifier
+            .applyTestTag(DashboardTestTags.Documents.ROOT)
             .fillMaxSize()
             .paddingFrom(paddingValues, bottom = false)
     ) {
@@ -491,7 +494,15 @@ private fun DocumentCategorySection(
                            !documentItem.portraitBase64.isNullOrBlank()
 
             VisualCredentialCard(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(
+                        if (visualType == CredentialVisualType.PID) {
+                            Modifier.applyTestTag(DashboardTestTags.Documents.PID_CARD)
+                        } else {
+                            Modifier
+                        }
+                    ),
                 config = VisualCredentialConfig(
                     id = documentItem.uiData.itemId,
                     visualType = visualType,

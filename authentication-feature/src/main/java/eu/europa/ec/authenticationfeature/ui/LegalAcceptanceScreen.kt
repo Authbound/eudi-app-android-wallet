@@ -26,14 +26,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -106,66 +109,58 @@ private fun LegalAcceptanceContent(
             .padding(paddingValues)
             .verticalScroll(rememberScrollState())
             .applyTestTag(AuthTestTags.LegalAcceptance.ROOT)
-            .padding(20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = 24.dp, vertical = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+        horizontalAlignment = Alignment.Start
     ) {
-        Text(
-            text = stringResource(R.string.legal_acceptance_title),
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            text = stringResource(R.string.legal_acceptance_description),
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-        LegalDocumentCard(
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.legal_acceptance_title),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Start
+            )
+            Text(
+                text = stringResource(R.string.legal_acceptance_description),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Start
+            )
+        }
+        
+        LegalDocumentRow(
             title = stringResource(R.string.legal_acceptance_terms_title),
             version = state.snapshot.requiredTermsVersion.ifBlank {
                 stringResource(R.string.legal_acceptance_version_unavailable)
             },
             updatedAt = stringResource(R.string.legal_terms_alpha_updated_at),
-            buttonText = stringResource(R.string.legal_acceptance_open_terms),
-            onOpen = { onEvent(LegalAcceptanceEvent.OpenTerms) }
+            onClick = { onEvent(LegalAcceptanceEvent.OpenTerms) }
         )
-        Spacer(modifier = Modifier.height(12.dp))
-        LegalDocumentCard(
+        LegalDocumentRow(
             title = stringResource(R.string.legal_acceptance_privacy_title),
             version = state.snapshot.requiredPrivacyVersion.ifBlank {
                 stringResource(R.string.legal_acceptance_version_unavailable)
             },
             updatedAt = stringResource(R.string.legal_privacy_policy_updated_at),
-            buttonText = stringResource(R.string.legal_acceptance_open_privacy),
-            onOpen = { onEvent(LegalAcceptanceEvent.OpenPrivacy) }
+            onClick = { onEvent(LegalAcceptanceEvent.OpenPrivacy) }
         )
-        Spacer(modifier = Modifier.height(20.dp))
-        LegalRiskCard()
-        Spacer(modifier = Modifier.height(20.dp))
-        ConsentRow(
-            checked = state.hasAcceptedTerms,
-            text = stringResource(R.string.legal_acceptance_terms_checkbox),
-            modifier = Modifier.applyTestTag(AuthTestTags.LegalAcceptance.TERMS_CHECKBOX),
-            onCheckedChange = { onEvent(LegalAcceptanceEvent.TermsToggled(it)) }
+        AlphaNoticeCard()
+        
+        ConsentSection(
+            state = state,
+            onEvent = onEvent
         )
-        Spacer(modifier = Modifier.height(8.dp))
-        ConsentRow(
-            checked = state.hasAcknowledgedPrivacy,
-            text = stringResource(R.string.legal_acceptance_privacy_checkbox),
-            modifier = Modifier.applyTestTag(AuthTestTags.LegalAcceptance.PRIVACY_CHECKBOX),
-            onCheckedChange = { onEvent(LegalAcceptanceEvent.PrivacyToggled(it)) }
-        )
+
         if (!state.error.isNullOrBlank()) {
-            Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = state.error,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.error,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Start
             )
-            Spacer(modifier = Modifier.height(12.dp))
             OutlinedButton(
                 onClick = { onEvent(LegalAcceptanceEvent.Retry) },
                 modifier = Modifier.fillMaxWidth()
@@ -173,20 +168,21 @@ private fun LegalAcceptanceContent(
                 Text(text = stringResource(R.string.legal_acceptance_retry))
             }
         }
-        Spacer(modifier = Modifier.height(24.dp))
         Button(
             onClick = { onEvent(LegalAcceptanceEvent.Continue) },
             modifier = Modifier
                 .fillMaxWidth()
+                .height(56.dp)
                 .applyTestTag(AuthTestTags.LegalAcceptance.CONTINUE_BUTTON),
             enabled = state.canContinue
         ) {
             Text(text = stringResource(R.string.legal_acceptance_continue))
         }
-        Spacer(modifier = Modifier.height(12.dp))
         TextButton(
             onClick = { onEvent(LegalAcceptanceEvent.SignOut) },
-            modifier = Modifier.applyTestTag(AuthTestTags.LegalAcceptance.SIGN_OUT_BUTTON)
+            modifier = Modifier
+                .align(Alignment.CenterHorizontally)
+                .applyTestTag(AuthTestTags.LegalAcceptance.SIGN_OUT_BUTTON)
         ) {
             Text(
                 text = stringResource(R.string.legal_acceptance_sign_out),
@@ -197,13 +193,50 @@ private fun LegalAcceptanceContent(
 }
 
 @Composable
-private fun LegalDocumentCard(
+private fun LegalDocumentRow(
     title: String,
     version: String,
     updatedAt: String,
-    buttonText: String,
-    onOpen: () -> Unit,
+    onClick: () -> Unit,
 ) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = stringResource(R.string.legal_acceptance_updated_label, updatedAt),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = stringResource(R.string.legal_acceptance_version_label, version),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun AlphaNoticeCard() {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -214,48 +247,51 @@ private fun LegalDocumentCard(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = title,
+                text = stringResource(R.string.legal_acceptance_alpha_notice_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
             Text(
-                text = stringResource(R.string.legal_acceptance_version_label, version),
-                style = MaterialTheme.typography.bodySmall,
+                text = stringResource(R.string.legal_acceptance_alpha_notice_body),
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Text(
-                text = stringResource(R.string.legal_acceptance_updated_label, updatedAt),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            OutlinedButton(onClick = onOpen) {
-                Text(text = buttonText)
-            }
         }
     }
 }
 
 @Composable
-private fun LegalRiskCard() {
-    Card(
+private fun ConsentSection(
+    state: LegalAcceptanceState,
+    onEvent: (LegalAcceptanceEvent) -> Unit,
+) {
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-        shape = RoundedCornerShape(16.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.legal_acceptance_alpha_notice_title),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = stringResource(R.string.legal_acceptance_alpha_notice_body),
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
+        Text(
+            text = stringResource(R.string.legal_acceptance_confirm_section_title),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold
+        )
+        Text(
+            text = stringResource(R.string.legal_acceptance_confirm_section_description),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        ConsentRow(
+            checked = state.hasAcceptedTerms,
+            text = stringResource(R.string.legal_acceptance_terms_checkbox),
+            modifier = Modifier.applyTestTag(AuthTestTags.LegalAcceptance.TERMS_CHECKBOX),
+            onCheckedChange = { onEvent(LegalAcceptanceEvent.TermsToggled(it)) }
+        )
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        ConsentRow(
+            checked = state.hasAcknowledgedPrivacy,
+            text = stringResource(R.string.legal_acceptance_privacy_checkbox),
+            modifier = Modifier.applyTestTag(AuthTestTags.LegalAcceptance.PRIVACY_CHECKBOX),
+            onCheckedChange = { onEvent(LegalAcceptanceEvent.PrivacyToggled(it)) }
+        )
     }
 }
 
@@ -270,17 +306,18 @@ private fun ConsentRow(
         modifier = modifier
             .fillMaxWidth()
             .clickable { onCheckedChange(!checked) },
-        verticalAlignment = Alignment.Top
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Checkbox(
             checked = checked,
-            onCheckedChange = onCheckedChange
+            onCheckedChange = onCheckedChange,
+            modifier = Modifier.align(Alignment.Top)
         )
-        Spacer(modifier = Modifier.width(12.dp))
         Text(
             text = text,
             style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(top = 12.dp)
+            modifier = Modifier.weight(1f)
         )
     }
 }

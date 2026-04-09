@@ -33,6 +33,7 @@ import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
 import eu.europa.ec.uilogic.component.utils.SIZE_SMALL
 import eu.europa.ec.uilogic.component.utils.screenWidthInDp
 import eu.europa.ec.uilogic.component.wrap.WrapIcon
+import eu.europa.ec.uilogic.extension.applyTestTag
 
 @Composable
 fun ErrorInfo(
@@ -40,12 +41,13 @@ fun ErrorInfo(
     modifier: Modifier = Modifier,
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     isIconEnabled: Boolean = false,
+    testTag: String? = null,
 ) {
 
     val errorIconSize = screenWidthInDp(true) / 6
 
     Column(
-        modifier = modifier,
+        modifier = if (testTag != null) modifier.applyTestTag(testTag) else modifier,
         verticalArrangement = Arrangement.spacedBy(SIZE_SMALL.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {

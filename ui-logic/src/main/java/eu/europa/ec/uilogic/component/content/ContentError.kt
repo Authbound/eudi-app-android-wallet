@@ -36,13 +36,17 @@ import eu.europa.ec.uilogic.component.utils.SPACING_EXTRA_SMALL
 import eu.europa.ec.uilogic.component.wrap.ButtonConfig
 import eu.europa.ec.uilogic.component.wrap.ButtonType
 import eu.europa.ec.uilogic.component.wrap.WrapButton
+import eu.europa.ec.uilogic.extension.applyTestTag
+import eu.europa.ec.uilogic.test.CommonUiTestTags
 
 @Composable
 internal fun ContentError(
     config: ContentErrorConfig,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier) {
+    Column(
+        modifier = modifier.applyTestTag(CommonUiTestTags.ContentError.ROOT)
+    ) {
         ContentTitle(
             title = config.errorTitle ?: stringResource(
                 id = R.string.generic_error_message
@@ -72,7 +76,9 @@ internal fun ContentError(
                     type = ButtonType.SECONDARY,
                     onClick = { secondaryCallback() },
                 ),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .applyTestTag(CommonUiTestTags.ContentError.SECONDARY_BUTTON)
+                    .fillMaxWidth()
             ) {
                 Text(
                     text = config.secondaryActionLabel
@@ -89,7 +95,9 @@ internal fun ContentError(
                         callback()
                     },
                 ),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .applyTestTag(CommonUiTestTags.ContentError.RETRY_BUTTON)
+                    .fillMaxWidth()
             ) {
                 Text(
                     text = stringResource(id = R.string.generic_error_button_retry)

@@ -187,6 +187,7 @@ private fun Content(
 ) {
     Column(
         modifier = Modifier
+            .applyTestTag(TestTag.RequestScreen.ROOT)
             .fillMaxSize()
             .then(
                 other = if (state.noItems) Modifier else Modifier.verticalScroll(
@@ -250,6 +251,7 @@ private fun DisplayRequestItems(
         if (noData) {
             ErrorInfo(
                 modifier = Modifier.fillMaxSize(),
+                testTag = TestTag.RequestScreen.EMPTY_STATE,
                 informativeText = stringResource(id = R.string.request_no_data),
             )
         } else {

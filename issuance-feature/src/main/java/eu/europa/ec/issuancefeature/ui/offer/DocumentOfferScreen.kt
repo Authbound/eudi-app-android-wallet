@@ -160,6 +160,7 @@ private fun Content(
 ) {
     Column(
         modifier = Modifier
+            .applyTestTag(TestTag.DocumentOfferScreen.ROOT)
             .fillMaxSize()
             .padding(paddingValues)
     ) {
@@ -172,6 +173,7 @@ private fun Content(
         if (state.noDocument) {
             ErrorInfo(
                 modifier = Modifier.fillMaxSize(),
+                testTag = TestTag.DocumentOfferScreen.EMPTY_STATE,
                 informativeText = stringResource(id = R.string.issuance_document_offer_error_no_document)
             )
         } else {

@@ -98,3 +98,11 @@ object DashboardTestTags {
         const val PID_CARD = "dashboard_documents_pid_card"
     }
 }
+
+object CommonUiTestTags {
+    object ContentError {
+        const val ROOT = "content_error_root"
+        const val RETRY_BUTTON = "content_error_retry_button"
+        const val SECONDARY_BUTTON = "content_error_secondary_button"
+    }
+}
