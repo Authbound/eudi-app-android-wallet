@@ -21,6 +21,16 @@ import java.util.Properties
 
 @Suppress("UNCHECKED_CAST")
 fun <T> Project.getProperty(key: String, fileName: String = "local.properties"): T? {
+    val gradleProperty = findProperty(key) as? T
+    if (gradleProperty != null) {
+        return gradleProperty
+    }
+
+    val environmentValue = System.getenv(key) as? T
+    if (environmentValue != null) {
+        return environmentValue
+    }
+
     return try {
         val properties = Properties().apply {
             load(rootProject.file(fileName).reader())

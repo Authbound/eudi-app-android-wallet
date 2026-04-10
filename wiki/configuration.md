@@ -576,3 +576,34 @@ Config Construction via Koin DI Example:
 @Single
 fun provideAnalyticsConfig(): AnalyticsConfig = AnalyticsConfigImpl()
 ```
+
+## PID Lifecycle E2E configuration
+
+The phase-1 PID lifecycle E2E harness configures the wallet through Gradle properties instead of source edits.
+
+The Android convention plugin exposes these values as module `BuildConfig` fields:
+
+- `E2E_MODE`
+- `E2E_ISSUER_BASE_URL`
+- `E2E_VERIFIER_API_URL`
+- `E2E_VERIFIER_UI_URL`
+
+When `E2E_MODE=true` on the `devDebug` build:
+
+- startup bypasses auth/onboarding and routes directly into the local unlock flow
+- the dev issuer list is replaced with the local E2E issuer
+- OpenID4VP preregistered verifier support is enabled for the local verifier API
+
+Example:
+
+```bash
+./gradlew :app:installDevDebug \
+  -PE2E_MODE=true \
+  -PE2E_ISSUER_BASE_URL=http://10.0.2.2:5070 \
+  -PE2E_VERIFIER_API_URL=http://10.0.2.2:8080 \
+  -PE2E_VERIFIER_UI_URL=http://10.0.2.2:8080
+```
+
+The supported one-command workflow for this mode is documented in the portal repo:
+
+- `~/dev/authbound-portal/docs/runbooks/pid-wallet-lifecycle-e2e.md`

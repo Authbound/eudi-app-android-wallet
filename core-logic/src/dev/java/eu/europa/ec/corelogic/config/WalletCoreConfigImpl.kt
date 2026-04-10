@@ -28,6 +28,7 @@ import eu.europa.ec.eudi.wallet.issue.openid4vci.OpenId4VciManager
 import eu.europa.ec.eudi.wallet.issue.openid4vci.dpop.DPopConfig
 import eu.europa.ec.eudi.wallet.transfer.openId4vp.ClientIdScheme
 import eu.europa.ec.eudi.wallet.transfer.openId4vp.Format
+import eu.europa.ec.eudi.wallet.transfer.openId4vp.PreregisteredVerifier
 import eu.europa.ec.resourceslogic.R
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.runBlocking
@@ -45,14 +46,33 @@ internal class WalletCoreConfigImpl(
     companion object {
         private const val TAG = "WalletCoreConfig"
         private const val MOBILE_BACKEND_PORT = 3009
+        private const val ISSUER_PORT = 5070
+        private const val VERIFIER_PORT = 8080
+        private const val OPENID4VP_VERIFIER_LEGAL_NAME = "Authbound E2E Verifier"
+        private const val OPENID4VP_VERIFIER_CLIENT_ID = "Verifier"
     }
+
+    private val localhostAddress: String = EmulatorDetector.getLocalhostAddress()
+
+    private val isE2eMode: Boolean = BuildConfig.E2E_MODE
+
+    private val e2eIssuerBaseUrl: String
+        get() = resolveConfiguredUrl(
+            configuredUrl = BuildConfig.E2E_ISSUER_BASE_URL,
+            fallbackUrl = "http://$localhostAddress:$ISSUER_PORT"
+        )
+
+    private val e2eVerifierApiUrl: String
+        get() = resolveConfiguredUrl(
+            configuredUrl = BuildConfig.E2E_VERIFIER_API_URL,
+            fallbackUrl = "http://$localhostAddress:$VERIFIER_PORT"
+        )
 
     // Trust API client using EmulatorDetector for correct localhost address
     private val trustApiClient by lazy {
-        val host = EmulatorDetector.getLocalhostAddress()
         TrustApiClient(
             httpClient = httpClient,
-            baseUrl = "http://$host:$MOBILE_BACKEND_PORT/api/trust",
+            baseUrl = "http://$localhostAddress:$MOBILE_BACKEND_PORT/api/trust",
         )
     }
 
@@ -83,6 +103,23 @@ internal class WalletCoreConfigImpl(
         get() {
             if (_config == null) {
                 val dynamicCerts = parseDynamicCertificates(dynamicTrustData.certificates)
+                val clientIdSchemes = buildList {
+                    add(ClientIdScheme.X509SanDns)
+                    add(ClientIdScheme.X509Hash)
+                    if (isE2eMode) {
+                        add(
+                            ClientIdScheme.Preregistered(
+                                listOf(
+                                    PreregisteredVerifier(
+                                        clientId = OPENID4VP_VERIFIER_CLIENT_ID,
+                                        verifierApi = e2eVerifierApiUrl,
+                                        legalName = OPENID4VP_VERIFIER_LEGAL_NAME
+                                    )
+                                )
+                            )
+                        )
+                    }
+                }
 
                 _config = EudiWalletConfig {
                     configureDocumentKeyCreation(
@@ -91,12 +128,7 @@ internal class WalletCoreConfigImpl(
                         useStrongBoxForKeys = true
                     )
                     configureOpenId4Vp {
-                        withClientIdSchemes(
-                            listOf(
-                                ClientIdScheme.X509SanDns,
-                                ClientIdScheme.X509Hash
-                            )
-                        )
+                        withClientIdSchemes(clientIdSchemes)
                         withSchemes(
                             listOf(
                                 BuildConfig.OPENID4VP_SCHEME,
@@ -169,8 +201,22 @@ internal class WalletCoreConfigImpl(
         ),
     )
 
+    private val e2eIssuers: List<VciConfig> = listOf(
+        VciConfig(
+            walletProviderConfig = authboundWalletProviderConfig,
+            config = OpenId4VciManager.Config.Builder()
+                .withIssuerUrl(issuerUrl = "${e2eIssuerBaseUrl}/api/v1/openid4vci")
+                .withClientAuthenticationType(OpenId4VciManager.ClientAuthenticationType.AttestationBased)
+                .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
+                .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
+                .withDPopConfig(DPopConfig.Default)
+                .build(),
+            order = 0
+        )
+    )
+
     override val issuersConfig: List<VciConfig>
-        get() = defaultIssuers
+        get() = if (isE2eMode) e2eIssuers else defaultIssuers
 
     override val documentIssuanceConfig: DocumentIssuanceConfig
         get() = DocumentIssuanceConfig(
@@ -189,6 +235,10 @@ internal class WalletCoreConfigImpl(
                 ),
             )
         )
+}
+
+private fun resolveConfiguredUrl(configuredUrl: String, fallbackUrl: String): String {
+    return configuredUrl.trim().removeSuffix("/").ifEmpty { fallbackUrl }
 }
 
 private fun parseDynamicCertificates(pems: List<String>?): List<X509Certificate> {
