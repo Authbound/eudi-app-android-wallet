@@ -43,11 +43,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+// import androidx.compose.material3.Button        // Google OAuth UI (issue #43)
+// import androidx.compose.material3.ButtonDefaults  // Google OAuth UI (issue #43)
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
+// import androidx.compose.material3.HorizontalDivider  // Google OAuth UI (issue #43)
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -86,7 +86,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import eu.europa.ec.authenticationlogic.model.OAuthProvider
+// Google OAuth UI removed (issue #43) — keeping import for potential future re-enablement
+// import eu.europa.ec.authenticationlogic.model.OAuthProvider
 import eu.europa.ec.businesslogic.extension.toUri
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.uilogic.component.content.ContentScreen
@@ -94,7 +95,7 @@ import eu.europa.ec.uilogic.component.content.ImePaddingConfig
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
-import eu.europa.ec.uilogic.component.utils.SIZE_100
+// import eu.europa.ec.uilogic.component.utils.SIZE_100  // Google OAuth UI (issue #43)
 import eu.europa.ec.uilogic.component.wrap.ButtonConfig
 import eu.europa.ec.uilogic.component.wrap.ButtonType
 import eu.europa.ec.uilogic.component.wrap.WrapButton
@@ -511,6 +512,9 @@ private fun LoginFormContent(
                             }
                         }
 
+                        // region Google OAuth UI — commented out per issue #43
+                        // To re-enable, uncomment this block and the OAuthProvider import above.
+                        /*
                         // OR divider
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -579,6 +583,8 @@ private fun LoginFormContent(
                                 )
                             }
                         }
+                        */
+                        // endregion
                     }
                 }
             }
