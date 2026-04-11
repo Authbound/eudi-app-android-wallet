@@ -19,6 +19,7 @@ package eu.europa.ec.businesslogic.controller.storage
 import android.content.Context.MODE_PRIVATE
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import eu.europa.ec.businesslogic.config.E2eRuntimeConfig
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import io.github.jan.supabase.SupabaseClient
@@ -118,7 +119,7 @@ class PrefsControllerV2Impl(
         } catch (e: Exception) {
             logController.w("PrefsControllerV2") { "Failed to get current user from Supabase: ${e.message}" }
             null
-        }
+        } ?: getSyntheticUserId()
 
         // Cache for future accesses
         if (userId != null) {
@@ -148,10 +149,10 @@ class PrefsControllerV2Impl(
 
     override fun hasAuthenticatedUser(): Boolean {
         return try {
-            supabaseClient.auth.currentSessionOrNull() != null
+            supabaseClient.auth.currentSessionOrNull() != null || E2eRuntimeConfig.isEnabled
         } catch (e: Exception) {
             logController.w("PrefsControllerV2") { "Failed to check auth state: ${e.message}" }
-            false
+            E2eRuntimeConfig.isEnabled
         }
     }
 
@@ -249,7 +250,7 @@ class PrefsControllerV2Impl(
 
     override fun safeBool(key: String, defaultValue: Boolean): Boolean {
         return try {
-            val userId = supabaseClient.auth.currentSessionOrNull()?.user?.id
+            val userId = resolveCurrentUserIdSync()
             if (userId != null) {
                 getUserPrefs(userId).getBoolean(key, defaultValue)
             } else {
@@ -264,7 +265,7 @@ class PrefsControllerV2Impl(
 
     override fun safeString(key: String, defaultValue: String): String {
         return try {
-            val userId = supabaseClient.auth.currentSessionOrNull()?.user?.id
+            val userId = resolveCurrentUserIdSync()
             if (userId != null) {
                 getUserPrefs(userId).getString(key, defaultValue) ?: defaultValue
             } else {
@@ -279,7 +280,7 @@ class PrefsControllerV2Impl(
 
     override fun safeLong(key: String, defaultValue: Long): Long {
         return try {
-            val userId = supabaseClient.auth.currentSessionOrNull()?.user?.id
+            val userId = resolveCurrentUserIdSync()
             if (userId != null) {
                 getUserPrefs(userId).getLong(key, defaultValue)
             } else {
@@ -289,6 +290,23 @@ class PrefsControllerV2Impl(
         } catch (e: Exception) {
             logController.w("PrefsControllerV2") { "Safe long access failed for key: $key, returning default: ${e.message}" }
             defaultValue
+        }
+    }
+
+    private fun resolveCurrentUserIdSync(): String? {
+        return try {
+            supabaseClient.auth.currentSessionOrNull()?.user?.id
+        } catch (e: Exception) {
+            logController.w("PrefsControllerV2") { "Failed to resolve current user synchronously: ${e.message}" }
+            null
+        } ?: getSyntheticUserId()
+    }
+
+    private fun getSyntheticUserId(): String? {
+        return if (E2eRuntimeConfig.isEnabled) {
+            E2eRuntimeConfig.SYNTHETIC_USER_ID
+        } else {
+            null
         }
     }
 }

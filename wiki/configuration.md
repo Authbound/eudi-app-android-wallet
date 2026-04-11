@@ -9,6 +9,7 @@
 * [Theme configuration](#theme-configuration)
 * [Pin Storage configuration](#pin-storage-configuration)
 * [Analytics configuration](#analytics-configuration)
+* [PID lifecycle E2E configuration](#pid-lifecycle-e2e-configuration)
 
 ## General configuration
 
@@ -438,6 +439,36 @@ used by the application.*
         }
     }
     ```
+
+## PID lifecycle E2E configuration
+
+The wallet supports a dev-only PID lifecycle E2E mode used by the local issuer -> wallet -> verifier suite.
+
+The mode is enabled only when all of the following are true:
+
+- the build is `debug`
+- the flavor is `dev`
+- `E2E_MODE=true` is provided at build time
+
+Supported Gradle properties:
+
+- `E2E_MODE`
+- `E2E_ISSUER_BASE_URL`
+- `E2E_VERIFIER_API_URL`
+- `E2E_VERIFIER_UI_URL`
+
+Example:
+
+```bash
+./gradlew :app:installDevDebug \
+  -PE2E_MODE=true \
+  -PE2E_ISSUER_BASE_URL=http://10.0.2.2:5070 \
+  -PE2E_VERIFIER_API_URL=http://10.0.2.2:8080 \
+  -PE2E_VERIFIER_UI_URL=http://10.0.2.2:8080
+```
+
+These properties are resolved from Gradle properties first, then environment variables, then `local.properties`.
+They are ignored outside the `dev` flavor and are runtime-disabled outside `debug` `dev` builds.
 
 ## Theme configuration
 

@@ -23,6 +23,7 @@ import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.dependencies
 import project.convention.logic.addConfigField
+import project.convention.logic.AppFlavor
 import project.convention.logic.config.LibraryModule
 import project.convention.logic.config.LibraryPluginConfig
 import project.convention.logic.configureFlavors
@@ -94,6 +95,10 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
                     addConfigField("SUPABASE_URL", project.getProperty("SUPABASE_URL") ?: "")
                     addConfigField("SUPABASE_ANON_KEY", project.getProperty("SUPABASE_ANON_KEY") ?: "")
                     addConfigField("GOOGLE_AUTH_CLIENT_ID", project.getProperty("GOOGLE_AUTH_CLIENT_ID") ?: "")
+                    addConfigField("E2E_MODE", false)
+                    addConfigField("E2E_ISSUER_BASE_URL", "")
+                    addConfigField("E2E_VERIFIER_API_URL", "")
+                    addConfigField("E2E_VERIFIER_UI_URL", "")
                     addConfigField("DEEPLINK", "$walletScheme://")
                     addConfigField("EUDI_OPENID4VP_SCHEME", eudiOpenId4VpScheme)
                     addConfigField("MDOC_OPENID4VP_SCHEME", mdocOpenId4VpScheme)
@@ -147,7 +152,29 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
                     manifestPlaceholders["rqesDocRetrievalScheme"] = rqesDocRetrievalScheme
                     manifestPlaceholders["rqesDocRetrievalHost"] = rqesDocRetrievalHost
                 }
-                configureFlavors(this)
+                configureFlavors(this) { flavor ->
+                    val isDevFlavor = flavor == AppFlavor.Dev
+                    addConfigField(
+                        "E2E_MODE",
+                        if (isDevFlavor) {
+                            (project.getProperty<String>("E2E_MODE") ?: "false").toBoolean()
+                        } else {
+                            false
+                        }
+                    )
+                    addConfigField(
+                        "E2E_ISSUER_BASE_URL",
+                        if (isDevFlavor) project.getProperty("E2E_ISSUER_BASE_URL") ?: "" else ""
+                    )
+                    addConfigField(
+                        "E2E_VERIFIER_API_URL",
+                        if (isDevFlavor) project.getProperty("E2E_VERIFIER_API_URL") ?: "" else ""
+                    )
+                    addConfigField(
+                        "E2E_VERIFIER_UI_URL",
+                        if (isDevFlavor) project.getProperty("E2E_VERIFIER_UI_URL") ?: "" else ""
+                    )
+                }
                 configureGradleManagedDevices(this)
             }
             extensions.configure<LibraryAndroidComponentsExtension> {

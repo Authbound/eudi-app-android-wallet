@@ -21,8 +21,10 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import eu.europa.ec.authenticationlogic.BuildConfig
 import eu.europa.ec.authenticationlogic.model.EmailPasswordRequest
 import eu.europa.ec.authenticationlogic.model.OAuthProvider
+import eu.europa.ec.businesslogic.config.E2eRuntimeConfig
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.providers.builtin.IDToken
@@ -30,7 +32,6 @@ import io.github.jan.supabase.auth.providers.Google
 import io.github.jan.supabase.auth.providers.Azure
 import io.github.jan.supabase.auth.providers.Facebook
 import io.github.jan.supabase.auth.auth
-import eu.europa.ec.authenticationlogic.BuildConfig
 
 import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.auth.user.UserInfo
@@ -44,13 +45,9 @@ class SupabaseAuthRepositoryImpl(
     private val supabaseClient: SupabaseClient
 ) : SupabaseAuthRepository {
 
-    private companion object {
-        private const val E2E_USER_ID = "e2e-wallet-user"
-    }
-
     override suspend fun isUserAuthenticated(): Boolean {
-        val sessionStatus = supabaseClient.auth.sessionStatus.first { it !is SessionStatus.Initializing}
-        return supabaseClient.auth.currentSessionOrNull() != null || BuildConfig.E2E_MODE
+        supabaseClient.auth.sessionStatus.first { it !is SessionStatus.Initializing }
+        return supabaseClient.auth.currentSessionOrNull() != null || E2eRuntimeConfig.isEnabled
     }
 
     override suspend fun getCurrentUser(): UserInfo? {
@@ -59,7 +56,7 @@ class SupabaseAuthRepositoryImpl(
 
     override suspend fun getCurrentUserId(): String? {
         return supabaseClient.auth.currentSessionOrNull()?.user?.id
-            ?: if (BuildConfig.E2E_MODE) E2E_USER_ID else null
+            ?: if (E2eRuntimeConfig.isEnabled) E2eRuntimeConfig.SYNTHETIC_USER_ID else null
     }
 
     override suspend fun getAccessToken(): String? {
