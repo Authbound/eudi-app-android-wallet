@@ -21,6 +21,7 @@ import eu.europa.ec.networklogic.model.request.ActionRespondRequest
 import eu.europa.ec.networklogic.model.request.CompletePairingRequest
 import eu.europa.ec.networklogic.model.request.CompleteProfileRequest
 import eu.europa.ec.networklogic.model.request.RecordLegalAcceptanceRequest
+import eu.europa.ec.networklogic.model.request.CreateVerificationSessionRequest
 import eu.europa.ec.networklogic.model.request.CreateAuthboundPidSessionRequest
 import eu.europa.ec.networklogic.model.request.DummyRequest
 import eu.europa.ec.networklogic.model.request.MaisaExchangeRequest
@@ -32,6 +33,7 @@ import eu.europa.ec.networklogic.model.response.AccountDeletionEnvelopeResponse
 import eu.europa.ec.networklogic.model.response.AuthboundPidSessionStatus
 import eu.europa.ec.networklogic.model.response.CheckHandleResponse
 import eu.europa.ec.networklogic.model.response.CreateAuthboundPidSessionResponse
+import eu.europa.ec.networklogic.model.response.CreateVerificationSessionResponse
 import eu.europa.ec.networklogic.model.response.DummyResponse
 
 import eu.europa.ec.networklogic.model.response.LegalAcceptanceEnvelopeResponse
@@ -44,6 +46,8 @@ import eu.europa.ec.networklogic.model.response.ActionRespondResponse
 import eu.europa.ec.networklogic.model.response.ActionsListResponse
 import eu.europa.ec.networklogic.model.response.DeviceStatusResponse
 import eu.europa.ec.networklogic.model.response.PairingCompleteResponse
+import eu.europa.ec.networklogic.model.response.VerificationSessionDetailResponse
+import eu.europa.ec.networklogic.model.response.VerificationSessionsListResponse
 
 import eu.europa.ec.networklogic.model.response.WalletActivationResponse
 import io.ktor.client.HttpClient
@@ -99,6 +103,22 @@ interface ApiClient {
         body: ActionRespondRequest,
         bearerToken: String
     ): ApiResponse<ActionRespondResponse>
+
+    // Verification session endpoints
+    suspend fun createVerificationSession(
+        body: CreateVerificationSessionRequest,
+        bearerToken: String
+    ): ApiResponse<CreateVerificationSessionResponse>
+
+    suspend fun getVerificationSessions(
+        userId: String,
+        bearerToken: String
+    ): ApiResponse<VerificationSessionsListResponse>
+
+    suspend fun getVerificationSession(
+        sessionId: String,
+        bearerToken: String
+    ): ApiResponse<VerificationSessionDetailResponse>
 
     // Device linking endpoints
     suspend fun completePairing(
@@ -384,6 +404,42 @@ class KtorApiClient(
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
                 setBody(body)
+            }
+        }
+    }
+
+    override suspend fun createVerificationSession(
+        body: CreateVerificationSessionRequest,
+        bearerToken: String
+    ): ApiResponse<CreateVerificationSessionResponse> {
+        return executeRequest {
+            httpClient.post("$baseUrl/api/verification-sessions") {
+                contentType(ContentType.Application.Json)
+                header(HttpHeaders.Authorization, "Bearer $bearerToken")
+                setBody(body)
+            }
+        }
+    }
+
+    override suspend fun getVerificationSessions(
+        userId: String,
+        bearerToken: String
+    ): ApiResponse<VerificationSessionsListResponse> {
+        return executeRequest {
+            httpClient.get("$baseUrl/api/verification-sessions") {
+                header(HttpHeaders.Authorization, "Bearer $bearerToken")
+                parameter("userId", userId)
+            }
+        }
+    }
+
+    override suspend fun getVerificationSession(
+        sessionId: String,
+        bearerToken: String
+    ): ApiResponse<VerificationSessionDetailResponse> {
+        return executeRequest {
+            httpClient.get("$baseUrl/api/verification-sessions/$sessionId") {
+                header(HttpHeaders.Authorization, "Bearer $bearerToken")
             }
         }
     }
