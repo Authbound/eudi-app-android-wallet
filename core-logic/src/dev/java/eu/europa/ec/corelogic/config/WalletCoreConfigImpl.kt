@@ -18,6 +18,7 @@ package eu.europa.ec.corelogic.config
 
 import android.content.Context
 import android.util.Log
+import eu.europa.ec.businesslogic.config.E2eRuntimeConfig
 import eu.europa.ec.businesslogic.config.ConfigLogic
 import eu.europa.ec.businesslogic.util.EmulatorDetector
 import eu.europa.ec.corelogic.BuildConfig
@@ -54,21 +55,19 @@ internal class WalletCoreConfigImpl(
 
     private val localhostAddress: String = EmulatorDetector.getLocalhostAddress()
 
-    private val isE2eMode: Boolean = BuildConfig.E2E_MODE
+    private val isE2eMode: Boolean = E2eRuntimeConfig.isEnabled
 
     private val e2eIssuerBaseUrl: String
         get() = resolveConfiguredUrl(
-            configuredUrl = BuildConfig.E2E_ISSUER_BASE_URL,
+            configuredUrl = E2eRuntimeConfig.issuerBaseUrl,
             fallbackUrl = "http://$localhostAddress:$ISSUER_PORT"
         )
 
     private val e2eVerifierApiUrl: String
         get() = resolveConfiguredUrl(
-            configuredUrl = BuildConfig.E2E_VERIFIER_API_URL,
+            configuredUrl = E2eRuntimeConfig.verifierApiUrl,
             fallbackUrl = "http://$localhostAddress:$VERIFIER_PORT"
         )
-
-    // Trust API client using EmulatorDetector for correct localhost address
     private val trustApiClient by lazy {
         TrustApiClient(
             httpClient = httpClient,

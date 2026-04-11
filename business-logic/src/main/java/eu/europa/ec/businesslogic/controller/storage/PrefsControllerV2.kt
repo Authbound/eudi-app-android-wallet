@@ -19,7 +19,7 @@ package eu.europa.ec.businesslogic.controller.storage
 import android.content.Context.MODE_PRIVATE
 import android.content.SharedPreferences
 import androidx.core.content.edit
-import eu.europa.ec.businesslogic.BuildConfig
+import eu.europa.ec.businesslogic.config.E2eRuntimeConfig
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import io.github.jan.supabase.SupabaseClient
@@ -103,7 +103,6 @@ class PrefsControllerV2Impl(
 
     companion object {
         private const val USER_PREFS_PREFIX = "authbound-wallet-user-"
-        private const val E2E_USER_ID = "e2e-wallet-user"
     }
 
     /**
@@ -150,10 +149,10 @@ class PrefsControllerV2Impl(
 
     override fun hasAuthenticatedUser(): Boolean {
         return try {
-            supabaseClient.auth.currentSessionOrNull() != null || BuildConfig.E2E_MODE
+            supabaseClient.auth.currentSessionOrNull() != null || E2eRuntimeConfig.isEnabled
         } catch (e: Exception) {
             logController.w("PrefsControllerV2") { "Failed to check auth state: ${e.message}" }
-            BuildConfig.E2E_MODE
+            E2eRuntimeConfig.isEnabled
         }
     }
 
@@ -294,16 +293,20 @@ class PrefsControllerV2Impl(
         }
     }
 
-    private fun getSyntheticUserId(): String? {
-        return if (BuildConfig.E2E_MODE) E2E_USER_ID else null
-    }
-
     private fun resolveCurrentUserIdSync(): String? {
         return try {
-            supabaseClient.auth.currentSessionOrNull()?.user?.id ?: getSyntheticUserId()
+            supabaseClient.auth.currentSessionOrNull()?.user?.id
         } catch (e: Exception) {
             logController.w("PrefsControllerV2") { "Failed to resolve current user synchronously: ${e.message}" }
-            getSyntheticUserId()
+            null
+        } ?: getSyntheticUserId()
+    }
+
+    private fun getSyntheticUserId(): String? {
+        return if (E2eRuntimeConfig.isEnabled) {
+            E2eRuntimeConfig.SYNTHETIC_USER_ID
+        } else {
+            null
         }
     }
 }

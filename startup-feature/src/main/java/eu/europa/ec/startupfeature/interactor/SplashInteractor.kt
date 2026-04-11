@@ -31,9 +31,9 @@ import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
 import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
 import eu.europa.ec.businesslogic.controller.wallet.UserDocumentOwnershipController
+import eu.europa.ec.businesslogic.config.E2eRuntimeConfig
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractor
 import eu.europa.ec.startupfeature.model.StartupState
-import eu.europa.ec.startupfeature.BuildConfig
 import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -90,7 +90,7 @@ class SplashInteractorImpl(
         try {
             logController.i(TAG) { "Starting startup state determination..." }
 
-            if (BuildConfig.E2E_MODE) {
+            if (E2eRuntimeConfig.isEnabled) {
                 logController.i(TAG) { "E2E mode enabled, bypassing auth and onboarding gates" }
                 val unlockState = checkLocalUnlockState()
                 logController.i(TAG) { unlockState.logMessage }
