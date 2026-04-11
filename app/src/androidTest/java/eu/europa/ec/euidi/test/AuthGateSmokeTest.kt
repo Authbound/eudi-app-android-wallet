@@ -337,10 +337,10 @@ class AuthGateSmokeTest {
     }
 
     @Test
-    fun coldStart_withAuthCallbackDeepLink_doesNotBypassLogin() {
+    fun coldStart_withCredentialOfferDeepLink_doesNotBypassLogin() {
         launchApp(
             state = AuthScenarioState(),
-            deepLink = Uri.parse("authbound://authboundpid/callback?status=success")
+            deepLink = Uri.parse("openid-credential-offer://test-offer")
         )
 
         waitForTag(AuthTestTags.Login.ROOT)
@@ -361,10 +361,10 @@ class AuthGateSmokeTest {
     }
 
     @Test
-    fun returningLockedUser_withAuthCallbackDeepLink_stillRequiresPin() {
+    fun returningLockedUser_withCredentialOfferDeepLink_stillRequiresPin() {
         launchApp(
             state = lockedReturningUserState(),
-            deepLink = Uri.parse("authbound://authboundpid/callback?status=success")
+            deepLink = Uri.parse("openid-credential-offer://test-offer")
         )
 
         waitForTag(AuthTestTags.QuickPin.ROOT)

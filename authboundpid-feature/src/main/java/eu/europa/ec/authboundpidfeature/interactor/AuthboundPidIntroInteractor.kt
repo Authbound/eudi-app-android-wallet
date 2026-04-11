@@ -16,16 +16,19 @@
 
 package eu.europa.ec.authboundpidfeature.interactor
 
-import eu.europa.ec.businesslogic.extension.safeAsync
 import eu.europa.ec.authboundpidlogic.repository.AuthboundPidRepository
+import eu.europa.ec.networklogic.model.response.AuthboundPidSessionStatus
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 
 sealed class AuthboundPidIntroPartialState {
     data class SessionCreated(
         val sessionId: String,
-        val redirectUrl: String
+        val candourSessionId: String,
+        val candourApiEndpoint: String
     ) : AuthboundPidIntroPartialState()
 
     data object CreatingSession : AuthboundPidIntroPartialState()
@@ -33,8 +36,24 @@ sealed class AuthboundPidIntroPartialState {
     data class Failure(val errorMessage: String) : AuthboundPidIntroPartialState()
 }
 
+sealed class AuthboundPidVerificationPartialState {
+    data object Loading : AuthboundPidVerificationPartialState()
+
+    data class Verified(val credentialOfferUri: String?) : AuthboundPidVerificationPartialState()
+
+    data object Failed : AuthboundPidVerificationPartialState()
+
+    data object Expired : AuthboundPidVerificationPartialState()
+
+    data object Timeout : AuthboundPidVerificationPartialState()
+
+    data class Failure(val errorMessage: String) : AuthboundPidVerificationPartialState()
+}
+
 interface AuthboundPidIntroInteractor {
     fun createSession(): Flow<AuthboundPidIntroPartialState>
+
+    fun getVerificationResult(sessionId: String): Flow<AuthboundPidVerificationPartialState>
 }
 
 class AuthboundPidIntroInteractorImpl(
@@ -43,21 +62,43 @@ class AuthboundPidIntroInteractorImpl(
 ) : AuthboundPidIntroInteractor {
 
     companion object {
-        const val AUTHBOUNDPID_CALLBACK_URL = "authbound://authboundpid/callback"
+        private val RETRY_DELAYS_MS = listOf(2000L, 4000L, 8000L)
     }
 
     private val genericErrorMsg: String
         get() = resourceProvider.genericErrorMessage()
 
+    private val genericNetworkErrorMsg: String
+        get() = resourceProvider.genericNetworkErrorMessage()
+
+    private suspend fun loadVerificationStatus(
+        sessionId: String,
+        previousStatus: AuthboundPidSessionStatus?
+    ): Result<AuthboundPidSessionStatus> {
+        return if (
+            previousStatus == null ||
+            (
+                previousStatus.status == AuthboundPidSessionStatus.STATUS_PROCESSING &&
+                    previousStatus.identityVerified == true &&
+                    previousStatus.credentialOfferUri.isNullOrBlank()
+                )
+        ) {
+            authboundPidRepository.resolveSession(sessionId)
+        } else {
+            authboundPidRepository.getSessionStatus(sessionId)
+        }
+    }
+
     override fun createSession(): Flow<AuthboundPidIntroPartialState> = flow {
         emit(AuthboundPidIntroPartialState.CreatingSession)
 
-        authboundPidRepository.createSession(AUTHBOUNDPID_CALLBACK_URL).fold(
+        authboundPidRepository.createSession().fold(
             onSuccess = { response ->
                 emit(
                     AuthboundPidIntroPartialState.SessionCreated(
                         sessionId = response.sessionId,
-                        redirectUrl = response.redirectUrl
+                        candourSessionId = response.candourSessionId,
+                        candourApiEndpoint = response.candourApiEndpoint
                     )
                 )
             },
@@ -65,7 +106,51 @@ class AuthboundPidIntroInteractorImpl(
                 emit(AuthboundPidIntroPartialState.Failure(error.message ?: genericErrorMsg))
             }
         )
-    }.safeAsync {
-        AuthboundPidIntroPartialState.Failure(it.localizedMessage ?: genericErrorMsg)
+    }.catch { error ->
+        emit(AuthboundPidIntroPartialState.Failure(error.localizedMessage ?: genericErrorMsg))
+    }
+
+    override fun getVerificationResult(sessionId: String): Flow<AuthboundPidVerificationPartialState> = flow {
+        emit(AuthboundPidVerificationPartialState.Loading)
+
+        var latestStatus: AuthboundPidSessionStatus? = null
+
+        repeat(RETRY_DELAYS_MS.size + 1) { attempt ->
+            val status = loadVerificationStatus(sessionId, latestStatus).getOrElse { error ->
+                emit(AuthboundPidVerificationPartialState.Failure(error.message ?: genericNetworkErrorMsg))
+                return@flow
+            }
+            latestStatus = status
+
+            when (status.status) {
+                AuthboundPidSessionStatus.STATUS_VERIFIED -> {
+                    emit(AuthboundPidVerificationPartialState.Verified(status.credentialOfferUri))
+                    return@flow
+                }
+                AuthboundPidSessionStatus.STATUS_FAILED -> {
+                    emit(AuthboundPidVerificationPartialState.Failed)
+                    return@flow
+                }
+                AuthboundPidSessionStatus.STATUS_EXPIRED -> {
+                    emit(AuthboundPidVerificationPartialState.Expired)
+                    return@flow
+                }
+                AuthboundPidSessionStatus.STATUS_PENDING,
+                AuthboundPidSessionStatus.STATUS_PROCESSING -> {
+                    if (attempt == RETRY_DELAYS_MS.size) {
+                        emit(AuthboundPidVerificationPartialState.Timeout)
+                        return@flow
+                    }
+
+                    delay(RETRY_DELAYS_MS[attempt])
+                }
+                else -> {
+                    emit(AuthboundPidVerificationPartialState.Failure(genericErrorMsg))
+                    return@flow
+                }
+            }
+        }
+    }.catch { error ->
+        emit(AuthboundPidVerificationPartialState.Failure(error.localizedMessage ?: genericErrorMsg))
     }
 }

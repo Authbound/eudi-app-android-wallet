@@ -127,11 +127,6 @@ sealed class IssuanceScreens {
 sealed class AuthboundPidScreens {
     data object Intro : Screen(name = "AUTHBOUNDPID_INTRO")
 
-    data object Processing : Screen(
-        name = "AUTHBOUNDPID_PROCESSING",
-        parameters = "?callbackStatus={callbackStatus}&nonce={nonce}"
-    )
-
     data object Result : Screen(
         name = "AUTHBOUNDPID_RESULT",
         parameters = "?resultType={resultType}"

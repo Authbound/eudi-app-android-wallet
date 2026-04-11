@@ -16,9 +16,9 @@
 
 package eu.europa.ec.authboundpidfeature.ui.intro
 
-import android.net.Uri
 import android.view.HapticFeedbackConstants
-import androidx.browser.customtabs.CustomTabsIntent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -62,6 +62,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import eu.europa.ec.resourceslogic.R
+import eu.europa.ec.authboundpidfeature.sdk.createCandourLaunchIntent
+import eu.europa.ec.uilogic.component.loader.LoadingConfig
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.IconDataUi
 import eu.europa.ec.uilogic.component.content.ContentScreen
@@ -70,12 +72,14 @@ import eu.europa.ec.uilogic.component.wrap.ButtonConfig
 import eu.europa.ec.uilogic.component.wrap.ButtonType
 import eu.europa.ec.uilogic.component.wrap.WrapButton
 import eu.europa.ec.uilogic.component.wrap.WrapIcon
+import eu.europa.ec.uilogic.extension.findActivity
 import eu.europa.ec.uilogic.extension.paddingFrom
+import eu.europa.ec.uilogic.navigation.AuthboundPidScreens
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
+import java.lang.Exception
 
-// ── Brand colors ────────────────────────────────────────────────────
 private val StepBlue = Color(0xFF3B82F6)
 private val StepPurple = Color(0xFF8B5CF6)
 private val StepGreen = Color(0xFF10B981)
@@ -87,10 +91,22 @@ fun AuthboundPidIntroScreen(
 ) {
     val state: State by viewModel.viewState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val activity = context.findActivity()
+    val candourLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val status = result.data?.getStringExtra("candourExitStatus") ?: "ERROR"
+        viewModel.setEvent(Event.CandourSdkResult(status))
+    }
 
     ContentScreen(
-        isLoading = state.isLoading,
-        navigatableAction = ScreenNavigateAction.BACKABLE,
+        isLoading = state.isLoading || state.isCompleting,
+        loadingConfig = state.statusMessage.takeIf { it.isNotBlank() }?.let(LoadingConfig::fullScreenWithMessage),
+        navigatableAction = if (state.isCompleting) {
+            ScreenNavigateAction.NONE
+        } else {
+            ScreenNavigateAction.BACKABLE
+        },
         onBack = { viewModel.setEvent(Event.GoBack) },
         contentErrorConfig = state.error
     ) { paddingValues ->
@@ -101,13 +117,37 @@ fun AuthboundPidIntroScreen(
             onNavigationRequested = { navigationEffect ->
                 when (navigationEffect) {
                     is Effect.Navigation.Pop -> navController.popBackStack()
+                    is Effect.Navigation.NavigateToIssuance -> {
+                        navController.navigate(navigationEffect.screenRoute) {
+                            popUpTo(AuthboundPidScreens.Intro.screenRoute) {
+                                inclusive = true
+                            }
+                        }
+                    }
+                    is Effect.Navigation.NavigateToResult -> {
+                        navController.navigate(
+                            AuthboundPidScreens.Result.screenRoute
+                                .replace("{resultType}", navigationEffect.resultType.name)
+                        ) {
+                            popUpTo(AuthboundPidScreens.Intro.screenRoute) {
+                                inclusive = true
+                            }
+                        }
+                    }
                 }
             },
-            onOpenAuthboundPidFlow = { effect ->
-                val customTabsIntent = CustomTabsIntent.Builder()
-                    .setShowTitle(true)
-                    .build()
-                customTabsIntent.launchUrl(context, Uri.parse(effect.redirectUrl))
+            onLaunchCandourSdk = { effect ->
+                try {
+                    val intent = createCandourLaunchIntent(
+                        activity = activity,
+                        candourSessionId = effect.candourSessionId,
+                        candourApiEndpoint = effect.candourApiEndpoint,
+                        onExit = { status -> viewModel.setEvent(Event.CandourSdkResult(status)) }
+                    )
+                    candourLauncher.launch(intent)
+                } catch (_: Exception) {
+                    viewModel.setEvent(Event.CandourSdkLaunchFailed)
+                }
             },
             paddingValues = paddingValues
         )
@@ -120,7 +160,7 @@ private fun Content(
     effectFlow: Flow<Effect>,
     onEventSend: (Event) -> Unit,
     onNavigationRequested: (Effect.Navigation) -> Unit,
-    onOpenAuthboundPidFlow: (Effect.OpenAuthboundPidFlow) -> Unit,
+    onLaunchCandourSdk: (Effect.LaunchCandourSdk) -> Unit,
     paddingValues: PaddingValues
 ) {
     val view = LocalView.current
@@ -135,7 +175,6 @@ private fun Content(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
-            // Small top padding before hero (user requested)
             Spacer(modifier = Modifier.height(12.dp))
 
             HeroSection()
@@ -150,7 +189,6 @@ private fun Content(
 
             Spacer(modifier = Modifier.height(36.dp))
 
-            // CTA button — taller with proper vertical padding
             WrapButton(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -176,7 +214,6 @@ private fun Content(
             Spacer(modifier = Modifier.height(32.dp))
         }
 
-        // Top fade gradient overlay
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -197,13 +234,11 @@ private fun Content(
         effectFlow.onEach { effect ->
             when (effect) {
                 is Effect.Navigation -> onNavigationRequested(effect)
-                is Effect.OpenAuthboundPidFlow -> onOpenAuthboundPidFlow(effect)
+                is Effect.LaunchCandourSdk -> onLaunchCandourSdk(effect)
             }
         }.collect()
     }
 }
-
-// ── Hero Section (UNTOUCHED per user request) ───────────────────────
 
 @Composable
 private fun HeroSection() {

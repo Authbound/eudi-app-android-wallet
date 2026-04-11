@@ -17,7 +17,7 @@
 package eu.europa.ec.authboundpidfeature.ui.result
 
 import androidx.lifecycle.SavedStateHandle
-import eu.europa.ec.authboundpidfeature.ui.processing.AuthboundPidResultType
+import eu.europa.ec.authboundpidfeature.model.AuthboundPidResultType
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.uilogic.mvi.MviViewModel
@@ -73,7 +73,7 @@ class AuthboundPidResultViewModel(
         val resultType = try {
             AuthboundPidResultType.valueOf(resultTypeStr)
         } catch (_: IllegalArgumentException) {
-            AuthboundPidResultType.FAILED
+            AuthboundPidResultType.UNKNOWN
         }
 
         val tryAgain = resourceProvider.getString(R.string.authboundpid_try_again)
@@ -94,11 +94,18 @@ class AuthboundPidResultViewModel(
                     showRetryButton = false,
                     isError = true
                 )
-                AuthboundPidResultType.CANCELLED_UNSUPPORTED_ID -> copy(
-                    title = resourceProvider.getString(R.string.authboundpid_result_unsupported_id_title),
-                    message = resourceProvider.getString(R.string.authboundpid_result_unsupported_id_message),
+                AuthboundPidResultType.NO_INTERNET -> copy(
+                    title = resourceProvider.getString(R.string.authboundpid_result_no_internet_title),
+                    message = resourceProvider.getString(R.string.authboundpid_result_no_internet_message),
                     showRetryButton = true,
                     retryButtonText = tryAgain,
+                    isError = true
+                )
+                AuthboundPidResultType.UNAVAILABLE -> copy(
+                    title = resourceProvider.getString(R.string.authboundpid_result_unavailable_title),
+                    message = resourceProvider.getString(R.string.authboundpid_result_unavailable_message),
+                    showRetryButton = true,
+                    retryButtonText = startOver,
                     isError = true
                 )
                 AuthboundPidResultType.FAILED -> copy(
@@ -121,13 +128,6 @@ class AuthboundPidResultViewModel(
                     showRetryButton = true,
                     retryButtonText = tryAgain,
                     isError = true
-                )
-                AuthboundPidResultType.VERIFIED -> copy(
-                    title = resourceProvider.getString(R.string.authboundpid_result_verified_title),
-                    message = resourceProvider.getString(R.string.authboundpid_result_verified_message),
-                    showRetryButton = true,
-                    retryButtonText = tryAgain,
-                    isError = false
                 )
                 AuthboundPidResultType.UNKNOWN -> copy(
                     title = resourceProvider.getString(R.string.authboundpid_result_unknown_title),

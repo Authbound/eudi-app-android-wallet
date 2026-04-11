@@ -24,7 +24,6 @@ import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import androidx.navigation.navigation
 import eu.europa.ec.authboundpidfeature.ui.intro.AuthboundPidIntroScreen
-import eu.europa.ec.authboundpidfeature.ui.processing.AuthboundPidProcessingScreen
 import eu.europa.ec.authboundpidfeature.ui.result.AuthboundPidResultScreen
 import eu.europa.ec.uilogic.BuildConfig
 import eu.europa.ec.uilogic.navigation.AuthboundPidScreens
@@ -36,7 +35,6 @@ fun NavGraphBuilder.featureAuthboundPidGraph(navController: NavController) {
         startDestination = AuthboundPidScreens.Intro.screenRoute,
         route = ModuleRoute.AuthboundPidModule.route
     ) {
-        // Intro Screen — creates session and opens AuthboundPID in Chrome Custom Tab
         composable(
             route = AuthboundPidScreens.Intro.screenRoute,
             deepLinks = listOf(
@@ -50,29 +48,6 @@ fun NavGraphBuilder.featureAuthboundPidGraph(navController: NavController) {
                 viewModel = koinViewModel()
             )
         }
-
-        // Processing Screen — handles callback status, polls for result
-        // Navigated to by the AUTHBOUNDPID_CALLBACK deep link handler in handleDeepLinkAction
-        composable(
-            route = AuthboundPidScreens.Processing.screenRoute,
-            arguments = listOf(
-                navArgument("callbackStatus") {
-                    type = NavType.StringType
-                    defaultValue = "success"
-                },
-                navArgument("nonce") {
-                    type = NavType.StringType
-                    defaultValue = ""
-                }
-            )
-        ) {
-            AuthboundPidProcessingScreen(
-                navController = navController,
-                viewModel = koinViewModel()
-            )
-        }
-
-        // Result Screen — shows error/cancellation states
         composable(
             route = AuthboundPidScreens.Result.screenRoute,
             arguments = listOf(

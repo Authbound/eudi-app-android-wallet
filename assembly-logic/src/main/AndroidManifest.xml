@@ -18,6 +18,8 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.NFC" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <uses-feature
         android:name="android.hardware.nfc"
@@ -63,6 +65,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.EUDIWallet"
+        tools:replace="android:name,android:allowBackup"
         tools:targetApi="34">
 
         <provider
@@ -210,18 +213,6 @@
                 <data
                     android:host="${rqesDocRetrievalHost}"
                     android:scheme="${rqesDocRetrievalScheme}" />
-
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-
-                <data
-                    android:scheme="authbound"
-                    android:host="authboundpid"
-                    android:pathPrefix="/callback" />
 
             </intent-filter>
         </activity>

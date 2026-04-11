@@ -116,6 +116,7 @@ interface ApiClient {
     // AuthboundPID Identity endpoints
     suspend fun createAuthboundPidSession(body: CreateAuthboundPidSessionRequest, bearerToken: String): ApiResponse<CreateAuthboundPidSessionResponse>
     suspend fun getAuthboundPidSessionStatus(sessionId: String, bearerToken: String): ApiResponse<AuthboundPidSessionStatus>
+    suspend fun resolveAuthboundPidSession(sessionId: String, bearerToken: String): ApiResponse<AuthboundPidSessionStatus>
 }
 
 /**
@@ -446,6 +447,17 @@ class KtorApiClient(
     ): ApiResponse<AuthboundPidSessionStatus> {
         return executeRequest {
             httpClient.get("$baseUrl/api/authboundpid/sessions/$sessionId") {
+                header(HttpHeaders.Authorization, "Bearer $bearerToken")
+            }
+        }
+    }
+
+    override suspend fun resolveAuthboundPidSession(
+        sessionId: String,
+        bearerToken: String
+    ): ApiResponse<AuthboundPidSessionStatus> {
+        return executeRequest {
+            httpClient.post("$baseUrl/api/authboundpid/sessions/$sessionId/resolve") {
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
             }
         }

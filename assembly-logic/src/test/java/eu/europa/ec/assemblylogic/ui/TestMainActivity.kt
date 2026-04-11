@@ -88,9 +88,9 @@ class TestMainActivity {
     }
 
     @Test
-    fun `Given activity was backgrounded and is locked, When it starts again, Then it restarts and preserves deep link`() {
+    fun `Given activity was backgrounded and is locked, When it starts again, Then it restarts and preserves credential offer deep link`() {
         localUnlockTracker.unlocked = false
-        val expectedDeepLink = Uri.parse("authbound://authboundpid/callback?status=success")
+        val expectedDeepLink = Uri.parse("openid-credential-offer://test-offer")
         val controller = buildActivity()
 
         controller.create().start()

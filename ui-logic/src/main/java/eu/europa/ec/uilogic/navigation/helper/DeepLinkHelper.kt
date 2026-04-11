@@ -30,7 +30,6 @@ import eu.europa.ec.eudi.rqesui.infrastructure.RemoteUri
 import eu.europa.ec.uilogic.BuildConfig
 import eu.europa.ec.uilogic.container.EudiComponentActivity
 import eu.europa.ec.uilogic.extension.openUrl
-import eu.europa.ec.uilogic.navigation.AuthboundPidScreens
 import eu.europa.ec.uilogic.navigation.IssuanceScreens
 import eu.europa.ec.uilogic.navigation.PresentationScreens
 import eu.europa.ec.uilogic.navigation.Screen
@@ -158,20 +157,6 @@ fun handleDeepLinkAction(
             )
             return
         }
-
-        DeepLinkType.AUTHBOUNDPID_CALLBACK -> {
-            // Extract status and nonce from callback:
-            // authbound://authboundpid/callback?nonce=xxx&status=cancelled
-            val callbackStatus = action.link.getQueryParameter("status") ?: "success"
-            val nonce = action.link.getQueryParameter("nonce") ?: ""
-            val route = AuthboundPidScreens.Processing.screenRoute
-                .replace("{callbackStatus}", callbackStatus)
-                .replace("{nonce}", nonce)
-            navController.navigate(route) {
-                popUpTo(AuthboundPidScreens.Intro.screenRoute) { inclusive = false }
-            }
-            return
-        }
     }
 
     val navigationLink = arguments?.let {
@@ -219,10 +204,6 @@ enum class DeepLinkType(val schemas: List<String>, val host: String? = null) {
     ),
     RQES_DOC_RETRIEVAL(
         schemas = listOf(BuildConfig.RQES_DOC_RETRIEVAL_SCHEME)
-    ),
-    AUTHBOUNDPID_CALLBACK(
-        schemas = listOf("authbound"),
-        host = "authboundpid"
     );
 
     companion object {
@@ -246,10 +227,6 @@ enum class DeepLinkType(val schemas: List<String>, val host: String? = null) {
 
             RQES_DOC_RETRIEVAL.schemas.contains(scheme) -> {
                 RQES_DOC_RETRIEVAL
-            }
-
-            AUTHBOUNDPID_CALLBACK.schemas.contains(scheme) && host == AUTHBOUNDPID_CALLBACK.host -> {
-                AUTHBOUNDPID_CALLBACK
             }
 
             else -> EXTERNAL
