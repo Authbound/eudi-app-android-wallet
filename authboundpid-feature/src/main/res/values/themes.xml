@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.themeForCandourSdk" parent="Theme.CandourSdkDefault">
+        <item name="colorPrimary">@color/candour_primary</item>
+        <item name="colorOnPrimary">@color/candour_primary_contrast</item>
+        <item name="colorSecondary">@color/candour_background_paper</item>
+        <item name="colorOnSecondary">@color/candour_text_primary</item>
+        <item name="colorError">@color/candour_error</item>
+        <item name="colorOnError">@color/candour_error_contrast</item>
+        <item name="colorTertiary">@color/candour_success</item>
+        <item name="colorOnTertiary">@color/candour_success_contrast</item>
+        <item name="colorBackground">@color/candour_background</item>
+        <item name="colorOnBackground">@color/candour_text_primary</item>
+        <item name="colorSurface">@color/candour_background_paper</item>
+        <item name="colorOnSurface">@color/candour_text_primary</item>
+        <item name="android:textColorPrimary">@color/candour_text_primary</item>
+        <item name="android:textColorSecondary">@color/candour_text_secondary</item>
+        <item name="android:textColorTertiary">@color/candour_text_disabled</item>
+        <item name="colorToolbar">@color/candour_toolbar</item>
+        <item name="colorOnToolbar">@color/candour_toolbar_contrast</item>
+        <item name="android:statusBarColor">@color/candour_status_bar</item>
+        <item name="android:navigationBarColor">@color/candour_navigation_bar</item>
+    </style>
+</resources>

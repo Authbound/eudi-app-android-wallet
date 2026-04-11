@@ -25,15 +25,15 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class CreateAuthboundPidSessionResponse(
     @SerialName("session_id") val sessionId: String,
-    @SerialName("authboundpid_session_id") val authboundPidSessionId: String,
-    @SerialName("redirect_url") val redirectUrl: String,
+    @SerialName("candour_session_id") val candourSessionId: String,
+    @SerialName("candour_api_endpoint") val candourApiEndpoint: String,
     @SerialName("expires_at") val expiresAt: String
 )
 
 /**
  * Response from polling an AuthboundPID session status.
  *
- * Terminal statuses (stop polling): verified, failed, expired, canceled
+ * Terminal statuses (stop polling): verified, failed, expired
  * Non-terminal statuses (keep polling): pending, processing
  */
 @Serializable
@@ -50,9 +50,8 @@ data class AuthboundPidSessionStatus(
         const val STATUS_VERIFIED = "verified"
         const val STATUS_FAILED = "failed"
         const val STATUS_EXPIRED = "expired"
-        const val STATUS_CANCELED = "canceled"
 
-        val TERMINAL_STATUSES = setOf(STATUS_VERIFIED, STATUS_FAILED, STATUS_EXPIRED, STATUS_CANCELED)
+        val TERMINAL_STATUSES = setOf(STATUS_VERIFIED, STATUS_FAILED, STATUS_EXPIRED)
     }
 
     val isTerminal: Boolean get() = status in TERMINAL_STATUSES

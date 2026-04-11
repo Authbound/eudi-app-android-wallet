@@ -954,8 +954,8 @@
     <string name="authboundpid_intro_title">Verify Your Identity</string>
     <string name="authboundpid_intro_subtitle">Get your verified Authbound ID using\nyour passport\'s NFC chip</string>
     <string name="authboundpid_intro_how_it_works">How it works</string>
-    <string name="authboundpid_intro_step_open">Open</string>
-    <string name="authboundpid_intro_step_open_desc">Verify in browser</string>
+    <string name="authboundpid_intro_step_open">Start</string>
+    <string name="authboundpid_intro_step_open_desc">Verify inside the app</string>
     <string name="authboundpid_intro_step_scan">Scan</string>
     <string name="authboundpid_intro_step_scan_desc">NFC + photo check</string>
     <string name="authboundpid_intro_step_done">Done</string>
@@ -966,6 +966,7 @@
     <string name="authboundpid_intro_requirement_time">About 2 minutes</string>
     <string name="authboundpid_intro_verify_button">Verify Identity</string>
     <string name="authboundpid_intro_invalid_url">Invalid verification URL. Please try again.</string>
+    <string name="authboundpid_intro_launching">Opening secure verification…</string>
 
     <!-- AuthboundPID Processing Screen -->
     <string name="authboundpid_processing_status">Processing verification…</string>
@@ -988,6 +989,10 @@
     <string name="authboundpid_result_expired_message">Your verification session has expired. Please start a new verification.</string>
     <string name="authboundpid_result_timeout_title">Taking Too Long</string>
     <string name="authboundpid_result_timeout_message">Verification is taking longer than expected. Please try again in a few minutes.</string>
+    <string name="authboundpid_result_no_internet_title">No Internet Connection</string>
+    <string name="authboundpid_result_no_internet_message">Candour verification requires an active internet connection. Please reconnect and try again.</string>
+    <string name="authboundpid_result_unavailable_title">Verification Unavailable</string>
+    <string name="authboundpid_result_unavailable_message">The verification session is unavailable or expired. Please start a new verification.</string>
     <string name="authboundpid_result_verified_title">Verification Successful</string>
     <string name="authboundpid_result_verified_message">Your identity was verified, but credential issuance is still processing. Please try again shortly.</string>
     <string name="authboundpid_result_unknown_title">Unknown Error</string>

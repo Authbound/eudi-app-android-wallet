@@ -27,6 +27,13 @@ pluginManagement {
     }
 }
 
+val jitpackAuthToken = providers.gradleProperty("JITPACK_AUTH_TOKEN")
+    .orElse(providers.gradleProperty("jitpackAuthToken"))
+    .orElse(providers.gradleProperty("authToken"))
+    .orElse(providers.environmentVariable("JITPACK_AUTH_TOKEN"))
+    .orElse(providers.environmentVariable("jitpackAuthToken"))
+    .orElse(providers.environmentVariable("authToken"))
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
@@ -38,6 +45,13 @@ dependencyResolutionManagement {
         }
         maven {
             url = uri("https://jitpack.io")
+            val token = jitpackAuthToken.orNull
+            if (!token.isNullOrBlank()) {
+                credentials {
+                    username = token
+                    password = ""
+                }
+            }
         }
         mavenLocal()
     }

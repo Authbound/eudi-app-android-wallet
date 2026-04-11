@@ -4,6 +4,45 @@ plugins {
     id("project.android.feature")
 }
 
+val candourJitpackAuthToken = providers.gradleProperty("JITPACK_AUTH_TOKEN")
+    .orElse(providers.gradleProperty("jitpackAuthToken"))
+    .orElse(providers.gradleProperty("authToken"))
+    .orElse(providers.environmentVariable("JITPACK_AUTH_TOKEN"))
+    .orElse(providers.environmentVariable("jitpackAuthToken"))
+    .orElse(providers.environmentVariable("authToken"))
+val hasCandourJitpackAuthToken: Boolean = !candourJitpackAuthToken.orNull.isNullOrBlank()
+val requestedTaskNames: List<String> = gradle.startParameter.taskNames
+val ideSyncFlags: List<String> = listOf(
+    "android.injected.invoked.from.ide",
+    "android.injected.build.model.only",
+    "android.injected.build.model.only.advanced",
+    "idea.sync.active"
+)
+val isIdeSyncOrModelFetch: Boolean = ideSyncFlags.any { flagName ->
+    providers.gradleProperty(flagName).orNull?.toBoolean() == true
+        || providers.systemProperty(flagName).orNull?.toBoolean() == true
+}
+val requiresCandourSdkAccess: Boolean = requestedTaskNames.any { taskName ->
+    val normalizedTaskName = taskName.lowercase()
+    normalizedTaskName.contains(":authboundpid-feature:")
+        || normalizedTaskName.contains(":app:")
+        || normalizedTaskName.contains(":assembly-logic:")
+        || normalizedTaskName.startsWith("assemble")
+        || normalizedTaskName.startsWith("build")
+        || normalizedTaskName.startsWith("bundle")
+        || normalizedTaskName.startsWith("install")
+        || normalizedTaskName.startsWith("connected")
+        || normalizedTaskName == "test"
+        || normalizedTaskName == "lint"
+} || requestedTaskNames.isEmpty() || isIdeSyncOrModelFetch
+
+if (requiresCandourSdkAccess) {
+    check(hasCandourJitpackAuthToken) {
+        "Candour SDK requires private JitPack credentials. Configure JITPACK_AUTH_TOKEN " +
+            "or set jitpackAuthToken/authToken in ~/.gradle/gradle.properties."
+    }
+}
+
 android {
     namespace = "eu.europa.ec.authboundpidfeature"
 }
@@ -15,6 +54,5 @@ moduleConfig {
 dependencies {
     implementation(project(LibraryModule.AuthboundPidLogic.path))
 
-    // Chrome Custom Tabs for opening AuthboundPID's verification URL
-    implementation("androidx.browser:browser:1.8.0")
+    implementation(libs.candour.sdk) { isTransitive = true }
 }

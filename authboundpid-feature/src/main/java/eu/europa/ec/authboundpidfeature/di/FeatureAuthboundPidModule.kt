@@ -18,8 +18,6 @@ package eu.europa.ec.authboundpidfeature.di
 
 import eu.europa.ec.authboundpidfeature.interactor.AuthboundPidIntroInteractor
 import eu.europa.ec.authboundpidfeature.interactor.AuthboundPidIntroInteractorImpl
-import eu.europa.ec.authboundpidfeature.interactor.AuthboundPidProcessingInteractor
-import eu.europa.ec.authboundpidfeature.interactor.AuthboundPidProcessingInteractorImpl
 import eu.europa.ec.authboundpidlogic.repository.AuthboundPidRepository
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import org.koin.core.annotation.ComponentScan
@@ -35,9 +33,3 @@ fun provideAuthboundPidIntroInteractor(
     authboundPidRepository: AuthboundPidRepository,
     resourceProvider: ResourceProvider
 ): AuthboundPidIntroInteractor = AuthboundPidIntroInteractorImpl(authboundPidRepository, resourceProvider)
-
-@Factory
-fun provideAuthboundPidProcessingInteractor(
-    authboundPidRepository: AuthboundPidRepository,
-    resourceProvider: ResourceProvider
-): AuthboundPidProcessingInteractor = AuthboundPidProcessingInteractorImpl(authboundPidRepository, resourceProvider)
