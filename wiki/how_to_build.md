@@ -30,6 +30,20 @@ It will automatically apply it to the other modules as well.
 To run the App on a device, firstly you must connect your device with the Android Studio, and then go to Run -> Run 'app'.
 To run the App on an emulator, simply go to Run -> Run 'app'.
 
+### Candour SDK access
+The AuthboundPID flow depends on the private Candour Android SDK hosted on JitPack.
+Do not add the JitPack token to tracked repo files.
+
+Preferred local setup:
+
+```properties
+# ~/.gradle/gradle.properties
+jitpackAuthToken=YOUR_JITPACK_TOKEN
+```
+
+You can also use the `JITPACK_AUTH_TOKEN` environment variable.
+The build reads `JITPACK_AUTH_TOKEN`, then `jitpackAuthToken`.
+
 ### Running with remote services
 The app is configured to use some configuration in the two ***ConfigWalletCoreImpl.kt*** files (located in the "**core-logic**" module, in either
 *src\dev\java\eu\europa\ec\corelogic\config* or

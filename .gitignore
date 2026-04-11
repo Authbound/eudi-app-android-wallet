@@ -45,6 +45,8 @@ captures/
 sign
 
 # fastlane
+.env
+.env.local
 .env.demo
 .env.dev
 fastlane/report.xml
@@ -59,3 +61,6 @@ firebase-debug.log
 
 # Git worktrees
 .worktrees/
+
+# Local tool settings
+.claude/settings.local.json

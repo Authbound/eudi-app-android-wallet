@@ -14,6 +14,11 @@
  * governing permissions and limitations under the Licence.
  */
 
+val jitpackAuthToken = providers.gradleProperty("JITPACK_AUTH_TOKEN")
+    .orElse(providers.gradleProperty("jitpackAuthToken"))
+    .orElse(providers.environmentVariable("JITPACK_AUTH_TOKEN"))
+    .orElse(providers.environmentVariable("jitpackAuthToken"))
+
 dependencyResolutionManagement {
     repositories {
         google()
@@ -23,6 +28,13 @@ dependencyResolutionManagement {
         }
         maven {
             url = uri("https://jitpack.io")
+            val token = jitpackAuthToken.orNull
+            if (!token.isNullOrBlank()) {
+                credentials {
+                    username = token
+                    password = ""
+                }
+            }
         }
         mavenLocal()
     }
