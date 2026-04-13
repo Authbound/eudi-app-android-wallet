@@ -26,7 +26,7 @@ import java.util.Locale
  * Routes a scanned payload for the universal (main FAB) QR entry: OpenID4VCI issuance vs
  * OpenID4VP presentation, aligned with [DeepLinkType] and common OIDC query patterns.
  *
- * Order of checks: explicit credential-offer signals first, then VP signals, then safe defaults.
+ * Order of checks: explicit credential-offer signals first, then VP signals, then fail closed.
  */
 object QrPayloadRoutingClassifier {
 
@@ -73,8 +73,7 @@ object QrPayloadRoutingClassifier {
         if (hasOpenId4VpQueryParams(uri)) {
             return UniversalScanRoute.Presentation
         }
-        // Valid https(s) URL without strong signals: keep prior FAB behaviour (presentation).
-        return UniversalScanRoute.Presentation
+        return null
     }
 
     private fun hasCredentialOfferQueryParams(uri: Uri): Boolean {

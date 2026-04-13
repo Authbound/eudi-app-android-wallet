@@ -58,9 +58,9 @@ class QrPayloadRoutingClassifierTest {
     }
 
     @Test
-    fun `https URL without strong signals defaults to presentation`() {
+    fun `https URL without strong signals is rejected`() {
         val uri = "https://verifier.example/landing"
-        assertEquals(UniversalScanRoute.Presentation, QrPayloadRoutingClassifier.classify(uri))
+        assertNull(QrPayloadRoutingClassifier.classify(uri))
     }
 
     @Test
