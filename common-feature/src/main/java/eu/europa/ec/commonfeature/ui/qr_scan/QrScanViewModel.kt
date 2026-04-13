@@ -33,6 +33,8 @@ import eu.europa.ec.commonfeature.config.QrScanUiConfig
 import eu.europa.ec.commonfeature.config.RequestUriConfig
 import eu.europa.ec.commonfeature.di.getOrCreateCredentialOfferScope
 import eu.europa.ec.commonfeature.interactor.QrScanInteractor
+import eu.europa.ec.commonfeature.logic.qr.QrPayloadRoutingClassifier
+import eu.europa.ec.commonfeature.logic.qr.UniversalScanRoute
 import eu.europa.ec.corelogic.di.getOrCreatePresentationScope
 import eu.europa.ec.eudi.rqesui.domain.extension.toUriOrEmpty
 import eu.europa.ec.resourceslogic.R
@@ -183,11 +185,15 @@ class QrScanViewModel(
             )
 
             if (scanIsValid) {
-                calculateNextStep(
-                    context = context,
-                    qrScanFlow = qrScanFlow,
-                    scanResult = scannedQr
-                )
+                if (qrScanFlow is QrScanFlow.Universal) {
+                    routeUniversalScan(scannedQr)
+                } else {
+                    calculateNextStep(
+                        context = context,
+                        qrScanFlow = qrScanFlow,
+                        scanResult = scannedQr
+                    )
+                }
             } else {
                 // Increment failed attempts
                 val updatedFailedAttempts = currentState.failedScanAttempts + 1
@@ -246,6 +252,36 @@ class QrScanViewModel(
             )
             is QrScanFlow.Signature -> navigateToRqesSdk(context, scanResult)
             is QrScanFlow.DeviceLinking -> handleDeviceLinking(scanResult)
+            is QrScanFlow.Universal -> {
+                logController.e(TAG) {
+                    "calculateNextStep called with Universal flow; use routeUniversalScan instead"
+                }
+            }
+        }
+    }
+
+    private fun routeUniversalScan(scannedQr: String) {
+        when (val route = QrPayloadRoutingClassifier.classify(scannedQr)) {
+            UniversalScanRoute.Presentation -> navigateToPresentationRequest(scannedQr)
+            is UniversalScanRoute.Issuance -> navigateToDocumentOffer(
+                scanResult = scannedQr,
+                issuanceFlowType = route.flowType
+            )
+            null -> {
+                logController.w(TAG) {
+                    "Universal QR could not be classified | payload=$scannedQr"
+                }
+                val current = viewState.value
+                val updatedFailedAttempts = current.failedScanAttempts + 1
+                val maxFailedAttemptsExceeded = updatedFailedAttempts > MAX_ALLOWED_FAILED_SCANS
+                setState {
+                    copy(
+                        failedScanAttempts = updatedFailedAttempts,
+                        showInformativeText = maxFailedAttemptsExceeded,
+                        finishedScanning = false,
+                    )
+                }
+            }
         }
     }
 
@@ -316,6 +352,7 @@ class QrScanViewModel(
                 is QrScanFlow.Issuance -> getString(R.string.qr_scan_informative_text_issuance_flow)
                 is QrScanFlow.Signature -> getString(R.string.qr_scan_informative_text_signature_flow)
                 is QrScanFlow.DeviceLinking -> getString(R.string.qr_scan_informative_text_device_linking_flow)
+                is QrScanFlow.Universal -> getString(R.string.qr_scan_informative_text_universal_flow)
             }
         }
     }
@@ -431,6 +468,7 @@ class QrScanViewModel(
             is QrScanFlow.Signature -> "Signature"
             is QrScanFlow.DeviceLinking -> "DeviceLinking"
             is QrScanFlow.Issuance -> "Issuance(${describeIssuanceFlowType(flow.issuanceFlowType)})"
+            is QrScanFlow.Universal -> "Universal"
         }
     }
 

@@ -256,9 +256,6 @@ class DashboardViewModel(
     }
 
     private fun navigateToQrScan() {
-        // Create presentation scope for QR scanning
-        getOrCreatePresentationScope()
-
         val navigationEffect = Effect.Navigation.SwitchScreen(
             screenRoute = generateComposableNavigationLink(
                 screen = CommonScreens.QrScan,
@@ -267,8 +264,8 @@ class DashboardViewModel(
                         QrScanUiConfig.serializedKeyName to uiSerializer.toBase64(
                             QrScanUiConfig(
                                 title = resourceProvider.getString(R.string.qr_scan_title),
-                                subTitle = resourceProvider.getString(R.string.qr_scan_subtitle),
-                                qrScanFlow = QrScanFlow.Presentation
+                                subTitle = resourceProvider.getString(R.string.universal_qr_scan_subtitle),
+                                qrScanFlow = QrScanFlow.Universal
                             ),
                             QrScanUiConfig.Parser
                         )
