@@ -264,7 +264,7 @@ class DashboardViewModel(
                         QrScanUiConfig.serializedKeyName to uiSerializer.toBase64(
                             QrScanUiConfig(
                                 title = resourceProvider.getString(R.string.qr_scan_title),
-                                subTitle = resourceProvider.getString(R.string.qr_scan_subtitle),
+                                subTitle = resourceProvider.getString(R.string.universal_qr_scan_subtitle),
                                 qrScanFlow = QrScanFlow.Universal
                             ),
                             QrScanUiConfig.Parser

@@ -318,7 +318,8 @@
 
     <!-- QR Scan -->
     <string name="qr_scan_title">Scan QR Code</string>
-    <string name="qr_scan_subtitle">Scan a credential offer from an issuer or a verification link from a relying party</string>
+    <string name="qr_scan_subtitle">Scan a QR code to present your credentials or authenticate</string>
+    <string name="universal_qr_scan_subtitle">Scan a credential offer from an issuer or a verification link from a relying party</string>
     <string name="qr_scan_fab_description">Scan QR code</string>
 
     <!-- Documents Screen -->

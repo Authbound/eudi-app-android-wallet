@@ -51,18 +51,15 @@ object QrPayloadRoutingClassifier {
         return when (action.type) {
             DeepLinkType.CREDENTIAL_OFFER ->
                 UniversalScanRoute.Issuance(universalIssuanceFlowType)
-            DeepLinkType.OPENID4VP ->
-                UniversalScanRoute.Presentation
-            DeepLinkType.ISSUANCE ->
-                UniversalScanRoute.VciResume
-            DeepLinkType.RQES, DeepLinkType.RQES_DOC_RETRIEVAL ->
-                UniversalScanRoute.Rqes
-            DeepLinkType.AUTHBOUNDPID_CALLBACK ->
-                null
-            DeepLinkType.EXTERNAL ->
-                classifyHttpOrHttps(uri)
+            DeepLinkType.OPENID4VP,
             DeepLinkType.DYNAMIC_PRESENTATION ->
                 UniversalScanRoute.Presentation
+            DeepLinkType.EXTERNAL ->
+                classifyHttpOrHttps(uri)
+            DeepLinkType.ISSUANCE,
+            DeepLinkType.RQES,
+            DeepLinkType.RQES_DOC_RETRIEVAL ->
+                null
         }
     }
 
@@ -99,6 +96,4 @@ object QrPayloadRoutingClassifier {
 sealed interface UniversalScanRoute {
     data object Presentation : UniversalScanRoute
     data class Issuance(val flowType: IssuanceFlowType) : UniversalScanRoute
-    data object VciResume : UniversalScanRoute
-    data object Rqes : UniversalScanRoute
 }

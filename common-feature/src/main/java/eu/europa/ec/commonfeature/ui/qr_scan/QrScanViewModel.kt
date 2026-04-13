@@ -17,9 +17,7 @@
 package eu.europa.ec.commonfeature.ui.qr_scan
 
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
-import androidx.core.os.bundleOf
 import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
 import com.google.gson.JsonParseException
@@ -38,7 +36,6 @@ import eu.europa.ec.commonfeature.interactor.QrScanInteractor
 import eu.europa.ec.commonfeature.logic.qr.QrPayloadRoutingClassifier
 import eu.europa.ec.commonfeature.logic.qr.UniversalScanRoute
 import eu.europa.ec.corelogic.di.getOrCreatePresentationScope
-import eu.europa.ec.corelogic.util.CoreActions
 import eu.europa.ec.eudi.rqesui.domain.extension.toUriOrEmpty
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
@@ -189,7 +186,7 @@ class QrScanViewModel(
 
             if (scanIsValid) {
                 if (qrScanFlow is QrScanFlow.Universal) {
-                    routeUniversalScan(context, scannedQr)
+                    routeUniversalScan(scannedQr)
                 } else {
                     calculateNextStep(
                         context = context,
@@ -263,15 +260,13 @@ class QrScanViewModel(
         }
     }
 
-    private fun routeUniversalScan(context: Context, scannedQr: String) {
+    private fun routeUniversalScan(scannedQr: String) {
         when (val route = QrPayloadRoutingClassifier.classify(scannedQr)) {
             UniversalScanRoute.Presentation -> navigateToPresentationRequest(scannedQr)
             is UniversalScanRoute.Issuance -> navigateToDocumentOffer(
                 scanResult = scannedQr,
                 issuanceFlowType = route.flowType
             )
-            UniversalScanRoute.VciResume -> sendVciResumeBroadcastAndPop(context, scannedQr)
-            UniversalScanRoute.Rqes -> navigateToRqesSdk(context, scannedQr)
             null -> {
                 logController.w(TAG) {
                     "Universal QR could not be classified | payload=$scannedQr"
@@ -288,15 +283,6 @@ class QrScanViewModel(
                 }
             }
         }
-    }
-
-    private fun sendVciResumeBroadcastAndPop(context: Context, uri: String) {
-        Intent().also { intent ->
-            intent.action = CoreActions.VCI_RESUME_ACTION
-            intent.putExtras(bundleOf("uri" to uri))
-            context.sendBroadcast(intent)
-        }
-        setEffect { Effect.Navigation.Pop }
     }
 
     private fun handleDeviceLinking(scanResult: String) {
