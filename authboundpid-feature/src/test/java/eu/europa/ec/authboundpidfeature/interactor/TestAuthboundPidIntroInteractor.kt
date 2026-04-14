@@ -75,7 +75,7 @@ class TestAuthboundPidIntroInteractor {
                     CreateAuthboundPidSessionResponse(
                         sessionId = "session-1",
                         candourSessionId = "candour-1",
-                        candourApiEndpoint = "https://test-rest.candour.fi",
+                        candourApiEndpoint = "https://api-sandbox.candour.fi/api/mobile/sdk/v1/",
                         expiresAt = "2026-04-10T12:00:00.000Z"
                     )
                 )
@@ -87,7 +87,7 @@ class TestAuthboundPidIntroInteractor {
                     AuthboundPidIntroPartialState.SessionCreated(
                         sessionId = "session-1",
                         candourSessionId = "candour-1",
-                        candourApiEndpoint = "https://test-rest.candour.fi"
+                        candourApiEndpoint = "https://api-sandbox.candour.fi/api/mobile/sdk/v1/"
                     ),
                     awaitItem()
                 )

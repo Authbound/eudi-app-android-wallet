@@ -107,7 +107,7 @@ class TestAuthboundPidIntroViewModel {
                         AuthboundPidIntroPartialState.SessionCreated(
                             sessionId = "session-1",
                             candourSessionId = "candour-1",
-                            candourApiEndpoint = "https://test-rest.candour.fi"
+                            candourApiEndpoint = "https://api-sandbox.candour.fi/api/mobile/sdk/v1/"
                         )
                     )
                 }
@@ -121,7 +121,7 @@ class TestAuthboundPidIntroViewModel {
 
                 val effect = awaitItem() as Effect.LaunchCandourSdk
                 assertEquals("candour-1", effect.candourSessionId)
-                assertEquals("https://test-rest.candour.fi", effect.candourApiEndpoint)
+                assertEquals("https://api-sandbox.candour.fi/api/mobile/sdk/v1/", effect.candourApiEndpoint)
                 assertTrue(viewModel.viewState.value.isCompleting)
                 assertEquals("session-1", savedStateHandle.get<String>("authboundpid_active_session_id"))
                 assertEquals(true, savedStateHandle.get<Boolean>("authboundpid_awaiting_sdk_result"))

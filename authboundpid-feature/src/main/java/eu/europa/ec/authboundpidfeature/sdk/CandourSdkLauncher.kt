@@ -33,12 +33,12 @@ fun createCandourLaunchIntent(
     candourApiEndpoint: String,
     onExit: (String) -> Unit
 ): Intent {
-    val candourTheme = CandourThemeConfig(
+    val candourTheme: CandourThemeConfig = CandourThemeConfig(
         theme = R.style.Theme_themeForCandourSdk,
         mode = AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM,
         languageCode = Locale.getDefault().language
     )
-    val candourListener = object : CandourListener {
+    val candourListener: CandourListener = object : CandourListener {
         override fun onExit(status: CandourExitStatus) {
             onExit(status.name)
         }
