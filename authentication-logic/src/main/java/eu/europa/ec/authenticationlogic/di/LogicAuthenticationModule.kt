@@ -16,6 +16,7 @@
 
 package eu.europa.ec.authenticationlogic.di
 
+import android.content.Context
 import eu.europa.ec.authenticationlogic.config.StorageConfig
 import eu.europa.ec.authenticationlogic.config.StorageConfigImpl
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricAuthenticationController
@@ -125,8 +126,9 @@ fun provideBiometryStorageController(
 
 @Factory
 fun provideSupabaseAuthRepository(
+    context: Context,
     supabaseClient: SupabaseClient
-): SupabaseAuthRepository = SupabaseAuthRepositoryImpl(supabaseClient)
+): SupabaseAuthRepository = SupabaseAuthRepositoryImpl(context, supabaseClient)
 
 @Factory
 fun provideProfileRepository(

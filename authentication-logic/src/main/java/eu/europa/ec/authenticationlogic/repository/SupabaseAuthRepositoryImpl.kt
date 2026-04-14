@@ -17,6 +17,7 @@ package eu.europa.ec.authenticationlogic.repository
 
 import android.app.Activity
 import android.content.Context
+import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
@@ -42,6 +43,7 @@ import java.security.MessageDigest
 import java.util.UUID
 
 class SupabaseAuthRepositoryImpl(
+    private val appContext: Context,
     private val supabaseClient: SupabaseClient
 ) : SupabaseAuthRepository {
 
@@ -133,5 +135,8 @@ class SupabaseAuthRepositoryImpl(
 
     override suspend fun signOut() {
         supabaseClient.auth.signOut()
+        runCatching {
+            CredentialManager.create(appContext).clearCredentialState(ClearCredentialStateRequest())
+        }
     }
 } 
