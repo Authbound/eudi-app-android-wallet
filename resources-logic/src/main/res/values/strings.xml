@@ -623,16 +623,21 @@
     <string name="verification_quick_action_description">Verify your identity documents</string>
     <string name="verification_home_tab_active">Active</string>
     <string name="verification_home_tab_history">History</string>
-    <string name="verification_home_create_button">Create Verification</string>
-    <string name="verification_home_empty_active">No Active Verifications</string>
-    <string name="verification_home_empty_history">No History Yet</string>
+    <string name="verification_home_create_button">Create Request</string>
+    <string name="verification_home_empty_active">No Open Requests</string>
+    <string name="verification_home_empty_history">No Completed Requests Yet</string>
     <string name="verification_home_session_code">Code: %1$s</string>
-    <string name="verification_empty_description">Create a verification request to start verifying credentials from others.</string>
-    <string name="verification_history_empty_description">Your completed verifications will appear here.</string>
+    <string name="verification_empty_description">Ask another wallet user to prove selected attributes by sharing a secure request.</string>
+    <string name="verification_history_empty_description">Verified, failed, and expired requests will appear here after recipients respond.</string>
+    <string name="verification_home_refresh_error_empty">Couldn\'t load your verification requests. Try again.</string>
+    <string name="verification_home_refresh_error_cached">Couldn\'t refresh your verification requests. Showing the last synced state.</string>
+    <string name="verification_home_timeline_expires">Expires %1$s</string>
+    <string name="verification_home_timeline_created">Created %1$s</string>
+    <string name="verification_home_timeline_updated">Updated %1$s</string>
     <string name="verification_feature_qr_title">QR Code</string>
-    <string name="verification_feature_qr_description">Share via QR</string>
-    <string name="verification_feature_link_title">Deep Link</string>
-    <string name="verification_feature_link_description">Send a link</string>
+    <string name="verification_feature_qr_description">Show a scannable wallet request</string>
+    <string name="verification_feature_link_title">Shareable Link</string>
+    <string name="verification_feature_link_description">Send a link that opens the verification flow</string>
     <string name="verification_status_active">Active</string>
     <string name="verification_status_completed">Completed</string>
     <string name="verification_action_show_qr">Show QR</string>
@@ -672,6 +677,7 @@
 
     <!-- Verification Creation Screen -->
     <string name="verification_creation_title">Create Verification</string>
+    <string name="verification_creation_submit_button">Create Verification</string>
     <string name="verification_creation_template_selection_title">Select Verification Template</string>
     <string name="verification_creation_custom_title">Create Custom Verification</string>
     <string name="verification_creation_parameters_title">Parameters</string>
@@ -680,16 +686,58 @@
     <string name="verification_creation_save">Save</string>
 
     <!-- Verification Sharing Screen -->
-    <string name="verification_sharing_title">Share Verification</string>
+    <string name="verification_sharing_title">Verification Request</string>
     <string name="verification_sharing_qr_code_title">QR Code</string>
     <string name="verification_sharing_link_title">Link</string>
     <string name="verification_sharing_code_title">Code: %1$s</string>
     <string name="verification_sharing_copy_link">Copy Link</string>
+    <string name="verification_sharing_copy_wallet_request">Copy Wallet Request</string>
     <string name="verification_sharing_share">Share</string>
+    <string name="verification_sharing_share_wallet_request">Share Wallet Request</string>
     <string name="verification_sharing_whatsapp">Share via WhatsApp</string>
     <string name="verification_sharing_email">Share via Email</string>
     <string name="verification_sharing_messages">Share via Messages</string>
     <string name="verification_sharing_link_copied">Link copied to clipboard</string>
+    <string name="verification_sharing_wallet_request_copied">Wallet request copied to clipboard</string>
+    <string name="verification_sharing_wallet_request_title">Wallet request</string>
+    <string name="verification_sharing_refresh_error_empty">Couldn\'t load this verification request. Try again.</string>
+    <string name="verification_sharing_refresh_error_cached">Couldn\'t refresh this request. Showing the last synced details.</string>
+    <string name="verification_sharing_unavailable">This verification request is no longer available.</string>
+    <string name="verification_sharing_done">Done</string>
+    <string name="verification_sharing_metadata_status">Status</string>
+    <string name="verification_sharing_metadata_created">Created</string>
+    <string name="verification_sharing_metadata_expires">Expires</string>
+    <string name="verification_sharing_metadata_last_updated">Last updated</string>
+    <string name="verification_sharing_metadata_credits_charged">Credits charged</string>
+    <string name="verification_sharing_metadata_credits_remaining">Credits remaining</string>
+    <string name="verification_sharing_requested_attributes">Requested attributes</string>
+    <string name="verification_sharing_public_link_heading">Shareable link</string>
+    <string name="verification_sharing_public_link_missing">No public link is available for this request.</string>
+    <string name="verification_sharing_wallet_payload_heading">Wallet request payload</string>
+    <string name="verification_sharing_wallet_payload_expires">Payload expires %1$s</string>
+    <string name="verification_sharing_recipients_heading">Recipients</string>
+    <string name="verification_sharing_recipients_empty">No recipients were saved. Share the link or wallet request manually.</string>
+
+    <!-- Verification Recipient Screen -->
+    <string name="verification_recipient_title">Verification request</string>
+    <string name="verification_recipient_requester_caption">Requested by</string>
+    <string name="verification_recipient_status">Status</string>
+    <string name="verification_recipient_created">Created</string>
+    <string name="verification_recipient_expires">Expires</string>
+    <string name="verification_recipient_purpose_title">Purpose</string>
+    <string name="verification_recipient_attributes_title">Requested attributes</string>
+    <string name="verification_recipient_expected_value">Expected value: %1$s</string>
+    <string name="verification_recipient_consent_title">I consent to share these attributes</string>
+    <string name="verification_recipient_consent_body">The requested attributes will be shared with the requesting party to complete this verification session.</string>
+    <string name="verification_recipient_start">Start verification</string>
+    <string name="verification_recipient_continue">Continue verification</string>
+    <string name="verification_recipient_open_in_browser">Open in browser instead</string>
+    <string name="verification_recipient_consent_required">Consent is required before continuing.</string>
+    <string name="verification_recipient_request_unavailable">This verification request is not ready yet.</string>
+    <string name="verification_recipient_public_link_unavailable">No public verification link is available.</string>
+    <string name="verification_recipient_refresh_error_empty">Couldn\'t load this verification session. Try again.</string>
+    <string name="verification_recipient_refresh_error_cached">Couldn\'t refresh this verification session. Showing the last synced details.</string>
+    <string name="verification_recipient_unavailable">This verification session is no longer available.</string>
 
     <!-- Navigation -->
     <string name="verification_navigation_back">Back</string>

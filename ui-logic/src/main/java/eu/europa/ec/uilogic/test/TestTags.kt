@@ -64,6 +64,7 @@ object AuthTestTags {
         const val RETRY_BUTTON = "wallet_setup_retry_button"
         const val ERROR_SIGN_OUT_BUTTON = "wallet_setup_error_sign_out_button"
         const val DELETE_WALLET_BUTTON = "wallet_setup_delete_wallet_button"
+        const val BROWSER_FALLBACK_BUTTON = "wallet_setup_browser_fallback_button"
         const val CANCEL_CONFIRMATION_DIALOG = "wallet_setup_cancel_confirmation_dialog"
         const val CANCEL_CONFIRM_BUTTON = "wallet_setup_cancel_confirmation_confirm_button"
         const val CANCEL_DISMISS_BUTTON = "wallet_setup_cancel_confirmation_dismiss_button"
@@ -91,6 +92,13 @@ object AuthTestTags {
 object DashboardTestTags {
     object Screen {
         const val ROOT = "dashboard_screen_root"
+    }
+
+    object VerificationRecipient {
+        const val ROOT = "dashboard_verification_recipient_root"
+        const val CONSENT_CHECKBOX = "dashboard_verification_recipient_consent_checkbox"
+        const val PRIMARY_BUTTON = "dashboard_verification_recipient_primary_button"
+        const val BROWSER_BUTTON = "dashboard_verification_recipient_browser_button"
     }
 
     object Documents {

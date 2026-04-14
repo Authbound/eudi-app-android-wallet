@@ -51,6 +51,7 @@ import eu.europa.ec.uilogic.navigation.helper.DeepLinkType
 import eu.europa.ec.uilogic.navigation.helper.generateComposableArguments
 import eu.europa.ec.uilogic.navigation.helper.generateComposableNavigationLink
 import eu.europa.ec.uilogic.navigation.helper.hasDeepLink
+import eu.europa.ec.uilogic.navigation.helper.parseVerificationSessionDeepLink
 import eu.europa.ec.uilogic.serializer.UiSerializer
 import org.koin.android.annotation.KoinViewModel
 
@@ -389,6 +390,18 @@ class DashboardViewModel(
                                 )
                             )
                         )
+                    }
+
+                    DeepLinkType.VERIFICATION_SESSION -> {
+                        parseVerificationSessionDeepLink(uri)?.let { verificationDeepLink ->
+                            generateComposableArguments(
+                                mapOf(
+                                    "sessionId" to verificationDeepLink.sessionId,
+                                    "accessToken" to verificationDeepLink.accessToken,
+                                    "verificationUrl" to Uri.encode(uri.toString())
+                                )
+                            )
+                        }
                     }
 
                     else -> null

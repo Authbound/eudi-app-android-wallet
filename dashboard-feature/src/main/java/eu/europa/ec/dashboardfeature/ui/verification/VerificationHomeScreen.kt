@@ -17,8 +17,8 @@
 package eu.europa.ec.dashboardfeature.ui.verification
 
 import android.view.HapticFeedbackConstants
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,13 +30,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -49,24 +45,26 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import eu.europa.ec.dashboardfeature.model.verification.VerificationSession
+import eu.europa.ec.dashboardfeature.model.verification.humanizeVerificationStatus
+import eu.europa.ec.dashboardfeature.model.verification.lastUpdatedAt
 import eu.europa.ec.dashboardfeature.ui.component.NotificationIconButton
 import eu.europa.ec.resourceslogic.R
-import eu.europa.ec.resourceslogic.theme.values.success
 import eu.europa.ec.uilogic.component.AppIcons
+import eu.europa.ec.uilogic.component.InlineSnackbar
 import eu.europa.ec.uilogic.component.content.ContentScreen
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
-import eu.europa.ec.uilogic.component.utils.SPACING_LARGE
+import eu.europa.ec.uilogic.component.utils.LifecycleEffect
+import eu.europa.ec.uilogic.component.utils.OneTimeLaunchedEffect
+import eu.europa.ec.uilogic.component.utils.SPACING_EXTRA_SMALL
 import eu.europa.ec.uilogic.component.utils.SPACING_MEDIUM
 import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
 import eu.europa.ec.uilogic.component.wrap.EmptyStateIllustration
@@ -77,8 +75,7 @@ import eu.europa.ec.uilogic.component.wrap.PremiumTabRow
 import eu.europa.ec.uilogic.component.wrap.WrapIcon
 import eu.europa.ec.uilogic.component.wrap.WrapIconButton
 import eu.europa.ec.uilogic.extension.paddingFrom
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.collectLatest
 import eu.europa.ec.dashboardfeature.ui.dashboard.Event as DashboardEvent
 import eu.europa.ec.dashboardfeature.ui.dashboard.Event.SideMenu.Open as OpenSideMenuEvent
 import java.text.SimpleDateFormat
@@ -104,9 +101,8 @@ fun VerificationHomeScreen(
     onDashboardEventSent: (DashboardEvent) -> Unit,
 ) {
     val state: VerificationHomeState by viewModel.viewState.collectAsStateWithLifecycle()
-    var selectedTab: VerificationHomeTab by remember {
-        mutableStateOf(VerificationHomeTab.Active)
-    }
+    var selectedTab by remember { mutableStateOf(VerificationHomeTab.Active) }
+
     ContentScreen(
         isLoading = state.isLoading,
         navigatableAction = ScreenNavigateAction.NONE,
@@ -118,44 +114,74 @@ fun VerificationHomeScreen(
             )
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .paddingFrom(paddingValues, bottom = false)
         ) {
-            // Premium tab row with sliding indicator
-            PremiumTabRow(
-                tabs = listOf(
-                    PremiumTab(
-                        label = stringResource(R.string.verification_home_tab_active),
-                        badge = state.activeSessions.size.takeIf { it > 0 }
-                    ),
-                    PremiumTab(
-                        label = stringResource(R.string.verification_home_tab_history)
-                    )
-                ),
-                selectedTabIndex = selectedTab.ordinal,
-                onTabSelected = { selectedTab = VerificationHomeTab.entries[it] },
-                enableAnimations = false,
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = SPACING_MEDIUM.dp, vertical = SPACING_SMALL.dp)
-            )
-
-            // Content based on selected tab
-            when (selectedTab) {
-                VerificationHomeTab.Active -> ActiveSessionsContent(
-                    sessions = state.activeSessions,
-                    onCreateClick = { viewModel.setEvent(VerificationHomeEvent.CreateVerification) }
+                    .fillMaxSize()
+            ) {
+                PremiumTabRow(
+                    tabs = listOf(
+                        PremiumTab(
+                            label = stringResource(R.string.verification_home_tab_active),
+                            badge = state.activeSessions.size.takeIf { it > 0 }
+                        ),
+                        PremiumTab(
+                            label = stringResource(R.string.verification_home_tab_history),
+                            badge = state.historySessions.size.takeIf { it > 0 }
+                        )
+                    ),
+                    selectedTabIndex = selectedTab.ordinal,
+                    onTabSelected = { selectedTab = VerificationHomeTab.entries[it] },
+                    enableAnimations = false,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = SPACING_MEDIUM.dp, vertical = SPACING_SMALL.dp)
                 )
-                VerificationHomeTab.History -> HistorySessionsContent(
-                    sessions = state.historySessions
+
+                when (selectedTab) {
+                    VerificationHomeTab.Active -> VerificationSessionsContent(
+                        tab = VerificationHomeTab.Active,
+                        sessions = state.activeSessions,
+                        emptyTitle = stringResource(R.string.verification_home_empty_active),
+                        emptyDescription = stringResource(R.string.verification_empty_description),
+                        onCreateClick = { viewModel.setEvent(VerificationHomeEvent.CreateVerification) },
+                        onSessionClick = { sessionId ->
+                            viewModel.setEvent(VerificationHomeEvent.OpenSession(sessionId))
+                        }
+                    )
+                    VerificationHomeTab.History -> VerificationSessionsContent(
+                        tab = VerificationHomeTab.History,
+                        sessions = state.historySessions,
+                        emptyTitle = stringResource(R.string.verification_home_empty_history),
+                        emptyDescription = stringResource(R.string.verification_history_empty_description),
+                        onCreateClick = { viewModel.setEvent(VerificationHomeEvent.CreateVerification) },
+                        onSessionClick = { sessionId ->
+                            viewModel.setEvent(VerificationHomeEvent.OpenSession(sessionId))
+                        }
+                    )
+                }
+            }
+
+            state.error?.let { error ->
+                InlineSnackbar(
+                    message = error,
+                    onRetry = { viewModel.setEvent(VerificationHomeEvent.Refresh) },
+                    onDismiss = { viewModel.setEvent(VerificationHomeEvent.DismissError) },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = SPACING_EXTRA_SMALL.dp)
                 )
             }
         }
     }
+
     LaunchedEffect(Unit) {
-        viewModel.effect.onEach { effect ->
+        viewModel.effect.collectLatest { effect ->
             when (effect) {
                 is VerificationHomeEffect.Navigation.SwitchScreen -> {
                     navController.navigate(effect.screenRoute) {
@@ -165,10 +191,18 @@ fun VerificationHomeScreen(
                     }
                 }
             }
-        }.collect()
+        }
     }
-    LaunchedEffect(Unit) {
+
+    OneTimeLaunchedEffect {
         viewModel.setEvent(VerificationHomeEvent.Init)
+    }
+
+    LifecycleEffect(
+        lifecycleOwner = LocalLifecycleOwner.current,
+        lifecycleEvent = Lifecycle.Event.ON_RESUME
+    ) {
+        viewModel.setEvent(VerificationHomeEvent.Refresh)
     }
 }
 
@@ -181,10 +215,7 @@ private fun VerificationTopBar(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(
-                horizontal = SPACING_SMALL.dp,
-                vertical = 4.dp
-            )
+            .padding(horizontal = SPACING_SMALL.dp, vertical = 4.dp)
     ) {
         WrapIconButton(
             modifier = Modifier.align(Alignment.CenterStart),
@@ -195,10 +226,9 @@ private fun VerificationTopBar(
         }
         Text(
             modifier = Modifier.align(Alignment.Center),
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurface,
+            text = stringResource(R.string.verification_quick_action_title),
             style = MaterialTheme.typography.titleLarge,
-            text = stringResource(R.string.verification_quick_action_title)
+            color = MaterialTheme.colorScheme.onSurface
         )
         NotificationIconButton(
             modifier = Modifier.align(Alignment.CenterEnd),
@@ -209,16 +239,19 @@ private fun VerificationTopBar(
 }
 
 @Composable
-private fun ActiveSessionsContent(
+private fun VerificationSessionsContent(
+    tab: VerificationHomeTab,
     sessions: List<VerificationSession>,
-    onCreateClick: () -> Unit
+    emptyTitle: String,
+    emptyDescription: String,
+    onCreateClick: () -> Unit,
+    onSessionClick: (String) -> Unit,
 ) {
     if (sessions.isEmpty()) {
-        // Premium empty state with feature highlights
         PremiumEmptyState(
             illustration = EmptyStateIllustration.VERIFICATION,
-            title = stringResource(R.string.verification_home_empty_active),
-            description = stringResource(R.string.verification_empty_description),
+            title = emptyTitle,
+            description = emptyDescription,
             features = listOf(
                 FeatureHighlight(
                     icon = AppIcons.QrScanner,
@@ -236,74 +269,28 @@ private fun ActiveSessionsContent(
             enableAnimations = false,
             useActionsStyle = true
         )
-    } else {
-        // Sessions list with create button at top
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                horizontal = SPACING_MEDIUM.dp,
-                vertical = SPACING_MEDIUM.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
-        ) {
-            // Create button at top
-            item {
-                CreateVerificationButton(onClick = onCreateClick)
-            }
-
-            // Session cards
-            itemsIndexed(
-                items = sessions,
-                key = { _, session -> session.id }
-            ) { _, session ->
-                VerificationSessionCard(
-                    session = session
-                )
-            }
-
-            item {
-                Spacer(modifier = Modifier.height(72.dp))
-            }
-        }
+        return
     }
-}
 
-@Composable
-private fun HistorySessionsContent(
-    sessions: List<VerificationSession>
-) {
-    if (sessions.isEmpty()) {
-        // Premium empty state for history
-        PremiumEmptyState(
-            illustration = EmptyStateIllustration.HISTORY,
-            title = stringResource(R.string.verification_home_empty_history),
-            description = stringResource(R.string.verification_history_empty_description),
-            enableAnimations = false,
-            useActionsStyle = true
-        )
-    } else {
-        // History sessions list
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                horizontal = SPACING_MEDIUM.dp,
-                vertical = SPACING_MEDIUM.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
-        ) {
-            itemsIndexed(
-                items = sessions,
-                key = { _, session -> session.id }
-            ) { _, session ->
-                VerificationSessionCard(
-                    session = session,
-                    isHistoryItem = true
-                )
-            }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            CreateVerificationButton(onClick = onCreateClick)
+        }
 
-            item {
-                Spacer(modifier = Modifier.height(72.dp))
-            }
+        items(sessions, key = { it.id }) { session ->
+            VerificationSessionCard(
+                session = session,
+                timelineText = sessionTimelineText(session = session, tab = tab),
+                onClick = { onSessionClick(session.id) }
+            )
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(72.dp))
         }
     }
 }
@@ -342,7 +329,7 @@ private fun CreateVerificationButton(
                 customTint = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.size(18.dp)
             )
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.size(6.dp))
             Text(
                 text = stringResource(R.string.verification_home_create_button),
                 style = MaterialTheme.typography.titleSmall,
@@ -356,165 +343,15 @@ private fun CreateVerificationButton(
 @Composable
 private fun VerificationSessionCard(
     session: VerificationSession,
-    isHistoryItem: Boolean = false,
-    modifier: Modifier = Modifier
-) {
-    val view = LocalView.current
-    val interactionSource = remember { MutableInteractionSource() }
-
-    val statusColor = if (isHistoryItem) {
-        MaterialTheme.colorScheme.secondary
-    } else {
-        MaterialTheme.colorScheme.success
-    }
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(
-                interactionSource = interactionSource,
-                indication = ripple(bounded = true)
-            ) {
-                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-            },
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 4.dp
-    ) {
-        Column {
-            // Status header strip
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(statusColor.copy(alpha = 0.08f))
-                    .padding(12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = session.title,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(3.dp))
-                    Text(
-                        text = stringResource(
-                            R.string.verification_home_session_code,
-                            session.sessionCode
-                        ),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-                // Status pill
-                Surface(
-                    shape = RoundedCornerShape(100.dp),
-                    color = statusColor.copy(alpha = 0.15f)
-                ) {
-                    Text(
-                        text = if (isHistoryItem) {
-                            stringResource(R.string.verification_status_completed)
-                        } else {
-                            stringResource(R.string.verification_status_active)
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Medium,
-                        color = statusColor,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                    )
-                }
-            }
-            // Content
-            Column(
-                modifier = Modifier.padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                if (session.description.isNotBlank()) {
-                    Text(
-                        text = session.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                // Meta info row
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    MetaChip(
-                        icon = AppIcons.ClockTimer,
-                        text = formatTimestamp(session.createdAt)
-                    )
-                }
-                // Action buttons (only for active sessions)
-                if (!isHistoryItem) {
-                    HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        SessionActionButton(
-                            modifier = Modifier.weight(1f),
-                            icon = AppIcons.QrScanner,
-                            text = stringResource(R.string.verification_action_show_qr),
-                            onClick = { }
-                        )
-                        SessionActionButton(
-                            modifier = Modifier.weight(1f),
-                            icon = AppIcons.OpenNew,
-                            text = stringResource(R.string.verification_action_copy_link),
-                            onClick = { }
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MetaChip(
-    icon: eu.europa.ec.uilogic.component.IconDataUi,
-    text: String,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        WrapIcon(
-            iconData = icon,
-            customTint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(14.dp)
-        )
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-private fun SessionActionButton(
-    icon: eu.europa.ec.uilogic.component.IconDataUi,
-    text: String,
+    timelineText: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
 ) {
     val view = LocalView.current
     val interactionSource = remember { MutableInteractionSource() }
+
     Surface(
-        modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
+        modifier = Modifier
+            .fillMaxWidth()
             .clickable(
                 interactionSource = interactionSource,
                 indication = ripple(bounded = true)
@@ -522,28 +359,60 @@ private fun SessionActionButton(
                 view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 onClick()
             },
-        shape = RoundedCornerShape(10.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 4.dp
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(10.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            WrapIcon(
-                iconData = icon,
-                customTint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(5.dp))
             Text(
-                text = text,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Medium,
+                text = session.purpose,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = humanizeVerificationStatus(session.status),
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = session.requestedAttributes.joinToString { it.label },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = timelineText,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
+}
+
+@Composable
+private fun sessionTimelineText(
+    session: VerificationSession,
+    tab: VerificationHomeTab,
+): String = when (tab) {
+    VerificationHomeTab.Active -> {
+        val expiresAt = session.expiresAt
+        if (expiresAt != null) {
+            stringResource(
+                R.string.verification_home_timeline_expires,
+                formatTimestamp(expiresAt)
+            )
+        } else {
+            stringResource(
+                R.string.verification_home_timeline_created,
+                formatTimestamp(session.createdAt)
+            )
+        }
+    }
+
+    VerificationHomeTab.History -> stringResource(
+        R.string.verification_home_timeline_updated,
+        formatTimestamp(session.lastUpdatedAt())
+    )
 }

@@ -66,9 +66,20 @@ sealed class DashboardScreens {
 
     data object VerificationTemplateSelection : Screen(name = "VERIFICATION_TEMPLATE_SELECTION")
 
-    data object VerificationCustomCreation : Screen(name = "VERIFICATION_CUSTOM_CREATION")
+    data object VerificationCustomCreation : Screen(
+        name = "VERIFICATION_CUSTOM_CREATION",
+        parameters = "?templateType={templateType}"
+    )
 
-    data object VerificationSharing : Screen(name = "VERIFICATION_SHARING")
+    data object VerificationSharing : Screen(
+        name = "VERIFICATION_SHARING",
+        parameters = "?sessionId={sessionId}"
+    )
+
+    data object VerificationRecipient : Screen(
+        name = "VERIFICATION_RECIPIENT",
+        parameters = "?sessionId={sessionId}&accessToken={accessToken}&verificationUrl={verificationUrl}"
+    )
 
     data object MyData : Screen(name = "MY_DATA")
 }

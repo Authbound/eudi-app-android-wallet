@@ -30,9 +30,11 @@ import eu.europa.ec.eudi.rqesui.infrastructure.RemoteUri
 import eu.europa.ec.uilogic.BuildConfig
 import eu.europa.ec.uilogic.container.EudiComponentActivity
 import eu.europa.ec.uilogic.extension.openUrl
+import eu.europa.ec.uilogic.navigation.DashboardScreens
 import eu.europa.ec.uilogic.navigation.IssuanceScreens
 import eu.europa.ec.uilogic.navigation.PresentationScreens
 import eu.europa.ec.uilogic.navigation.Screen
+import java.util.UUID
 
 fun <T> generateComposableArguments(arguments: Map<String, T>): String {
     if (arguments.isEmpty()) return ""
@@ -83,11 +85,8 @@ fun generateNewTaskDeepLink(
     }
 
 fun hasDeepLink(deepLinkUri: Uri?): DeepLinkAction? {
-    return safeLet(
-        deepLinkUri,
-        deepLinkUri?.scheme
-    ) { uri, scheme ->
-        DeepLinkAction(link = uri, type = DeepLinkType.parse(scheme, uri.host))
+    return deepLinkUri?.let { uri ->
+        DeepLinkAction(link = uri, type = DeepLinkType.parse(uri))
     }
 }
 
@@ -111,6 +110,10 @@ fun handleDeepLinkAction(
     when (action.type) {
         DeepLinkType.OPENID4VP -> {
             screen = PresentationScreens.PresentationRequest
+        }
+
+        DeepLinkType.VERIFICATION_SESSION -> {
+            screen = DashboardScreens.VerificationRecipient
         }
 
         DeepLinkType.CREDENTIAL_OFFER -> {
@@ -172,6 +175,31 @@ fun handleDeepLinkAction(
 }
 
 data class DeepLinkAction(val link: Uri, val type: DeepLinkType)
+
+data class VerificationSessionDeepLink(
+    val sessionId: String,
+    val accessToken: String,
+)
+
+fun parseVerificationSessionDeepLink(uri: Uri): VerificationSessionDeepLink? {
+    val sessionId: String = uri.pathSegments
+        .takeIf { uri.scheme == "https" }
+        ?.takeIf { uri.host.equals(BuildConfig.VERIFICATION_PORTAL_HOST, ignoreCase = true) }
+        ?.takeIf { it.size >= 2 && it.first() == "verify" }
+        ?.getOrNull(1)
+        ?.takeIf(::isUuid)
+        ?: return null
+
+    val accessToken: String = uri.getQueryParameter("token")
+        ?.takeIf(::isUuid)
+        ?: return null
+
+    return VerificationSessionDeepLink(
+        sessionId = sessionId,
+        accessToken = accessToken
+    )
+}
+
 enum class DeepLinkType(val schemas: List<String>, val host: String? = null) {
 
     OPENID4VP(
@@ -181,6 +209,9 @@ enum class DeepLinkType(val schemas: List<String>, val host: String? = null) {
             BuildConfig.MDOC_OPENID4VP_SCHEME,
             BuildConfig.HAIP_OPENID4VP_SCHEME
         )
+    ),
+    VERIFICATION_SESSION(
+        emptyList()
     ),
     CREDENTIAL_OFFER(
         schemas = listOf(
@@ -207,31 +238,41 @@ enum class DeepLinkType(val schemas: List<String>, val host: String? = null) {
     );
 
     companion object {
-        fun parse(scheme: String, host: String? = null): DeepLinkType = when {
+        fun parse(uri: Uri): DeepLinkType = when {
 
-            OPENID4VP.schemas.contains(scheme) -> {
+            parseVerificationSessionDeepLink(uri) != null -> {
+                VERIFICATION_SESSION
+            }
+
+            OPENID4VP.schemas.contains(uri.scheme) -> {
                 OPENID4VP
             }
 
-            CREDENTIAL_OFFER.schemas.contains(scheme) -> {
+            CREDENTIAL_OFFER.schemas.contains(uri.scheme) -> {
                 CREDENTIAL_OFFER
             }
 
-            ISSUANCE.schemas.contains(scheme) && host == ISSUANCE.host -> {
+            ISSUANCE.schemas.contains(uri.scheme) && uri.host == ISSUANCE.host -> {
                 ISSUANCE
             }
 
-            RQES.schemas.contains(scheme) && host == RQES.host -> {
+            RQES.schemas.contains(uri.scheme) && uri.host == RQES.host -> {
                 RQES
             }
 
-            RQES_DOC_RETRIEVAL.schemas.contains(scheme) -> {
+            RQES_DOC_RETRIEVAL.schemas.contains(uri.scheme) -> {
                 RQES_DOC_RETRIEVAL
             }
 
             else -> EXTERNAL
         }
     }
+}
+
+private fun isUuid(value: String): Boolean {
+    return runCatching {
+        UUID.fromString(value)
+    }.isSuccess
 }
 
 private fun notify(context: Context, action: String, bundle: Bundle? = null) {

@@ -245,16 +245,16 @@ private fun TemplateCard(
                 )
             }
             
-            if (template.parameters.isNotEmpty()) {
+            if (template.attributes.isNotEmpty()) {
                 HorizontalDivider(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 12.dp),
                     thickness = DividerDefaults.Thickness, color = MaterialTheme.colorScheme.outlineVariant
                 )
-                
+
                 Text(
-                    text = "Parameters (${template.parameters.size})",
+                    text = "Attributes (${template.attributes.size})",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -262,27 +262,3 @@ private fun TemplateCard(
         }
     }
 }
-
-private fun handleNavigationEffect(
-    context: Context,
-    navigationEffect: Effect.Navigation,
-    navController: NavController
-) {
-    when (navigationEffect) {
-        is Effect.Navigation.SwitchScreen -> {
-            navController.navigate(navigationEffect.screenRoute) {
-                popUpTo(navigationEffect.popUpToScreenRoute) {
-                    inclusive = navigationEffect.inclusive
-                }
-            }
-        }
-        
-        is Effect.Navigation.Back -> {
-            navController.popBackStack()
-        }
-        
-        is Effect.Navigation.Home -> {
-            navController.popBackStack()
-        }
-    }
-} 

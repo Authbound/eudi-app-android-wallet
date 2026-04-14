@@ -315,6 +315,58 @@ class AuthGateSmokeTest {
     }
 
     @Test
+    fun verificationLink_unauthenticatedUser_resumesNativelyAfterLoginAndPin() {
+        launchApp(
+            state = AuthScenarioState(
+                authenticated = false,
+                profileCompleted = true,
+                deviceSecurityReady = true,
+                walletActivated = true,
+                storedPin = "123456",
+                biometricsPreferenceDecided = true,
+            ),
+            deepLink = verificationSessionDeepLink()
+        )
+
+        waitForTag(AuthTestTags.Login.ROOT)
+        composeRule.onNodeWithTag(resolvedTag(AuthTestTags.Login.EMAIL_FIELD), useUnmergedTree = true)
+            .performTextInput("tester@authbound.io")
+        composeRule.onNodeWithTag(resolvedTag(AuthTestTags.Login.PASSWORD_FIELD), useUnmergedTree = true)
+            .performTextInput("Password123!")
+        composeRule.onNodeWithTag(resolvedTag(AuthTestTags.Login.PRIMARY_BUTTON), useUnmergedTree = true)
+            .performClick()
+
+        waitForTag(AuthTestTags.QuickPin.ROOT)
+        enterPin("123456")
+
+        waitForTag(DashboardTestTags.VerificationRecipient.ROOT)
+    }
+
+    @Test
+    fun verificationLink_lockedReturningUser_requiresPinBeforeNativeRecipientScreen() {
+        launchApp(
+            state = lockedReturningUserState(),
+            deepLink = verificationSessionDeepLink()
+        )
+
+        waitForTag(AuthTestTags.QuickPin.ROOT)
+        enterPin("123456")
+
+        waitForTag(DashboardTestTags.VerificationRecipient.ROOT)
+    }
+
+    @Test
+    fun verificationLink_walletSetupShowsBrowserFallback() {
+        launchApp(
+            state = walletSetupState(),
+            deepLink = verificationSessionDeepLink()
+        )
+
+        waitForTag(AuthTestTags.WalletSetup.ROOT)
+        waitForTag(AuthTestTags.WalletSetup.BROWSER_FALLBACK_BUTTON)
+    }
+
+    @Test
     fun backgroundResume_afterLocalUnlockExpiry_requiresPinAgain() {
         launchApp(
             state = lockedReturningUserState().copy(
@@ -500,6 +552,12 @@ class AuthGateSmokeTest {
         )
     }
 
+    private fun verificationSessionDeepLink(): Uri {
+        return Uri.parse(
+            "https://app.authbound.io/verify/550e8400-e29b-41d4-a716-446655440000?token=123e4567-e89b-12d3-a456-426614174000"
+        )
+    }
+
     private fun waitForAnyAuthGateRoot(timeoutMillis: Long = 10_000L) {
         val tags = listOf(
             StartupTestTags.Splash.ROOT,
@@ -509,6 +567,7 @@ class AuthGateSmokeTest {
             AuthTestTags.WalletSetup.ROOT,
             AuthTestTags.QuickPin.ROOT,
             DashboardTestTags.Screen.ROOT,
+            DashboardTestTags.VerificationRecipient.ROOT,
         )
 
         try {
@@ -547,6 +606,7 @@ class AuthGateSmokeTest {
             AuthTestTags.WalletSetup.ROOT,
             AuthTestTags.QuickPin.ROOT,
             DashboardTestTags.Screen.ROOT,
+            DashboardTestTags.VerificationRecipient.ROOT,
         )
 
         return tags.filter { tag ->

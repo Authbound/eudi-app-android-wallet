@@ -54,6 +54,8 @@ object QrPayloadRoutingClassifier {
             DeepLinkType.OPENID4VP,
             DeepLinkType.DYNAMIC_PRESENTATION ->
                 UniversalScanRoute.Presentation
+            DeepLinkType.VERIFICATION_SESSION ->
+                null
             DeepLinkType.EXTERNAL ->
                 classifyHttpOrHttps(uri)
             DeepLinkType.ISSUANCE,

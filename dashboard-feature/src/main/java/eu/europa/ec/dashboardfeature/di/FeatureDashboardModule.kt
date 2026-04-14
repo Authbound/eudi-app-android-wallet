@@ -248,5 +248,11 @@ fun provideTransactionDetailsInteractor(
 
 @Single
 fun provideVerificationRepository(
+    apiClient: ApiClient,
+    supabaseClient: SupabaseClient,
     resourceProvider: ResourceProvider,
-): VerificationRepository = VerificationRepositoryImpl(resourceProvider)
+): VerificationRepository = VerificationRepositoryImpl(
+    apiClient = apiClient,
+    supabaseClient = supabaseClient,
+    resourceProvider = resourceProvider
+)

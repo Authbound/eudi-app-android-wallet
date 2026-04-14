@@ -37,8 +37,12 @@ import eu.europa.ec.dashboardfeature.ui.settings.SettingsScreen
 import eu.europa.ec.dashboardfeature.ui.settings.AccountDetailsScreen
 import eu.europa.ec.dashboardfeature.ui.transactions.detail.TransactionDetailsScreen
 import eu.europa.ec.dashboardfeature.ui.verification.VerificationCustomCreationScreen
+import eu.europa.ec.dashboardfeature.ui.verification.VerificationRecipientScreen
+import eu.europa.ec.dashboardfeature.ui.verification.VerificationRecipientViewModel
 import eu.europa.ec.dashboardfeature.ui.verification.VerificationSharingScreen
+import eu.europa.ec.dashboardfeature.ui.verification.VerificationSharingViewModel
 import eu.europa.ec.dashboardfeature.ui.verification.VerificationTemplateSelectionScreen
+import eu.europa.ec.dashboardfeature.model.verification.VerificationTemplateType
 import eu.europa.ec.uilogic.navigation.DashboardScreens
 import eu.europa.ec.uilogic.navigation.ModuleRoute
 import org.koin.androidx.compose.koinViewModel
@@ -148,6 +152,12 @@ fun NavGraphBuilder.featureDashboardGraph(navController: NavController) {
 
         composable(
             route = DashboardScreens.VerificationCustomCreation.screenRoute,
+            arguments = listOf(
+                navArgument("templateType") {
+                    type = NavType.StringType
+                    nullable = true
+                },
+            )
         ) {
             val actionsViewModel: ActionsViewModel = koinViewModel()
             val actionsState: eu.europa.ec.dashboardfeature.ui.actions.State by actionsViewModel
@@ -169,12 +179,20 @@ fun NavGraphBuilder.featureDashboardGraph(navController: NavController) {
             VerificationCustomCreationScreen(
                 navController = navController,
                 viewModel = koinViewModel(),
+                templateType = it.arguments?.getString("templateType")?.let { value ->
+                    runCatching { VerificationTemplateType.valueOf(value) }.getOrNull()
+                },
                 notificationCount = actionsState.pendingCount,
                 onNotificationsClick = onNotificationsClick,
             )
         }
         composable(
             route = DashboardScreens.VerificationSharing.screenRoute,
+            arguments = listOf(
+                navArgument("sessionId") {
+                    type = NavType.StringType
+                },
+            )
         ) {
             val actionsViewModel: ActionsViewModel = koinViewModel()
             val actionsState: eu.europa.ec.dashboardfeature.ui.actions.State by actionsViewModel
@@ -193,9 +211,60 @@ fun NavGraphBuilder.featureDashboardGraph(navController: NavController) {
             LaunchedEffect(Unit) {
                 actionsViewModel.setEvent(eu.europa.ec.dashboardfeature.ui.actions.Event.OnResume)
             }
+            val sharingViewModel: VerificationSharingViewModel = koinViewModel(
+                parameters = {
+                    parametersOf(
+                        it.arguments?.getString("sessionId").orEmpty(),
+                    )
+                }
+            )
             VerificationSharingScreen(
                 navController = navController,
-                viewModel = koinViewModel(),
+                viewModel = sharingViewModel,
+                notificationCount = actionsState.pendingCount,
+                onNotificationsClick = onNotificationsClick,
+            )
+        }
+        composable(
+            route = DashboardScreens.VerificationRecipient.screenRoute,
+            arguments = listOf(
+                navArgument("sessionId") {
+                    type = NavType.StringType
+                },
+                navArgument("accessToken") {
+                    type = NavType.StringType
+                },
+                navArgument("verificationUrl") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+            )
+        ) {
+            val actionsViewModel: ActionsViewModel = koinViewModel()
+            val actionsState: eu.europa.ec.dashboardfeature.ui.actions.State by actionsViewModel
+                .viewState
+                .collectAsStateWithLifecycle()
+            val onNotificationsClick: () -> Unit = {
+                val previousEntry: androidx.navigation.NavBackStackEntry? =
+                    navController.previousBackStackEntry
+                if (previousEntry != null) {
+                    previousEntry.savedStateHandle.set("openActions", true)
+                    navController.popBackStack(DashboardScreens.Dashboard.screenRoute, false)
+                } else {
+                    navController.navigate(DashboardScreens.Dashboard.screenRoute)
+                }
+            }
+            LaunchedEffect(Unit) {
+                actionsViewModel.setEvent(eu.europa.ec.dashboardfeature.ui.actions.Event.OnResume)
+            }
+            val verificationRecipientViewModel: VerificationRecipientViewModel = koinViewModel()
+            VerificationRecipientScreen(
+                navController = navController,
+                viewModel = verificationRecipientViewModel,
+                sessionId = it.arguments?.getString("sessionId").orEmpty(),
+                accessToken = it.arguments?.getString("accessToken").orEmpty(),
+                verificationUrl = it.arguments?.getString("verificationUrl"),
                 notificationCount = actionsState.pendingCount,
                 onNotificationsClick = onNotificationsClick,
             )
