@@ -16,12 +16,19 @@
 
 package eu.europa.ec.uilogic.component.wrap
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -30,6 +37,7 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -38,17 +46,24 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.theme.values.divider
 import eu.europa.ec.resourceslogic.theme.values.warning
@@ -284,31 +299,38 @@ private fun BaseBottomSheet(
             .padding(sheetPadding),
         verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
     ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp, Alignment.Start),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            leadingIcon?.let { safeLeadingIcon ->
-                WrapIcon(
-                    modifier = Modifier.size(DEFAULT_ICON_SIZE.dp),
-                    iconData = safeLeadingIcon,
-                    customTint = leadingIconTint
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp, Alignment.Start),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                leadingIcon?.let { safeLeadingIcon ->
+                    WrapIcon(
+                        modifier = Modifier.size(DEFAULT_ICON_SIZE.dp),
+                        iconData = safeLeadingIcon,
+                        customTint = leadingIconTint
+                    )
+                }
+                Text(
+                    text = textData.title,
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        color = bottomSheetDefaultTextColor,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = (-0.3).sp,
+                    )
                 )
             }
+
             Text(
-                text = textData.title,
-                style = MaterialTheme.typography.headlineSmall.copy(
-                    color = bottomSheetDefaultTextColor
+                text = textData.message,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    color = bottomSheetDefaultTextColor.copy(alpha = 0.6f),
+                    lineHeight = 20.sp,
                 )
             )
         }
-
-        Text(
-            text = textData.message,
-            style = MaterialTheme.typography.bodyMedium.copy(
-                color = bottomSheetDefaultTextColor
-            )
-        )
 
         bodyContent?.let { safeBodyContent ->
             safeBodyContent()
@@ -328,14 +350,17 @@ fun <T : ViewEvent> BottomSheetWithTwoBigIcons(
             textData = textData,
             sheetPadding = defaultBottomSheetPadding,
             bodyContent = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp),
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Max),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     options.forEachIndexed { index, item ->
                         BottomSheetOptionCard(
                             modifier = Modifier
-                                .fillMaxWidth()
+                                .weight(1f)
+                                .fillMaxHeight()
                                 .optionalTestTag(
                                     hostTab?.let { safeHostTab ->
                                         TestTag.buttonInBottomSheetWithTwoBigIcons(
@@ -347,6 +372,7 @@ fun <T : ViewEvent> BottomSheetWithTwoBigIcons(
                             title = item.title,
                             icon = item.leadingIcon,
                             iconTint = item.leadingIconTint,
+                            accentColor = item.accentColor,
                             enabled = item.enabled,
                             onClick = { onEventSent(item.event) }
                         )
@@ -363,58 +389,124 @@ private fun BottomSheetOptionCard(
     title: String,
     icon: IconDataUi? = null,
     iconTint: Color? = null,
+    accentColor: Color? = null,
     enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
-    val surfaceColor = MaterialTheme.colorScheme.surfaceContainerHigh
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1f,
+        animationSpec = tween(durationMillis = 100),
+        label = "cardScale"
+    )
     val contentAlpha = if (enabled) ALPHA_ENABLED else ALPHA_DISABLED
+    val resolvedAccent = accentColor ?: MaterialTheme.colorScheme.tertiary
+    val cardBackground = MaterialTheme.colorScheme.surfaceContainerHigh
+    val view = LocalView.current
 
-    androidx.compose.material3.Surface(
+    Box(
         modifier = modifier
-            .alpha(contentAlpha),
-        onClick = onClick,
-        enabled = enabled,
-        shape = RoundedCornerShape(16.dp),
-        color = surfaceColor,
-        tonalElevation = 1.dp,
+            .scale(scale)
+            .alpha(contentAlpha)
+            .clip(RoundedCornerShape(20.dp))
+            .background(cardBackground)
+            .throttledClickable(
+                interactionSource = interactionSource,
+                indication = null,
+                enabled = enabled,
+            ) {
+                @Suppress("DEPRECATION")
+                view.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+                onClick()
+            }
+            .padding(SPACING_MEDIUM.dp),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(SPACING_MEDIUM.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            icon?.let { safeIcon ->
-                androidx.compose.foundation.layout.Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    WrapIcon(
-                        iconData = safeIcon,
-                        customTint = iconTint ?: MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(24.dp)
+            // Accent line at the top
+            Box(
+                modifier = Modifier
+                    .width(32.dp)
+                    .height(3.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(
+                                resolvedAccent.copy(alpha = 0.6f),
+                                resolvedAccent,
+                                resolvedAccent.copy(alpha = 0.6f),
+                            )
+                        )
                     )
+            )
+
+            // Icon in a glowing circle
+            icon?.let { safeIcon ->
+                Box(
+                    contentAlignment = Alignment.Center,
+                ) {
+                    // Outer glow ring
+                    Box(
+                        modifier = Modifier
+                            .size(68.dp)
+                            .clip(CircleShape)
+                            .background(resolvedAccent.copy(alpha = 0.08f))
+                    )
+                    // Inner icon circle
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(
+                                Brush.radialGradient(
+                                    colors = listOf(
+                                        resolvedAccent.copy(alpha = 0.18f),
+                                        resolvedAccent.copy(alpha = 0.06f),
+                                    )
+                                )
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        WrapIcon(
+                            iconData = safeIcon,
+                            customTint = iconTint ?: resolvedAccent,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
                 }
             }
 
+            // Title
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleSmall.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    lineHeight = 18.sp,
+                ),
                 color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f),
+                textAlign = TextAlign.Center,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
 
-            WrapIcon(
-                iconData = AppIcons.KeyboardArrowRight,
-                customTint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
-            )
+            // Arrow chip
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(resolvedAccent.copy(alpha = 0.10f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                WrapIcon(
+                    iconData = AppIcons.KeyboardArrowRight,
+                    customTint = resolvedAccent,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
         }
     }
 }
@@ -517,17 +609,19 @@ private fun <T : ViewEvent> OptionListItem(
 
 @Composable
 private fun BottomSheetDefaultHandle() {
-    Row(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .background(bottomSheetDefaultBackgroundColor)
-            .padding(vertical = SPACING_MEDIUM.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
+            .padding(top = 12.dp, bottom = 8.dp),
+        contentAlignment = Alignment.Center,
     ) {
-        WrapIcon(
-            iconData = AppIcons.HandleBar,
-            customTint = MaterialTheme.colorScheme.divider
+        Box(
+            modifier = Modifier
+                .width(36.dp)
+                .height(4.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f))
         )
     }
 }
@@ -643,29 +737,25 @@ private fun BottomSheetWithTwoBigIconsEvenTextPreview() {
     PreviewTheme {
         BottomSheetWithTwoBigIcons(
             textData = BottomSheetTextDataUi(
-                title = "Title",
-                message = "Message"
+                title = "Authenticate",
+                message = "Choose how you want to authenticate"
             ),
-            options = buildList {
-                addAll(
-                    listOf(
-                        ModalOptionUi(
-                            title = "Enabled Option with leading icon",
-                            leadingIcon = AppIcons.PresentDocumentInPerson,
-                            leadingIconTint = MaterialTheme.colorScheme.primary,
-                            event = DummyEventForPreview,
-                            enabled = true,
-                        ),
-                        ModalOptionUi(
-                            title = "Disabled Option with leading icon",
-                            leadingIcon = AppIcons.PresentDocumentOnline,
-                            leadingIconTint = MaterialTheme.colorScheme.primary,
-                            event = DummyEventForPreview,
-                            enabled = false,
-                        ),
-                    )
-                )
-            },
+            options = listOf(
+                ModalOptionUi(
+                    title = "In Person",
+                    leadingIcon = AppIcons.PresentDocumentInPerson,
+                    accentColor = Color(0xFF3B82F6),
+                    event = DummyEventForPreview,
+                    enabled = true,
+                ),
+                ModalOptionUi(
+                    title = "Online",
+                    leadingIcon = AppIcons.PresentDocumentOnline,
+                    accentColor = Color(0xFF7C3AED),
+                    event = DummyEventForPreview,
+                    enabled = false,
+                ),
+            ),
             onEventSent = {}
         )
     }
@@ -677,29 +767,25 @@ private fun BottomSheetWithTwoBigIconsUnevenTextPreview() {
     PreviewTheme {
         BottomSheetWithTwoBigIcons(
             textData = BottomSheetTextDataUi(
-                title = "Title",
-                message = "Message"
+                title = "Sign a document",
+                message = "Choose where your document is located"
             ),
-            options = buildList {
-                addAll(
-                    listOf(
-                        ModalOptionUi(
-                            title = "Enabled Option a lot of text",
-                            leadingIcon = AppIcons.PresentDocumentInPerson,
-                            leadingIconTint = MaterialTheme.colorScheme.primary,
-                            event = DummyEventForPreview,
-                            enabled = true,
-                        ),
-                        ModalOptionUi(
-                            title = "Enabled Option",
-                            leadingIcon = AppIcons.PresentDocumentOnline,
-                            leadingIconTint = MaterialTheme.colorScheme.primary,
-                            event = DummyEventForPreview,
-                            enabled = true,
-                        ),
-                    )
-                )
-            },
+            options = listOf(
+                ModalOptionUi(
+                    title = "From Device",
+                    leadingIcon = AppIcons.PresentDocumentInPerson,
+                    accentColor = Color(0xFF059669),
+                    event = DummyEventForPreview,
+                    enabled = true,
+                ),
+                ModalOptionUi(
+                    title = "Scan QR",
+                    leadingIcon = AppIcons.PresentDocumentOnline,
+                    accentColor = Color(0xFFD97706),
+                    event = DummyEventForPreview,
+                    enabled = true,
+                ),
+            ),
             onEventSent = {}
         )
     }

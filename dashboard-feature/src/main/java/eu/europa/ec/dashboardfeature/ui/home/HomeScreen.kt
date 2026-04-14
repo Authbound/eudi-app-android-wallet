@@ -731,11 +731,13 @@ private fun HomeScreenSheetContent(
                     ModalOptionUi(
                         title = stringResource(R.string.home_screen_authenticate_option_in_person),
                         leadingIcon = AppIcons.PresentDocumentInPerson,
+                        accentColor = Color(0xFF3B82F6),
                         event = Event.BottomSheet.Authenticate.OpenAuthenticateInPerson,
                     ),
                     ModalOptionUi(
                         title = stringResource(R.string.home_screen_add_document_option_online),
                         leadingIcon = AppIcons.PresentDocumentOnline,
+                        accentColor = Color(0xFF7C3AED),
                         event = Event.BottomSheet.Authenticate.OpenAuthenticateOnLine,
                     )
                 ),
@@ -755,11 +757,13 @@ private fun HomeScreenSheetContent(
                     ModalOptionUi(
                         title = stringResource(R.string.documents_screen_add_document_option_list),
                         leadingIcon = AppIcons.AddDocumentFromList,
+                        accentColor = Color(0xFFD97706),
                         event = Event.BottomSheet.AddDocument.FromList,
                     ),
                     ModalOptionUi(
                         title = stringResource(R.string.documents_screen_add_document_option_qr),
                         leadingIcon = AppIcons.AddDocumentFromQr,
+                        accentColor = Color(0xFFF59E0B),
                         event = Event.BottomSheet.AddDocument.ScanQr,
                     )
                 ),
@@ -777,11 +781,13 @@ private fun HomeScreenSheetContent(
                     ModalOptionUi(
                         title = stringResource(R.string.verification_bottom_sheet_template_option),
                         leadingIcon = AppIcons.WalletActivated,
+                        accentColor = Color(0xFF059669),
                         event = Event.BottomSheet.Verification.UseTemplate,
                     ),
                     ModalOptionUi(
                         title = stringResource(R.string.verification_bottom_sheet_custom_option),
                         leadingIcon = AppIcons.Edit,
+                        accentColor = Color(0xFF34D399),
                         event = Event.BottomSheet.Verification.CreateCustom,
                     )
                 ),
@@ -802,13 +808,13 @@ private fun HomeScreenSheetContent(
                     ModalOptionUi(
                         title = stringResource(R.string.home_screen_sign_document_option_from_device),
                         leadingIcon = AppIcons.SignDocumentFromDevice,
-                        leadingIconTint = MaterialTheme.colorScheme.primary,
+                        accentColor = Color(0xFF7C3AED),
                         event = Event.BottomSheet.SignDocument.OpenFromDevice,
                     ),
                     ModalOptionUi(
                         title = stringResource(R.string.home_screen_sign_document_option_scan_qr),
                         leadingIcon = AppIcons.SignDocumentFromQr,
-                        leadingIconTint = MaterialTheme.colorScheme.primary,
+                        accentColor = Color(0xFFA78BFA),
                         event = Event.BottomSheet.SignDocument.OpenScanQR,
                     )
                 ),

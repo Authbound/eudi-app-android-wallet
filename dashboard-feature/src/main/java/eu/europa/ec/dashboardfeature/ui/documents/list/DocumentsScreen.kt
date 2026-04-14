@@ -49,6 +49,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
@@ -706,11 +707,13 @@ private fun DocumentsSheetContent(
                     ModalOptionUi(
                         title = stringResource(R.string.documents_screen_add_document_option_list),
                         leadingIcon = AppIcons.AddDocumentFromList,
+                        accentColor = Color(0xFFD97706),
                         event = Event.BottomSheet.AddDocument.FromList,
                     ),
                     ModalOptionUi(
                         title = stringResource(R.string.documents_screen_add_document_option_qr),
                         leadingIcon = AppIcons.AddDocumentFromQr,
+                        accentColor = Color(0xFFF59E0B),
                         event = Event.BottomSheet.AddDocument.ScanQr,
                     )
                 ),
