@@ -95,6 +95,7 @@ abstract class EnvironmentConfig {
     val readTimeoutSeconds: Long get() = 60
 
     abstract fun getServerHost(): String
+
     sealed class ServerConfig {
         data object Debug : ServerConfig()
         data object Release : ServerConfig()

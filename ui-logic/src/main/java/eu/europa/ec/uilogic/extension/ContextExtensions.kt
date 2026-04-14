@@ -43,6 +43,10 @@ fun Context.getPendingDeepLink(): Uri? {
     }
 }
 
+fun Context.peekPendingDeepLink(): Uri? {
+    return (this as? EudiComponentActivity)?.pendingDeepLink
+}
+
 fun Context.cacheDeepLink(uri: Uri) {
     val intent = Intent().apply {
         data = uri
@@ -75,6 +79,51 @@ private fun Context.clearPendingDeepLink() {
 fun Context.openUrl(uri: Uri) {
     try {
         startActivity(Intent(Intent.ACTION_VIEW, uri))
+    } catch (_: Exception) {
+    }
+}
+
+internal fun createBrowserOnlyIntent(
+    uri: Uri,
+    browserPackages: List<String>,
+    chooserTitle: String? = null
+): Intent? {
+    val packages = browserPackages
+        .map(String::trim)
+        .filter(String::isNotBlank)
+        .distinct()
+    if (packages.isEmpty()) return null
+
+    val browserIntents = packages.map { packageName ->
+        Intent(Intent.ACTION_VIEW, uri).apply {
+            addCategory(Intent.CATEGORY_BROWSABLE)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            `package` = packageName
+        }
+    }
+
+    if (browserIntents.size == 1) {
+        return browserIntents.first()
+    }
+
+    return Intent.createChooser(browserIntents.first(), chooserTitle).apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        putExtra(Intent.EXTRA_INITIAL_INTENTS, browserIntents.drop(1).toTypedArray())
+    }
+}
+
+fun Context.openUrlInBrowser(uri: Uri, chooserTitle: String? = null) {
+    try {
+        val browserPackages = packageManager.queryIntentActivities(
+            Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com")).apply {
+                addCategory(Intent.CATEGORY_BROWSABLE)
+            },
+            0
+        )
+            .mapNotNull { it.activityInfo?.packageName }
+            .filterNot { it == packageName }
+
+        createBrowserOnlyIntent(uri, browserPackages, chooserTitle)?.let(::startActivity)
     } catch (_: Exception) {
     }
 }

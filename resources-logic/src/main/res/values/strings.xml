@@ -718,6 +718,27 @@
     <string name="verification_sharing_recipients_heading">Recipients</string>
     <string name="verification_sharing_recipients_empty">No recipients were saved. Share the link or wallet request manually.</string>
 
+    <!-- Verification Recipient Screen -->
+    <string name="verification_recipient_title">Verification request</string>
+    <string name="verification_recipient_requester_caption">Requested by</string>
+    <string name="verification_recipient_status">Status</string>
+    <string name="verification_recipient_created">Created</string>
+    <string name="verification_recipient_expires">Expires</string>
+    <string name="verification_recipient_purpose_title">Purpose</string>
+    <string name="verification_recipient_attributes_title">Requested attributes</string>
+    <string name="verification_recipient_expected_value">Expected value: %1$s</string>
+    <string name="verification_recipient_consent_title">I consent to share these attributes</string>
+    <string name="verification_recipient_consent_body">The requested attributes will be shared with the requesting party to complete this verification session.</string>
+    <string name="verification_recipient_start">Start verification</string>
+    <string name="verification_recipient_continue">Continue verification</string>
+    <string name="verification_recipient_open_in_browser">Open in browser instead</string>
+    <string name="verification_recipient_consent_required">Consent is required before continuing.</string>
+    <string name="verification_recipient_request_unavailable">This verification request is not ready yet.</string>
+    <string name="verification_recipient_public_link_unavailable">No public verification link is available.</string>
+    <string name="verification_recipient_refresh_error_empty">Couldn\'t load this verification session. Try again.</string>
+    <string name="verification_recipient_refresh_error_cached">Couldn\'t refresh this verification session. Showing the last synced details.</string>
+    <string name="verification_recipient_unavailable">This verification session is no longer available.</string>
+
     <!-- Navigation -->
     <string name="verification_navigation_back">Back</string>
     <string name="verification_navigation_home">Home</string>

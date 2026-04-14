@@ -34,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -52,6 +53,10 @@ import eu.europa.ec.uilogic.component.wrap.ButtonConfig
 import eu.europa.ec.uilogic.component.wrap.ButtonType
 import eu.europa.ec.uilogic.component.wrap.WrapButton
 import eu.europa.ec.uilogic.extension.applyTestTag
+import eu.europa.ec.uilogic.extension.getPendingDeepLink
+import eu.europa.ec.uilogic.extension.openUrlInBrowser
+import eu.europa.ec.uilogic.extension.peekPendingDeepLink
+import eu.europa.ec.uilogic.navigation.helper.parseVerificationSessionDeepLink
 import eu.europa.ec.uilogic.test.AuthTestTags
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.androidx.compose.koinViewModel
@@ -67,6 +72,11 @@ fun WalletSetupScreen(
 ) {
     val state by viewModel.viewState.collectAsState()
     val context = LocalContext.current
+    val verificationBrowserFallbackAvailable = context.peekPendingDeepLink()
+        ?.let(::parseVerificationSessionDeepLink) != null
+    val openBrowserFallback: () -> Unit = {
+        context.getPendingDeepLink()?.let(context::openUrlInBrowser)
+    }
 
     // Only trigger wallet activation if wallet is not already activated on device
     // This prevents unnecessary activation attempts and error screens
@@ -231,6 +241,12 @@ fun WalletSetupScreen(
                                     viewModel.setEvent(WalletSetupEvent.DeleteWallet)
                                 }
                             )
+                            if (verificationBrowserFallbackAvailable) {
+                                Spacer(modifier = Modifier.height(24.dp))
+                                VerificationBrowserFallbackButton(
+                                    onClick = openBrowserFallback
+                                )
+                            }
                         }
                     }
                     state.autoRetrying -> {
@@ -255,6 +271,12 @@ fun WalletSetupScreen(
                             textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        if (verificationBrowserFallbackAvailable) {
+                            Spacer(modifier = Modifier.height(24.dp))
+                            VerificationBrowserFallbackButton(
+                                onClick = openBrowserFallback
+                            )
+                        }
                     }
                     else -> {
                         // Loading state - wallet activation in progress
@@ -278,6 +300,12 @@ fun WalletSetupScreen(
                             textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        if (verificationBrowserFallbackAvailable) {
+                            Spacer(modifier = Modifier.height(24.dp))
+                            VerificationBrowserFallbackButton(
+                                onClick = openBrowserFallback
+                            )
+                        }
                     }
                 }
             }
@@ -362,6 +390,23 @@ fun WalletSetupScreen(
                 }
             )
         }
+    }
+}
+
+@Composable
+private fun VerificationBrowserFallbackButton(
+    onClick: () -> Unit,
+) {
+    WrapButton(
+        modifier = Modifier
+            .fillMaxWidth()
+            .applyTestTag(AuthTestTags.WalletSetup.BROWSER_FALLBACK_BUTTON),
+        buttonConfig = ButtonConfig(
+            type = ButtonType.SECONDARY,
+            onClick = onClick,
+        )
+    ) {
+        Text(text = stringResource(R.string.verification_recipient_open_in_browser))
     }
 }
 

@@ -76,6 +76,11 @@ sealed class DashboardScreens {
         parameters = "?sessionId={sessionId}"
     )
 
+    data object VerificationRecipient : Screen(
+        name = "VERIFICATION_RECIPIENT",
+        parameters = "?sessionId={sessionId}&accessToken={accessToken}&verificationUrl={verificationUrl}"
+    )
+
     data object MyData : Screen(name = "MY_DATA")
 }
 

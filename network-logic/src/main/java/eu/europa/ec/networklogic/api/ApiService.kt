@@ -46,24 +46,32 @@ import eu.europa.ec.networklogic.model.response.ActionRespondResponse
 import eu.europa.ec.networklogic.model.response.ActionsListResponse
 import eu.europa.ec.networklogic.model.response.DeviceStatusResponse
 import eu.europa.ec.networklogic.model.response.PairingCompleteResponse
+import eu.europa.ec.networklogic.model.response.VerificationPublicSessionResponse
 import eu.europa.ec.networklogic.model.response.VerificationSessionDetailResponse
+import eu.europa.ec.networklogic.model.response.VerificationSessionStatusEventDto
 import eu.europa.ec.networklogic.model.response.VerificationSessionsListResponse
-
 import eu.europa.ec.networklogic.model.response.WalletActivationResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
+import io.ktor.client.request.prepareGet
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
+import io.ktor.utils.io.readLine
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.serialization.json.Json
 
 /**
  * API client interface for Authbound REST endpoints.
@@ -120,6 +128,15 @@ interface ApiClient {
         bearerToken: String
     ): ApiResponse<VerificationSessionDetailResponse>
 
+    suspend fun getPublicVerificationSession(
+        sessionId: String,
+        accessToken: String
+    ): ApiResponse<VerificationPublicSessionResponse>
+
+    fun observeVerificationSessionStatus(
+        statusStreamUrl: String
+    ): Flow<VerificationSessionStatusEventDto>
+
     // Device linking endpoints
     suspend fun completePairing(
         completionUrl: String,
@@ -152,6 +169,9 @@ class KtorApiClient(
 
     companion object {
         private const val TAG = "KtorApiClient"
+        private val sseJson = Json {
+            ignoreUnknownKeys = true
+        }
     }
 
     init {
@@ -440,6 +460,63 @@ class KtorApiClient(
         return executeRequest {
             httpClient.get("$baseUrl/api/verification-sessions/$sessionId") {
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
+            }
+        }
+    }
+
+    override suspend fun getPublicVerificationSession(
+        sessionId: String,
+        accessToken: String
+    ): ApiResponse<VerificationPublicSessionResponse> {
+        return executeRequest {
+            httpClient.get("$baseUrl/api/verification-sessions/public/$sessionId") {
+                parameter("token", accessToken)
+            }
+        }
+    }
+
+    override fun observeVerificationSessionStatus(
+        statusStreamUrl: String
+    ): Flow<VerificationSessionStatusEventDto> = flow {
+        httpClient.prepareGet(statusStreamUrl) {
+            header(HttpHeaders.Accept, "text/event-stream")
+            timeout {
+                requestTimeoutMillis = 0
+                socketTimeoutMillis = 0
+            }
+        }.execute { response ->
+            if (!response.status.isSuccess()) {
+                throw IllegalStateException("HTTP ${response.status.value}: ${response.status.description}")
+            }
+
+            val channel = response.bodyAsChannel()
+            var eventName: String? = null
+            val dataLines = mutableListOf<String>()
+
+            while (true) {
+                val line = channel.readLine() ?: break
+
+                when {
+                    line.startsWith("event:") -> {
+                        eventName = line.substringAfter(':').trim()
+                    }
+
+                    line.startsWith("data:") -> {
+                        dataLines += line.substringAfter(':').trimStart()
+                    }
+
+                    line.isBlank() -> {
+                        if (eventName == "status" && dataLines.isNotEmpty()) {
+                            val payload = dataLines.joinToString(separator = "\n")
+                            runCatching {
+                                sseJson.decodeFromString<VerificationSessionStatusEventDto>(payload)
+                            }.onSuccess { emit(it) }
+                        }
+
+                        eventName = null
+                        dataLines.clear()
+                    }
+                }
             }
         }
     }

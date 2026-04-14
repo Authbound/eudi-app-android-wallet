@@ -44,6 +44,8 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
 
             val walletScheme = "authbound-wallet"
             val walletHost = "*"
+            val verificationPortalHost = project.getProperty<String>("VERIFICATION_PORTAL_HOST")
+                ?: "app.authbound.io"
 
             val eudiOpenId4VpScheme = "eudi-openid4vp"
             val eudiOpenid4VpHost = "*"
@@ -100,6 +102,7 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
                     addConfigField("E2E_VERIFIER_API_URL", "")
                     addConfigField("E2E_VERIFIER_UI_URL", "")
                     addConfigField("DEEPLINK", "$walletScheme://")
+                    addConfigField("VERIFICATION_PORTAL_HOST", verificationPortalHost)
                     addConfigField("EUDI_OPENID4VP_SCHEME", eudiOpenId4VpScheme)
                     addConfigField("MDOC_OPENID4VP_SCHEME", mdocOpenId4VpScheme)
                     addConfigField("OPENID4VP_SCHEME", openId4VpScheme)
@@ -120,6 +123,7 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
                     // Manifest placeholders for Wallet deepLink
                     manifestPlaceholders["deepLinkScheme"] = walletScheme
                     manifestPlaceholders["deepLinkHost"] = walletHost
+                    manifestPlaceholders["verificationPortalHost"] = verificationPortalHost
 
                     // Manifest placeholders used for OpenId4VP
                     manifestPlaceholders["eudiOpenid4vpScheme"] = eudiOpenId4VpScheme

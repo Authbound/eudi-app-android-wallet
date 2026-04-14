@@ -17,8 +17,11 @@
 package eu.europa.ec.dashboardfeature.repository
 
 import eu.europa.ec.dashboardfeature.model.verification.VerificationDraftAttribute
+import eu.europa.ec.dashboardfeature.model.verification.VerificationRecipientSession
 import eu.europa.ec.dashboardfeature.model.verification.VerificationRecipient
 import eu.europa.ec.dashboardfeature.model.verification.VerificationRecipientContactType
+import eu.europa.ec.dashboardfeature.model.verification.VerificationRequestedAttribute
+import eu.europa.ec.dashboardfeature.model.verification.VerificationRequester
 import eu.europa.ec.dashboardfeature.model.verification.VerificationSession
 import eu.europa.ec.dashboardfeature.model.verification.VerificationTemplate
 import eu.europa.ec.dashboardfeature.model.verification.VerificationTemplateType
@@ -28,6 +31,7 @@ import eu.europa.ec.networklogic.model.request.CreateVerificationSessionRequest
 import eu.europa.ec.networklogic.model.request.VerificationRecipientRequestDto
 import eu.europa.ec.networklogic.model.request.VerificationRequestedAttributeRequestDto
 import eu.europa.ec.networklogic.model.response.CreateVerificationSessionResponse
+import eu.europa.ec.networklogic.model.response.VerificationPublicSessionResponse
 import eu.europa.ec.networklogic.model.response.VerificationRecipientDto
 import eu.europa.ec.networklogic.model.response.VerificationSessionDetailResponse
 import eu.europa.ec.networklogic.model.response.VerificationSessionListItemDto
@@ -38,6 +42,7 @@ import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import java.time.Instant
 
 interface VerificationRepository {
@@ -47,6 +52,11 @@ interface VerificationRepository {
         attributes: List<VerificationDraftAttribute>,
         recipients: List<VerificationRecipient>
     ): Result<VerificationSession>
+    fun observePublicVerificationSessionStatus(statusStreamUrl: String): Flow<String>
+    suspend fun getPublicVerificationSession(
+        sessionId: String,
+        accessToken: String
+    ): Result<VerificationRecipientSession>
     suspend fun getVerificationSession(sessionId: String): Result<VerificationSession>
     suspend fun getVerificationSessions(): Flow<List<VerificationSession>>
     suspend fun refreshVerificationSessions(): Result<Unit>
@@ -203,6 +213,31 @@ class VerificationRepositoryImpl(
         }
     }
 
+    override fun observePublicVerificationSessionStatus(statusStreamUrl: String): Flow<String> {
+        return apiClient.observeVerificationSessionStatus(statusStreamUrl).map { it.status }
+    }
+
+    override suspend fun getPublicVerificationSession(
+        sessionId: String,
+        accessToken: String
+    ): Result<VerificationRecipientSession> {
+        return try {
+            val response = apiClient.getPublicVerificationSession(
+                sessionId = sessionId,
+                accessToken = accessToken
+            )
+
+            if (!response.isSuccessful) {
+                return Result.failure(Exception("HTTP ${response.code()}: ${response.message()}"))
+            }
+
+            val body = response.body() ?: return Result.failure(Exception("Empty response"))
+            Result.success(mapPublicSession(body))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     override suspend fun getVerificationSession(sessionId: String): Result<VerificationSession> {
         return try {
             val token = getAuthToken() ?: return Result.failure(Exception("Not authenticated"))
@@ -263,8 +298,8 @@ class VerificationRepositoryImpl(
             id = response.sessionId,
             status = response.status,
             purpose = purpose,
-            createdAt = parseIsoToMillis(response.createdAt),
-            updatedAt = parseIsoToMillis(response.updatedAt),
+            createdAt = response.createdAt?.let(::parseIsoToMillis) ?: System.currentTimeMillis(),
+            updatedAt = response.updatedAt?.let(::parseIsoToMillis) ?: System.currentTimeMillis(),
             expiresAt = parseIsoToMillis(response.expiresAt),
             requestedAttributes = selectedAttributes,
             recipients = response.recipients.map(::mapRecipient),
@@ -310,6 +345,40 @@ class VerificationRepositoryImpl(
             qrPayload = response.clientAction?.data,
             qrPayloadExpiresAt = response.clientAction?.expiresAt?.let(::parseIsoToMillis),
             sseToken = response.sseToken
+        )
+    }
+
+    private fun mapPublicSession(response: VerificationPublicSessionResponse): VerificationRecipientSession {
+        val requestedAttributes = response.session.requestedAttributes.map { entry ->
+            val definition = catalogByKey()[entry.key]
+            VerificationRequestedAttribute(
+                key = entry.key,
+                label = definition?.label ?: humanizeAttributeKey(entry.key),
+                description = definition?.description ?: "",
+                expectedValue = response.expectedValues[entry.key] ?: entry.value.expectedValue
+            )
+        }
+
+        return VerificationRecipientSession(
+            id = response.session.id,
+            status = response.session.status,
+            purpose = response.session.purpose,
+            createdAt = parseIsoToMillis(response.session.createdAt),
+            expiresAt = response.session.expiresAt?.let(::parseIsoToMillis),
+            requester = response.requester?.let {
+                VerificationRequester(
+                    id = it.id,
+                    displayName = it.displayName,
+                    handle = it.handle
+                )
+            },
+            requestedAttributes = requestedAttributes,
+            publicUrl = response.publicUrl ?: "",
+            gatewaySessionId = response.gatewaySessionId,
+            requestUri = response.clientAction?.data,
+            requestUriExpiresAt = response.clientAction?.expiresAt?.let(::parseIsoToMillis),
+            sseToken = response.sseToken,
+            statusStreamUrl = response.statusStreamUrl
         )
     }
 

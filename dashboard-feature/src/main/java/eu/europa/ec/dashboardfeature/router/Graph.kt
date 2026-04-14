@@ -37,6 +37,8 @@ import eu.europa.ec.dashboardfeature.ui.settings.SettingsScreen
 import eu.europa.ec.dashboardfeature.ui.settings.AccountDetailsScreen
 import eu.europa.ec.dashboardfeature.ui.transactions.detail.TransactionDetailsScreen
 import eu.europa.ec.dashboardfeature.ui.verification.VerificationCustomCreationScreen
+import eu.europa.ec.dashboardfeature.ui.verification.VerificationRecipientScreen
+import eu.europa.ec.dashboardfeature.ui.verification.VerificationRecipientViewModel
 import eu.europa.ec.dashboardfeature.ui.verification.VerificationSharingScreen
 import eu.europa.ec.dashboardfeature.ui.verification.VerificationSharingViewModel
 import eu.europa.ec.dashboardfeature.ui.verification.VerificationTemplateSelectionScreen
@@ -219,6 +221,50 @@ fun NavGraphBuilder.featureDashboardGraph(navController: NavController) {
             VerificationSharingScreen(
                 navController = navController,
                 viewModel = sharingViewModel,
+                notificationCount = actionsState.pendingCount,
+                onNotificationsClick = onNotificationsClick,
+            )
+        }
+        composable(
+            route = DashboardScreens.VerificationRecipient.screenRoute,
+            arguments = listOf(
+                navArgument("sessionId") {
+                    type = NavType.StringType
+                },
+                navArgument("accessToken") {
+                    type = NavType.StringType
+                },
+                navArgument("verificationUrl") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+            )
+        ) {
+            val actionsViewModel: ActionsViewModel = koinViewModel()
+            val actionsState: eu.europa.ec.dashboardfeature.ui.actions.State by actionsViewModel
+                .viewState
+                .collectAsStateWithLifecycle()
+            val onNotificationsClick: () -> Unit = {
+                val previousEntry: androidx.navigation.NavBackStackEntry? =
+                    navController.previousBackStackEntry
+                if (previousEntry != null) {
+                    previousEntry.savedStateHandle.set("openActions", true)
+                    navController.popBackStack(DashboardScreens.Dashboard.screenRoute, false)
+                } else {
+                    navController.navigate(DashboardScreens.Dashboard.screenRoute)
+                }
+            }
+            LaunchedEffect(Unit) {
+                actionsViewModel.setEvent(eu.europa.ec.dashboardfeature.ui.actions.Event.OnResume)
+            }
+            val verificationRecipientViewModel: VerificationRecipientViewModel = koinViewModel()
+            VerificationRecipientScreen(
+                navController = navController,
+                viewModel = verificationRecipientViewModel,
+                sessionId = it.arguments?.getString("sessionId").orEmpty(),
+                accessToken = it.arguments?.getString("accessToken").orEmpty(),
+                verificationUrl = it.arguments?.getString("verificationUrl"),
                 notificationCount = actionsState.pendingCount,
                 onNotificationsClick = onNotificationsClick,
             )

@@ -72,6 +72,19 @@ data class VerificationRecipient(
     val updatedAt: Long? = null
 )
 
+data class VerificationRequester(
+    val id: String? = null,
+    val displayName: String? = null,
+    val handle: String? = null
+)
+
+data class VerificationRequestedAttribute(
+    val key: String,
+    val label: String,
+    val description: String,
+    val expectedValue: String? = null
+)
+
 data class VerificationSession(
     val id: String,
     val status: String,
@@ -91,6 +104,22 @@ data class VerificationSession(
     val sseToken: String? = null,
     val creditsDeducted: Int? = null,
     val creditsRemaining: Int? = null
+)
+
+data class VerificationRecipientSession(
+    val id: String,
+    val status: String,
+    val purpose: String,
+    val createdAt: Long,
+    val expiresAt: Long?,
+    val requester: VerificationRequester?,
+    val requestedAttributes: List<VerificationRequestedAttribute>,
+    val publicUrl: String,
+    val gatewaySessionId: String? = null,
+    val requestUri: String? = null,
+    val requestUriExpiresAt: Long? = null,
+    val sseToken: String? = null,
+    val statusStreamUrl: String? = null
 )
 
 private val ExpectedValueAttributes = setOf("full_name", "personal_id", "date_of_birth")

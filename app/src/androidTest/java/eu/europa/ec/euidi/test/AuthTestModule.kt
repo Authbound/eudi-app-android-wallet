@@ -27,6 +27,7 @@ import eu.europa.ec.authenticationlogic.controller.storage.PinStorageController
 import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import eu.europa.ec.authenticationlogic.model.BiometricCrypto
 import eu.europa.ec.authenticationlogic.model.EmailPasswordRequest
+import eu.europa.ec.authenticationlogic.model.LegalAcceptanceSnapshot
 import eu.europa.ec.authenticationlogic.model.OAuthProvider
 import eu.europa.ec.authenticationlogic.model.Profile
 import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
@@ -76,6 +77,14 @@ import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetHeroCredentialP
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetUserNameViaMainPidDocumentPartialState
 import eu.europa.ec.dashboardfeature.interactor.SettingsInteractor
 import eu.europa.ec.dashboardfeature.interactor.CredentialSummaryUi
+import eu.europa.ec.dashboardfeature.model.verification.VerificationDraftAttribute
+import eu.europa.ec.dashboardfeature.model.verification.VerificationRecipient
+import eu.europa.ec.dashboardfeature.model.verification.VerificationRecipientSession
+import eu.europa.ec.dashboardfeature.model.verification.VerificationRequestedAttribute
+import eu.europa.ec.dashboardfeature.model.verification.VerificationRequester
+import eu.europa.ec.dashboardfeature.model.verification.VerificationSession
+import eu.europa.ec.dashboardfeature.model.verification.VerificationTemplate
+import eu.europa.ec.dashboardfeature.repository.VerificationRepository
 import eu.europa.ec.dashboardfeature.ui.actions.model.ActionRequest
 import eu.europa.ec.dashboardfeature.ui.actions.model.DeviceLinkStatus
 import eu.europa.ec.dashboardfeature.ui.actions.model.LinkedDeviceInfo
@@ -142,6 +151,63 @@ val authTestModule = module {
     single<ActionsInteractor> { FakeActionsInteractor() }
     single<HealthInteractor> { FakeHealthInteractor() }
     single<SettingsInteractor> { FakeSettingsInteractor() }
+    single<VerificationRepository> { FakeVerificationRepository() }
+}
+
+private class FakeVerificationRepository : VerificationRepository {
+    override suspend fun getVerificationTemplates(): List<VerificationTemplate> = emptyList()
+
+    override suspend fun createVerificationSession(
+        purpose: String,
+        attributes: List<VerificationDraftAttribute>,
+        recipients: List<VerificationRecipient>
+    ): Result<VerificationSession> {
+        return Result.failure(UnsupportedOperationException("Verification creation not used in auth smoke tests"))
+    }
+
+    override suspend fun getPublicVerificationSession(
+        sessionId: String,
+        accessToken: String
+    ): Result<VerificationRecipientSession> {
+        return Result.success(
+            VerificationRecipientSession(
+                id = sessionId,
+                status = "pending",
+                purpose = "Verify employment eligibility",
+                createdAt = Instant.parse("2026-04-14T10:00:00Z").toEpochMilli(),
+                expiresAt = Instant.parse("2026-04-14T12:00:00Z").toEpochMilli(),
+                requester = VerificationRequester(
+                    id = "requester-1",
+                    displayName = "Alice Example",
+                    handle = "alice"
+                ),
+                requestedAttributes = listOf(
+                    VerificationRequestedAttribute(
+                        key = "full_name",
+                        label = "Full Name",
+                        description = "The person's full legal name",
+                        expectedValue = null
+                    )
+                ),
+                publicUrl = "https://app.authbound.io/verify/$sessionId?token=$accessToken",
+                gatewaySessionId = "gateway-session-1",
+                requestUri = "openid4vp://verify?request_uri=https%3A%2F%2Fgateway.authbound.io%2Frequest.jwt",
+                requestUriExpiresAt = Instant.parse("2026-04-14T12:00:00Z").toEpochMilli(),
+                sseToken = "test-sse-token",
+                statusStreamUrl = "https://gateway.authbound.io/v1/sessions/gateway-session-1/status/sse?token=test-sse-token"
+            )
+        )
+    }
+
+    override fun observePublicVerificationSessionStatus(statusStreamUrl: String): Flow<String> = emptyFlow()
+
+    override suspend fun getVerificationSession(sessionId: String): Result<VerificationSession> {
+        return Result.failure(UnsupportedOperationException("Authenticated verification session not used in auth smoke tests"))
+    }
+
+    override suspend fun getVerificationSessions(): Flow<List<VerificationSession>> = flowOf(emptyList())
+
+    override suspend fun refreshVerificationSessions(): Result<Unit> = Result.success(Unit)
 }
 
 private class FakeSupabaseAuthRepository : SupabaseAuthRepository {
@@ -356,6 +422,12 @@ private class FakePrefKeysV2 : PrefKeysV2 {
     private var cryptoAlias: String = ""
     private var biometricAlias: String = ""
     private var showBatchIssuanceCounter: Boolean = false
+    private var requiredTermsVersion: String = ""
+    private var acceptedTermsVersion: String = ""
+    private var acceptedTermsAt: String = ""
+    private var requiredPrivacyVersion: String = ""
+    private var acknowledgedPrivacyVersion: String = ""
+    private var acknowledgedPrivacyAt: String = ""
 
     override suspend fun getCryptoAlias(): String = cryptoAlias
 
@@ -391,11 +463,59 @@ private class FakePrefKeysV2 : PrefKeysV2 {
         }
     }
 
+    override suspend fun getRequiredTermsVersion(): String = requiredTermsVersion
+
+    override suspend fun setRequiredTermsVersion(value: String) {
+        requiredTermsVersion = value
+    }
+
+    override suspend fun getAcceptedTermsVersion(): String = acceptedTermsVersion
+
+    override suspend fun setAcceptedTermsVersion(value: String) {
+        acceptedTermsVersion = value
+    }
+
+    override suspend fun getAcceptedTermsAt(): String = acceptedTermsAt
+
+    override suspend fun setAcceptedTermsAt(value: String) {
+        acceptedTermsAt = value
+    }
+
+    override suspend fun getRequiredPrivacyVersion(): String = requiredPrivacyVersion
+
+    override suspend fun setRequiredPrivacyVersion(value: String) {
+        requiredPrivacyVersion = value
+    }
+
+    override suspend fun getAcknowledgedPrivacyVersion(): String = acknowledgedPrivacyVersion
+
+    override suspend fun setAcknowledgedPrivacyVersion(value: String) {
+        acknowledgedPrivacyVersion = value
+    }
+
+    override suspend fun getAcknowledgedPrivacyAt(): String = acknowledgedPrivacyAt
+
+    override suspend fun setAcknowledgedPrivacyAt(value: String) {
+        acknowledgedPrivacyAt = value
+    }
+
     override fun isWalletActivatedSafe(): Boolean = AuthScenarioStore.snapshot().walletActivated
 
     override fun getBiometricAliasSafe(): String = biometricAlias
 
     override fun isProfileCompletedSafe(): Boolean = AuthScenarioStore.snapshot().profileCompleted
+
+    override fun getRequiredTermsVersionSafe(): String = requiredTermsVersion
+
+    override fun getAcceptedTermsVersionSafe(): String = acceptedTermsVersion
+
+    override fun getAcceptedTermsAtSafe(): String = acceptedTermsAt
+
+    override fun getRequiredPrivacyVersionSafe(): String = requiredPrivacyVersion
+
+    override fun getAcknowledgedPrivacyVersionSafe(): String = acknowledgedPrivacyVersion
+
+    override fun getAcknowledgedPrivacyAtSafe(): String = acknowledgedPrivacyAt
 }
 
 private class FakePrefsControllerV2 : PrefsControllerV2 {
@@ -814,6 +934,14 @@ private class FakeSettingsInteractor : SettingsInteractor {
     override fun getAppVersion(): String = "test"
 
     override fun getChangelogUrl(): String? = null
+
+    override fun getTermsUrl(): String = "https://example.invalid/terms"
+
+    override fun getPrivacyPolicyUrl(): String = "https://example.invalid/privacy"
+
+    override fun getAccountDeletionUrl(): String = "https://example.invalid/delete"
+
+    override fun getCachedLegalAcceptance(): LegalAcceptanceSnapshot = LegalAcceptanceSnapshot()
 
     override fun retrieveLogFileUris(): ArrayList<android.net.Uri> = arrayListOf()
 

@@ -95,6 +95,48 @@ data class VerificationSessionDto(
 )
 
 @Serializable
+data class VerificationPublicSessionDto(
+    @SerialName("id")
+    val id: String,
+
+    @SerialName("status")
+    val status: String,
+
+    @SerialName("purpose")
+    val purpose: String,
+
+    @SerialName("requestedAttributes")
+    val requestedAttributes: Map<String, VerificationRequestedAttributeDto> = emptyMap(),
+
+    @SerialName("createdAt")
+    val createdAt: String,
+
+    @SerialName("expiresAt")
+    val expiresAt: String? = null
+)
+
+@Serializable
+data class VerificationRequesterDto(
+    @SerialName("id")
+    val id: String? = null,
+
+    @SerialName("displayName")
+    val displayName: String? = null,
+
+    @SerialName("handle")
+    val handle: String? = null
+)
+
+@Serializable
+data class VerificationSessionStatusEventDto(
+    @SerialName("status")
+    val status: String,
+
+    @SerialName("updatedAt")
+    val updatedAt: String? = null
+)
+
+@Serializable
 data class VerificationClientActionDto(
     @SerialName("kind")
     val kind: String,
@@ -172,10 +214,10 @@ data class CreateVerificationSessionResponse(
     val status: String,
 
     @SerialName("createdAt")
-    val createdAt: String,
+    val createdAt: String? = null,
 
     @SerialName("updatedAt")
-    val updatedAt: String,
+    val updatedAt: String? = null,
 
     @SerialName("expiresAt")
     val expiresAt: String,
@@ -197,6 +239,9 @@ data class CreateVerificationSessionResponse(
 
     @SerialName("sseToken")
     val sseToken: String? = null,
+
+    @SerialName("statusStreamUrl")
+    val statusStreamUrl: String? = null,
 
     @SerialName("creditsDeducted")
     val creditsDeducted: Int? = null,
@@ -280,5 +325,35 @@ data class VerificationSessionDetailResponse(
     val clientAction: VerificationClientActionDto? = null,
 
     @SerialName("sseToken")
-    val sseToken: String? = null
+    val sseToken: String? = null,
+
+    @SerialName("statusStreamUrl")
+    val statusStreamUrl: String? = null
+)
+
+@Serializable
+data class VerificationPublicSessionResponse(
+    @SerialName("session")
+    val session: VerificationPublicSessionDto,
+
+    @SerialName("publicUrl")
+    val publicUrl: String? = null,
+
+    @SerialName("requester")
+    val requester: VerificationRequesterDto? = null,
+
+    @SerialName("expectedValues")
+    val expectedValues: Map<String, String?> = emptyMap(),
+
+    @SerialName("gatewaySessionId")
+    val gatewaySessionId: String? = null,
+
+    @SerialName("clientAction")
+    val clientAction: VerificationClientActionDto? = null,
+
+    @SerialName("sseToken")
+    val sseToken: String? = null,
+
+    @SerialName("statusStreamUrl")
+    val statusStreamUrl: String? = null
 )
