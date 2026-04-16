@@ -16,6 +16,7 @@
 
 package eu.europa.ec.authboundpidfeature.ui.intro
 
+import android.util.Log
 import android.view.HapticFeedbackConstants
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -46,6 +47,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -83,6 +87,7 @@ import java.lang.Exception
 private val StepBlue = Color(0xFF3B82F6)
 private val StepPurple = Color(0xFF8B5CF6)
 private val StepGreen = Color(0xFF10B981)
+private const val TAG: String = "AuthboundPidIntroScreen"
 
 @Composable
 fun AuthboundPidIntroScreen(
@@ -92,11 +97,29 @@ fun AuthboundPidIntroScreen(
     val state: State by viewModel.viewState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val activity = context.findActivity()
+    var didReceiveCandourListenerResult: Boolean by remember { mutableStateOf(false) }
     val candourLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        val status = result.data?.getStringExtra("candourExitStatus") ?: "ERROR"
-        viewModel.setEvent(Event.CandourSdkResult(status))
+        val extraKeys: Set<String> = result.data?.extras?.keySet().orEmpty()
+        val status: String? = result.data?.getStringExtra("candourExitStatus")
+        Log.i(
+            TAG,
+            "Candour ActivityResult resultCode=${result.resultCode} hasData=${result.data != null} extraKeys=$extraKeys status=$status"
+        )
+        when (val resolution = resolveCandourActivityResult(status, didReceiveCandourListenerResult)) {
+            CandourActivityResultResolution.Ignore -> {
+                Log.i(TAG, "Ignoring Candour ActivityResult because listener already returned status=$status")
+                didReceiveCandourListenerResult = false
+            }
+            is CandourActivityResultResolution.Dispatch -> {
+                Log.i(TAG, "Using Candour ActivityResult status=${resolution.status}")
+                viewModel.setEvent(Event.CandourSdkResult(resolution.status))
+            }
+            CandourActivityResultResolution.AwaitListener -> {
+                Log.w(TAG, "Candour ActivityResult missing exit status, waiting for listener callback")
+            }
+        }
     }
 
     ContentScreen(
@@ -138,14 +161,20 @@ fun AuthboundPidIntroScreen(
             },
             onLaunchCandourSdk = { effect ->
                 try {
+                    didReceiveCandourListenerResult = false
                     val intent = createCandourLaunchIntent(
                         activity = activity,
                         candourSessionId = effect.candourSessionId,
                         candourApiEndpoint = effect.candourApiEndpoint,
-                        onExit = { status -> viewModel.setEvent(Event.CandourSdkResult(status)) }
+                        onExit = { status ->
+                            didReceiveCandourListenerResult = true
+                            Log.i(TAG, "Using Candour listener status=$status")
+                            viewModel.setEvent(Event.CandourSdkResult(status))
+                        }
                     )
                     candourLauncher.launch(intent)
-                } catch (_: Exception) {
+                } catch (exception: Exception) {
+                    Log.e(TAG, "Candour launch failed", exception)
                     viewModel.setEvent(Event.CandourSdkLaunchFailed)
                 }
             },

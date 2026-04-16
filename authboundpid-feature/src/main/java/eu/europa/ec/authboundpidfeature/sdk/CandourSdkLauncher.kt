@@ -17,6 +17,7 @@
 package eu.europa.ec.authboundpidfeature.sdk
 
 import android.content.Intent
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.appcompat.app.AppCompatDelegate
 import com.candour.candoursdk.interfaces.CandourExitStatus
@@ -26,6 +27,8 @@ import com.candour.candoursdk.utils.CandourSdkConfig
 import com.candour.candoursdk.utils.CandourThemeConfig
 import eu.europa.ec.authboundpidfeature.R
 import java.util.Locale
+
+private const val TAG: String = "CandourSdkLauncher"
 
 fun createCandourLaunchIntent(
     activity: ComponentActivity,
@@ -40,9 +43,11 @@ fun createCandourLaunchIntent(
     )
     val candourListener: CandourListener = object : CandourListener {
         override fun onExit(status: CandourExitStatus) {
+            Log.i(TAG, "CANDOUR LISTENER EXIT $status")
             onExit(status.name)
         }
     }
+    Log.i(TAG, "Launching Candour SDK with endpoint=$candourApiEndpoint")
 
     return CandourSdkV2.createLaunchIntent(
         activity,

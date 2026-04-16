@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="candour_background">#FF0A1A36</color>
+    <color name="candour_background_paper">#FF0F2142</color>
+    <color name="candour_primary">#FF3B82F6</color>
+    <color name="candour_primary_contrast">#FFF1F5FB</color>
+    <color name="candour_error">#FF9D1C1C</color>
+    <color name="candour_error_contrast">#FFFEE2E2</color>
+    <color name="candour_success">#FF4ADE80</color>
+    <color name="candour_success_contrast">#FF0A1A36</color>
+    <color name="candour_text_primary">#FFFAFAFA</color>
+    <color name="candour_text_secondary">#FFDCE0EB</color>
+    <color name="candour_text_disabled">#665F6A85</color>
+    <color name="candour_toolbar">#FF0A1A36</color>
+    <color name="candour_toolbar_contrast">#FFFAFAFA</color>
+    <color name="candour_status_bar">#FF0A1A36</color>
+    <color name="candour_navigation_bar">#FF0A1A36</color>
+</resources>

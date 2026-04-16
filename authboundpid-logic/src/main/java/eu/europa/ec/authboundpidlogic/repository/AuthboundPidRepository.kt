@@ -53,11 +53,13 @@ class AuthboundPidRepositoryImpl(
         val accessToken = getAccessToken()
             ?: return Result.failure(IllegalStateException("User not authenticated"))
 
-        val request = CreateAuthboundPidSessionRequest()
+        val request: CreateAuthboundPidSessionRequest = CreateAuthboundPidSessionRequest(
+            launchType = "sdk"
+        )
 
         return when (val response = apiClient.createAuthboundPidSession(request, accessToken)) {
             is ApiResponse.Success -> Result.success(response.body)
-            is ApiResponse.Error -> Result.failure(Exception(response.message))
+            is ApiResponse.Error -> Result.failure(Exception(response.errorBody.orErrorMessage(response.message)))
         }
     }
 
@@ -67,7 +69,7 @@ class AuthboundPidRepositoryImpl(
 
         return when (val response = apiClient.getAuthboundPidSessionStatus(sessionId, accessToken)) {
             is ApiResponse.Success -> Result.success(response.body)
-            is ApiResponse.Error -> Result.failure(Exception(response.message))
+            is ApiResponse.Error -> Result.failure(Exception(response.errorBody.orErrorMessage(response.message)))
         }
     }
 
@@ -77,11 +79,15 @@ class AuthboundPidRepositoryImpl(
 
         return when (val response = apiClient.resolveAuthboundPidSession(sessionId, accessToken)) {
             is ApiResponse.Success -> Result.success(response.body)
-            is ApiResponse.Error -> Result.failure(Exception(response.message))
+            is ApiResponse.Error -> Result.failure(Exception(response.errorBody.orErrorMessage(response.message)))
         }
     }
 
     private suspend fun getAccessToken(): String? {
         return supabaseClient.auth.currentAccessTokenOrNull()
+    }
+
+    private fun String?.orErrorMessage(fallback: String): String {
+        return this?.takeIf { it.isNotBlank() } ?: fallback
     }
 }

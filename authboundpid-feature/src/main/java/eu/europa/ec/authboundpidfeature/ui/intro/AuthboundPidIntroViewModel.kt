@@ -23,6 +23,7 @@ import eu.europa.ec.authboundpidfeature.interactor.AuthboundPidIntroPartialState
 import eu.europa.ec.authboundpidfeature.interactor.AuthboundPidVerificationPartialState
 import eu.europa.ec.authboundpidfeature.model.AuthboundPidResultType
 import eu.europa.ec.commonfeature.config.OfferUiConfig
+import eu.europa.ec.commonfeature.di.getOrCreateCredentialOfferScope
 import eu.europa.ec.corelogic.controller.ResolveDocumentOfferPartialState
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
 import eu.europa.ec.resourceslogic.R
@@ -41,6 +42,7 @@ import eu.europa.ec.uilogic.navigation.helper.generateComposableNavigationLink
 import eu.europa.ec.uilogic.serializer.UiSerializer
 import kotlinx.coroutines.launch
 import org.koin.android.annotation.KoinViewModel
+import timber.log.Timber
 import java.util.Locale
 
 data class State(
@@ -151,19 +153,21 @@ class AuthboundPidIntroViewModel(
         if (!isAwaitingSdkResult()) {
             return
         }
-
         setAwaitingSdkResult(false)
         if (isSuccessfulCandourStatus(status)) {
             val sessionId = getActiveSessionId()
             if (sessionId.isNullOrBlank()) {
+                Timber.tag("AuthboundPidIntro").w("Candour status %s succeeded without an active session id", status)
                 navigateToResult(AuthboundPidResultType.UNKNOWN)
                 return
             }
+            Timber.tag("AuthboundPidIntro").i("Candour status %s accepted, fetching verification result", status)
             fetchVerificationResult(sessionId)
             return
         }
-
-        navigateToResult(status.toCandourResultType())
+        val resultType: AuthboundPidResultType = status.toCandourResultType()
+        Timber.tag("AuthboundPidIntro").w("Candour status %s mapped to result %s", status, resultType)
+        navigateToResult(resultType)
     }
 
     private fun handleCandourSdkLaunchFailed() {
@@ -256,6 +260,7 @@ class AuthboundPidIntroViewModel(
                             return@collect
                         }
 
+                        getOrCreateCredentialOfferScope()
                         clearSessionState()
                         val route = generateComposableNavigationLink(
                             screen = IssuanceScreens.DocumentOffer,

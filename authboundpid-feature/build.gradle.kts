@@ -43,6 +43,10 @@ if (requiresCandourSdkAccess) {
 
 android {
     namespace = "eu.europa.ec.authboundpidfeature"
+
+    buildFeatures {
+        dataBinding = true
+    }
 }
 
 moduleConfig {

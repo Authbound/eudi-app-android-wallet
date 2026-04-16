@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 European Commission
+ * Copyright (c) 2026 European Commission
  *
  * Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
  * Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
@@ -16,13 +16,24 @@
 
 package eu.europa.ec.networklogic.model.request
 
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import org.junit.Assert.assertEquals
+import org.junit.Test
 
-/**
- * Request to create a new AuthboundPID Identity verification session.
- */
-@Serializable
-data class CreateAuthboundPidSessionRequest(
-    @SerialName("launch_type") val launchType: String
-)
+class TestAuthboundPidRequests {
+    private val json: Json = Json
+
+    @Test
+    fun `Given authbound pid create session request, When serializing, Then launch type is included`() {
+        val request: CreateAuthboundPidSessionRequest = CreateAuthboundPidSessionRequest(
+            launchType = "sdk"
+        )
+
+        val serialized: String = json.encodeToString(
+            CreateAuthboundPidSessionRequest.serializer(),
+            request
+        )
+
+        assertEquals("""{"launch_type":"sdk"}""", serialized)
+    }
+}

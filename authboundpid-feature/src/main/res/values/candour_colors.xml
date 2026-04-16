@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="candour_background">#FFFFFFFF</color>
-    <color name="candour_background_paper">#FFF4FBF8</color>
-    <color name="candour_primary">#FF047857</color>
+    <color name="candour_background">#FFFFFCF6</color>
+    <color name="candour_background_paper">#FFFAF7F0</color>
+    <color name="candour_primary">#FF0A1A36</color>
     <color name="candour_primary_contrast">#FFFFFFFF</color>
-    <color name="candour_error">#FFB42318</color>
+    <color name="candour_error">#FFF03030</color>
     <color name="candour_error_contrast">#FFFFFFFF</color>
-    <color name="candour_success">#FF039855</color>
+    <color name="candour_success">#FF22C55E</color>
     <color name="candour_success_contrast">#FFFFFFFF</color>
-    <color name="candour_text_primary">#FF0B1F1A</color>
-    <color name="candour_text_secondary">#CC0B1F1A</color>
-    <color name="candour_text_disabled">#660B1F1A</color>
-    <color name="candour_toolbar">#FF047857</color>
+    <color name="candour_text_primary">#FF0A1A36</color>
+    <color name="candour_text_secondary">#FF5F6A85</color>
+    <color name="candour_text_disabled">#665F6A85</color>
+    <color name="candour_toolbar">#FF0A1A36</color>
     <color name="candour_toolbar_contrast">#FFFFFFFF</color>
-    <color name="candour_status_bar">#FF047857</color>
-    <color name="candour_navigation_bar">#FFFFFFFF</color>
+    <color name="candour_status_bar">#FF0A1A36</color>
+    <color name="candour_navigation_bar">#FFFFFCF6</color>
 </resources>

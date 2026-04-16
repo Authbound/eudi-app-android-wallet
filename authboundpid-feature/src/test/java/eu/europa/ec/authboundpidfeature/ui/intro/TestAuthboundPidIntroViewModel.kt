@@ -22,6 +22,8 @@ import eu.europa.ec.authboundpidfeature.interactor.AuthboundPidIntroInteractor
 import eu.europa.ec.authboundpidfeature.interactor.AuthboundPidIntroPartialState
 import eu.europa.ec.authboundpidfeature.interactor.AuthboundPidVerificationPartialState
 import eu.europa.ec.authboundpidfeature.model.AuthboundPidResultType
+import eu.europa.ec.commonfeature.di.CREDENTIAL_OFFER_ISSUANCE_SCOPE_ID
+import eu.europa.ec.commonfeature.di.CredentialOfferIssuanceScope
 import eu.europa.ec.commonfeature.config.OfferUiConfig
 import eu.europa.ec.corelogic.controller.ResolveDocumentOfferPartialState
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
@@ -53,6 +55,10 @@ import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.koin.core.context.startKoin
+import org.koin.core.context.stopKoin
+import org.koin.dsl.module
+import org.koin.mp.KoinPlatform
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TestAuthboundPidIntroViewModel {
@@ -81,6 +87,13 @@ class TestAuthboundPidIntroViewModel {
     fun before() {
         closeable = MockitoAnnotations.openMocks(this)
         Dispatchers.setMain(testDispatcher)
+        startKoin {
+            modules(
+                module {
+                    scope<CredentialOfferIssuanceScope> { }
+                }
+            )
+        }
         whenever(resourceProvider.getString(any<Int>())).thenAnswer { invocation ->
             when (invocation.arguments[0] as Int) {
                 R.string.authboundpid_intro_launching -> "Opening secure verification…"
@@ -94,6 +107,7 @@ class TestAuthboundPidIntroViewModel {
     @After
     fun after() {
         Dispatchers.resetMain()
+        stopKoin()
         closeable.close()
     }
 
@@ -184,6 +198,10 @@ class TestAuthboundPidIntroViewModel {
                 val effect = awaitItem() as Effect.Navigation.NavigateToIssuance
                 assertTrue(effect.screenRoute.contains("ISSUANCE_DOCUMENT_OFFER"))
                 assertTrue(effect.screenRoute.contains("encoded-offer"))
+                val scopeCreated = runCatching {
+                    KoinPlatform.getKoin().getScope(CREDENTIAL_OFFER_ISSUANCE_SCOPE_ID)
+                }.isSuccess
+                assertTrue(scopeCreated)
                 verify(interactor).getVerificationResult("session-1")
                 assertFalse(viewModel.viewState.value.isCompleting)
                 assertFalse(savedStateHandle.get<Boolean>("authboundpid_awaiting_sdk_result") ?: true)
