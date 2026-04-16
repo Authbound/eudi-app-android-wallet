@@ -69,6 +69,7 @@ import eu.europa.ec.dashboardfeature.model.SearchItemUi
 import eu.europa.ec.dashboardfeature.ui.component.BottomNavigationItem
 import eu.europa.ec.dashboardfeature.ui.documents.detail.model.DocumentIssuanceStateUi
 import eu.europa.ec.dashboardfeature.ui.documents.list.model.DocumentUi
+import eu.europa.ec.dashboardfeature.ui.common.resolveCredentialVisualType
 import eu.europa.ec.dashboardfeature.ui.component.NotificationIconButton
 import eu.europa.ec.dashboardfeature.util.TestTag
 import eu.europa.ec.resourceslogic.R
@@ -461,20 +462,11 @@ private fun DocumentCategorySection(
             }
 
             // Map DocumentIdentifier to CredentialVisualType for premium styling
-            val visualType = when (documentItem.documentIdentifier) {
-                is DocumentIdentifier.MdocPid,
-                is DocumentIdentifier.SdJwtPid -> CredentialVisualType.PID
-                is DocumentIdentifier.OTHER -> {
-                    // Check formatType for mDL or map by category
-                    val formatType = documentItem.documentIdentifier.formatType.lowercase()
-                    when {
-                        formatType.contains("mdl") || formatType.contains("driving") -> CredentialVisualType.MDL
-                        category == DocumentCategory.Education -> CredentialVisualType.DIPLOMA
-                        category == DocumentCategory.Health -> CredentialVisualType.HEALTH
-                        else -> CredentialVisualType.GENERIC
-                    }
-                }
-            }
+            val visualType: CredentialVisualType = resolveCredentialVisualType(
+                documentIdentifier = documentItem.documentIdentifier,
+                documentCategory = category,
+                issuerName = documentItem.uiData.overlineText
+            )
 
             // Extract title from mainContentData - prefer user-friendly display names
             val rawTitle = when (val content = documentItem.uiData.mainContentData) {
@@ -491,6 +483,7 @@ private fun DocumentCategorySection(
 
             // Check if this document should show a photo (PID/mDL can have portrait)
             val hasPhoto = visualType == CredentialVisualType.PID ||
+                           visualType == CredentialVisualType.AUTHBOUND ||
                            visualType == CredentialVisualType.MDL ||
                            !documentItem.portraitBase64.isNullOrBlank()
 
@@ -509,7 +502,7 @@ private fun DocumentCategorySection(
                     visualType = visualType,
                     title = displayTitle,
                     subtitle = getCredentialSubtitle(visualType),
-                    holderName = null, // Will be populated from actual document data
+                    holderName = documentItem.holderName,
                     issuerName = documentItem.uiData.overlineText,
                     primaryField = null,
                     secondaryField = null,
@@ -547,6 +540,7 @@ private fun getCredentialSubtitle(type: CredentialVisualType): String? {
         CredentialVisualType.MDL -> "Mobile Driving License"
         CredentialVisualType.DIPLOMA -> "Education Credential"
         CredentialVisualType.HEALTH -> "Health Credential"
+        CredentialVisualType.AUTHBOUND -> "Authbound Digital ID"
         CredentialVisualType.GENERIC -> null
     }
 }

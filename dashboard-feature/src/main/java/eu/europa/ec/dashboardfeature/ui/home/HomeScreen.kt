@@ -108,6 +108,7 @@ import eu.europa.ec.corelogic.model.DocumentIdentifier
 import eu.europa.ec.dashboardfeature.ui.documents.detail.model.DocumentIssuanceStateUi
 import eu.europa.ec.dashboardfeature.ui.documents.list.model.DocumentUi
 import eu.europa.ec.dashboardfeature.ui.home.model.HeroCredentialUi
+import eu.europa.ec.dashboardfeature.ui.common.resolveCredentialVisualType
 import eu.europa.ec.dashboardfeature.ui.component.NotificationIconButton
 import eu.europa.ec.eudi.wallet.document.DocumentId
 import eu.europa.ec.uilogic.component.wrap.CompactCredentialCard
@@ -1855,19 +1856,11 @@ private fun CredentialCategory(
                 DocumentIssuanceStateUi.Revoked -> CredentialStatus.REVOKED
             }
 
-            val visualType = when (document.documentIdentifier) {
-                is DocumentIdentifier.MdocPid,
-                is DocumentIdentifier.SdJwtPid -> CredentialVisualType.PID
-                is DocumentIdentifier.OTHER -> {
-                    val formatType = document.documentIdentifier.formatType.lowercase()
-                    when {
-                        formatType.contains("mdl") || formatType.contains("driving") -> CredentialVisualType.MDL
-                        category == DocumentCategory.Education -> CredentialVisualType.DIPLOMA
-                        category == DocumentCategory.Health -> CredentialVisualType.HEALTH
-                        else -> CredentialVisualType.GENERIC
-                    }
-                }
-            }
+            val visualType: CredentialVisualType = resolveCredentialVisualType(
+                documentIdentifier = document.documentIdentifier,
+                documentCategory = category,
+                issuerName = document.uiData.overlineText
+            )
 
             val title = when (val content = document.uiData.mainContentData) {
                 is ListItemMainContentDataUi.Text -> content.text

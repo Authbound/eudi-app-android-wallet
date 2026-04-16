@@ -17,10 +17,10 @@
 package eu.europa.ec.dashboardfeature.ui.home.model
 
 import eu.europa.ec.corelogic.model.DocumentIdentifier
+import eu.europa.ec.dashboardfeature.ui.common.resolveCredentialVisualType
 import eu.europa.ec.dashboardfeature.ui.documents.detail.model.DocumentIssuanceStateUi
 import eu.europa.ec.eudi.wallet.document.DocumentId
 import eu.europa.ec.uilogic.component.wrap.CredentialStatus
-import eu.europa.ec.uilogic.component.wrap.CredentialVisualType
 import eu.europa.ec.uilogic.component.wrap.VisualCredentialConfig
 
 /**
@@ -45,7 +45,10 @@ data class HeroCredentialUi(
     fun toVisualConfig(): VisualCredentialConfig {
         return VisualCredentialConfig(
             id = documentId,
-            visualType = documentIdentifier.toVisualType(),
+            visualType = resolveCredentialVisualType(
+                documentIdentifier = documentIdentifier,
+                issuerName = issuerName
+            ),
             title = title,
             subtitle = subtitle,
             holderName = holderName,
@@ -57,25 +60,6 @@ data class HeroCredentialUi(
             hasPhoto = hasPhoto,
             portraitBase64 = portraitBase64
         )
-    }
-}
-
-/**
- * Map DocumentIdentifier to visual credential type.
- */
-fun DocumentIdentifier.toVisualType(): CredentialVisualType {
-    return when (this) {
-        DocumentIdentifier.MdocPid, DocumentIdentifier.SdJwtPid -> CredentialVisualType.PID
-        is DocumentIdentifier.OTHER -> {
-            when {
-                formatType.contains("mDL", ignoreCase = true) ||
-                formatType.contains("driving", ignoreCase = true) -> CredentialVisualType.MDL
-                formatType.contains("diploma", ignoreCase = true) ||
-                formatType.contains("education", ignoreCase = true) -> CredentialVisualType.DIPLOMA
-                formatType.contains("health", ignoreCase = true) -> CredentialVisualType.HEALTH
-                else -> CredentialVisualType.GENERIC
-            }
-        }
     }
 }
 

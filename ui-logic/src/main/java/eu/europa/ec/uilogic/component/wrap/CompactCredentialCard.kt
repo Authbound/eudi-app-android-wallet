@@ -375,6 +375,14 @@ private fun getCompactColors(type: CredentialVisualType): CredentialColorScheme 
                         textPrimary = Color.White,
                         textSecondary = Color.White.copy(alpha = 0.65f)
                 )
+        CredentialVisualType.AUTHBOUND ->
+                CredentialColorScheme(
+                        gradientStart = Color(0xFF0A1A36),
+                        gradientEnd = Color(0xFF1A3060),
+                        accent = Color(0xFF3B82F6),
+                        textPrimary = Color.White,
+                        textSecondary = Color.White.copy(alpha = 0.70f)
+                )
     }
 }
 
@@ -386,6 +394,7 @@ private fun getCompactTypeIcon(type: CredentialVisualType) =
             CredentialVisualType.DIPLOMA -> AppIcons.Education
             CredentialVisualType.HEALTH -> AppIcons.Health
             CredentialVisualType.GENERIC -> AppIcons.Documents
+            CredentialVisualType.AUTHBOUND -> AppIcons.Verified
         }
 
 @ThemeModePreviews

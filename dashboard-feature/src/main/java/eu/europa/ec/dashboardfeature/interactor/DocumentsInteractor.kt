@@ -396,6 +396,16 @@ class DocumentsInteractorImpl(
                                 else -> null
                             }
 
+                            val holderName: String? = run {
+                                val given = document.data.claims
+                                    .firstOrNull { it.identifier == DocumentJsonKeys.FIRST_NAME }
+                                    ?.value as? String
+                                val family = document.data.claims
+                                    .firstOrNull { it.identifier == DocumentJsonKeys.LAST_NAME }
+                                    ?.value as? String
+                                listOfNotNull(given, family).joinToString(" ").ifBlank { null }
+                            }
+
                             FilterableItem(
                                 payload = DocumentUi(
                                     documentIssuanceState = documentIssuanceState,
@@ -414,6 +424,7 @@ class DocumentsInteractorImpl(
                                     documentIdentifier = documentIdentifier,
                                     documentCategory = documentCategory,
                                     portraitBase64 = portraitBase64,
+                                    holderName = holderName,
                                 ),
                                 attributes = DocumentsFilterableAttributes(
                                     searchTags = documentSearchTags,

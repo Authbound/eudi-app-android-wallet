@@ -624,6 +624,8 @@
     <string name="verification_home_tab_active">Active</string>
     <string name="verification_home_tab_history">History</string>
     <string name="verification_home_create_button">Create Request</string>
+    <string name="verification_home_create_description">Ask another wallet user to verify attributes</string>
+    <string name="verification_template_selection_subtitle">Choose what you want to verify</string>
     <string name="verification_home_empty_active">No Open Requests</string>
     <string name="verification_home_empty_history">No Completed Requests Yet</string>
     <string name="verification_home_session_code">Code: %1$s</string>

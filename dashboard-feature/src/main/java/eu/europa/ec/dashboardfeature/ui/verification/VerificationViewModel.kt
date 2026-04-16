@@ -46,6 +46,7 @@ data class State(
     val recipientValue: String = "",
     val recipientContactType: VerificationRecipientContactType = VerificationRecipientContactType.HANDLE,
     val error: String? = null,
+    val confirmingTemplate: VerificationTemplate? = null,
 ) : ViewState
 
 sealed class Event : ViewEvent {
@@ -61,6 +62,8 @@ sealed class Event : ViewEvent {
     data class RemoveRecipient(val index: Int) : Event()
     data object CreateSession : Event()
     data object NavigateBack : Event()
+    data object DismissConfirmSheet : Event()
+    data object ConfirmCreateTemplate : Event()
 }
 
 sealed class Effect : ViewSideEffect {
@@ -89,7 +92,14 @@ class VerificationViewModel(
         when (event) {
             Event.Init -> loadTemplates()
             is Event.InitializeTemplate -> initializeTemplate(event.type, navigate = false)
-            is Event.SelectTemplate -> initializeTemplate(event.template.type, navigate = true)
+            is Event.SelectTemplate -> {
+                if (event.template.type == VerificationTemplateType.CUSTOM) {
+                    initializeTemplate(event.template.type, navigate = true)
+                } else {
+                    initializeTemplate(event.template.type, navigate = false)
+                    setState { copy(confirmingTemplate = event.template) }
+                }
+            }
             is Event.UpdatePurpose -> setState { copy(purpose = event.value) }
             is Event.ToggleAttribute -> toggleAttribute(event.key, event.selected)
             is Event.UpdateExpectedValue -> updateExpectedValue(event.key, event.value)
@@ -99,6 +109,8 @@ class VerificationViewModel(
             is Event.RemoveRecipient -> removeRecipient(event.index)
             Event.CreateSession -> createSession()
             Event.NavigateBack -> setEffect { Effect.Navigation.Back }
+            Event.DismissConfirmSheet -> setState { copy(confirmingTemplate = null, error = null) }
+            Event.ConfirmCreateTemplate -> createSession()
         }
     }
 
@@ -296,7 +308,7 @@ class VerificationViewModel(
                 recipients = state.recipients
             ).fold(
                 onSuccess = { session ->
-                    setState { copy(isLoading = false) }
+                    setState { copy(isLoading = false, confirmingTemplate = null) }
                     setEffect {
                         Effect.Navigation.SwitchScreen(
                             screenRoute = generateComposableNavigationLink(

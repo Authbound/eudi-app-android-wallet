@@ -28,4 +28,5 @@ data class DocumentUi(
     val documentIdentifier: DocumentIdentifier,
     val documentCategory: DocumentCategory,
     val portraitBase64: String? = null,
+    val holderName: String? = null,
 ) : FilterableItemPayload

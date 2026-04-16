@@ -28,9 +28,11 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.Flight
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.School
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.ShoppingCart
@@ -570,5 +572,17 @@ object AppIcons {
         resourceId = null,
         contentDescriptionId = R.string.content_description_folder_icon,
         imageVector = Icons.Outlined.Folder
+    )
+
+    val VerificationIdentity: IconDataUi = IconDataUi(
+        resourceId = null,
+        contentDescriptionId = R.string.content_description_id_icon,
+        imageVector = Icons.Outlined.Badge
+    )
+
+    val VerificationNationality: IconDataUi = IconDataUi(
+        resourceId = null,
+        contentDescriptionId = R.string.content_description_certified_icon,
+        imageVector = Icons.Outlined.Language
     )
 }

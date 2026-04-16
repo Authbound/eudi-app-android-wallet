@@ -82,7 +82,9 @@ enum class CredentialVisualType {
         /** Health-related credentials - Red */
         HEALTH,
         /** Generic/Other credentials - Gray */
-        GENERIC
+        GENERIC,
+        /** Authbound-issued identity credentials - Navy/Blue */
+        AUTHBOUND
 }
 
 /** Status of a credential. */
@@ -173,6 +175,15 @@ private fun getCredentialColors(type: CredentialVisualType): CredentialColorSche
                                 gradientStart = Color(0xFF0A1A36), // Navy Deep
                                 gradientEnd = Color(0xFF1E3A5F), // Navy Medium
                                 accent = Color(0xFF3B82F6), // Blue accent (brand)
+                                textPrimary = Color.White,
+                                textSecondary = Color.White.copy(alpha = 0.75f)
+                        )
+                // AUTHBOUND: Navy base with Authbound brand blue accent (distinct from gold PID)
+                CredentialVisualType.AUTHBOUND ->
+                        CredentialColorScheme(
+                                gradientStart = Color(0xFF0A1A36), // Navy Deep (brand primary)
+                                gradientEnd = Color(0xFF1A3060), // Slightly deeper navy
+                                accent = Color(0xFF3B82F6), // Authbound blue accent
                                 textPrimary = Color.White,
                                 textSecondary = Color.White.copy(alpha = 0.75f)
                         )
@@ -328,6 +339,39 @@ fun VisualCredentialCard(
                                                                                                 .Black,
                                                                                 color =
                                                                                         colors.gradientStart,
+                                                                                fontSize = 10.sp
+                                                                        )
+                                                                }
+                                                        }
+
+                                                        if (config.visualType ==
+                                                                        CredentialVisualType.AUTHBOUND
+                                                        ) {
+                                                                // Authbound brand badge
+                                                                Box(
+                                                                        modifier =
+                                                                                Modifier.size(28.dp)
+                                                                                        .clip(CircleShape)
+                                                                                        .background(
+                                                                                                colors.accent.copy(alpha = 0.15f)
+                                                                                        )
+                                                                                        .border(
+                                                                                                width = 1.5.dp,
+                                                                                                color = colors.accent.copy(alpha = 0.4f),
+                                                                                                shape = CircleShape
+                                                                                        ),
+                                                                        contentAlignment =
+                                                                                Alignment.Center
+                                                                ) {
+                                                                        Text(
+                                                                                text = "AB",
+                                                                                style =
+                                                                                        MaterialTheme
+                                                                                                .typography
+                                                                                                .labelSmall,
+                                                                                fontWeight =
+                                                                                        FontWeight.Black,
+                                                                                color = colors.accent,
                                                                                 fontSize = 10.sp
                                                                         )
                                                                 }
@@ -717,6 +761,7 @@ private fun getTypeLabel(type: CredentialVisualType): String {
                 CredentialVisualType.DIPLOMA -> "EDUCATION"
                 CredentialVisualType.HEALTH -> "HEALTH"
                 CredentialVisualType.GENERIC -> "CREDENTIAL"
+                CredentialVisualType.AUTHBOUND -> "AUTHBOUND ID"
         }
 }
 
