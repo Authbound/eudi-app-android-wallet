@@ -14,13 +14,13 @@
  * governing permissions and limitations under the Licence.
  */
 
-package eu.europa.ec.euidi.test
+package io.authbound.wallet.test
 
 import android.app.Application
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.test.runner.AndroidJUnitRunner
-import eu.europa.ec.euidi.BuildConfig
+import io.authbound.wallet.BuildConfig
 
 class AuthTestRunner : AndroidJUnitRunner() {
     override fun newApplication(cl: ClassLoader, name: String?, context: Context): Application {

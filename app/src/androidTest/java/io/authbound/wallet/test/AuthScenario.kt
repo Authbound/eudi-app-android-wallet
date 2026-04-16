@@ -14,7 +14,7 @@
  * governing permissions and limitations under the Licence.
  */
 
-package eu.europa.ec.euidi.test
+package io.authbound.wallet.test
 
 import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import io.github.jan.supabase.auth.status.SessionStatus

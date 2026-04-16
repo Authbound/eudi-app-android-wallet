@@ -30,6 +30,9 @@ plugins {
 }
 
 android {
+    buildFeatures {
+        dataBinding = true
+    }
 
     signingConfigs {
         create("release") {
@@ -46,10 +49,10 @@ android {
     }
 
     defaultConfig {
-        applicationId = "eu.europa.ec.euidi"
+        applicationId = "io.authbound.wallet"
         versionCode = 1
 
-        testInstrumentationRunner = "eu.europa.ec.euidi.test.AuthTestRunner"
+        testInstrumentationRunner = "io.authbound.wallet.test.AuthTestRunner"
         vectorDrawables {
             useSupportLibrary = true
         }
@@ -80,7 +83,7 @@ android {
         }
     }
 
-    namespace = "eu.europa.ec.euidi"
+    namespace = "io.authbound.wallet"
 }
 
 dependencies {

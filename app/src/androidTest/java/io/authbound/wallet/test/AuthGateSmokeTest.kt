@@ -14,7 +14,7 @@
  * governing permissions and limitations under the Licence.
  */
 
-package eu.europa.ec.euidi.test
+package io.authbound.wallet.test
 
 import android.content.Context
 import android.content.Intent

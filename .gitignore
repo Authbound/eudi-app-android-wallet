@@ -1,5 +1,6 @@
 # built application files
 *.apk
+*.aab
 *.ap_
 
 # files for the dex VM
@@ -56,6 +57,7 @@ fastlane/report.xml
 
 # extensions
 *.apk
+*.aab
 # Firebase
 firebase-debug.log
 

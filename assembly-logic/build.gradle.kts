@@ -50,6 +50,10 @@ plugins {
 extensions.configure<LibraryExtension>("android") {
     namespace = "eu.europa.ec.assemblylogic"
 
+    buildFeatures {
+        dataBinding = true
+    }
+
     defaultConfig {
         // App name
         manifestPlaceholders["appName"] = "Authbound Wallet"

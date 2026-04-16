@@ -65,7 +65,7 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
             val credentialOfferHaipScheme = "haip-vci"
             val credentialOfferHaipHost = "*"
 
-            val openId4VciAuthorizationScheme = "eu.europa.ec.euidi"
+            val openId4VciAuthorizationScheme = "io.authbound.wallet"
             val openId4VciAuthorizationHost = "authorization"
 
             val rqesScheme = "rqes"
