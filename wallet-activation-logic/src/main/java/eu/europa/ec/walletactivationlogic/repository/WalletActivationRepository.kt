@@ -15,6 +15,7 @@
  */
 package eu.europa.ec.walletactivationlogic.repository
 
+import eu.europa.ec.authenticationlogic.controller.storage.WalletRecoveryChallengeController
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import eu.europa.ec.businesslogic.controller.log.LogController
@@ -47,7 +48,8 @@ interface WalletActivationRepository {
 open class WalletActivationRepositoryImpl(
     private val supabaseClient: SupabaseClient,
     private val api: ApiClient,
-    private val logController: LogController
+    private val logController: LogController,
+    private val walletRecoveryChallengeController: WalletRecoveryChallengeController
 ) : WalletActivationRepository {
 
     /**
@@ -60,6 +62,12 @@ open class WalletActivationRepositoryImpl(
 
     override suspend fun getAttestationChallenge(): Result<AttestationChallengeResponse> {
         return try {
+            val preparedChallenge: AttestationChallengeResponse? =
+                walletRecoveryChallengeController.consumePreparedChallenge()
+            if (preparedChallenge != null) {
+                logController.d("WalletActivation", "Using prepared recovery challenge: ${preparedChallenge.challengeId}")
+                return Result.success(preparedChallenge)
+            }
             val token = getAuthToken()
                 ?: return Result.failure(
                     WalletActivationError.AuthenticationFailure("User not authenticated")

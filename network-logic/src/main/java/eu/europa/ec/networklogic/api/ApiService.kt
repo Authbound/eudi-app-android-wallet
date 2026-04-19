@@ -27,6 +27,8 @@ import eu.europa.ec.networklogic.model.request.DummyRequest
 import eu.europa.ec.networklogic.model.request.MaisaExchangeRequest
 import eu.europa.ec.networklogic.model.request.MaisaIssueRequest
 import eu.europa.ec.networklogic.model.request.WalletActivationRequest
+import eu.europa.ec.networklogic.model.request.WalletRecoveryPrepareRequest
+import eu.europa.ec.networklogic.model.request.WalletSecurityIncidentRequest
 import eu.europa.ec.networklogic.model.response.AttestationChallengeResponse
 
 import eu.europa.ec.networklogic.model.response.AccountDeletionEnvelopeResponse
@@ -51,6 +53,7 @@ import eu.europa.ec.networklogic.model.response.VerificationSessionDetailRespons
 import eu.europa.ec.networklogic.model.response.VerificationSessionStatusEventDto
 import eu.europa.ec.networklogic.model.response.VerificationSessionsListResponse
 import eu.europa.ec.networklogic.model.response.WalletActivationResponse
+import eu.europa.ec.networklogic.model.response.WalletRecoveryPrepareResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.timeout
@@ -85,6 +88,8 @@ interface ApiClient {
     suspend fun getAttestationChallenge(bearerToken: String): ApiResponse<AttestationChallengeResponse>
     suspend fun activateWallet(body: WalletActivationRequest, bearerToken: String): ApiResponse<WalletActivationResponse>
     suspend fun deleteWalletActivation(bearerToken: String): ApiResponse<Unit>
+    suspend fun reportWalletSecurityIncident(body: WalletSecurityIncidentRequest, bearerToken: String): ApiResponse<Unit>
+    suspend fun prepareWalletRecovery(body: WalletRecoveryPrepareRequest, bearerToken: String): ApiResponse<WalletRecoveryPrepareResponse>
 
     // Profile API methods
     suspend fun completeProfile(body: CompleteProfileRequest, bearerToken: String): ApiResponse<Unit>
@@ -281,6 +286,32 @@ class KtorApiClient(
         return executeUnitRequest {
             httpClient.delete("$baseUrl/api/mobile/profile") {
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
+            }
+        }
+    }
+
+    override suspend fun reportWalletSecurityIncident(
+        body: WalletSecurityIncidentRequest,
+        bearerToken: String
+    ): ApiResponse<Unit> {
+        return executeUnitRequest {
+            httpClient.post("$baseUrl/api/mobile/wallet-security/incidents") {
+                contentType(ContentType.Application.Json)
+                header(HttpHeaders.Authorization, "Bearer $bearerToken")
+                setBody(body)
+            }
+        }
+    }
+
+    override suspend fun prepareWalletRecovery(
+        body: WalletRecoveryPrepareRequest,
+        bearerToken: String
+    ): ApiResponse<WalletRecoveryPrepareResponse> {
+        return executeRequest {
+            httpClient.post("$baseUrl/api/mobile/wallet-recovery/prepare") {
+                contentType(ContentType.Application.Json)
+                header(HttpHeaders.Authorization, "Bearer $bearerToken")
+                setBody(body)
             }
         }
     }

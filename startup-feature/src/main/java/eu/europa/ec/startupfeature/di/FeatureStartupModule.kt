@@ -16,12 +16,14 @@
 
 package eu.europa.ec.startupfeature.di
 
+import eu.europa.ec.authenticationlogic.controller.storage.RecoveryCheckpointController
 import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
 import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetLegalAcceptanceStateUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsProfileCompletedUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsWalletActivatedUseCase
+import eu.europa.ec.authenticationlogic.usecase.ResolveLocalAuthRouteUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.businesslogic.controller.device.DeviceController
 import eu.europa.ec.businesslogic.controller.log.LogController
@@ -53,7 +55,9 @@ fun provideSplashInteractor(
     localUnlockTracker: LocalUnlockTracker,
     deviceController: DeviceController,
     signOutUseCase: SignOutUseCase,
-    ownershipController: UserDocumentOwnershipController
+    ownershipController: UserDocumentOwnershipController,
+    recoveryCheckpointController: RecoveryCheckpointController,
+    resolveLocalAuthRouteUseCase: ResolveLocalAuthRouteUseCase
 ): SplashInteractor = SplashInteractorImpl(
     supabaseAuthRepository,
     prefKeys,
@@ -67,5 +71,7 @@ fun provideSplashInteractor(
     localUnlockTracker,
     deviceController,
     signOutUseCase,
-    ownershipController
+    ownershipController,
+    recoveryCheckpointController,
+    resolveLocalAuthRouteUseCase
 )

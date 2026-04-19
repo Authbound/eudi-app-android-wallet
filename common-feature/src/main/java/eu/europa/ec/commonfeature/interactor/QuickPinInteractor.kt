@@ -16,8 +16,23 @@
 
 package eu.europa.ec.commonfeature.interactor
 
+import eu.europa.ec.authenticationlogic.controller.storage.BiometryStorageController
 import eu.europa.ec.authenticationlogic.controller.storage.PinStorageController
 import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
+import eu.europa.ec.authenticationlogic.model.LocalRecoveryResetResult
+import eu.europa.ec.authenticationlogic.model.LocalUnlockStatus
+import eu.europa.ec.authenticationlogic.model.PinValidationResult
+import eu.europa.ec.authenticationlogic.model.WalletSecurityEventType
+import eu.europa.ec.authenticationlogic.storage.LocalAuthKeys
+import eu.europa.ec.authenticationlogic.usecase.ReportWalletSecurityIncidentUseCase
+import eu.europa.ec.authenticationlogic.usecase.ResetLocalWalletForRecoveryUseCase
+import eu.europa.ec.authenticationlogic.usecase.SignOutMode
+import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
+import eu.europa.ec.businesslogic.controller.crypto.CryptoController
+import eu.europa.ec.businesslogic.controller.crypto.KeystoreController
+import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
+import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
+import eu.europa.ec.businesslogic.controller.wallet.LocalWalletCleanupController
 import eu.europa.ec.businesslogic.extension.safeAsync
 import eu.europa.ec.businesslogic.validator.FormValidator
 import eu.europa.ec.resourceslogic.R
@@ -39,6 +54,20 @@ interface QuickPinInteractor : FormValidator {
 
     suspend fun hasPin(): Boolean
     suspend fun resetPin()
+    suspend fun getLocalUnlockStatus(): LocalUnlockStatus = if (hasPin()) {
+        LocalUnlockStatus.ReadyForPin
+    } else {
+        LocalUnlockStatus.NotProvisioned
+    }
+    suspend fun beginPinRecovery(): LocalUnlockStatus = LocalUnlockStatus.RecoveryRequired
+    suspend fun performLocalRecoveryReset(): LocalRecoveryResetResult =
+        LocalRecoveryResetResult.SecurityFailure("Local wallet recovery is unavailable.")
+    suspend fun reportTamperDetected(signals: List<String> = emptyList()) {}
+    suspend fun reportRecoveryStarted(signals: List<String> = emptyList()) {}
+    suspend fun reportRecoveryCompleted(signals: List<String> = emptyList()) {}
+    suspend fun performDestructiveReset() {
+        resetPin()
+    }
 }
 
 class QuickPinInteractorImpl(
@@ -46,17 +75,69 @@ class QuickPinInteractorImpl(
     private val pinStorageController: PinStorageController,
     private val resourceProvider: ResourceProvider,
     private val localUnlockTracker: LocalUnlockTracker,
+    private val biometryStorageController: BiometryStorageController,
+    private val prefsController: PrefsControllerV2,
+    private val prefKeys: PrefKeysV2,
+    private val cryptoController: CryptoController,
+    private val keystoreController: KeystoreController,
+    private val localWalletCleanupController: LocalWalletCleanupController,
+    private val reportWalletSecurityIncidentUseCase: ReportWalletSecurityIncidentUseCase,
+    private val resetLocalWalletForRecoveryUseCase: ResetLocalWalletForRecoveryUseCase,
+    private val signOutUseCase: SignOutUseCase
 ) : FormValidator by formValidator, QuickPinInteractor {
 
     private val genericErrorMsg
         get() = resourceProvider.genericErrorMessage()
 
     override suspend fun hasPin(): Boolean {
-        return pinStorageController.retrievePin().isNotBlank()
+        return when (pinStorageController.getLocalUnlockStatus()) {
+            LocalUnlockStatus.NotProvisioned -> false
+            else -> true
+        }
     }
 
     override suspend fun resetPin() {
-        pinStorageController.setPin("")
+        pinStorageController.clearPinData()
+    }
+
+    override suspend fun getLocalUnlockStatus(): LocalUnlockStatus {
+        return pinStorageController.getLocalUnlockStatus()
+    }
+
+    override suspend fun beginPinRecovery(): LocalUnlockStatus {
+        return pinStorageController.prepareRecovery()
+    }
+
+    override suspend fun performLocalRecoveryReset(): LocalRecoveryResetResult {
+        return resetLocalWalletForRecoveryUseCase()
+    }
+
+    override suspend fun reportTamperDetected(signals: List<String>) {
+        reportWalletSecurityIncidentUseCase(
+            WalletSecurityEventType.LocalAuthTamperDetected,
+            signals
+        )
+    }
+
+    override suspend fun reportRecoveryStarted(signals: List<String>) {
+        reportWalletSecurityIncidentUseCase(
+            WalletSecurityEventType.LocalAuthRecoveryStarted,
+            signals
+        )
+    }
+
+    override suspend fun reportRecoveryCompleted(signals: List<String>) {
+        reportWalletSecurityIncidentUseCase(
+            WalletSecurityEventType.LocalAuthRecoveryCompleted,
+            signals
+        )
+    }
+
+    override suspend fun performDestructiveReset() {
+        runCatching { localWalletCleanupController.cleanupLocalWalletData() }
+        runCatching { cryptoController.deleteWuaKey() }
+        runCatching { prefKeys.setWalletActivated(false) }
+        signOutUseCase(SignOutMode.Hard)
     }
 
     override fun setPin(
@@ -76,6 +157,7 @@ class QuickPinInteractorImpl(
 
                     is QuickPinInteractorPinValidPartialState.Success -> {
                         pinStorageController.setPin(newPin)
+                        prefsController.setBool(LocalAuthKeys.ENROLLMENT_REQUIRED, false)
                         // Mark as unlocked after successful PIN creation
                         localUnlockTracker.markUnlocked()
                         emit(QuickPinInteractorSetPinPartialState.Success)
@@ -93,6 +175,7 @@ class QuickPinInteractorImpl(
     ): Flow<QuickPinInteractorSetPinPartialState> =
         flow {
             pinStorageController.setPin(newPin)
+            prefsController.setBool(LocalAuthKeys.ENROLLMENT_REQUIRED, false)
             // Mark as unlocked after successful PIN change
             localUnlockTracker.markUnlocked()
             emit(QuickPinInteractorSetPinPartialState.Success)
@@ -104,18 +187,46 @@ class QuickPinInteractorImpl(
 
     override fun isCurrentPinValid(pin: String): Flow<QuickPinInteractorPinValidPartialState> =
         flow {
-            if (pinStorageController.isPinValid(pin)) {
-                // Mark as unlocked after successful PIN validation
-                localUnlockTracker.markUnlocked()
-                emit(QuickPinInteractorPinValidPartialState.Success)
-            } else {
-                emit(
-                    QuickPinInteractorPinValidPartialState.Failed(
-                        resourceProvider.getString(
-                            R.string.quick_pin_invalid_error
+            when (val result = pinStorageController.verifyPin(pin)) {
+                PinValidationResult.Success -> {
+                    localUnlockTracker.markUnlocked()
+                    emit(QuickPinInteractorPinValidPartialState.Success)
+                }
+                is PinValidationResult.Failed -> {
+                    val errorMessage: String = when {
+                        result.lockedUntilMs != null -> resourceProvider.getString(
+                            R.string.quick_pin_locked_error
+                        )
+                        else -> resourceProvider.getString(R.string.quick_pin_invalid_error)
+                    }
+                    emit(
+                        QuickPinInteractorPinValidPartialState.Failed(
+                            errorMessage = errorMessage,
+                            lockedUntilMs = result.lockedUntilMs
                         )
                     )
-                )
+                }
+                PinValidationResult.RecoveryRequired -> {
+                    emit(
+                        QuickPinInteractorPinValidPartialState.Failed(
+                            errorMessage = resourceProvider.getString(
+                                R.string.quick_pin_recovery_required_error
+                            ),
+                            requiresRecovery = true
+                        )
+                    )
+                }
+                PinValidationResult.TamperDetected -> {
+                    reportTamperDetected(signals = listOf("local_auth_integrity_failure"))
+                    emit(
+                        QuickPinInteractorPinValidPartialState.Failed(
+                            errorMessage = resourceProvider.getString(
+                                R.string.quick_pin_security_error
+                            ),
+                            isSecurityError = true
+                        )
+                    )
+                }
             }
         }.safeAsync {
             QuickPinInteractorPinValidPartialState.Failed(
@@ -153,5 +264,10 @@ sealed class QuickPinInteractorSetPinPartialState {
 
 sealed class QuickPinInteractorPinValidPartialState {
     data object Success : QuickPinInteractorPinValidPartialState()
-    data class Failed(val errorMessage: String) : QuickPinInteractorPinValidPartialState()
+    data class Failed(
+        val errorMessage: String,
+        val lockedUntilMs: Long? = null,
+        val requiresRecovery: Boolean = false,
+        val isSecurityError: Boolean = false
+    ) : QuickPinInteractorPinValidPartialState()
 }

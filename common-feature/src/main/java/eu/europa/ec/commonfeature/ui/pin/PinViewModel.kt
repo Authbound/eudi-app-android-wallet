@@ -19,14 +19,17 @@ package eu.europa.ec.commonfeature.ui.pin
 import android.content.Context
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricsAuthenticate
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricsAvailability
+import eu.europa.ec.authenticationlogic.controller.authentication.DeviceAuthenticationResult
+import eu.europa.ec.authenticationlogic.model.BiometricCrypto
+import eu.europa.ec.authenticationlogic.model.LocalRecoveryResetResult
+import eu.europa.ec.authenticationlogic.model.LocalUnlockStatus
 import androidx.lifecycle.viewModelScope
-import eu.europa.ec.authenticationlogic.usecase.SignOutMode
-import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.businesslogic.validator.Form
 import eu.europa.ec.businesslogic.validator.FormValidationResult
 import eu.europa.ec.businesslogic.validator.Rule
 import eu.europa.ec.commonfeature.config.SuccessUIConfig
 import eu.europa.ec.commonfeature.interactor.BiometricInteractor
+import eu.europa.ec.commonfeature.interactor.DeviceAuthenticationInteractor
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractor
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractorPinValidPartialState
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractorSetPinPartialState
@@ -80,6 +83,7 @@ data class State(
         val showResetConfirmation: Boolean = false,
         val pinSuccess: Boolean = false,
         val isTransitioning: Boolean = false,
+        val isRecoveringPin: Boolean = false,
 ) : ViewState {
 
     val isVerifyFlow: Boolean
@@ -124,7 +128,7 @@ sealed class Event : ViewEvent {
         }
 
         sealed class Reset : BottomSheet() {
-            data object ConfirmPressed : Reset()
+            data class ConfirmPressed(val context: Context) : Reset()
             data object CancelPressed : Reset()
         }
     }
@@ -138,6 +142,7 @@ sealed class Effect : ViewSideEffect {
         data object Pop : Navigation()
         data object Finish : Navigation()
         data object GoToLogin : Navigation()
+        data object GoToWalletSetup : Navigation()
     }
 
     data object ShowBottomSheet : Effect()
@@ -149,9 +154,9 @@ sealed class Effect : ViewSideEffect {
 class PinViewModel(
         private val interactor: QuickPinInteractor,
         private val biometricInteractor: BiometricInteractor,
+        private val deviceAuthenticationInteractor: DeviceAuthenticationInteractor,
         private val resourceProvider: ResourceProvider,
         private val uiSerializer: UiSerializer,
-        private val signOutUseCase: SignOutUseCase,
         @InjectedParam private val pinFlow: PinFlow
 ) : MviViewModel<Event, State, Effect>() {
 
@@ -168,6 +173,9 @@ class PinViewModel(
         }
         val hasBiometricsPreferenceBeenDecided: Boolean = runBlocking {
             biometricInteractor.getBiometricsPreferenceDecided()
+        }
+        val localUnlockStatus: LocalUnlockStatus = runBlocking {
+            interactor.getLocalUnlockStatus()
         }
         biometricsPreferenceNotYetDecided = !hasBiometricsPreferenceBeenDecided
         // Prompt is always shown AFTER PIN is validated — never at screen start.
@@ -205,7 +213,8 @@ class PinViewModel(
                 buttonText = buttonText,
                 isBiometricsEnabled = isBiometricsEnabled,
                 showBiometricsPreferencePrompt = shouldPromptForBiometricsPreference,
-                pinFlow = pinFlow
+                pinFlow = pinFlow,
+                quickPinError = initialErrorFor(localUnlockStatus)
         )
     }
 
@@ -260,7 +269,7 @@ class PinViewModel(
                 setState { copy(showOverflowMenu = false, showResetConfirmation = true) }
             }
             is Event.BottomSheet.Reset.ConfirmPressed -> {
-                resetPinAndSignOut()
+                recoverPinOrReset(context = event.context)
             }
             is Event.BottomSheet.Reset.CancelPressed -> {
                 setState { copy(showResetConfirmation = false) }
@@ -275,7 +284,12 @@ class PinViewModel(
                 when (it) {
                     is QuickPinInteractorPinValidPartialState.Failed -> {
                         setState {
-                            copy(quickPinError = it.errorMessage, pin = "", resetPin = true)
+                            copy(
+                                quickPinError = it.errorMessage,
+                                pin = "",
+                                resetPin = true,
+                                showResetConfirmation = it.requiresRecovery
+                            )
                         }
                     }
                     QuickPinInteractorPinValidPartialState.Success -> {
@@ -290,6 +304,12 @@ class PinViewModel(
         viewModelScope.launch {
             setState { copy(pinSuccess = true) }
             delay(250L)
+            if (viewState.value.isRecoveringPin) {
+                setState { copy(pinSuccess = false, isTransitioning = true) }
+                delay(75L)
+                setEffect { Effect.Navigation.SwitchScreen(DashboardScreens.Dashboard.screenRoute) }
+                return@launch
+            }
             when (pinFlow) {
                 PinFlow.VERIFY -> {
                     if (biometricsPreferenceNotYetDecided) {
@@ -330,7 +350,26 @@ class PinViewModel(
                     buttonText = calculateButtonText(newPinState),
                     pin = "",
                     resetPin = true,
-                    subtitle = calculateSubtitle(newPinState)
+                    subtitle = calculateSubtitle(newPinState),
+                    isRecoveringPin = false
+            )
+        }
+    }
+
+    private fun setupRecoveryPhase() {
+        val newPinState = PinValidationState.ENTER
+        setState {
+            copy(
+                quickPinError = null,
+                enteredPin = "",
+                pinState = newPinState,
+                buttonText = calculateButtonText(newPinState),
+                pin = "",
+                resetPin = true,
+                subtitle = resourceProvider.getString(R.string.quick_pin_create_enter_subtitle),
+                title = resourceProvider.getString(R.string.quick_pin_create_title),
+                showResetConfirmation = false,
+                isRecoveringPin = true
             )
         }
     }
@@ -359,10 +398,17 @@ class PinViewModel(
                         setState { copy(quickPinError = it.errorMessage) }
                     }
                     is QuickPinInteractorSetPinPartialState.Success -> {
-                        val nextRoute = getNextScreenRoute()
+                        if (viewState.value.isRecoveringPin) {
+                            interactor.reportRecoveryCompleted(signals = listOf("pin_re_enrolled"))
+                        }
+                        val nextRoute = if (viewState.value.isRecoveringPin) {
+                            DashboardScreens.Dashboard.screenRoute
+                        } else {
+                            getNextScreenRoute()
+                        }
                         setState { copy(pinSuccess = true) }
                         delay(250L)
-                        if (biometricsPreferenceNotYetDecided) {
+                        if (biometricsPreferenceNotYetDecided && !viewState.value.isRecoveringPin) {
                             // Ask about biometrics now that the PIN is set, before proceeding.
                             setState {
                                 copy(
@@ -524,6 +570,18 @@ class PinViewModel(
         }
     }
 
+    private fun initialErrorFor(status: LocalUnlockStatus): String? {
+        return when (status) {
+            is LocalUnlockStatus.TemporarilyLocked ->
+                resourceProvider.getString(R.string.quick_pin_locked_error)
+            LocalUnlockStatus.RecoveryRequired ->
+                resourceProvider.getString(R.string.quick_pin_recovery_required_error)
+            LocalUnlockStatus.TamperDetected ->
+                resourceProvider.getString(R.string.quick_pin_security_error)
+            else -> null
+        }
+    }
+
     private fun calculateSubtitle(pinState: PinValidationState): String {
         return when (pinFlow) {
             PinFlow.UPDATE -> {
@@ -632,17 +690,65 @@ class PinViewModel(
         )
     }
 
-    private fun resetPinAndSignOut() {
+    private fun recoverPinOrReset(context: Context) {
         setState { copy(isLoading = true, showResetConfirmation = false) }
-        viewModelScope.launch {
-            try {
-                interactor.resetPin()
-                signOutUseCase(SignOutMode.Soft)
-                setEffect { Effect.Navigation.GoToLogin }
-            } catch (_: Exception) {
-                setState { copy(isLoading = false) }
-            }
-        }
+        deviceAuthenticationInteractor.authenticateWithBiometrics(
+            context = context,
+            crypto = BiometricCrypto(null),
+            notifyOnAuthenticationFailure = true,
+            resultHandler = DeviceAuthenticationResult(
+                onAuthenticationSuccess = {
+                    interactor.reportRecoveryStarted(signals = listOf("device_auth_verified"))
+                    when (interactor.beginPinRecovery()) {
+                        LocalUnlockStatus.ReadyForPin -> {
+                            setState { copy(isLoading = false) }
+                            setupRecoveryPhase()
+                        }
+                        else -> {
+                            when (val result = interactor.performLocalRecoveryReset()) {
+                                LocalRecoveryResetResult.LocalResetComplete -> {
+                                    setState { copy(isLoading = false) }
+                                    setEffect { Effect.Navigation.GoToWalletSetup }
+                                }
+                                is LocalRecoveryResetResult.LocalResetBlocked -> {
+                                    setState {
+                                        copy(
+                                            isLoading = false,
+                                            quickPinError = result.errorMessage
+                                        )
+                                    }
+                                }
+                                is LocalRecoveryResetResult.SecurityFailure -> {
+                                    setState {
+                                        copy(
+                                            isLoading = false,
+                                            quickPinError = result.errorMessage
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                onAuthenticationError = {
+                    viewModelScope.launch {
+                        setState {
+                            copy(
+                                isLoading = false,
+                                quickPinError = resourceProvider.getString(
+                                    R.string.quick_pin_recovery_required_error
+                                )
+                            )
+                        }
+                    }
+                },
+                onAuthenticationFailure = {
+                    viewModelScope.launch {
+                        setState { copy(isLoading = false) }
+                    }
+                }
+            )
+        )
     }
 
     private fun showBottomSheet() {

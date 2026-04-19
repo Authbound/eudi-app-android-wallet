@@ -16,13 +16,19 @@
 
 package eu.europa.ec.startupfeature.interactor
 
+import eu.europa.ec.authenticationlogic.controller.storage.RecoveryCheckpointController
 import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
+import eu.europa.ec.authenticationlogic.model.LocalAuthRouteDecision
+import eu.europa.ec.authenticationlogic.model.LocalUnlockStatus
 import eu.europa.ec.authenticationlogic.model.Profile
+import eu.europa.ec.authenticationlogic.model.RecoveryCheckpoint
 import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
+import eu.europa.ec.authenticationlogic.storage.LocalAuthKeys
 import eu.europa.ec.authenticationlogic.usecase.GetLegalAcceptanceStateUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsProfileCompletedUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsWalletActivatedUseCase
+import eu.europa.ec.authenticationlogic.usecase.ResolveLocalAuthRouteUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignOutMode
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.authenticationlogic.usecase.WalletActivationStatus
@@ -76,7 +82,9 @@ class SplashInteractorImpl(
     private val localUnlockTracker: LocalUnlockTracker,
     private val deviceController: DeviceController,
     private val signOutUseCase: SignOutUseCase,
-    private val ownershipController: UserDocumentOwnershipController
+    private val ownershipController: UserDocumentOwnershipController,
+    private val recoveryCheckpointController: RecoveryCheckpointController,
+    private val resolveLocalAuthRouteUseCase: ResolveLocalAuthRouteUseCase
 ) : SplashInteractor {
 
     companion object {
@@ -244,6 +252,11 @@ class SplashInteractorImpl(
             handleMissingDeviceSecurity(walletStatus)
             return StartupState.DeviceSecurityRequired
         }
+        val recoveryCheckpoint: RecoveryCheckpoint = recoveryCheckpointController.getCheckpoint()
+        if (recoveryCheckpoint != RecoveryCheckpoint.NONE) {
+            logController.w(TAG) { "Recovery checkpoint pending: $recoveryCheckpoint" }
+            return StartupState.WalletNotActivated("wallet recovery pending")
+        }
         val walletStatus = isWalletActivatedUseCase()
         logController.d(TAG, "Wallet status: ${walletStatus::class.simpleName}")
         when (walletStatus) {
@@ -294,26 +307,52 @@ class SplashInteractorImpl(
     private suspend fun checkLocalUnlockState(): StartupState {
         logController.d(TAG, "Level 4: Checking local unlock status...")
 
-        // Check if PIN exists
-        val hasPin = quickPinInteractor.hasPin()
-        logController.d(TAG, "Has PIN: $hasPin")
-
-        if (!hasPin) {
-            // PIN not set - force PIN creation (mandatory after wallet activation)
-            return StartupState.PinNotSet
-        }
-
-        // Check if user is already unlocked (within TTL)
-        val isUnlocked = localUnlockTracker.isUnlocked()
+        val localUnlockStatus: LocalUnlockStatus = quickPinInteractor.getLocalUnlockStatus()
+        logController.d(TAG, "Local unlock status: $localUnlockStatus")
+        val configuredEnrollmentRequired: Boolean = prefsController.safeBool(
+            LocalAuthKeys.ENROLLMENT_REQUIRED,
+            false
+        )
+        val enrollmentRequired: Boolean = configuredEnrollmentRequired
+        val isUnlocked: Boolean = localUnlockTracker.isUnlocked()
         logController.d(TAG, "Is unlocked (within TTL): $isUnlocked")
-
-        if (isUnlocked) {
-            // User is within TTL - go directly to dashboard (hot start)
-            return StartupState.Ready
+        val routeDecision: LocalAuthRouteDecision = resolveLocalAuthRouteUseCase(
+            localUnlockStatus = localUnlockStatus,
+            enrollmentRequired = enrollmentRequired,
+            recoveryCheckpoint = RecoveryCheckpoint.NONE,
+            isUnlocked = isUnlocked
+        )
+        return when (routeDecision) {
+            LocalAuthRouteDecision.Ready -> StartupState.Ready
+            LocalAuthRouteDecision.PinCreate -> StartupState.PinNotSet
+            LocalAuthRouteDecision.PinVerificationRequired -> StartupState.PinVerificationRequired
+            LocalAuthRouteDecision.PinRecoveryRequired -> {
+                if (localUnlockStatus == LocalUnlockStatus.NotProvisioned && !enrollmentRequired) {
+                    reportLocalAuthTamperDetected(
+                        signals = listOf("unexpected_missing_auth_material")
+                    )
+                }
+                StartupState.PinRecoveryRequired
+            }
+            is LocalAuthRouteDecision.SecurityError -> {
+                if (localUnlockStatus == LocalUnlockStatus.TamperDetected) {
+                    reportLocalAuthTamperDetected(
+                        signals = listOf("local_auth_integrity_failure")
+                    )
+                }
+                StartupState.SecurityError(routeDecision.message)
+            }
         }
+    }
 
-        // User needs to verify PIN (warm start)
-        return StartupState.PinVerificationRequired
+    private suspend fun reportLocalAuthTamperDetected(signals: List<String>) {
+        runCatching {
+            quickPinInteractor.reportTamperDetected(signals)
+        }.onFailure { error ->
+            logController.w(TAG) {
+                "Failed to report local auth tamper incident: ${error.message}"
+            }
+        }
     }
 
     /**

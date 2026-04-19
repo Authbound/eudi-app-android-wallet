@@ -17,6 +17,7 @@
 package eu.europa.ec.authenticationlogic.gate
 
 import eu.europa.ec.authenticationlogic.controller.storage.PinStorageController
+import eu.europa.ec.authenticationlogic.model.LocalUnlockStatus
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
 import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
@@ -111,7 +112,7 @@ class TestKeyGateV2 {
         coroutineRule.runTest {
             // Given
             whenever(prefKeys.isWalletActivatedSafe()).thenReturn(true)
-            whenever(pinStorage.retrievePin()).thenReturn("")
+            whenever(pinStorage.getLocalUnlockStatus()).thenReturn(LocalUnlockStatus.NotProvisioned)
 
             // When
             val result = keyGate.isKeyLocked()
@@ -128,7 +129,7 @@ class TestKeyGateV2 {
         coroutineRule.runTest {
             // Given
             whenever(prefKeys.isWalletActivatedSafe()).thenReturn(true)
-            whenever(pinStorage.retrievePin()).thenReturn(MOCK_VALID_PIN)
+            whenever(pinStorage.getLocalUnlockStatus()).thenReturn(LocalUnlockStatus.ReadyForPin)
             whenever(prefs.safeLong(eq(PREF_LAST_UNLOCK_AT), any())).thenReturn(0L)
 
             // When
@@ -155,7 +156,7 @@ class TestKeyGateV2 {
             val fiveSecondsAgo = currentTime - 5_000L
 
             whenever(prefKeys.isWalletActivatedSafe()).thenReturn(true)
-            whenever(pinStorage.retrievePin()).thenReturn(MOCK_VALID_PIN)
+            whenever(pinStorage.getLocalUnlockStatus()).thenReturn(LocalUnlockStatus.ReadyForPin)
             whenever(prefs.safeLong(eq(PREF_LAST_UNLOCK_AT), any())).thenReturn(fiveSecondsAgo)
 
             // When
@@ -180,7 +181,7 @@ class TestKeyGateV2 {
             val justInsideTTL = currentTime - LocalUnlockTracker.DEFAULT_TTL_MS + 100L
 
             whenever(prefKeys.isWalletActivatedSafe()).thenReturn(true)
-            whenever(pinStorage.retrievePin()).thenReturn(MOCK_VALID_PIN)
+            whenever(pinStorage.getLocalUnlockStatus()).thenReturn(LocalUnlockStatus.ReadyForPin)
             whenever(prefs.safeLong(eq(PREF_LAST_UNLOCK_AT), any())).thenReturn(justInsideTTL)
 
             // When
@@ -203,7 +204,7 @@ class TestKeyGateV2 {
             val justPastTTL = currentTime - LocalUnlockTracker.DEFAULT_TTL_MS - 1L
 
             whenever(prefKeys.isWalletActivatedSafe()).thenReturn(true)
-            whenever(pinStorage.retrievePin()).thenReturn(MOCK_VALID_PIN)
+            whenever(pinStorage.getLocalUnlockStatus()).thenReturn(LocalUnlockStatus.ReadyForPin)
             whenever(prefs.safeLong(eq(PREF_LAST_UNLOCK_AT), any())).thenReturn(justPastTTL)
 
             // When
@@ -221,7 +222,7 @@ class TestKeyGateV2 {
         coroutineRule.runTest {
             // Given
             whenever(prefKeys.isWalletActivatedSafe()).thenReturn(true)
-            whenever(pinStorage.retrievePin()).thenReturn(MOCK_VALID_PIN)
+            whenever(pinStorage.getLocalUnlockStatus()).thenReturn(LocalUnlockStatus.ReadyForPin)
             whenever(prefs.safeLong(eq(PREF_LAST_UNLOCK_AT), any())).thenReturn(0L)
 
             // When
@@ -246,7 +247,7 @@ class TestKeyGateV2 {
             val fiveSecondsAgo = currentTime - 5_000L
 
             whenever(prefKeys.isWalletActivatedSafe()).thenReturn(true)
-            whenever(pinStorage.retrievePin()).thenReturn(MOCK_VALID_PIN)
+            whenever(pinStorage.getLocalUnlockStatus()).thenReturn(LocalUnlockStatus.ReadyForPin)
             whenever(prefs.safeLong(eq(PREF_LAST_UNLOCK_AT), any())).thenReturn(fiveSecondsAgo)
 
             // When
@@ -313,6 +314,7 @@ class TestKeyGateV2 {
 
             // Then
             assertFalse("isUnlocked should return false when past TTL", result)
+            verify(pinStorage).clearEphemeralSecrets()
         }
 
     // Case 10b:
@@ -454,6 +456,7 @@ class TestKeyGateV2 {
 
             // Then
             verify(prefs, times(1)).setLong(PREF_LAST_UNLOCK_AT, 0L)
+            verify(pinStorage).clearEphemeralSecrets()
         }
 
     // Case 12b:
@@ -506,7 +509,7 @@ class TestKeyGateV2 {
         coroutineRule.runTest {
             // Given
             whenever(prefKeys.isWalletActivatedSafe()).thenReturn(true)
-            whenever(pinStorage.retrievePin()).thenThrow(RuntimeException("Storage error"))
+            whenever(pinStorage.getLocalUnlockStatus()).thenThrow(RuntimeException("Storage error"))
 
             // When
             val result = keyGate.isKeyLocked()
@@ -592,7 +595,7 @@ class TestKeyGateV2 {
             keyGate.markUnlocked()
 
             whenever(prefKeys.isWalletActivatedSafe()).thenReturn(true)
-            whenever(pinStorage.retrievePin()).thenReturn(MOCK_VALID_PIN)
+            whenever(pinStorage.getLocalUnlockStatus()).thenReturn(LocalUnlockStatus.ReadyForPin)
 
             val currentTime = System.currentTimeMillis()
             whenever(prefs.safeLong(eq(PREF_LAST_UNLOCK_AT), any())).thenReturn(currentTime)

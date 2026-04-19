@@ -21,6 +21,14 @@ import eu.europa.ec.authenticationlogic.controller.authentication.DeviceAuthenti
 import eu.europa.ec.authenticationlogic.controller.storage.BiometryStorageController
 import eu.europa.ec.authenticationlogic.controller.storage.PinStorageController
 import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
+import eu.europa.ec.authenticationlogic.usecase.ReportWalletSecurityIncidentUseCase
+import eu.europa.ec.authenticationlogic.usecase.ResetLocalWalletForRecoveryUseCase
+import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
+import eu.europa.ec.businesslogic.controller.crypto.CryptoController
+import eu.europa.ec.businesslogic.controller.crypto.KeystoreController
+import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
+import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
+import eu.europa.ec.businesslogic.controller.wallet.LocalWalletCleanupController
 import eu.europa.ec.businesslogic.validator.FormValidator
 import eu.europa.ec.commonfeature.interactor.BiometricInteractor
 import eu.europa.ec.commonfeature.interactor.BiometricInteractorImpl
@@ -57,13 +65,31 @@ fun provideQuickPinInteractor(
     formValidator: FormValidator,
     pinStorageController: PinStorageController,
     resourceProvider: ResourceProvider,
-    localUnlockTracker: LocalUnlockTracker
+    localUnlockTracker: LocalUnlockTracker,
+    biometryStorageController: BiometryStorageController,
+    prefsController: PrefsControllerV2,
+    prefKeys: PrefKeysV2,
+    cryptoController: CryptoController,
+    keystoreController: KeystoreController,
+    localWalletCleanupController: LocalWalletCleanupController,
+    reportWalletSecurityIncidentUseCase: ReportWalletSecurityIncidentUseCase,
+    resetLocalWalletForRecoveryUseCase: ResetLocalWalletForRecoveryUseCase,
+    signOutUseCase: SignOutUseCase
 ): QuickPinInteractor {
     return QuickPinInteractorImpl(
         formValidator,
         pinStorageController,
         resourceProvider,
-        localUnlockTracker
+        localUnlockTracker,
+        biometryStorageController,
+        prefsController,
+        prefKeys,
+        cryptoController,
+        keystoreController,
+        localWalletCleanupController,
+        reportWalletSecurityIncidentUseCase,
+        resetLocalWalletForRecoveryUseCase,
+        signOutUseCase
     )
 }
 

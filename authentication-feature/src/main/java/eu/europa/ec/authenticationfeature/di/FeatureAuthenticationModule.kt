@@ -37,12 +37,18 @@ import eu.europa.ec.authenticationfeature.ui.AuthenticationViewModel
 import eu.europa.ec.authenticationfeature.ui.DeviceSecurityRequiredViewModel
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricAuthenticationController
 import eu.europa.ec.authenticationlogic.controller.storage.PinStorageController
+import eu.europa.ec.authenticationlogic.controller.storage.RecoveryCheckpointController
+import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import eu.europa.ec.authenticationlogic.usecase.CheckHandleAvailabilityUseCase
 import eu.europa.ec.authenticationlogic.usecase.CompleteProfileUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
+import eu.europa.ec.authenticationlogic.usecase.FinalizeWalletActivationStateUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetLegalAcceptanceStateUseCase
 import eu.europa.ec.authenticationlogic.usecase.ObserveAuthStateUseCase
+import eu.europa.ec.authenticationlogic.usecase.PrepareWalletRecoveryUseCase
 import eu.europa.ec.authenticationlogic.usecase.RecordLegalAcceptanceUseCase
+import eu.europa.ec.authenticationlogic.usecase.ResolveLocalAuthRouteUseCase
+import eu.europa.ec.authenticationlogic.usecase.ResetLocalWalletForRecoveryUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignInWithEmailPasswordUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignInWithOAuthUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
@@ -119,7 +125,13 @@ fun provideWalletSetupViewModel(
     prefKeys: PrefKeysV2,
     prefsController: PrefsControllerV2,
     logController: LogController,
-    pinStorageController: PinStorageController
+    pinStorageController: PinStorageController,
+    resolveLocalAuthRouteUseCase: ResolveLocalAuthRouteUseCase,
+    finalizeWalletActivationStateUseCase: FinalizeWalletActivationStateUseCase,
+    recoveryCheckpointController: RecoveryCheckpointController,
+    prepareWalletRecoveryUseCase: PrepareWalletRecoveryUseCase,
+    resetLocalWalletForRecoveryUseCase: ResetLocalWalletForRecoveryUseCase,
+    localUnlockTracker: LocalUnlockTracker
 ): WalletSetupViewModel = WalletSetupViewModel(
     createWalletAttestationUseCase,
     deleteWalletActivationUseCase,
@@ -130,7 +142,13 @@ fun provideWalletSetupViewModel(
     prefKeys,
     prefsController,
     logController,
-    pinStorageController
+    pinStorageController,
+    resolveLocalAuthRouteUseCase,
+    finalizeWalletActivationStateUseCase,
+    recoveryCheckpointController,
+    prepareWalletRecoveryUseCase,
+    resetLocalWalletForRecoveryUseCase,
+    localUnlockTracker
 )
 
 @Factory

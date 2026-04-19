@@ -16,8 +16,20 @@
 
 package eu.europa.ec.commonfeature.interactor
 
+import eu.europa.ec.authenticationlogic.controller.storage.BiometryStorageController
 import eu.europa.ec.authenticationlogic.controller.storage.PinStorageController
 import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
+import eu.europa.ec.authenticationlogic.model.LocalUnlockStatus
+import eu.europa.ec.authenticationlogic.model.PinValidationResult
+import eu.europa.ec.authenticationlogic.model.LocalRecoveryResetResult
+import eu.europa.ec.authenticationlogic.usecase.ResetLocalWalletForRecoveryUseCase
+import eu.europa.ec.authenticationlogic.usecase.ReportWalletSecurityIncidentUseCase
+import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
+import eu.europa.ec.businesslogic.controller.crypto.CryptoController
+import eu.europa.ec.businesslogic.controller.crypto.KeystoreController
+import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
+import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
+import eu.europa.ec.businesslogic.controller.wallet.LocalWalletCleanupController
 import eu.europa.ec.businesslogic.validator.FormValidator
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
@@ -37,6 +49,7 @@ import org.mockito.Mockito.anyString
 import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.verifyNoInteractions
 import org.mockito.kotlin.whenever
 
 class TestQuickPinInteractor {
@@ -56,6 +69,33 @@ class TestQuickPinInteractor {
     @Mock
     private lateinit var localUnlockTracker: LocalUnlockTracker
 
+    @Mock
+    private lateinit var biometryStorageController: BiometryStorageController
+
+    @Mock
+    private lateinit var prefsController: PrefsControllerV2
+
+    @Mock
+    private lateinit var prefKeys: PrefKeysV2
+
+    @Mock
+    private lateinit var cryptoController: CryptoController
+
+    @Mock
+    private lateinit var keystoreController: KeystoreController
+
+    @Mock
+    private lateinit var localWalletCleanupController: LocalWalletCleanupController
+
+    @Mock
+    private lateinit var reportWalletSecurityIncidentUseCase: ReportWalletSecurityIncidentUseCase
+
+    @Mock
+    private lateinit var resetLocalWalletForRecoveryUseCase: ResetLocalWalletForRecoveryUseCase
+
+    @Mock
+    private lateinit var signOutUseCase: SignOutUseCase
+
     private lateinit var interactor: QuickPinInteractor
 
     private lateinit var closeable: AutoCloseable
@@ -68,7 +108,16 @@ class TestQuickPinInteractor {
             formValidator = formValidator,
             pinStorageController = pinStorageController,
             resourceProvider = resourceProvider,
-            localUnlockTracker = localUnlockTracker
+            localUnlockTracker = localUnlockTracker,
+            biometryStorageController = biometryStorageController,
+            prefsController = prefsController,
+            prefKeys = prefKeys,
+            cryptoController = cryptoController,
+            keystoreController = keystoreController,
+            localWalletCleanupController = localWalletCleanupController,
+            reportWalletSecurityIncidentUseCase = reportWalletSecurityIncidentUseCase,
+            resetLocalWalletForRecoveryUseCase = resetLocalWalletForRecoveryUseCase,
+            signOutUseCase = signOutUseCase
         )
 
         whenever(resourceProvider.genericErrorMessage())
@@ -88,8 +137,8 @@ class TestQuickPinInteractor {
     fun `Given Case 1, When hasPin is called, Then it returns false`() =
         coroutineRule.runTest {
             // Given
-            whenever(pinStorageController.retrievePin())
-                .thenReturn(mockedEmptyPin)
+            whenever(pinStorageController.getLocalUnlockStatus())
+                .thenReturn(LocalUnlockStatus.NotProvisioned)
 
             // When
             val actual = interactor.hasPin()
@@ -98,8 +147,7 @@ class TestQuickPinInteractor {
             val expected = false
 
             assertEquals(expected, actual)
-            verify(pinStorageController, times(1))
-                .retrievePin()
+            verify(pinStorageController, times(1)).getLocalUnlockStatus()
         }
 
     // Case 2:
@@ -108,8 +156,8 @@ class TestQuickPinInteractor {
     fun `Given Case 2, When hasPin is called, Then it returns false`() =
         coroutineRule.runTest {
             // Given
-            whenever(pinStorageController.retrievePin())
-                .thenReturn(mockedBlankPin)
+            whenever(pinStorageController.getLocalUnlockStatus())
+                .thenReturn(LocalUnlockStatus.NotProvisioned)
 
             // When
             val actual = interactor.hasPin()
@@ -118,8 +166,7 @@ class TestQuickPinInteractor {
             val expected = false
 
             assertEquals(expected, actual)
-            verify(pinStorageController, times(1))
-                .retrievePin()
+            verify(pinStorageController, times(1)).getLocalUnlockStatus()
         }
 
     // Case 3:
@@ -128,8 +175,8 @@ class TestQuickPinInteractor {
     fun `Given Case 3, When hasPin is called, Then it returns true`() =
         coroutineRule.runTest {
             // Given
-            whenever(pinStorageController.retrievePin())
-                .thenReturn(mockedPin)
+            whenever(pinStorageController.getLocalUnlockStatus())
+                .thenReturn(LocalUnlockStatus.ReadyForPin)
 
             // When
             val actual = interactor.hasPin()
@@ -138,8 +185,7 @@ class TestQuickPinInteractor {
             val expected = true
 
             assertEquals(expected, actual)
-            verify(pinStorageController, times(1))
-                .retrievePin()
+            verify(pinStorageController, times(1)).getLocalUnlockStatus()
         }
     //endregion
 
@@ -338,8 +384,8 @@ class TestQuickPinInteractor {
     fun `Given Case 1, When isCurrentPinValid is called, Then it returns Success`() {
         coroutineRule.runTest {
             // Given
-            whenever(pinStorageController.isPinValid(anyString()))
-                .thenReturn(true)
+            whenever(pinStorageController.verifyPin(anyString()))
+                .thenReturn(PinValidationResult.Success)
 
             // When
             interactor.isCurrentPinValid(
@@ -360,8 +406,8 @@ class TestQuickPinInteractor {
     fun `Given Case 2, When isCurrentPinValid is called, Then it returns Failed with the appropriate error message`() {
         coroutineRule.runTest {
             // Given
-            whenever(pinStorageController.isPinValid(anyString()))
-                .thenReturn(false)
+            whenever(pinStorageController.verifyPin(anyString()))
+                .thenReturn(PinValidationResult.Failed(remainingAttempts = 9))
 
             whenever(resourceProvider.getString(R.string.quick_pin_invalid_error))
                 .thenReturn(mockedInvalidPinMessage)
@@ -390,7 +436,7 @@ class TestQuickPinInteractor {
     fun `Given Case 3, When isCurrentPinValid is called, Then it returns Failed with exception's localized message`() {
         coroutineRule.runTest {
             // Given
-            whenever(pinStorageController.isPinValid(anyString()))
+            whenever(pinStorageController.verifyPin(anyString()))
                 .thenThrow(mockedExceptionWithMessage)
 
             // When
@@ -414,7 +460,7 @@ class TestQuickPinInteractor {
     fun `Given Case 4, When isCurrentPinValid is called, Then it returns Failed with the generic error message`() {
         coroutineRule.runTest {
             // Given
-            whenever(pinStorageController.isPinValid(anyString()))
+            whenever(pinStorageController.verifyPin(anyString()))
                 .thenThrow(mockedExceptionWithNoMessage)
 
             // When
@@ -425,6 +471,26 @@ class TestQuickPinInteractor {
                 assertEquals(
                     QuickPinInteractorPinValidPartialState.Failed(
                         errorMessage = mockedGenericErrorMessage
+                    ),
+                    awaitItem()
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Given recovery is required, When isCurrentPinValid is called, Then it returns a recovery failure`() {
+        coroutineRule.runTest {
+            whenever(pinStorageController.verifyPin(anyString()))
+                .thenReturn(PinValidationResult.RecoveryRequired)
+            whenever(resourceProvider.getString(R.string.quick_pin_recovery_required_error))
+                .thenReturn("Recovery required")
+
+            interactor.isCurrentPinValid(pin = mockedPin).runFlowTest {
+                assertEquals(
+                    QuickPinInteractorPinValidPartialState.Failed(
+                        errorMessage = "Recovery required",
+                        requiresRecovery = true
                     ),
                     awaitItem()
                 )
@@ -535,6 +601,38 @@ class TestQuickPinInteractor {
             }
         }
     }
+    //endregion
+
+    //region performLocalRecoveryReset
+
+    @Test
+    fun `Given local recovery reset succeeds, When performLocalRecoveryReset is called, Then it returns LocalResetComplete without backend recovery preparation`() =
+        coroutineRule.runTest {
+            whenever(resetLocalWalletForRecoveryUseCase.invoke())
+                .thenReturn(LocalRecoveryResetResult.LocalResetComplete)
+
+            val result = interactor.performLocalRecoveryReset()
+
+            assertEquals(LocalRecoveryResetResult.LocalResetComplete, result)
+            verify(resetLocalWalletForRecoveryUseCase).invoke()
+            verifyNoInteractions(signOutUseCase)
+        }
+
+    @Test
+    fun `Given local recovery reset is blocked, When performLocalRecoveryReset is called, Then it returns blocked and does not sign out`() =
+        coroutineRule.runTest {
+            whenever(resetLocalWalletForRecoveryUseCase.invoke())
+                .thenReturn(LocalRecoveryResetResult.LocalResetBlocked("cleanup failed"))
+
+            val result = interactor.performLocalRecoveryReset()
+
+            assertEquals(
+                LocalRecoveryResetResult.LocalResetBlocked("cleanup failed"),
+                result
+            )
+            verify(resetLocalWalletForRecoveryUseCase).invoke()
+            verifyNoInteractions(signOutUseCase)
+        }
     //endregion
 
     //region Mocked objects needed for tests.

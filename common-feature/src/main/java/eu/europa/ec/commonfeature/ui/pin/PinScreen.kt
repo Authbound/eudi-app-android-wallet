@@ -79,6 +79,7 @@ import eu.europa.ec.uilogic.component.wrap.WrapModalBottomSheet
 import eu.europa.ec.uilogic.component.wrap.PinIndicator
 import eu.europa.ec.uilogic.component.wrap.WrapPinKeypad
 import eu.europa.ec.uilogic.extension.applyTestTag
+import eu.europa.ec.uilogic.extension.exposeTestTagsAsResourceId
 import eu.europa.ec.uilogic.extension.finish
 import eu.europa.ec.uilogic.navigation.AuthenticationScreens
 import eu.europa.ec.uilogic.navigation.CommonScreens
@@ -163,11 +164,17 @@ fun PinScreen(
 
         if (state.showBiometricsPreferencePrompt) {
             AlertDialog(
+                modifier = Modifier
+                    .exposeTestTagsAsResourceId()
+                    .applyTestTag(AuthTestTags.QuickPin.BIOMETRIC_DIALOG),
                 onDismissRequest = { },
                 title = { Text(text = stringResource(R.string.quick_pin_biometrics_prompt_title)) },
                 text = { Text(text = stringResource(R.string.quick_pin_biometrics_prompt_description)) },
                 confirmButton = {
                     TextButton(
+                        modifier = Modifier.applyTestTag(
+                            AuthTestTags.QuickPin.BIOMETRIC_ENABLE_BUTTON
+                        ),
                         onClick = {
                             viewModel.setEvent(
                                 Event.OnBiometricsPreferenceSelected(shouldUseBiometrics = true)
@@ -179,6 +186,9 @@ fun PinScreen(
                 },
                 dismissButton = {
                     TextButton(
+                        modifier = Modifier.applyTestTag(
+                            AuthTestTags.QuickPin.BIOMETRIC_SKIP_BUTTON
+                        ),
                         onClick = {
                             viewModel.setEvent(
                                 Event.OnBiometricsPreferenceSelected(shouldUseBiometrics = false)
@@ -214,6 +224,13 @@ private fun handleNavigationEffect(
 
         is Effect.Navigation.GoToLogin -> {
             navController.navigate(AuthenticationScreens.Login.screenRoute) {
+                popUpTo(0) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+
+        is Effect.Navigation.GoToWalletSetup -> {
+            navController.navigate(AuthenticationScreens.WalletSetup.screenRoute) {
                 popUpTo(0) { inclusive = true }
                 launchSingleTop = true
             }
@@ -482,6 +499,7 @@ private fun SheetContent(
 private fun ResetConfirmationSheetContent(
     onEventSent: (event: Event) -> Unit
 ) {
+    val context = LocalContext.current
     DialogBottomSheet(
         textData = BottomSheetTextDataUi(
             title = stringResource(id = R.string.quick_pin_reset_title),
@@ -489,7 +507,7 @@ private fun ResetConfirmationSheetContent(
             positiveButtonText = stringResource(id = R.string.quick_pin_reset_primary_button),
             negativeButtonText = stringResource(id = R.string.quick_pin_reset_secondary_button),
         ),
-        onPositiveClick = { onEventSent(Event.BottomSheet.Reset.ConfirmPressed) },
+        onPositiveClick = { onEventSent(Event.BottomSheet.Reset.ConfirmPressed(context)) },
         onNegativeClick = { onEventSent(Event.BottomSheet.Reset.CancelPressed) }
     )
 }

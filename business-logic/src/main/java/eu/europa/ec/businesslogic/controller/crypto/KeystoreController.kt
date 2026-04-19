@@ -72,6 +72,8 @@ class KeystoreControllerImpl(
     companion object {
         private const val STORE_TYPE = "AndroidKeyStore"
         private const val WUA_KEY_ALIAS = "wua_key_alias"
+        private const val DEFAULT_SECRET_KEY_ALIAS = "authbound_crypto_default_v1"
+        private const val AUTH_REQUIRED_SECRET_KEY_ALIAS = "authbound_crypto_auth_v1"
     }
 
     private var androidKeyStore: KeyStore? = null
@@ -108,15 +110,15 @@ class KeystoreControllerImpl(
      */
     override fun retrieveOrGenerateSecretKey(userAuthenticationRequired: Boolean): SecretKey? {
         return androidKeyStore?.let {
-            val alias = runBlocking { prefKeys.getCryptoAlias() }
-            if (alias.isEmpty()) {
-                val newAlias = createPublicKey()
-                generateSecretKey(newAlias, userAuthenticationRequired)
-                runBlocking { prefKeys.setCryptoAlias(newAlias) }
-                getSecretKey(it, newAlias)
+            val alias: String = if (userAuthenticationRequired) {
+                AUTH_REQUIRED_SECRET_KEY_ALIAS
             } else {
-                getSecretKey(it, alias)
+                DEFAULT_SECRET_KEY_ALIAS
             }
+            if (!it.containsAlias(alias)) {
+                generateSecretKey(alias, userAuthenticationRequired)
+            }
+            getSecretKey(it, alias)
         }
     }
 

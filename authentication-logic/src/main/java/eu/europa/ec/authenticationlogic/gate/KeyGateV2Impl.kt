@@ -18,10 +18,12 @@ package eu.europa.ec.authenticationlogic.gate
 
 import android.util.Log
 import eu.europa.ec.authenticationlogic.controller.storage.PinStorageController
+import eu.europa.ec.authenticationlogic.model.LocalUnlockStatus
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
 import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
 private const val PREF_LAST_UNLOCK_AT = "authbound.last_local_unlock_at_ms"
@@ -84,10 +86,17 @@ class KeyGateV2Impl(
             return@withContext true
         }
 
-        // CRITICAL: Check if PIN exists (must exist for unlock to make sense)
-        val hasPin = safe { pinStorage.retrievePin().isNotBlank() } ?: false
-        if (!hasPin) {
-            Log.d(TAG, "<<< isKeyLocked() = true — PIN not set")
+        val localUnlockStatus = safe { pinStorage.getLocalUnlockStatus() } ?: LocalUnlockStatus.TamperDetected
+        if (localUnlockStatus == LocalUnlockStatus.NotProvisioned) {
+            Log.d(TAG, "<<< isKeyLocked() = true — local auth not provisioned")
+            return@withContext true
+        }
+        if (localUnlockStatus == LocalUnlockStatus.RecoveryRequired) {
+            Log.d(TAG, "<<< isKeyLocked() = true — local auth recovery required")
+            return@withContext true
+        }
+        if (localUnlockStatus == LocalUnlockStatus.TamperDetected) {
+            Log.d(TAG, "<<< isKeyLocked() = true — local auth tamper detected")
             return@withContext true
         }
 
@@ -103,6 +112,7 @@ class KeyGateV2Impl(
         if (isBackgroundTimeoutExpired()) {
             Log.d(TAG, "<<< isKeyLocked() = true — background timeout expired (${bgElapsed}ms > ${BACKGROUND_TIMEOUT_MS}ms)")
             processAuthenticated = false
+            clearEphemeralSecretsSafely()
             return@withContext true
         }
 
@@ -120,6 +130,10 @@ class KeyGateV2Impl(
         val ttl = LocalUnlockTracker.DEFAULT_TTL_MS
         val timeSinceUnlock = System.currentTimeMillis() - last
         val isLocked = timeSinceUnlock > ttl
+        if (isLocked) {
+            processAuthenticated = false
+            clearEphemeralSecretsSafely()
+        }
         Log.d(TAG, "<<< isKeyLocked() = $isLocked — timeSinceUnlock=${timeSinceUnlock}ms, TTL=${ttl}ms")
 
         return@withContext isLocked
@@ -139,6 +153,7 @@ class KeyGateV2Impl(
     override suspend fun lockNow(): Unit = withContext(Dispatchers.IO) {
         safe { prefs.setLong(PREF_LAST_UNLOCK_AT, 0L) }
         processAuthenticated = false
+        clearEphemeralSecretsSafely()
         Log.d(TAG, ">>> lockNow() — cleared timestamp, processAuthenticated=false")
         Unit
     }
@@ -171,6 +186,7 @@ class KeyGateV2Impl(
         if (isBackgroundTimeoutExpired()) {
             Log.d(TAG, "<<< isUnlocked() = false — background timeout EXPIRED (bgElapsed=${bgElapsed}ms > ${BACKGROUND_TIMEOUT_MS}ms)")
             processAuthenticated = false
+            clearEphemeralSecretsBlocking()
             return false
         }
 
@@ -191,6 +207,10 @@ class KeyGateV2Impl(
         val ttl = LocalUnlockTracker.DEFAULT_TTL_MS
         val timeSinceUnlock = now - last
         val result = timeSinceUnlock <= ttl
+        if (!result) {
+            processAuthenticated = false
+            clearEphemeralSecretsBlocking()
+        }
         Log.d(TAG, "<<< isUnlocked() = $result — lastUnlockAt=$last, timeSinceUnlock=${timeSinceUnlock}ms, TTL=${ttl}ms")
         return result
     }
@@ -202,6 +222,16 @@ class KeyGateV2Impl(
         val bgAt = backgroundedAtMs
         if (bgAt == 0L) return false
         return System.currentTimeMillis() - bgAt > BACKGROUND_TIMEOUT_MS
+    }
+
+    private suspend fun clearEphemeralSecretsSafely() {
+        runCatching { pinStorage.clearEphemeralSecrets() }
+            .onFailure { logController.w(TAG) { "Failed to clear ephemeral local auth secrets: ${it.message}" } }
+    }
+
+    private fun clearEphemeralSecretsBlocking() {
+        runCatching { runBlocking { pinStorage.clearEphemeralSecrets() } }
+            .onFailure { logController.w(TAG) { "Failed to clear ephemeral local auth secrets: ${it.message}" } }
     }
 
     /**

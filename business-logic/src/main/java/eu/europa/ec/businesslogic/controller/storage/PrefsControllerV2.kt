@@ -64,6 +64,7 @@ interface PrefsControllerV2 {
      * Clear all data for a specific user (used during sign-out).
      */
     suspend fun clearUserData(userId: String)
+    suspend fun clearForUser(userId: String, key: String)
 
     // Standard preference accessors - automatically use current user's context
     suspend fun getString(key: String, defaultValue: String): String
@@ -169,6 +170,10 @@ class PrefsControllerV2Impl(
     override suspend fun clearUserData(userId: String) {
         getUserPrefs(userId).edit { clear() }
         logController.i("PrefsControllerV2") { "Cleared all data for user: ${userId.take(8)}..." }
+    }
+
+    override suspend fun clearForUser(userId: String, key: String) {
+        getUserPrefs(userId).edit { remove(key) }
     }
 
     override suspend fun invalidateCache() = cacheMutex.withLock {

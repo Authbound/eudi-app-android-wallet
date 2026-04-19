@@ -148,6 +148,10 @@
 
     <!-- region Quick Pin -->
     <string name="quick_pin_invalid_error">Invalid pin</string>
+    <string name="quick_pin_locked_error">Too many incorrect attempts. Try again later or recover your passcode.</string>
+    <string name="quick_pin_recovery_required_error">Passcode entry is disabled. Recover your passcode with device security or reset the local wallet.</string>
+    <string name="quick_pin_security_error">Wallet security data could not be trusted. Sign in again to recover access.</string>
+    <string name="quick_pin_online_recovery_error">Online wallet recovery failed. Check your connection and try again.</string>
     <string name="quick_pin_numerical_rule_invalid_error_message">Only numerical values are allowed</string>
     <string name="quick_pin_non_match">Pins do not match</string>
 

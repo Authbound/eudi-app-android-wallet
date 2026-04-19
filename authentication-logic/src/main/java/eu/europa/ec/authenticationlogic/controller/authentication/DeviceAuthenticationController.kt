@@ -18,6 +18,7 @@ package eu.europa.ec.authenticationlogic.controller.authentication
 
 import android.content.Context
 import android.content.ContextWrapper
+import android.os.Build
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.fragment.app.FragmentActivity
@@ -82,7 +83,14 @@ class DeviceAuthenticationControllerImpl(
                 promptInfo = BiometricPrompt.PromptInfo.Builder()
                     .setTitle(resourceProvider.getString(R.string.biometric_prompt_title))
                     .setSubtitle(resourceProvider.getString(R.string.biometric_prompt_subtitle))
-                    .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+                    .setAllowedAuthenticators(
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                                BiometricManager.Authenticators.DEVICE_CREDENTIAL
+                        } else {
+                            BiometricManager.Authenticators.BIOMETRIC_STRONG
+                        }
+                    )
                     .build(),
                 notifyOnAuthenticationFailure = notifyOnAuthenticationFailure
             )

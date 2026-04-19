@@ -16,11 +16,16 @@
 
 package eu.europa.ec.commonfeature.ui.pin
 
-import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
+import android.content.Context
+import app.cash.turbine.test
+import eu.europa.ec.authenticationlogic.controller.authentication.DeviceAuthenticationResult
+import eu.europa.ec.authenticationlogic.model.LocalUnlockStatus
 import eu.europa.ec.businesslogic.validator.Form
 import eu.europa.ec.businesslogic.validator.FormValidationResult
 import eu.europa.ec.commonfeature.interactor.BiometricInteractor
+import eu.europa.ec.commonfeature.interactor.DeviceAuthenticationInteractor
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractor
+import eu.europa.ec.authenticationlogic.model.LocalRecoveryResetResult
 import eu.europa.ec.commonfeature.model.PinFlow
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
@@ -45,6 +50,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.Mock
+import org.mockito.kotlin.doAnswer
 import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.any
 import org.mockito.kotlin.whenever
@@ -79,7 +85,10 @@ class TestPinViewModel {
     private lateinit var uiSerializer: UiSerializer
 
     @Mock
-    private lateinit var signOutUseCase: SignOutUseCase
+    private lateinit var deviceAuthenticationInteractor: DeviceAuthenticationInteractor
+
+    @Mock
+    private lateinit var context: Context
 
     private lateinit var closeable: AutoCloseable
 
@@ -92,6 +101,7 @@ class TestPinViewModel {
         runBlocking {
             whenever(biometricInteractor.getBiometricUserSelection()).thenReturn(false)
             whenever(biometricInteractor.getBiometricsPreferenceDecided()).thenReturn(true)
+            whenever(interactor.getLocalUnlockStatus()).thenReturn(LocalUnlockStatus.ReadyForPin)
         }
     }
 
@@ -375,6 +385,30 @@ class TestPinViewModel {
 
     //endregion
 
+    @Test
+    fun `Given local recovery reset completes, When reset is confirmed, Then navigates to wallet setup`() =
+        coroutineRule.runTest {
+            whenever(interactor.beginPinRecovery()).thenReturn(LocalUnlockStatus.RecoveryRequired)
+            whenever(interactor.performLocalRecoveryReset())
+                .thenReturn(LocalRecoveryResetResult.LocalResetComplete)
+            doAnswer { invocation ->
+                val resultHandler = invocation.getArgument<DeviceAuthenticationResult>(3)
+                runBlocking {
+                    resultHandler.onAuthenticationSuccess()
+                }
+                Unit
+            }.whenever(deviceAuthenticationInteractor).authenticateWithBiometrics(any(), any(), any(), any())
+
+            val viewModel = createViewModel(PinFlow.VERIFY)
+
+            viewModel.effect.test {
+                viewModel.setEvent(Event.BottomSheet.Reset.ConfirmPressed(context))
+                testScope.advanceUntilIdle()
+
+                assertEquals(Effect.Navigation.GoToWalletSetup, awaitItem())
+            }
+        }
+
     //region Helper Methods
 
     private fun setupResourceProvider() {
@@ -400,9 +434,9 @@ class TestPinViewModel {
         return PinViewModel(
             interactor = interactor,
             biometricInteractor = biometricInteractor,
+            deviceAuthenticationInteractor = deviceAuthenticationInteractor,
             resourceProvider = resourceProvider,
             uiSerializer = uiSerializer,
-            signOutUseCase = signOutUseCase,
             pinFlow = pinFlow
         )
     }

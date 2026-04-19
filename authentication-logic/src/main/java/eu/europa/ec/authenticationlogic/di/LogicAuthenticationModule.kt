@@ -27,6 +27,10 @@ import eu.europa.ec.authenticationlogic.controller.storage.BiometryStorageContro
 import eu.europa.ec.authenticationlogic.controller.storage.BiometryStorageControllerImpl
 import eu.europa.ec.authenticationlogic.controller.storage.PinStorageController
 import eu.europa.ec.authenticationlogic.controller.storage.PinStorageControllerImpl
+import eu.europa.ec.authenticationlogic.controller.storage.RecoveryCheckpointController
+import eu.europa.ec.authenticationlogic.controller.storage.RecoveryCheckpointControllerImpl
+import eu.europa.ec.authenticationlogic.controller.storage.WalletRecoveryChallengeController
+import eu.europa.ec.authenticationlogic.controller.storage.WalletRecoveryChallengeControllerImpl
 import eu.europa.ec.authenticationlogic.gate.AppLockLifecycleObserver
 import eu.europa.ec.authenticationlogic.gate.KeyGate
 import eu.europa.ec.authenticationlogic.gate.KeyGateV2Impl
@@ -38,6 +42,8 @@ import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
 import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepositoryImpl
 import eu.europa.ec.authenticationlogic.repository.ProfileRepository
 import eu.europa.ec.authenticationlogic.repository.ProfileRepositoryImpl
+import eu.europa.ec.authenticationlogic.repository.WalletSecurityRepository
+import eu.europa.ec.authenticationlogic.repository.WalletSecurityRepositoryImpl
 import eu.europa.ec.networklogic.api.ApiClient
 import eu.europa.ec.authenticationlogic.storage.PrefsBiometryStorageProvider
 import eu.europa.ec.authenticationlogic.storage.PrefsPinStorageProvider
@@ -120,6 +126,16 @@ fun provideBiometryStorageController(
     storageConfig: StorageConfig
 ): BiometryStorageController = BiometryStorageControllerImpl(storageConfig)
 
+@Factory
+fun provideWalletRecoveryChallengeController(
+    prefsController: PrefsControllerV2
+): WalletRecoveryChallengeController = WalletRecoveryChallengeControllerImpl(prefsController)
+
+@Factory
+fun provideRecoveryCheckpointController(
+    prefsController: PrefsControllerV2
+): RecoveryCheckpointController = RecoveryCheckpointControllerImpl(prefsController)
+
 // ============================================================
 // Repositories
 // ============================================================
@@ -136,6 +152,19 @@ fun provideProfileRepository(
     supabaseClient: SupabaseClient,
     logController: LogController
 ): ProfileRepository = ProfileRepositoryImpl(apiClient, supabaseClient, logController)
+
+@Factory
+fun provideWalletSecurityRepository(
+    apiClient: ApiClient,
+    supabaseClient: SupabaseClient,
+    walletRecoveryChallengeController: WalletRecoveryChallengeController,
+    logController: LogController
+): WalletSecurityRepository = WalletSecurityRepositoryImpl(
+    apiClient,
+    supabaseClient,
+    walletRecoveryChallengeController,
+    logController
+)
 
 // ============================================================
 // Use Cases
@@ -177,6 +206,7 @@ fun provideSignOutUseCase(
     prefsController: PrefsControllerV2,
     keystoreController: KeystoreController,
     prefKeys: PrefKeysV2,
+    pinStorageController: PinStorageController,
     localUnlockTracker: LocalUnlockTracker,
     logController: LogController
 ): SignOutUseCase = SignOutUseCaseImpl(
@@ -184,6 +214,7 @@ fun provideSignOutUseCase(
     prefsController,
     keystoreController,
     prefKeys,
+    pinStorageController,
     localUnlockTracker,
     logController
 )
@@ -212,6 +243,60 @@ fun provideRequestAccountDeletionUseCase(
 fun provideCancelAccountDeletionUseCase(
     profileRepository: ProfileRepository
 ): CancelAccountDeletionUseCase = CancelAccountDeletionUseCaseImpl(profileRepository)
+
+@Factory
+fun provideReportWalletSecurityIncidentUseCase(
+    walletSecurityRepository: WalletSecurityRepository
+): ReportWalletSecurityIncidentUseCase = ReportWalletSecurityIncidentUseCaseImpl(walletSecurityRepository)
+
+@Factory
+fun providePrepareWalletRecoveryUseCase(
+    walletSecurityRepository: WalletSecurityRepository
+): PrepareWalletRecoveryUseCase = PrepareWalletRecoveryUseCaseImpl(walletSecurityRepository)
+
+@Factory
+fun provideResolveLocalAuthRouteUseCase(): ResolveLocalAuthRouteUseCase =
+    ResolveLocalAuthRouteUseCaseImpl()
+
+@Factory
+fun provideFinalizeWalletActivationStateUseCase(
+    prefKeys: PrefKeysV2,
+    prefsController: PrefsControllerV2,
+    recoveryCheckpointController: RecoveryCheckpointController
+): FinalizeWalletActivationStateUseCase = FinalizeWalletActivationStateUseCaseImpl(
+    prefKeys,
+    prefsController,
+    recoveryCheckpointController
+)
+
+@Factory
+fun provideResetLocalWalletForRecoveryUseCase(
+    supabaseAuthRepository: SupabaseAuthRepository,
+    pinStorageController: PinStorageController,
+    localUnlockTracker: LocalUnlockTracker,
+    biometryStorageController: BiometryStorageController,
+    prefsController: PrefsControllerV2,
+    prefKeys: PrefKeysV2,
+    cryptoController: CryptoController,
+    keystoreController: KeystoreController,
+    localWalletCleanupController: eu.europa.ec.businesslogic.controller.wallet.LocalWalletCleanupController,
+    recoveryCheckpointController: RecoveryCheckpointController,
+    walletRecoveryChallengeController: WalletRecoveryChallengeController,
+    logController: LogController
+): ResetLocalWalletForRecoveryUseCase = ResetLocalWalletForRecoveryUseCaseImpl(
+    supabaseAuthRepository,
+    pinStorageController,
+    localUnlockTracker,
+    biometryStorageController,
+    prefsController,
+    prefKeys,
+    cryptoController,
+    keystoreController,
+    localWalletCleanupController,
+    recoveryCheckpointController,
+    walletRecoveryChallengeController,
+    logController
+)
 
 @Factory
 fun provideGetLegalAcceptanceStateUseCase(

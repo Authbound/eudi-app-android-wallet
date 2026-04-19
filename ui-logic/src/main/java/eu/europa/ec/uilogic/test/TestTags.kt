@@ -82,6 +82,9 @@ object AuthTestTags {
         const val OVERFLOW_BUTTON = "quick_pin_overflow_button"
         const val FORGOT_PIN_ACTION = "quick_pin_forgot_pin_action"
         const val BIOMETRIC_CTA = "quick_pin_biometric_cta"
+        const val BIOMETRIC_DIALOG = "quick_pin_biometric_dialog"
+        const val BIOMETRIC_ENABLE_BUTTON = "quick_pin_biometric_enable_button"
+        const val BIOMETRIC_SKIP_BUTTON = "quick_pin_biometric_skip_button"
         const val BACKSPACE = "quick_pin_backspace"
 
         fun digit(value: Int): String = "quick_pin_digit_$value"

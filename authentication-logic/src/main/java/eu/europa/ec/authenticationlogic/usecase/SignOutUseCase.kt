@@ -16,6 +16,7 @@
 
 package eu.europa.ec.authenticationlogic.usecase
 
+import eu.europa.ec.authenticationlogic.controller.storage.PinStorageController
 import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
 import eu.europa.ec.businesslogic.controller.crypto.KeystoreController
@@ -42,6 +43,8 @@ import kotlinx.coroutines.withContext
  */
 enum class SignOutMode { Soft, Hard }
 
+private class HardSignOutCleanupException(message: String) : SecurityException(message)
+
 interface SignOutUseCase {
     suspend operator fun invoke(mode: SignOutMode)
 }
@@ -51,6 +54,7 @@ class SignOutUseCaseImpl(
     private val prefsController: PrefsControllerV2,
     private val keystoreController: KeystoreController,
     private val prefKeys: PrefKeysV2,
+    private val pinStorageController: PinStorageController,
     private val localUnlockTracker: LocalUnlockTracker,
     private val logController: LogController
 ):SignOutUseCase {
@@ -59,6 +63,7 @@ class SignOutUseCaseImpl(
         withContext(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 logController.i("SignOutUseCase") { "Starting secure sign out (${mode.name})..." }
+                val localCleanupFailures: MutableList<String> = mutableListOf()
 
                 // 1) Capture context
                 val user = supabaseAuthRepository.getCurrentUser()
@@ -69,11 +74,7 @@ class SignOutUseCaseImpl(
                 runCatching { localUnlockTracker.lockNow() }
                     .onFailure { logController.w("SignOutUseCaseV2") { "Failed to lock wallet: ${it.message}" } }
 
-                // 3) Clear remote session
-                supabaseAuthRepository.signOut()
-                logController.d("SignOutUseCaseV2", "Supabase session cleared")
-
-                // 4) Local cleanup depends on mode
+                // 3) Local cleanup depends on mode
                 when (mode) {
                     SignOutMode.Soft -> {
                         // Keep user-scoped secure data (PIN/EncUK, biometrics, wallet keys).
@@ -89,25 +90,46 @@ class SignOutUseCaseImpl(
                                 logController.d("SignOutUseCaseV2", "User-scoped preferences cleared")
                             }.onFailure {
                                 logController.w("SignOutUseCaseV2") { "Failed to clear user preferences: ${it.message}" }
+                                localCleanupFailures += "Clear user-scoped wallet data"
                             }
                         }
                         if (biometricAlias.isNotEmpty()) {
                             runCatching { keystoreController.deleteBiometricSecretKey(biometricAlias) }
                                 .onSuccess { logController.d("SignOutUseCaseV2", "Biometric key cleared from keystore") }
-                                .onFailure { logController.w("SignOutUseCaseV2") { "Failed to clear biometric key: ${it.message}" } }
+                                .onFailure {
+                                    logController.w("SignOutUseCaseV2") { "Failed to clear biometric key: ${it.message}" }
+                                    localCleanupFailures += "Delete biometric keystore alias"
+                                }
                         }
-                        // If you generate any per-user app keys in Keystore, delete them here too.
+                        runCatching { pinStorageController.clearPinData(userId) }
+                            .onSuccess { logController.d("SignOutUseCaseV2", "Local auth material cleared") }
+                            .onFailure {
+                                logController.w("SignOutUseCaseV2") { "Failed to clear local auth material: ${it.message}" }
+                                localCleanupFailures += "Clear local auth material"
+                            }
                     }
                 }
+
+                // 4) Clear remote session after local destructive cleanup
+                supabaseAuthRepository.signOut()
+                logController.d("SignOutUseCaseV2", "Supabase session cleared")
 
                 // 5) Invalidate in-memory user context
                 runCatching { prefsController.invalidateCache() }
                     .onFailure { logController.w("SignOutUseCaseV2") { "Failed to invalidate cache: ${it.message}" } }
 
+                if (mode == SignOutMode.Hard && localCleanupFailures.isNotEmpty()) {
+                    throw HardSignOutCleanupException(
+                        "Hard sign out completed with cleanup failures: ${localCleanupFailures.joinToString(", ")}"
+                    )
+                }
+
                 logController.i("SignOutUseCaseV2") { "Sign out completed (${mode.name})" }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 // Respect cancellation
                 logController.d("SignOutUseCaseV2", "Cancelled")
+                throw e
+            } catch (e: HardSignOutCleanupException) {
                 throw e
             } catch (e: Exception) {
                 logController.e("SignOutUseCaseV2", e)

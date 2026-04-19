@@ -17,10 +17,12 @@
 package eu.europa.ec.walletactivationlogic.repository
 
 import eu.europa.ec.businesslogic.controller.log.LogController
+import eu.europa.ec.authenticationlogic.controller.storage.WalletRecoveryChallengeController
 import eu.europa.ec.businesslogic.model.DeviceInfo
 import eu.europa.ec.businesslogic.model.error.WalletActivationError
 import eu.europa.ec.networklogic.api.ApiClient
 import eu.europa.ec.networklogic.model.ApiResponse
+import eu.europa.ec.networklogic.model.response.AttestationChallengeResponse
 import eu.europa.ec.testlogic.extension.runTest
 import eu.europa.ec.testlogic.rule.CoroutineTestRule
 import io.github.jan.supabase.SupabaseClient
@@ -35,6 +37,8 @@ import org.mockito.Mock
 import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
+import org.mockito.kotlin.never
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -67,6 +71,9 @@ class TestWalletActivationRepository {
     private lateinit var logController: LogController
 
     @Mock
+    private lateinit var walletRecoveryChallengeController: WalletRecoveryChallengeController
+
+    @Mock
     private lateinit var mockCertificate: Certificate
 
     private lateinit var repository: WalletActivationRepositoryImpl
@@ -80,6 +87,7 @@ class TestWalletActivationRepository {
             apiClient = apiClient,
             supabaseClient = supabaseClient,
             logController = logController,
+            walletRecoveryChallengeController = walletRecoveryChallengeController,
             mockAuthToken = MOCK_AUTH_TOKEN
         )
     }
@@ -90,6 +98,26 @@ class TestWalletActivationRepository {
     }
 
     // region activateWallet error mapping
+
+    @Test
+    fun `Given prepared recovery challenge exists, When getAttestationChallenge is called, Then cached challenge is returned without API call`() =
+        coroutineRule.runTest {
+            val cachedChallenge = AttestationChallengeResponse(
+                challengeId = "prepared-challenge-id",
+                challenge = "aabbccdd",
+                expiresAt = "2026-04-17T10:20:00Z",
+                ttlSeconds = 300
+            )
+            whenever(walletRecoveryChallengeController.consumePreparedChallenge())
+                .thenReturn(cachedChallenge)
+
+            val result = repository.getAttestationChallenge()
+
+            assertTrue("Result should be success", result.isSuccess)
+            assertEquals(cachedChallenge, result.getOrThrow())
+            verify(walletRecoveryChallengeController).consumePreparedChallenge()
+            verify(apiClient, never()).getAttestationChallenge(any())
+        }
 
     @Test
     fun `Given API returns 409, When activateWallet is called, Then result contains WalletAlreadyExists`() =
@@ -128,11 +156,13 @@ class TestWalletActivationRepository {
         apiClient: ApiClient,
         supabaseClient: SupabaseClient,
         logController: LogController,
+        walletRecoveryChallengeController: WalletRecoveryChallengeController,
         private val mockAuthToken: String?
     ) : WalletActivationRepositoryImpl(
         supabaseClient = supabaseClient,
         api = apiClient,
-        logController = logController
+        logController = logController,
+        walletRecoveryChallengeController = walletRecoveryChallengeController
     ) {
         override suspend fun getAuthToken(): String? = mockAuthToken
     }

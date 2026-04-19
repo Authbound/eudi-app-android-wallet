@@ -15,6 +15,7 @@
  */
 package eu.europa.ec.walletactivationlogic.di
 
+import eu.europa.ec.authenticationlogic.controller.storage.WalletRecoveryChallengeController
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.businesslogic.controller.crypto.CryptoController
 import eu.europa.ec.businesslogic.controller.wallet.LocalWalletCleanupController
@@ -42,8 +43,14 @@ class FeatureWalletActivationModule
 fun provideWalletActivationRepository(
     supabaseClient: SupabaseClient,
     api: ApiClient,
-    logController: LogController
-): WalletActivationRepository = WalletActivationRepositoryImpl(supabaseClient, api, logController)
+    logController: LogController,
+    walletRecoveryChallengeController: WalletRecoveryChallengeController
+): WalletActivationRepository = WalletActivationRepositoryImpl(
+    supabaseClient,
+    api,
+    logController,
+    walletRecoveryChallengeController
+)
 
 @Factory
 fun provideCreateWalletAttestationUseCase(

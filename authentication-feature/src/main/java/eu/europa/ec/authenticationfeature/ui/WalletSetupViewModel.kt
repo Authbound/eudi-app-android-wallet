@@ -18,6 +18,16 @@ package eu.europa.ec.authenticationfeature.ui
 import androidx.lifecycle.viewModelScope
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricAuthenticationController
 import eu.europa.ec.authenticationlogic.controller.storage.PinStorageController
+import eu.europa.ec.authenticationlogic.controller.storage.RecoveryCheckpointController
+import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
+import eu.europa.ec.authenticationlogic.model.LocalAuthRouteDecision
+import eu.europa.ec.authenticationlogic.model.LocalRecoveryResetResult
+import eu.europa.ec.authenticationlogic.model.RecoveryCheckpoint
+import eu.europa.ec.authenticationlogic.storage.LocalAuthKeys
+import eu.europa.ec.authenticationlogic.usecase.FinalizeWalletActivationStateUseCase
+import eu.europa.ec.authenticationlogic.usecase.PrepareWalletRecoveryUseCase
+import eu.europa.ec.authenticationlogic.usecase.ResolveLocalAuthRouteUseCase
+import eu.europa.ec.authenticationlogic.usecase.ResetLocalWalletForRecoveryUseCase
 import eu.europa.ec.businesslogic.model.error.WalletActivationError
 import eu.europa.ec.businesslogic.model.error.getErrorTitle
 import eu.europa.ec.businesslogic.model.error.getRetryDelaySeconds
@@ -44,6 +54,7 @@ import eu.europa.ec.walletactivationlogic.usecase.DeleteWalletActivationUseCase
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.koin.android.annotation.KoinViewModel
 
 /**
@@ -98,6 +109,7 @@ sealed class WalletSetupEvent : ViewEvent {
 sealed class WalletSetupEffect : ViewSideEffect {
     data object NavigateToHome : WalletSetupEffect()
     data object NavigateToPinCreate : WalletSetupEffect()
+    data object NavigateToPinVerify : WalletSetupEffect()
     data object NavigateToLogin : WalletSetupEffect()
     data object NavigateToDeviceSecurity : WalletSetupEffect()
     data class ShowError(val message: String) : WalletSetupEffect()
@@ -114,33 +126,49 @@ class WalletSetupViewModel(
     private val prefKeys: PrefKeysV2,
     private val prefsController: PrefsControllerV2,
     private val logController: LogController,
-    private val pinStorageController: PinStorageController
+    private val pinStorageController: PinStorageController,
+    private val resolveLocalAuthRouteUseCase: ResolveLocalAuthRouteUseCase,
+    private val finalizeWalletActivationStateUseCase: FinalizeWalletActivationStateUseCase,
+    private val recoveryCheckpointController: RecoveryCheckpointController,
+    private val prepareWalletRecoveryUseCase: PrepareWalletRecoveryUseCase,
+    private val resetLocalWalletForRecoveryUseCase: ResetLocalWalletForRecoveryUseCase,
+    private val localUnlockTracker: LocalUnlockTracker
 ) : MviViewModel<WalletSetupEvent, WalletSetupState, WalletSetupEffect>() {
 
     private var countdownJob: Job? = null
 
-    private suspend fun navigateToHomeOrPinCreate() {
-        val hasPin = try {
-            pinStorageController.retrievePin().isNotBlank()
+    private suspend fun navigateForActivatedWallet() {
+        val routeDecision: LocalAuthRouteDecision = try {
+            resolveLocalAuthRouteUseCase(
+                localUnlockStatus = pinStorageController.getLocalUnlockStatus(),
+                enrollmentRequired = prefsController.safeBool(LocalAuthKeys.ENROLLMENT_REQUIRED, false),
+                recoveryCheckpoint = recoveryCheckpointController.getCheckpoint(),
+                isUnlocked = localUnlockTracker.isUnlocked()
+            )
         } catch (e: Exception) {
-            logController.w("WalletSetupViewModel") { "Failed to check PIN status: ${e.message}" }
-            false
+            logController.w("WalletSetupViewModel") { "Failed to resolve local auth route: ${e.message}" }
+            LocalAuthRouteDecision.SecurityError(e.message ?: "Failed to resolve local auth route")
         }
-        if (hasPin) {
-            setEffect { WalletSetupEffect.NavigateToHome }
-        } else {
-            setEffect { WalletSetupEffect.NavigateToPinCreate }
+        when (routeDecision) {
+            LocalAuthRouteDecision.Ready -> setEffect { WalletSetupEffect.NavigateToHome }
+            LocalAuthRouteDecision.PinCreate -> setEffect { WalletSetupEffect.NavigateToPinCreate }
+            LocalAuthRouteDecision.PinVerificationRequired,
+            LocalAuthRouteDecision.PinRecoveryRequired -> setEffect { WalletSetupEffect.NavigateToPinVerify }
+            is LocalAuthRouteDecision.SecurityError -> setEffect { WalletSetupEffect.NavigateToLogin }
         }
     }
 
     override fun setInitialState(): WalletSetupState {
         // EUDI-ARF: Check if wallet is already activated for this user to avoid re-attestation
         try {
-            if (prefKeys.isWalletActivatedSafe()) {
+            val recoveryCheckpoint: RecoveryCheckpoint = runBlocking {
+                recoveryCheckpointController.getCheckpoint()
+            }
+            if (prefKeys.isWalletActivatedSafe() && recoveryCheckpoint == RecoveryCheckpoint.NONE) {
                 logController.i("WalletSetupViewModel", ) {"Wallet already activated for this user, checking PIN status."}
                 // Use a coroutine to navigate after the view is ready
                 viewModelScope.launch {
-                    navigateToHomeOrPinCreate()
+                    navigateForActivatedWallet()
                 }
                 return WalletSetupState(isWalletAlreadyActivated = true)
             }
@@ -185,10 +213,13 @@ class WalletSetupViewModel(
 
         // Double-check wallet activation status before proceeding
         try {
-            if (prefKeys.isWalletActivatedSafe()) {
+            val recoveryCheckpoint: RecoveryCheckpoint = runBlocking {
+                recoveryCheckpointController.getCheckpoint()
+            }
+            if (prefKeys.isWalletActivatedSafe() && recoveryCheckpoint == RecoveryCheckpoint.NONE) {
                 logController.i("WalletSetupViewModel") { "Wallet already activated, checking PIN status." }
                 viewModelScope.launch {
-                    navigateToHomeOrPinCreate()
+                    navigateForActivatedWallet()
                 }
                 return
             }
@@ -212,9 +243,37 @@ class WalletSetupViewModel(
                 )
             }
             try {
+                val recoveryCheckpoint: RecoveryCheckpoint = recoveryCheckpointController.getCheckpoint()
+                if (recoveryCheckpoint == RecoveryCheckpoint.LOCAL_RESET_IN_PROGRESS) {
+                    when (val localResetResult = resetLocalWalletForRecoveryUseCase()) {
+                        LocalRecoveryResetResult.LocalResetComplete -> Unit
+                        is LocalRecoveryResetResult.LocalResetBlocked -> {
+                            handleActivationError(IllegalStateException(localResetResult.errorMessage))
+                            return@launch
+                        }
+                        is LocalRecoveryResetResult.SecurityFailure -> {
+                            setState {
+                                copy(
+                                    isActivating = false,
+                                    activationError = WalletActivationError.UnexpectedError(
+                                        IllegalStateException(localResetResult.errorMessage)
+                                    ),
+                                    canNavigateBack = true,
+                                    currentStep = ActivationStep.IDLE,
+                                    autoRetrying = false
+                                )
+                            }
+                            return@launch
+                        }
+                    }
+                }
                 val pushToken =
                     pushNotificationController.registerForPushNotifications().getOrThrow()
                 val deviceInfo = getCombinedDeviceInfo()
+
+                if (recoveryCheckpointController.getCheckpoint() == RecoveryCheckpoint.ONLINE_REACTIVATION_REQUIRED) {
+                    prepareWalletRecoveryUseCase(listOf("local_reset_completed")).getOrThrow()
+                }
 
                 logController.d("WalletSetupViewModel", "Push Token: $pushToken")
                 logController.d("WalletSetupViewModel", "Device Info: $deviceInfo")
@@ -223,12 +282,20 @@ class WalletSetupViewModel(
                 setState { copy(currentStep = ActivationStep.GENERATING_KEYS) }
                 createWalletAttestationUseCase(deviceInfo, pushToken).getOrThrow()
 
-                try {
-                    prefKeys.setWalletActivated(true)
-                } catch (e: SecurityException) {
+                val finalizationResult: Result<Unit> = finalizeWalletActivationStateUseCase()
+                if (finalizationResult.isFailure) {
+                    val exception: Throwable = finalizationResult.exceptionOrNull()
+                        ?: IllegalStateException("Failed to finalize local wallet activation state.")
                     logController.w("WalletSetupViewModel") {
-                        "Failed to save wallet activation status due to security error: ${e.message}"
+                        "Failed to finalize local wallet activation state: ${exception.message}"
                     }
+                    handleActivationError(
+                        IllegalStateException(
+                            "Failed to finalize local wallet activation state.",
+                            exception
+                        )
+                    )
+                    return@launch
                 }
 
                 setState {
@@ -253,7 +320,7 @@ class WalletSetupViewModel(
     private fun continueToHome() {
         logController.d("WalletSetupViewModel", "Continue to home requested, checking PIN status")
         viewModelScope.launch {
-            navigateToHomeOrPinCreate()
+            navigateForActivatedWallet()
         }
     }
 

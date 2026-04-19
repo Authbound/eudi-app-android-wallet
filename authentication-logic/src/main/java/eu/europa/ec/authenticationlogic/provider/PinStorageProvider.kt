@@ -16,9 +16,27 @@
 
 package eu.europa.ec.authenticationlogic.provider
 
+import eu.europa.ec.authenticationlogic.model.LocalUnlockStatus
+import eu.europa.ec.authenticationlogic.model.PinValidationResult
+
 interface PinStorageProvider {
     suspend fun retrievePin(): String
     suspend fun setPin(pin: String)
     suspend fun isPinValid(pin: String): Boolean
+    suspend fun getLocalUnlockStatus(): LocalUnlockStatus = if (retrievePin().isBlank()) {
+        LocalUnlockStatus.NotProvisioned
+    } else {
+        LocalUnlockStatus.ReadyForPin
+    }
+    suspend fun verifyPin(pin: String): PinValidationResult = if (isPinValid(pin)) {
+        PinValidationResult.Success
+    } else {
+        PinValidationResult.Failed(remainingAttempts = Int.MAX_VALUE)
+    }
+    suspend fun prepareRecovery(): LocalUnlockStatus = LocalUnlockStatus.RecoveryRequired
+    suspend fun clearPinData(userId: String? = null) {
+        setPin("")
+    }
+    suspend fun clearEphemeralSecrets() = Unit
 
 }

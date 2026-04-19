@@ -16,6 +16,7 @@
 
 package eu.europa.ec.authenticationlogic.usecase
 
+import eu.europa.ec.authenticationlogic.controller.storage.PinStorageController
 import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
 import eu.europa.ec.businesslogic.controller.crypto.KeystoreController
@@ -71,6 +72,9 @@ class TestSignOutUseCase {
     private lateinit var prefKeys: PrefKeysV2
 
     @Mock
+    private lateinit var pinStorageController: PinStorageController
+
+    @Mock
     private lateinit var localUnlockTracker: LocalUnlockTracker
 
     @Mock
@@ -90,6 +94,7 @@ class TestSignOutUseCase {
             prefsController = prefsController,
             keystoreController = keystoreController,
             prefKeys = prefKeys,
+            pinStorageController = pinStorageController,
             localUnlockTracker = localUnlockTracker,
             logController = logController
         )
@@ -114,6 +119,7 @@ class TestSignOutUseCase {
             // Then - User data should be preserved
             verify(prefsController, never()).clearUserData(any())
             verify(keystoreController, never()).deleteBiometricSecretKey(any())
+            verify(pinStorageController, never()).clearPinData(any())
         }
 
     @Test
@@ -146,6 +152,7 @@ class TestSignOutUseCase {
 
             // Then
             verify(prefsController).clearUserData(MOCK_USER_ID)
+            verify(pinStorageController).clearPinData(MOCK_USER_ID)
         }
 
     @Test
@@ -195,33 +202,37 @@ class TestSignOutUseCase {
     // region Error Resilience
 
     @Test
-    fun `Given clearUserData throws, When invoke is called, Then logs error and continues`() =
+    fun `Given clearUserData throws, When invoke is called, Then hard sign out surfaces the cleanup failure`() =
         coroutineRule.runTest {
-            // Given
             setupAuthenticatedUser()
             doThrow(RuntimeException("Clear failed")).whenever(prefsController).clearUserData(any())
 
-            // When - Should not throw
-            useCase.invoke(SignOutMode.Hard)
+            assertThrows(SecurityException::class.java) {
+                kotlinx.coroutines.runBlocking {
+                    useCase.invoke(SignOutMode.Hard)
+                }
+            }
 
-            // Then - Verify logging and continuation
+            verify(supabaseAuthRepository).signOut()
             verify(logController).w(any<String>(), any())
             verify(prefsController).invalidateCache()
         }
 
     @Test
-    fun `Given deleteBiometricSecretKey throws, When invoke is called, Then logs error and continues`() =
+    fun `Given deleteBiometricSecretKey throws, When invoke is called, Then hard sign out surfaces the cleanup failure`() =
         coroutineRule.runTest {
-            // Given
             setupAuthenticatedUser()
             whenever(prefKeys.getBiometricAliasSafe()).thenReturn(MOCK_BIOMETRIC_ALIAS)
             doThrow(SecurityException("Keystore error"))
                 .whenever(keystoreController).deleteBiometricSecretKey(any())
 
-            // When - Should not throw
-            useCase.invoke(SignOutMode.Hard)
+            assertThrows(SecurityException::class.java) {
+                kotlinx.coroutines.runBlocking {
+                    useCase.invoke(SignOutMode.Hard)
+                }
+            }
 
-            // Then
+            verify(supabaseAuthRepository).signOut()
             verify(logController).w(any<String>(), any())
             verify(prefsController).invalidateCache()
         }
@@ -271,6 +282,24 @@ class TestSignOutUseCase {
 
             // Then
             verify(logController).w(any<String>(), any())
+        }
+
+    @Test
+    fun `Given local auth cleanup fails, When hard sign out is called, Then failure is surfaced after remote sign out`() =
+        coroutineRule.runTest {
+            setupAuthenticatedUser()
+            doThrow(SecurityException("Local auth cleanup failed"))
+                .whenever(pinStorageController)
+                .clearPinData(any())
+
+            assertThrows(SecurityException::class.java) {
+                kotlinx.coroutines.runBlocking {
+                    useCase.invoke(SignOutMode.Hard)
+                }
+            }
+
+            verify(supabaseAuthRepository).signOut()
+            verify(prefsController).invalidateCache()
         }
 
     // endregion
@@ -327,6 +356,32 @@ class TestSignOutUseCase {
             val inOrder = inOrder(prefsController, keystoreController)
             inOrder.verify(prefsController).clearUserData(any())
             inOrder.verify(keystoreController).deleteBiometricSecretKey(any())
+        }
+
+    @Test
+    fun `Given Hard mode, When invoke is called, Then local cleanup completes before remote sign out`() =
+        coroutineRule.runTest {
+            // Given
+            setupAuthenticatedUser()
+            whenever(prefKeys.getBiometricAliasSafe()).thenReturn(MOCK_BIOMETRIC_ALIAS)
+
+            // When
+            useCase.invoke(SignOutMode.Hard)
+
+            // Then
+            val inOrder = inOrder(
+                localUnlockTracker,
+                prefsController,
+                keystoreController,
+                pinStorageController,
+                supabaseAuthRepository
+            )
+            inOrder.verify(localUnlockTracker).lockNow()
+            inOrder.verify(prefsController).clearUserData(MOCK_USER_ID)
+            inOrder.verify(keystoreController).deleteBiometricSecretKey(MOCK_BIOMETRIC_ALIAS)
+            inOrder.verify(pinStorageController).clearPinData(MOCK_USER_ID)
+            inOrder.verify(supabaseAuthRepository).signOut()
+            inOrder.verify(prefsController).invalidateCache()
         }
 
     // endregion

@@ -113,6 +113,15 @@ sealed class StartupState {
         override val logMessage: String = "PIN verification required → QuickPin (VERIFY)"
     }
 
+    data object PinRecoveryRequired : StartupState() {
+        override val screenRoute: String
+            get() = generateComposableNavigationLink(
+                screen = CommonScreens.QuickPin,
+                arguments = generateComposableArguments(mapOf("pinFlow" to PinFlow.VERIFY))
+            )
+        override val logMessage: String = "PIN recovery required → QuickPin (VERIFY)"
+    }
+
     /**
      * User is fully authenticated and unlocked. Route directly to dashboard.
      * This happens when user is within the TTL (10 minutes by default).
