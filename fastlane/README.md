@@ -101,7 +101,7 @@ Get version version From Project
 [bundle exec] fastlane android reset_versioncode
 ```
 
-Set versionCode back to default 1
+Set versionCode back to default 2
 
 ### android reset_versionName
 

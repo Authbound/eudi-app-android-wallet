@@ -162,6 +162,7 @@ private fun PrivacyDataContent(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
+            .padding(top = paddingValues.calculateTopPadding())
             .padding(bottom = paddingValues.calculateBottomPadding() + SPACING_LARGE.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {

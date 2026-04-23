@@ -201,7 +201,7 @@ platform :android do
   desc "Build Number"
   lane :build_number do |values|
     release = values[:release]
-    number = release ? release[:buildVersion].to_i + 1 : 1
+    number = release ? release[:buildVersion].to_i + 1 : 2
     puts "Build Number: #{number}"
     number
   end
@@ -229,11 +229,11 @@ platform :android do
     version
   end
 
-  desc "Set versionCode back to default 1"
+  desc "Set versionCode back to default 2"
   lane :reset_versioncode do
     increment_version_code(
       gradle_file_path: "app/build.gradle.kts",
-      version_code: 1,
+      version_code: 2,
     )
   end
 

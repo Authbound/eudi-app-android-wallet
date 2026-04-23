@@ -544,11 +544,11 @@
     <string name="legal_terms_alpha_url" translatable="false">https://authbound.io/terms</string>
     <string name="legal_privacy_policy_url" translatable="false">https://authbound.io/privacy</string>
     <string name="legal_account_deletion_url" translatable="false">https://authbound.io/delete-account</string>
-    <string name="legal_terms_alpha_updated_at">April 8, 2026</string>
+    <string name="legal_terms_alpha_updated_at">April 23, 2026</string>
     <string name="legal_privacy_policy_updated_at">April 8, 2026</string>
     <string name="settings_privacy">Privacy &amp; Data</string>
     <string name="settings_privacy_data_title">Privacy &amp; Data</string>
-    <string name="settings_privacy_data_description">Review the legal documents that govern this app, check the versions accepted on this device, and manage account deletion.</string>
+    <string name="settings_privacy_data_description">Review the legal documents that govern this app and manage account deletion.</string>
     <string name="settings_terms_of_service_description">Read the Terms and Conditions that apply to your use of this app.</string>
     <string name="settings_privacy_policy_description">Read how Authbound handles wallet account data, app diagnostics, and on-device versus server-side processing.</string>
     <string name="settings_open_link">Open link</string>

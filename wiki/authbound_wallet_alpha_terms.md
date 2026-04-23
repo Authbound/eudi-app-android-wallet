@@ -1,8 +1,8 @@
 # Authbound Wallet Alpha Terms
 
-Last updated: April 8, 2026
+Last updated: April 23, 2026
 
-Version: `wallet-alpha-2026-04-08`
+Version: `wallet-alpha-2026-04-23`
 
 These Authbound Wallet Alpha Terms ("Terms") govern access to and use of the
 invite-only Authbound Wallet alpha. These Terms apply in addition to the
