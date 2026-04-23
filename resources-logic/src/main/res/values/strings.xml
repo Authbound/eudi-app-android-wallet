@@ -581,7 +581,7 @@
 
     <!-- Legal acceptance -->
     <string name="legal_acceptance_title">Terms &amp; Privacy</string>
-    <string name="legal_acceptance_description">Please review the documents below before continuing to use the alpha build.</string>
+    <string name="legal_acceptance_description">Please review the documents below before continuing with account setup.</string>
     <string name="legal_acceptance_terms_title">Terms and Conditions</string>
     <string name="legal_acceptance_privacy_title">Privacy Policy</string>
     <string name="legal_acceptance_open_terms">Review terms</string>
@@ -594,8 +594,6 @@
     <string name="legal_acceptance_version_label">Version: %1$s</string>
     <string name="legal_acceptance_updated_label">Updated: %1$s</string>
     <string name="legal_acceptance_version_unavailable">Unavailable</string>
-    <string name="legal_acceptance_alpha_notice_title">Closed alpha notice</string>
-    <string name="legal_acceptance_alpha_notice_body">This build is invite-only, experimental, and may change or stop working without notice. Do not rely on it for critical identity, recovery, or compliance workflows.</string>
     <string name="legal_acceptance_confirm_section_title">Confirm your review</string>
     <string name="legal_acceptance_confirm_section_description">You can continue after both items below are confirmed.</string>
 
