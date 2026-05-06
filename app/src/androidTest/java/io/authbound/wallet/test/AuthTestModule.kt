@@ -191,10 +191,10 @@ private class FakeVerificationRepository : VerificationRepository {
                 ),
                 publicUrl = "https://app.authbound.io/verify/$sessionId?token=$accessToken",
                 gatewaySessionId = "gateway-session-1",
-                requestUri = "openid4vp://verify?request_uri=https%3A%2F%2Fgateway.authbound.io%2Frequest.jwt",
+                requestUri = "openid4vp://verify?request_uri=https%3A%2F%2Fapi.authbound.io%2Frequest.jwt",
                 requestUriExpiresAt = Instant.parse("2026-04-14T12:00:00Z").toEpochMilli(),
                 sseToken = "test-sse-token",
-                statusStreamUrl = "https://gateway.authbound.io/v1/sessions/gateway-session-1/status/sse?token=test-sse-token"
+                statusStreamUrl = "https://api.authbound.io/v1/sessions/gateway-session-1/status/sse?token=test-sse-token"
             )
         )
     }
