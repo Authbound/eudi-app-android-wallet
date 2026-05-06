@@ -21,6 +21,7 @@ import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.authenticationlogic.controller.authentication.DeviceAuthenticationResult
 import eu.europa.ec.authenticationlogic.model.BiometricCrypto
 import eu.europa.ec.businesslogic.extension.safeAsync
+import eu.europa.ec.corelogic.config.AuthboundWalletProviderConfig
 import eu.europa.ec.corelogic.config.VciConfig
 import eu.europa.ec.corelogic.config.WalletCoreConfig
 import eu.europa.ec.corelogic.extension.documentIdentifier
@@ -412,16 +413,15 @@ class WalletCoreDocumentsControllerImpl(
         prioritizeDeferred: Boolean
     ): Flow<IssueDocumentsPartialState> =
         callbackFlow {
-            val issuerId = offer
+            val issuerId: String = offer
                 .issuerMetadata
                 .credentialIssuerIdentifier
                 .toString()
 
-            val manager = openId4VciManagers.entries
+            val managerEntry: Map.Entry<VciConfig, OpenId4VciManager>? = openId4VciManagers.entries
                 .find { (vciConfig, _) -> vciConfig.config.issuerUrl == issuerId }
-                ?.value
 
-            if (manager == null) {
+            if (managerEntry == null) {
                 logController.e(TAG) { "issueDocumentsByOffer: no configured manager for issuerId=$issuerId" }
                 trySendBlocking(
                     IssueDocumentsPartialState.Failure(errorMessage = documentErrorMessage)
@@ -430,19 +430,29 @@ class WalletCoreDocumentsControllerImpl(
                 return@callbackFlow
             }
 
-            manager.issueDocumentByOffer(
-                offer = offer,
-                onIssueEvent = issuanceCallback(
-                    prioritizeDeferred = prioritizeDeferred,
-                    retryIssuance = { onIssueEvent ->
-                        manager.issueDocumentByOffer(
-                            offer = offer,
-                            txCode = txCode,
-                            onIssueEvent = onIssueEvent,
-                        )
-                    }
-                ),
-                txCode = txCode,
+            val manager: OpenId4VciManager = managerEntry.value
+            val allowWuaProofAuthenticationRetry: Boolean =
+                canRetryAfterWuaProofAuthentication(managerEntry.key)
+            val startIssuance: () -> Unit = {
+                manager.issueDocumentByOffer(
+                    offer = offer,
+                    onIssueEvent = issuanceCallback(
+                        prioritizeDeferred = prioritizeDeferred,
+                        allowWuaProofAuthenticationRetry = allowWuaProofAuthenticationRetry,
+                        retryIssuance = { onIssueEvent ->
+                            manager.issueDocumentByOffer(
+                                offer = offer,
+                                txCode = txCode,
+                                onIssueEvent = onIssueEvent,
+                            )
+                        }
+                    ),
+                    txCode = txCode,
+                )
+            }
+            startIssuanceAfterPlatformAuthIfNeeded(
+                vciConfig = managerEntry.key,
+                startIssuance = startIssuance
             )
 
             awaitClose()
@@ -787,12 +797,16 @@ class WalletCoreDocumentsControllerImpl(
     ): Flow<IssueDocumentsPartialState> =
         callbackFlow {
 
-            val manager = openId4VciManagers.entries
-                .find { (vciConfig, _) -> vciConfig.config.issuerUrl == issuerId }?.value
-            require(manager != null) { documentErrorMessage }
+            val managerEntry: Map.Entry<VciConfig, OpenId4VciManager>? = openId4VciManagers.entries
+                .find { (vciConfig, _) -> vciConfig.config.issuerUrl == issuerId }
+            require(managerEntry != null) { documentErrorMessage }
+            val manager: OpenId4VciManager = managerEntry.value
+            val allowWuaProofAuthenticationRetry: Boolean =
+                canRetryAfterWuaProofAuthentication(managerEntry.key)
 
-            val onIssueEvent = issuanceCallback(
+            val onIssueEvent: OpenId4VciManager.OnIssueEvent = issuanceCallback(
                 prioritizeDeferred = prioritizeDeferred,
+                allowWuaProofAuthenticationRetry = allowWuaProofAuthenticationRetry,
                 retryIssuance = { onIssueEvent ->
                     manager.issueDocumentByConfigurationIdentifiers(
                         credentialConfigurationIds = configIds,
@@ -801,9 +815,14 @@ class WalletCoreDocumentsControllerImpl(
                 }
             )
 
-            manager.issueDocumentByConfigurationIdentifiers(
-                credentialConfigurationIds = configIds,
-                onIssueEvent = onIssueEvent,
+            startIssuanceAfterPlatformAuthIfNeeded(
+                vciConfig = managerEntry.key,
+                startIssuance = {
+                    manager.issueDocumentByConfigurationIdentifiers(
+                        credentialConfigurationIds = configIds,
+                        onIssueEvent = onIssueEvent,
+                    )
+                }
             )
 
             awaitClose()
@@ -814,8 +833,49 @@ class WalletCoreDocumentsControllerImpl(
             )
         }
 
+    private fun ProducerScope<IssueDocumentsPartialState>.startIssuanceAfterPlatformAuthIfNeeded(
+        vciConfig: VciConfig,
+        startIssuance: () -> Unit,
+    ) {
+        if (!requiresPlatformAuthenticationBeforeIssuance(vciConfig)) {
+            startIssuance()
+            return
+        }
+        val started: AtomicBoolean = AtomicBoolean(false)
+        trySendBlocking(
+            IssueDocumentsPartialState.UserAuthRequired(
+                crypto = BiometricCrypto(null),
+                resultHandler = DeviceAuthenticationResult(
+                    onAuthenticationSuccess = {
+                        if (started.compareAndSet(false, true)) {
+                            startIssuance()
+                        }
+                    },
+                    onAuthenticationError = {
+                        trySendBlocking(IssueDocumentsPartialState.UserAuthCancelled)
+                        close()
+                    },
+                    onAuthenticationFailure = {
+                        trySendBlocking(IssueDocumentsPartialState.UserAuthCancelled)
+                        close()
+                    }
+                )
+            )
+        )
+    }
+
+    private fun requiresPlatformAuthenticationBeforeIssuance(vciConfig: VciConfig): Boolean {
+        return vciConfig.walletProviderConfig is AuthboundWalletProviderConfig &&
+                eudiWallet.config.userAuthenticationRequired
+    }
+
+    private fun canRetryAfterWuaProofAuthentication(vciConfig: VciConfig): Boolean {
+        return vciConfig.walletProviderConfig !is AuthboundWalletProviderConfig
+    }
+
     private fun ProducerScope<IssueDocumentsPartialState>.issuanceCallback(
         prioritizeDeferred: Boolean = true,
+        allowWuaProofAuthenticationRetry: Boolean,
         retryIssuance: (OpenId4VciManager.OnIssueEvent) -> Unit,
     ): OpenId4VciManager.OnIssueEvent {
 
@@ -826,7 +886,6 @@ class WalletCoreDocumentsControllerImpl(
         val authCancelled = AtomicBoolean(false)
         val awaitingWuaAuth = AtomicBoolean(false)
         val superseded = AtomicBoolean(false)
-
         lateinit var listener: OpenId4VciManager.OnIssueEvent
         listener = OpenId4VciManager.OnIssueEvent { event ->
             if (authCancelled.get() || superseded.get()) return@OnIssueEvent
@@ -889,6 +948,17 @@ class WalletCoreDocumentsControllerImpl(
 
                 is IssueEvent.Failure -> {
                     if (event.cause is WuaProofUserAuthRequiredException) {
+                        if (!allowWuaProofAuthenticationRetry) {
+                            logController.e(TAG) {
+                                "WUA authentication requested during non-retryable issuance; refusing unsafe issuance retry"
+                            }
+                            trySendBlocking(
+                                IssueDocumentsPartialState.Failure(
+                                    errorMessage = documentErrorMessage
+                                )
+                            )
+                            return@OnIssueEvent
+                        }
                         if (awaitingWuaAuth.getAndSet(true)) return@OnIssueEvent
                         trySendBlocking(
                             IssueDocumentsPartialState.UserAuthRequired(
@@ -902,6 +972,8 @@ class WalletCoreDocumentsControllerImpl(
                                         retryIssuance(
                                             issuanceCallback(
                                                 prioritizeDeferred = prioritizeDeferred,
+                                                allowWuaProofAuthenticationRetry =
+                                                    allowWuaProofAuthenticationRetry,
                                                 retryIssuance = retryIssuance,
                                             )
                                         )

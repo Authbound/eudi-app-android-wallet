@@ -17,7 +17,6 @@
 package eu.europa.ec.corelogic.provider
 
 import android.util.Log
-import android.util.Base64
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.crypto.impl.ECDSA
 import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
@@ -45,6 +44,7 @@ import org.multipaz.securearea.KeyInfo
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.time.Instant
+import java.util.Base64
 
 class WuaProofUserAuthRequiredException : IllegalStateException(
     "Wallet unit attestation proof requires user authentication"
@@ -442,7 +442,7 @@ private fun canonicalizeJsonElement(element: JsonElement): JsonElement =
     }
 
 private fun ByteArray.toBase64Url(): String =
-    Base64.encodeToString(this, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
+    Base64.getUrlEncoder().withoutPadding().encodeToString(this)
 
 private fun ByteArray.toJoseBase64Url(): String {
     val joseBytes = ECDSA.transcodeSignatureToConcat(
