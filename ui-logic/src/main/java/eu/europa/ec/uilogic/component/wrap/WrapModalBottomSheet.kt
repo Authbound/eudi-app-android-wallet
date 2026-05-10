@@ -345,37 +345,46 @@ fun <T : ViewEvent> BottomSheetWithTwoBigIcons(
     onEventSent: (T) -> Unit,
     hostTab: String? = null,
 ) {
-    if (options.size == 2) {
+    if (options.isNotEmpty()) {
         BaseBottomSheet(
             textData = textData,
             sheetPadding = defaultBottomSheetPadding,
             bodyContent = {
-                Row(
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(IntrinsicSize.Max),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        .fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    options.forEachIndexed { index, item ->
-                        BottomSheetOptionCard(
+                    options.chunked(2).forEachIndexed { rowIndex, rowOptions ->
+                        Row(
                             modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .optionalTestTag(
-                                    hostTab?.let { safeHostTab ->
-                                        TestTag.buttonInBottomSheetWithTwoBigIcons(
-                                            hostTab = safeHostTab,
-                                            index = index
-                                        )
-                                    }
-                                ),
-                            title = item.title,
-                            icon = item.leadingIcon,
-                            iconTint = item.leadingIconTint,
-                            accentColor = item.accentColor,
-                            enabled = item.enabled,
-                            onClick = { onEventSent(item.event) }
-                        )
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Max),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            rowOptions.forEachIndexed { columnIndex, item ->
+                                val optionIndex = rowIndex * 2 + columnIndex
+                                BottomSheetOptionCard(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight()
+                                        .optionalTestTag(
+                                            hostTab?.let { safeHostTab ->
+                                                TestTag.buttonInBottomSheetWithTwoBigIcons(
+                                                    hostTab = safeHostTab,
+                                                    index = optionIndex
+                                                )
+                                            }
+                                        ),
+                                    title = item.title,
+                                    icon = item.leadingIcon,
+                                    iconTint = item.leadingIconTint,
+                                    accentColor = item.accentColor,
+                                    enabled = item.enabled,
+                                    onClick = { onEventSent(item.event) }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -782,6 +791,43 @@ private fun BottomSheetWithTwoBigIconsUnevenTextPreview() {
                     title = "Scan QR",
                     leadingIcon = AppIcons.PresentDocumentOnline,
                     accentColor = Color(0xFFD97706),
+                    event = DummyEventForPreview,
+                    enabled = true,
+                ),
+            ),
+            onEventSent = {}
+        )
+    }
+}
+
+@ThemeModePreviews
+@Composable
+private fun BottomSheetWithThreeBigIconsPreview() {
+    PreviewTheme {
+        BottomSheetWithTwoBigIcons(
+            textData = BottomSheetTextDataUi(
+                title = "Add credential",
+                message = "Choose how to add a credential"
+            ),
+            options = listOf(
+                ModalOptionUi(
+                    title = "From list",
+                    leadingIcon = AppIcons.AddDocumentFromList,
+                    accentColor = Color(0xFFD97706),
+                    event = DummyEventForPreview,
+                    enabled = true,
+                ),
+                ModalOptionUi(
+                    title = "Scan QR",
+                    leadingIcon = AppIcons.AddDocumentFromQr,
+                    accentColor = Color(0xFFF59E0B),
+                    event = DummyEventForPreview,
+                    enabled = true,
+                ),
+                ModalOptionUi(
+                    title = "Get Authbound ID",
+                    leadingIcon = AppIcons.Verified,
+                    accentColor = Color(0xFF047857),
                     event = DummyEventForPreview,
                     enabled = true,
                 ),

@@ -995,9 +995,12 @@
     <string name="content_description_folder_icon">Folder</string>
 
     <!-- Authbound PID -->
-    <string name="authboundpid_promo_badge">VERIFIED IDENTITY</string>
-    <string name="authboundpid_promo_title">Get your Authbound ID</string>
-    <string name="authboundpid_promo_description">Verify with your passport\nand a quick selfie</string>
+    <string name="authboundpid_get_authbound_id">Get Authbound ID</string>
+    <string name="authboundpid_home_prompt_title">Add Authbound ID</string>
+    <string name="authboundpid_home_prompt_description">Verify with your passport and a quick selfie.</string>
+    <string name="authboundpid_home_prompt_action">Get</string>
+    <string name="authboundpid_not_now">Not now</string>
+    <string name="authboundpid_hero_page_indicator">Page %1$d of %2$d</string>
 
     <!-- AuthboundPID Identity Verification -->
     <string name="authboundpid_quick_action_title">Verify Identity</string>

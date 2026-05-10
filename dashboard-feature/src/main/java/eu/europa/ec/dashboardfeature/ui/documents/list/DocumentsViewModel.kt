@@ -26,6 +26,8 @@ import eu.europa.ec.commonfeature.config.QrScanUiConfig
 import eu.europa.ec.corelogic.model.DeferredDocumentDataDomain
 import eu.europa.ec.corelogic.model.DocumentCategory
 import eu.europa.ec.corelogic.model.FormatType
+import eu.europa.ec.dashboardfeature.interactor.AuthboundPidEntryInteractor
+import eu.europa.ec.dashboardfeature.interactor.AuthboundPidEntryState
 import eu.europa.ec.dashboardfeature.interactor.DocumentInteractorDeleteDocumentPartialState
 import eu.europa.ec.dashboardfeature.interactor.DocumentInteractorFilterPartialState
 import eu.europa.ec.dashboardfeature.interactor.DocumentInteractorGetDocumentsPartialState
@@ -50,6 +52,7 @@ import eu.europa.ec.uilogic.mvi.MviViewModel
 import eu.europa.ec.uilogic.mvi.ViewEvent
 import eu.europa.ec.uilogic.mvi.ViewSideEffect
 import eu.europa.ec.uilogic.mvi.ViewState
+import eu.europa.ec.uilogic.navigation.AuthboundPidScreens
 import eu.europa.ec.uilogic.navigation.CommonScreens
 import eu.europa.ec.uilogic.navigation.DashboardScreens
 import eu.europa.ec.uilogic.navigation.IssuanceScreens
@@ -80,6 +83,7 @@ data class State(
     val filtersUi: List<ExpandableListItemUi.NestedListItem> = emptyList(),
     val sortOrder: DualSelectorButtonDataUi,
     val isFilteringActive: Boolean,
+    val shouldShowAuthboundPidEntry: Boolean = false,
 ) : ViewState
 
 sealed class Event : ViewEvent {
@@ -105,6 +109,7 @@ sealed class Event : ViewEvent {
         sealed class AddDocument : BottomSheet() {
             data object FromList : AddDocument()
             data object ScanQr : AddDocument()
+            data object AuthboundPid : AddDocument()
         }
 
         sealed class DeferredDocument : BottomSheet() {
@@ -164,6 +169,7 @@ sealed class DocumentsBottomSheetContent {
 @KoinViewModel
 class DocumentsViewModel(
     private val interactor: DocumentsInteractor,
+    private val authboundPidEntryInteractor: AuthboundPidEntryInteractor,
     private val resourceProvider: ResourceProvider,
     private val uiSerializer: UiSerializer,
 ) : MviViewModel<Event, State, Effect>() {
@@ -264,6 +270,11 @@ class DocumentsViewModel(
                 goToQrScan()
             }
 
+            is Event.BottomSheet.AddDocument.AuthboundPid -> {
+                hideBottomSheet()
+                goToAuthboundPidIfEligible()
+            }
+
             is Event.BottomSheet.DeferredDocument.DeferredNotReadyYet.DocumentSelected -> {
                 showBottomSheet(
                     sheetContent = DeferredDocumentPressed(
@@ -319,6 +330,7 @@ class DocumentsViewModel(
 
     private fun refreshDocuments() {
         setState { copy(isRefreshing = true, isFromOnPause = true) }
+        getAuthboundPidEntryState()
         fetchDocumentsJob?.cancel()
         fetchDocumentsJob = viewModelScope.launch {
             interactor.getDocuments().collect { response ->
@@ -357,6 +369,7 @@ class DocumentsViewModel(
                 error = null
             )
         }
+        getAuthboundPidEntryState()
         fetchDocumentsJob = viewModelScope.launch {
             interactor.getDocuments()
                 .collect { response ->
@@ -642,6 +655,24 @@ class DocumentsViewModel(
         }
     }
 
+    private fun goToAuthboundPid() {
+        setEffect {
+            Effect.Navigation.SwitchScreen(
+                screenRoute = AuthboundPidScreens.Intro.screenRoute
+            )
+        }
+    }
+
+    private fun goToAuthboundPidIfEligible() {
+        viewModelScope.launch {
+            val entryState: AuthboundPidEntryState = authboundPidEntryInteractor.getEntryState()
+            setState { copy(shouldShowAuthboundPidEntry = entryState.shouldShowEntry) }
+            if (entryState.shouldShowEntry) {
+                goToAuthboundPid()
+            }
+        }
+    }
+
     private fun showBottomSheet(sheetContent: DocumentsBottomSheetContent) {
         setState {
             copy(sheetContent = sheetContent)
@@ -713,5 +744,12 @@ class DocumentsViewModel(
 
     private fun stopFetchDocuments() {
         fetchDocumentsJob?.cancel()
+    }
+
+    private fun getAuthboundPidEntryState() {
+        viewModelScope.launch {
+            val entryState = authboundPidEntryInteractor.getEntryState()
+            setState { copy(shouldShowAuthboundPidEntry = entryState.shouldShowEntry) }
+        }
     }
 }

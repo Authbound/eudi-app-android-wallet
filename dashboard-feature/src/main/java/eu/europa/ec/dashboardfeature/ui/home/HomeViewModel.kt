@@ -27,6 +27,8 @@ import eu.europa.ec.commonfeature.config.QrScanUiConfig
 import eu.europa.ec.commonfeature.config.RequestUriConfig
 import eu.europa.ec.corelogic.di.getOrCreatePresentationScope
 import eu.europa.ec.corelogic.model.DocumentCategory
+import eu.europa.ec.dashboardfeature.interactor.AuthboundPidEntryInteractor
+import eu.europa.ec.dashboardfeature.interactor.AuthboundPidEntryState
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractor
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetCredentialsPartialState
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetHeroCredentialPartialState
@@ -85,7 +87,9 @@ data class State(
     // Credentials list for the home screen (deprecated - moved to hero card)
     val isLoadingCredentials: Boolean = false,
     val credentials: List<Pair<DocumentCategory, List<DocumentUi>>> = emptyList(),
-    val showEmptyCredentialsMessage: Boolean = false
+    val showEmptyCredentialsMessage: Boolean = false,
+    val shouldShowAuthboundPidEntry: Boolean = false,
+    val shouldShowAuthboundPidHomePrompt: Boolean = false,
 ) : ViewState
 
 sealed class Event : ViewEvent {
@@ -118,6 +122,7 @@ sealed class Event : ViewEvent {
 
     // Authbound PID events
     data object GetAuthboundIdPressed : Event()
+    data object AuthboundPidPromoNotNowPressed : Event()
 
     sealed class BottomSheet : Event() {
         data class UpdateBottomSheetState(val isOpen: Boolean) : BottomSheet()
@@ -141,6 +146,7 @@ sealed class Event : ViewEvent {
         sealed class AddDocument : BottomSheet() {
             data object FromList : AddDocument()
             data object ScanQr : AddDocument()
+            data object AuthboundPid : AddDocument()
         }
 
         sealed class Verification : BottomSheet() {
@@ -188,6 +194,7 @@ sealed class HomeScreenBottomSheetContent {
 @KoinViewModel
 class HomeViewModel(
     private val homeInteractor: HomeInteractor,
+    private val authboundPidEntryInteractor: AuthboundPidEntryInteractor,
     private val uiSerializer: UiSerializer,
     private val resourceProvider: ResourceProvider
 ) : MviViewModel<Event, State, Effect>() {
@@ -279,11 +286,13 @@ class HomeViewModel(
                 getUserNameViaMainPidDocument()
                 getHeroCredential()
                 getCredentials()
+                getAuthboundPidEntryState()
             }
 
             is Event.GetCredentials -> {
                 getHeroCredential()
                 getCredentials()
+                getAuthboundPidEntryState()
             }
 
             is Event.AuthenticateCard.AuthenticatePressed ->
@@ -328,6 +337,11 @@ class HomeViewModel(
             is Event.BottomSheet.AddDocument.ScanQr -> {
                 hideBottomSheet()
                 navigateToQrScanForDocument()
+            }
+
+            is Event.BottomSheet.AddDocument.AuthboundPid -> {
+                hideBottomSheet()
+                navigateToAuthboundPidIfEligible()
             }
 
             is Event.BottomSheet.Verification.UseTemplate -> {
@@ -408,7 +422,11 @@ class HomeViewModel(
             }
 
             is Event.GetAuthboundIdPressed -> {
-                navigateToAuthboundPid()
+                navigateToAuthboundPidIfEligible()
+            }
+
+            is Event.AuthboundPidPromoNotNowPressed -> {
+                snoozeAuthboundPidHomePrompt()
             }
         }
     }
@@ -722,6 +740,25 @@ class HomeViewModel(
         }
     }
 
+    private fun getAuthboundPidEntryState() {
+        viewModelScope.launch {
+            val entryState = authboundPidEntryInteractor.getEntryState()
+            setState {
+                copy(
+                    shouldShowAuthboundPidEntry = entryState.shouldShowEntry,
+                    shouldShowAuthboundPidHomePrompt = entryState.shouldShowHomePrompt
+                )
+            }
+        }
+    }
+
+    private fun snoozeAuthboundPidHomePrompt() {
+        viewModelScope.launch {
+            authboundPidEntryInteractor.snoozeHomePrompt()
+            setState { copy(shouldShowAuthboundPidHomePrompt = false) }
+        }
+    }
+
     private fun handleHeroCredentialPressed() {
         if (viewState.value.heroCredentials.isEmpty()) return
 
@@ -749,6 +786,21 @@ class HomeViewModel(
             }
 
             "authboundpid" -> {
+                navigateToAuthboundPidIfEligible()
+            }
+        }
+    }
+
+    private fun navigateToAuthboundPidIfEligible() {
+        viewModelScope.launch {
+            val entryState: AuthboundPidEntryState = authboundPidEntryInteractor.getEntryState()
+            setState {
+                copy(
+                    shouldShowAuthboundPidEntry = entryState.shouldShowEntry,
+                    shouldShowAuthboundPidHomePrompt = entryState.shouldShowHomePrompt
+                )
+            }
+            if (entryState.shouldShowEntry) {
                 navigateToAuthboundPid()
             }
         }

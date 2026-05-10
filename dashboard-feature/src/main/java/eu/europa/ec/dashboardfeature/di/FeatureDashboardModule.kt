@@ -34,6 +34,8 @@ import eu.europa.ec.corelogic.config.WalletCoreConfig
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
 import eu.europa.ec.dashboardfeature.interactor.ActionsInteractor
 import eu.europa.ec.dashboardfeature.interactor.ActionsInteractorImpl
+import eu.europa.ec.dashboardfeature.interactor.AuthboundPidEntryInteractor
+import eu.europa.ec.dashboardfeature.interactor.AuthboundPidEntryInteractorImpl
 import eu.europa.ec.dashboardfeature.interactor.DashboardInteractor
 import eu.europa.ec.dashboardfeature.interactor.DashboardInteractorImpl
 import eu.europa.ec.dashboardfeature.interactor.DocumentDetailsInteractor
@@ -186,6 +188,19 @@ fun provideHomeInteractor(
     resourceProvider,
     walletCoreDocumentsController,
     walletCoreConfig,
+)
+
+@Factory
+fun provideAuthboundPidEntryInteractor(
+    resourceProvider: ResourceProvider,
+    walletCoreDocumentsController: WalletCoreDocumentsController,
+    walletCoreConfig: WalletCoreConfig,
+    prefsController: PrefsControllerV2,
+): AuthboundPidEntryInteractor = AuthboundPidEntryInteractorImpl(
+    resourceProvider,
+    walletCoreDocumentsController,
+    walletCoreConfig,
+    prefsController
 )
 
 @Factory

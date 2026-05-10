@@ -39,7 +39,7 @@ import eu.europa.ec.uilogic.component.ListItemMainContentDataUi
 import eu.europa.ec.uilogic.component.ListItemTrailingContentDataUi
 
 interface DashboardInteractor {
-    fun getSideMenuOptions(): List<SideMenuItemUi>
+    fun getSideMenuOptions(shouldShowAuthboundPidEntry: Boolean = false): List<SideMenuItemUi>
     fun getAppVersion(): String
     suspend fun getUserProfile(): UserProfileUi?
 }
@@ -54,7 +54,7 @@ class DashboardInteractorImpl(
 
     override fun getAppVersion(): String = configLogic.appVersion
 
-    override fun getSideMenuOptions(): List<SideMenuItemUi> {
+    override fun getSideMenuOptions(shouldShowAuthboundPidEntry: Boolean): List<SideMenuItemUi> {
         return buildList {
             add(SideMenuItemUi.Header(resourceProvider.getString(R.string.home_screen_quick_actions)))
 
@@ -92,6 +92,25 @@ class DashboardInteractorImpl(
                     )
                 )
             )
+            if (shouldShowAuthboundPidEntry) {
+                add(
+                    SideMenuItemUi.ActionItem(
+                        type = SideMenuTypeUi.AUTHBOUND_PID,
+                        data = ListItemDataUi(
+                            itemId = "authboundpid",
+                            mainContentData = ListItemMainContentDataUi.Text(
+                                text = resourceProvider.getString(R.string.authboundpid_get_authbound_id)
+                            ),
+                            leadingContentData = ListItemLeadingContentDataUi.Icon(
+                                iconData = AppIcons.Verified
+                            ),
+                            trailingContentData = ListItemTrailingContentDataUi.Icon(
+                                iconData = AppIcons.KeyboardArrowRight
+                            )
+                        )
+                    )
+                )
+            }
             add(
                 SideMenuItemUi.ActionItem(
                     type = SideMenuTypeUi.VERIFY,

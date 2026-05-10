@@ -30,6 +30,7 @@ import eu.europa.ec.uilogic.component.ListItemLeadingContentDataUi
 import eu.europa.ec.uilogic.component.ListItemMainContentDataUi
 import eu.europa.ec.uilogic.component.ListItemTrailingContentDataUi
 import junit.framework.TestCase.assertEquals
+import junit.framework.TestCase.assertTrue
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -80,7 +81,7 @@ class TestDashboardInteractor {
     @Test
     fun `When getSideMenuOptions is called, Then it returns items with correct data`() {
         mockStringsNeededForGetSideMenuOptions(resourceProvider)
-        val sideMenuItems = interactor.getSideMenuOptions()
+        val sideMenuItems = interactor.getSideMenuOptions(shouldShowAuthboundPidEntry = false)
         assertEquals(7, sideMenuItems.size)
         val quickActionsHeaderItem = sideMenuItems[0] as SideMenuItemUi.Header
         assertEquals(quickActionsHeaderText, quickActionsHeaderItem.title)
@@ -148,6 +149,26 @@ class TestDashboardInteractor {
         verify(resourceProvider, times(2)).getString(R.string.dashboard_side_menu_option_profile)
         verify(resourceProvider, times(1)).getString(R.string.dashboard_side_menu_option_profile_id)
     }
+
+    @Test
+    fun `Given Authbound PID entry is allowed, When getSideMenuOptions is called, Then it includes Authbound PID action`() {
+        mockStringsNeededForGetSideMenuOptions(resourceProvider)
+        val sideMenuItems = interactor.getSideMenuOptions(shouldShowAuthboundPidEntry = true)
+        assertEquals(8, sideMenuItems.size)
+        val authboundPidItem = sideMenuItems[3] as SideMenuItemUi.ActionItem
+        assertEquals(SideMenuTypeUi.AUTHBOUND_PID, authboundPidItem.type)
+        assertEquals("authboundpid", authboundPidItem.data.itemId)
+        assertTrue(authboundPidItem.isEnabled)
+        val authboundPidMain =
+            authboundPidItem.data.mainContentData as ListItemMainContentDataUi.Text
+        assertEquals(authboundPidText, authboundPidMain.text)
+        val authboundPidLeading =
+            authboundPidItem.data.leadingContentData as ListItemLeadingContentDataUi.Icon
+        assertEquals(AppIcons.Verified, authboundPidLeading.iconData)
+        val authboundPidTrailing =
+            authboundPidItem.data.trailingContentData as ListItemTrailingContentDataUi.Icon
+        assertEquals(AppIcons.KeyboardArrowRight, authboundPidTrailing.iconData)
+    }
     //endregion
 
     //region Mock Calls
@@ -158,6 +179,7 @@ class TestDashboardInteractor {
                 R.string.home_screen_quick_actions to quickActionsHeaderText,
                 R.string.home_screen_authenticate to authenticateText,
                 R.string.dashboard_quick_action_add_credential to addDocumentText,
+                R.string.authboundpid_get_authbound_id to authboundPidText,
                 R.string.verification_quick_action_title to verifyText,
                 R.string.home_screen_sign to signText,
                 R.string.coming_soon_badge to comingSoonText,
@@ -172,6 +194,7 @@ class TestDashboardInteractor {
     private val quickActionsHeaderText = "Quick Actions"
     private val authenticateText = "Authenticate"
     private val addDocumentText = "Add document"
+    private val authboundPidText = "Get Authbound ID"
     private val verifyText = "Verify"
     private val signText = "Sign"
     private val comingSoonText = "Coming soon"

@@ -50,6 +50,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -88,10 +89,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -163,6 +167,8 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlin.math.max
+import kotlin.math.min
 
 typealias DashboardEvent = eu.europa.ec.dashboardfeature.ui.dashboard.Event
 typealias OpenSideMenuEvent = eu.europa.ec.dashboardfeature.ui.dashboard.Event.SideMenu.Open
@@ -225,6 +231,7 @@ fun HomeScreen(
         ) {
             HomeScreenSheetContent(
                 sheetContent = state.sheetContent,
+                shouldShowAuthboundPidEntry = state.shouldShowAuthboundPidEntry,
                 onEventSent = { event -> viewModel.setEvent(event) },
             )
         }
@@ -307,11 +314,19 @@ private fun Content(
             },
             onAddCredentialClick = {
                 onEventSent(Event.AddCredentialPressed)
-            },
-            onGetAuthboundIdClick = {
-                onEventSent(Event.GetAuthboundIdPressed)
             }
         )
+
+        if (state.shouldShowAuthboundPidHomePrompt) {
+            AuthboundIdHomePrompt(
+                onGetAuthboundIdClick = {
+                    onEventSent(Event.GetAuthboundIdPressed)
+                },
+                onNotNowClick = {
+                    onEventSent(Event.AuthboundPidPromoNotNowPressed)
+                }
+            )
+        }
 
         // Quick Actions section below hero
         QuickActionsSection(
@@ -719,6 +734,7 @@ private fun handleNavigationEffect(
 @Composable
 private fun HomeScreenSheetContent(
     sheetContent: HomeScreenBottomSheetContent,
+    shouldShowAuthboundPidEntry: Boolean,
     onEventSent: (event: Event) -> Unit,
 ) {
     when (sheetContent) {
@@ -754,19 +770,8 @@ private fun HomeScreenSheetContent(
                     title = stringResource(R.string.documents_screen_add_document_title),
                     message = stringResource(R.string.documents_screen_add_document_description)
                 ),
-                options = listOf(
-                    ModalOptionUi(
-                        title = stringResource(R.string.documents_screen_add_document_option_list),
-                        leadingIcon = AppIcons.AddDocumentFromList,
-                        accentColor = Color(0xFFD97706),
-                        event = Event.BottomSheet.AddDocument.FromList,
-                    ),
-                    ModalOptionUi(
-                        title = stringResource(R.string.documents_screen_add_document_option_qr),
-                        leadingIcon = AppIcons.AddDocumentFromQr,
-                        accentColor = Color(0xFFF59E0B),
-                        event = Event.BottomSheet.AddDocument.ScanQr,
-                    )
+                options = buildAddDocumentOptions(
+                    shouldShowAuthboundPidEntry = shouldShowAuthboundPidEntry
                 ),
                 onEventSent = onEventSent
             )
@@ -922,6 +927,40 @@ private fun HomeScreenSheetContent(
     }
 }
 
+@Composable
+private fun buildAddDocumentOptions(
+    shouldShowAuthboundPidEntry: Boolean,
+): List<ModalOptionUi<Event>> {
+    return buildList {
+        add(
+            ModalOptionUi(
+                title = stringResource(R.string.documents_screen_add_document_option_list),
+                leadingIcon = AppIcons.AddDocumentFromList,
+                accentColor = Color(0xFFD97706),
+                event = Event.BottomSheet.AddDocument.FromList,
+            )
+        )
+        add(
+            ModalOptionUi(
+                title = stringResource(R.string.documents_screen_add_document_option_qr),
+                leadingIcon = AppIcons.AddDocumentFromQr,
+                accentColor = Color(0xFFF59E0B),
+                event = Event.BottomSheet.AddDocument.ScanQr,
+            )
+        )
+        if (shouldShowAuthboundPidEntry) {
+            add(
+                ModalOptionUi(
+                    title = stringResource(R.string.authboundpid_get_authbound_id),
+                    leadingIcon = AppIcons.Verified,
+                    accentColor = Color(0xFF047857),
+                    event = Event.BottomSheet.AddDocument.AuthboundPid,
+                )
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 private fun RequiredPermissionsAsk(
@@ -1054,6 +1093,69 @@ private fun QuickActionsSection(
     }
 }
 
+@Composable
+private fun AuthboundIdHomePrompt(
+    onGetAuthboundIdClick: () -> Unit,
+    onNotNowClick: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = SPACING_SMALL.dp),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+        tonalElevation = 1.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                WrapIcon(
+                    iconData = AppIcons.Verified,
+                    customTint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.authboundpid_home_prompt_title),
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = stringResource(R.string.authboundpid_home_prompt_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Button(
+                    onClick = onGetAuthboundIdClick,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(text = stringResource(R.string.authboundpid_home_prompt_action))
+                }
+                TextButton(
+                    onClick = onNotNowClick,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                ) {
+                    Text(text = stringResource(R.string.authboundpid_not_now))
+                }
+            }
+        }
+    }
+}
+
 /**
  * Hero Credential Section - displays the primary credential (PID or mDL) at the top
  */
@@ -1063,7 +1165,6 @@ private fun HeroCredentialSection(
     isLoading: Boolean,
     onCredentialClick: () -> Unit,
     onAddCredentialClick: () -> Unit,
-    onGetAuthboundIdClick: (() -> Unit)? = null
 ) {
     Column(
         modifier = Modifier
@@ -1084,11 +1185,25 @@ private fun HeroCredentialSection(
             }
 
             heroCredentials.isNotEmpty() -> {
-                val shouldShowAuthboundPromo = onGetAuthboundIdClick != null
-                    && heroCredentials.none { it.isAuthboundIssued() }
+                val listState = rememberLazyListState()
+                val selectedPage by remember(listState, heroCredentials.size) {
+                    derivedStateOf {
+                        val lastPageIndex: Int = heroCredentials.lastIndex.coerceAtLeast(0)
+                        val visibleItemIndex: Int? = listState.layoutInfo.visibleItemsInfo
+                            .maxByOrNull { itemInfo ->
+                                val itemStart: Int = itemInfo.offset
+                                val itemEnd: Int = itemInfo.offset + itemInfo.size
+                                val visibleStart: Int = max(itemStart, listState.layoutInfo.viewportStartOffset)
+                                val visibleEnd: Int = min(itemEnd, listState.layoutInfo.viewportEndOffset)
+                                visibleEnd - visibleStart
+                            }?.index
+                        (visibleItemIndex ?: listState.firstVisibleItemIndex).coerceIn(0, lastPageIndex)
+                    }
+                }
                 BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                     val itemWidth = maxWidth
                     LazyRow(
+                        state = listState,
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp)
                     ) {
@@ -1105,15 +1220,13 @@ private fun HeroCredentialSection(
                                 onClick = onCredentialClick
                             )
                         }
-                        if (shouldShowAuthboundPromo) {
-                            item {
-                                AuthboundIdPromoCard(
-                                    onGetAuthboundIdClick = onGetAuthboundIdClick,
-                                    modifier = Modifier.width(itemWidth)
-                                )
-                            }
-                        }
                     }
+                }
+                if (heroCredentials.size > 1) {
+                    HeroCredentialPageIndicator(
+                        pageCount = heroCredentials.size,
+                        selectedPage = selectedPage
+                    )
                 }
 
                 // Tap to share hint
@@ -1129,27 +1242,47 @@ private fun HeroCredentialSection(
             }
 
             else -> {
-                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                    val itemWidth = maxWidth
-                    LazyRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp)
-                    ) {
-                        if (onGetAuthboundIdClick != null) {
-                            item {
-                                AuthboundIdPromoCard(
-                                    onGetAuthboundIdClick = onGetAuthboundIdClick,
-                                    modifier = Modifier.width(itemWidth)
-                                )
-                            }
-                        } else {
-                            item {
-                                EmptyHeroCard(onAddCredentialClick = onAddCredentialClick)
-                            }
-                        }
-                    }
-                }
+                EmptyHeroCard(onAddCredentialClick = onAddCredentialClick)
             }
+        }
+    }
+}
+
+@Composable
+private fun HeroCredentialPageIndicator(
+    pageCount: Int,
+    selectedPage: Int,
+) {
+    val pageIndicatorContentDescription: String = stringResource(
+        R.string.authboundpid_hero_page_indicator,
+        selectedPage + 1,
+        pageCount
+    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = SPACING_SMALL.dp)
+            .semantics {
+                contentDescription = pageIndicatorContentDescription
+            },
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        repeat(pageCount) { page ->
+            val isSelected = page == selectedPage
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 3.dp)
+                    .size(if (isSelected) 8.dp else 6.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (isSelected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+                        }
+                    )
+            )
         }
     }
 }
@@ -1284,200 +1417,6 @@ private fun EmptyHeroCard(
                 }
             }
         }
-    }
-}
-
-/**
- * Premium Authbound ID promotional card - shown to encourage identity verification.
- * Features a stunning emerald-to-teal gradient with trust-inducing visual design.
- * This card is designed to be eye-catching and encourage users to complete verification.
- */
-@Composable
-fun AuthboundIdPromoCard(
-    onGetAuthboundIdClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val view = LocalView.current
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = tween(durationMillis = 100),
-        label = "scale"
-    )
-
-    // Entrance animation
-    var isVisible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        delay(150)
-        isVisible = true
-    }
-
-    // Premium gradient colors - Emerald for trust & verification
-    val gradientStart = Color(0xFF047857) // Emerald dark
-    val gradientEnd = Color(0xFF0D9488)   // Teal
-    val accentColor = Color(0xFF34D399)   // Light green accent
-
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(180.dp)
-    ) {
-        AnimatedVisibility(
-            visible = isVisible,
-            enter = fadeIn(tween(300)) + slideInVertically(
-                animationSpec = tween(300),
-                initialOffsetY = { it / 4 }
-            )
-        ) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .scale(scale)
-                    .clickable(
-                        interactionSource = interactionSource,
-                        indication = ripple(color = accentColor)
-                    ) {
-                        view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                        onGetAuthboundIdClick()
-                    },
-                shape = RoundedCornerShape(24.dp),
-                color = Color.Transparent,
-                shadowElevation = 0.dp
-            ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(gradientStart, gradientEnd),
-                            start = Offset(0f, 0f),
-                            end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
-                        )
-                    )
-            ) {
-                // Decorative circles (top-right, brand element)
-                AuthboundIdDecorativeElements(
-                    modifier = Modifier.align(Alignment.TopEnd),
-                    color = accentColor
-                )
-
-                // Main content
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp),
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    // Top section: Badge + Title
-                    Column {
-                        // Premium badge
-                        Surface(
-                            color = Color.White.copy(alpha = 0.2f),
-                            shape = RoundedCornerShape(50)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                WrapIcon(
-                                    iconData = AppIcons.Verified,
-                                    customTint = Color.White,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Text(
-                                    text = stringResource(R.string.authboundpid_promo_badge),
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        letterSpacing = 1.sp
-                                    ),
-                                    color = Color.White
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // Title
-                        Text(
-                            text = stringResource(R.string.authboundpid_promo_title),
-                            style = MaterialTheme.typography.headlineSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = (-0.5).sp
-                            ),
-                            color = Color.White
-                        )
-                    }
-
-                    // Bottom section: Description + Arrow
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        Text(
-                            text = stringResource(R.string.authboundpid_promo_description),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White.copy(alpha = 0.85f),
-                            lineHeight = 20.sp,
-                            modifier = Modifier.weight(1f)
-                        )
-
-                        // Animated arrow button
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.2f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            WrapIcon(
-                                iconData = AppIcons.KeyboardArrowRight,
-                                customTint = Color.White,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-}
-
-/**
- * Decorative elements for the Authbound ID promo card.
- */
-@Composable
-private fun AuthboundIdDecorativeElements(
-    modifier: Modifier = Modifier,
-    color: Color
-) {
-    Canvas(
-        modifier = modifier
-            .size(140.dp)
-            .padding(12.dp)
-    ) {
-        // Large ring
-        drawCircle(
-            color = color.copy(alpha = 0.12f),
-            radius = 50.dp.toPx(),
-            center = Offset(size.width * 0.65f, size.height * 0.35f),
-            style = Stroke(width = 2.dp.toPx())
-        )
-        // Medium filled circle
-        drawCircle(
-            color = color.copy(alpha = 0.15f),
-            radius = 18.dp.toPx(),
-            center = Offset(size.width * 0.3f, size.height * 0.55f)
-        )
-        // Small dot
-        drawCircle(
-            color = color.copy(alpha = 0.2f),
-            radius = 6.dp.toPx(),
-            center = Offset(size.width * 0.85f, size.height * 0.75f)
-        )
     }
 }
 

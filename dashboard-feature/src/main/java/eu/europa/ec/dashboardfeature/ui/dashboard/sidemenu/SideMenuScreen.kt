@@ -295,6 +295,7 @@ private fun List<SideMenuItemUi>.filterQuickActions(): List<SideMenuItemUi.Actio
         item.type in listOf(
             SideMenuTypeUi.AUTHENTICATE,
             SideMenuTypeUi.ADD_DOCUMENT,
+            SideMenuTypeUi.AUTHBOUND_PID,
             SideMenuTypeUi.VERIFY,
             SideMenuTypeUi.SIGN
         )

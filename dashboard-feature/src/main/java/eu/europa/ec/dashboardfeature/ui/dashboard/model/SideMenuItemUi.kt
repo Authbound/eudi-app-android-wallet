@@ -30,6 +30,7 @@ sealed interface SideMenuItemUi {
 enum class SideMenuTypeUi {
     AUTHENTICATE,
     ADD_DOCUMENT,
+    AUTHBOUND_PID,
     VERIFY,
     SIGN,
     PROFILE,

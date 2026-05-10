@@ -18,6 +18,8 @@ package eu.europa.ec.dashboardfeature.ui.home
 
 import eu.europa.ec.corelogic.model.DocumentCategory
 import eu.europa.ec.corelogic.model.DocumentIdentifier
+import eu.europa.ec.dashboardfeature.interactor.AuthboundPidEntryInteractor
+import eu.europa.ec.dashboardfeature.interactor.AuthboundPidEntryState
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractor
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetCredentialsPartialState
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetHeroCredentialPartialState
@@ -30,6 +32,7 @@ import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.ListItemDataUi
 import eu.europa.ec.uilogic.component.ListItemLeadingContentDataUi
 import eu.europa.ec.uilogic.component.ListItemMainContentDataUi
+import eu.europa.ec.uilogic.navigation.AuthboundPidScreens
 import eu.europa.ec.uilogic.serializer.UiSerializer
 import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertFalse
@@ -37,6 +40,9 @@ import junit.framework.TestCase.assertTrue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -64,6 +70,9 @@ class TestHomeViewModel {
     private lateinit var homeInteractor: HomeInteractor
 
     @Mock
+    private lateinit var authboundPidEntryInteractor: AuthboundPidEntryInteractor
+
+    @Mock
     private lateinit var uiSerializer: UiSerializer
 
     @Mock
@@ -77,6 +86,14 @@ class TestHomeViewModel {
         Dispatchers.setMain(testDispatcher)
         whenever(resourceProvider.getString(any<Int>())).thenReturn("")
         whenever(homeInteractor.isBleCentralClientModeEnabled()).thenReturn(false)
+        runBlocking {
+            whenever(authboundPidEntryInteractor.getEntryState()).thenReturn(
+                AuthboundPidEntryState(
+                    shouldShowEntry = false,
+                    shouldShowHomePrompt = false
+                )
+            )
+        }
     }
 
     @After
@@ -184,11 +201,167 @@ class TestHomeViewModel {
             assertFalse(viewModel.viewState.value.isLoadingCredentials)
         }
 
+    // Test 4: Authbound PID entry points are visible when no Authbound PID exists
+    @Test
+    fun `Given Authbound PID is missing, When GetCredentials event, Then Authbound entry state is visible`() =
+        coroutineRule.runTest {
+            // Given
+            whenever(homeInteractor.getCredentials()).thenReturn(
+                flow {
+                    emit(HomeInteractorGetCredentialsPartialState.Success(emptyList()))
+                }
+            )
+            whenever(homeInteractor.getHeroCredential()).thenReturn(
+                flow {
+                    emit(HomeInteractorGetHeroCredentialPartialState.Success(emptyList()))
+                }
+            )
+            whenever(authboundPidEntryInteractor.getEntryState()).thenReturn(
+                AuthboundPidEntryState(
+                    shouldShowEntry = true,
+                    shouldShowHomePrompt = true
+                )
+            )
+
+            // When
+            val viewModel = createViewModel()
+            viewModel.setEvent(Event.GetCredentials)
+            testScope.advanceUntilIdle()
+
+            // Then
+            assertTrue(viewModel.viewState.value.shouldShowAuthboundPidEntry)
+            assertTrue(viewModel.viewState.value.shouldShowAuthboundPidHomePrompt)
+        }
+
+    // Test 5: Home promo dismissal does not hide stable Authbound PID entry points
+    @Test
+    fun `Given Authbound PID prompt is visible, When Not now pressed, Then only Home prompt is hidden`() =
+        coroutineRule.runTest {
+            // Given
+            whenever(authboundPidEntryInteractor.snoozeHomePrompt()).thenReturn(Unit)
+            whenever(homeInteractor.getCredentials()).thenReturn(
+                flow {
+                    emit(HomeInteractorGetCredentialsPartialState.Success(emptyList()))
+                }
+            )
+            whenever(homeInteractor.getHeroCredential()).thenReturn(
+                flow {
+                    emit(HomeInteractorGetHeroCredentialPartialState.Success(emptyList()))
+                }
+            )
+            whenever(authboundPidEntryInteractor.getEntryState()).thenReturn(
+                AuthboundPidEntryState(
+                    shouldShowEntry = true,
+                    shouldShowHomePrompt = true
+                )
+            )
+            val viewModel = createViewModel()
+            viewModel.setEvent(Event.GetCredentials)
+            testScope.advanceUntilIdle()
+
+            // When
+            viewModel.setEvent(Event.AuthboundPidPromoNotNowPressed)
+            testScope.advanceUntilIdle()
+
+            // Then
+            assertTrue(viewModel.viewState.value.shouldShowAuthboundPidEntry)
+            assertFalse(viewModel.viewState.value.shouldShowAuthboundPidHomePrompt)
+        }
+
+    @Test
+    fun `Given Authbound PID state becomes hidden, When Home promo is pressed, Then navigation is blocked`() =
+        coroutineRule.runTest {
+            whenever(homeInteractor.getCredentials()).thenReturn(
+                flow {
+                    emit(HomeInteractorGetCredentialsPartialState.Success(emptyList()))
+                }
+            )
+            whenever(homeInteractor.getHeroCredential()).thenReturn(
+                flow {
+                    emit(HomeInteractorGetHeroCredentialPartialState.Success(emptyList()))
+                }
+            )
+            whenever(authboundPidEntryInteractor.getEntryState()).thenReturn(
+                AuthboundPidEntryState(
+                    shouldShowEntry = true,
+                    shouldShowHomePrompt = true
+                ),
+                AuthboundPidEntryState(
+                    shouldShowEntry = false,
+                    shouldShowHomePrompt = false
+                )
+            )
+            val viewModel = createViewModel()
+            viewModel.setEvent(Event.GetCredentials)
+            testScope.advanceUntilIdle()
+            val effects: MutableList<Effect> = mutableListOf()
+            val collectJob = launch {
+                viewModel.effect.toList(effects)
+            }
+
+            viewModel.setEvent(Event.GetAuthboundIdPressed)
+            testScope.advanceUntilIdle()
+
+            val hasAuthboundNavigation: Boolean =
+                effects.filterIsInstance<Effect.Navigation.SwitchScreen>().any {
+                    it.screenRoute == AuthboundPidScreens.Intro.screenRoute
+                }
+            assertFalse(viewModel.viewState.value.shouldShowAuthboundPidEntry)
+            assertFalse(viewModel.viewState.value.shouldShowAuthboundPidHomePrompt)
+            assertFalse(hasAuthboundNavigation)
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `Given Authbound PID state becomes hidden, When Add Credential Authbound option is pressed, Then navigation is blocked`() =
+        coroutineRule.runTest {
+            whenever(homeInteractor.getCredentials()).thenReturn(
+                flow {
+                    emit(HomeInteractorGetCredentialsPartialState.Success(emptyList()))
+                }
+            )
+            whenever(homeInteractor.getHeroCredential()).thenReturn(
+                flow {
+                    emit(HomeInteractorGetHeroCredentialPartialState.Success(emptyList()))
+                }
+            )
+            whenever(authboundPidEntryInteractor.getEntryState()).thenReturn(
+                AuthboundPidEntryState(
+                    shouldShowEntry = true,
+                    shouldShowHomePrompt = true
+                ),
+                AuthboundPidEntryState(
+                    shouldShowEntry = false,
+                    shouldShowHomePrompt = false
+                )
+            )
+            val viewModel = createViewModel()
+            viewModel.setEvent(Event.GetCredentials)
+            testScope.advanceUntilIdle()
+            val effects: MutableList<Effect> = mutableListOf()
+            val collectJob = launch {
+                viewModel.effect.toList(effects)
+            }
+
+            viewModel.setEvent(Event.BottomSheet.AddDocument.AuthboundPid)
+            testScope.advanceUntilIdle()
+
+            val hasAuthboundNavigation: Boolean =
+                effects.filterIsInstance<Effect.Navigation.SwitchScreen>().any {
+                    it.screenRoute == AuthboundPidScreens.Intro.screenRoute
+                }
+            assertFalse(viewModel.viewState.value.shouldShowAuthboundPidEntry)
+            assertFalse(viewModel.viewState.value.shouldShowAuthboundPidHomePrompt)
+            assertFalse(hasAuthboundNavigation)
+            collectJob.cancel()
+        }
+
     //region Helper Methods
 
     private fun createViewModel(): HomeViewModel {
         return HomeViewModel(
             homeInteractor = homeInteractor,
+            authboundPidEntryInteractor = authboundPidEntryInteractor,
             uiSerializer = uiSerializer,
             resourceProvider = resourceProvider
         )

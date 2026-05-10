@@ -697,19 +697,8 @@ private fun DocumentsSheetContent(
                     title = stringResource(R.string.documents_screen_add_document_title),
                     message = stringResource(R.string.documents_screen_add_document_description)
                 ),
-                options = listOf(
-                    ModalOptionUi(
-                        title = stringResource(R.string.documents_screen_add_document_option_list),
-                        leadingIcon = AppIcons.AddDocumentFromList,
-                        accentColor = Color(0xFFD97706),
-                        event = Event.BottomSheet.AddDocument.FromList,
-                    ),
-                    ModalOptionUi(
-                        title = stringResource(R.string.documents_screen_add_document_option_qr),
-                        leadingIcon = AppIcons.AddDocumentFromQr,
-                        accentColor = Color(0xFFF59E0B),
-                        event = Event.BottomSheet.AddDocument.ScanQr,
-                    )
+                options = buildAddDocumentOptions(
+                    shouldShowAuthboundPidEntry = state.shouldShowAuthboundPidEntry
                 ),
                 onEventSent = onEventSent,
                 hostTab = BottomNavigationItem.Wallet.route.lowercase(),
@@ -757,6 +746,40 @@ private fun DocumentsSheetContent(
                 ),
                 options = sheetContent.options,
                 onEventSent = onEventSent,
+            )
+        }
+    }
+}
+
+@Composable
+private fun buildAddDocumentOptions(
+    shouldShowAuthboundPidEntry: Boolean,
+): List<ModalOptionUi<Event>> {
+    return buildList {
+        add(
+            ModalOptionUi(
+                title = stringResource(R.string.documents_screen_add_document_option_list),
+                leadingIcon = AppIcons.AddDocumentFromList,
+                accentColor = Color(0xFFD97706),
+                event = Event.BottomSheet.AddDocument.FromList,
+            )
+        )
+        add(
+            ModalOptionUi(
+                title = stringResource(R.string.documents_screen_add_document_option_qr),
+                leadingIcon = AppIcons.AddDocumentFromQr,
+                accentColor = Color(0xFFF59E0B),
+                event = Event.BottomSheet.AddDocument.ScanQr,
+            )
+        )
+        if (shouldShowAuthboundPidEntry) {
+            add(
+                ModalOptionUi(
+                    title = stringResource(R.string.authboundpid_get_authbound_id),
+                    leadingIcon = AppIcons.Verified,
+                    accentColor = Color(0xFF047857),
+                    event = Event.BottomSheet.AddDocument.AuthboundPid,
+                )
             )
         }
     }

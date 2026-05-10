@@ -27,6 +27,7 @@ import eu.europa.ec.commonfeature.di.getOrCreateCredentialOfferScope
 import eu.europa.ec.commonfeature.model.PinFlow
 import eu.europa.ec.corelogic.di.getOrCreatePresentationScope
 import eu.europa.ec.corelogic.model.RevokedDocumentDataDomain
+import eu.europa.ec.dashboardfeature.interactor.AuthboundPidEntryInteractor
 import eu.europa.ec.dashboardfeature.interactor.DashboardInteractor
 import eu.europa.ec.dashboardfeature.ui.component.BottomNavigationItem
 import eu.europa.ec.dashboardfeature.ui.dashboard.model.SideMenuItemUi
@@ -143,6 +144,7 @@ enum class SideMenuAnimation {
 @KoinViewModel
 class DashboardViewModel(
     private val dashboardInteractor: DashboardInteractor,
+    private val authboundPidEntryInteractor: AuthboundPidEntryInteractor,
     private val uiSerializer: UiSerializer,
     private val resourceProvider: ResourceProvider,
 ) : MviViewModel<Event, State, Effect>() {
@@ -156,6 +158,7 @@ class DashboardViewModel(
 
     init {
         loadUserProfile()
+        loadAuthboundPidEntryState()
     }
 
     override fun handleEvents(event: Event) {
@@ -182,12 +185,7 @@ class DashboardViewModel(
             }
 
             is Event.SideMenu.Open -> {
-                setState {
-                    copy(
-                        isSideMenuVisible = true,
-                        sideMenuAnimation = SideMenuAnimation.SLIDE
-                    )
-                }
+                openSideMenu()
                 if (viewState.value.userProfile?.portraitBase64.isNullOrBlank()) {
                     loadUserProfile()
                 }
@@ -308,6 +306,10 @@ class DashboardViewModel(
                 setEffect { Effect.TriggerQuickAction("add_credentials") }
             }
 
+            SideMenuTypeUi.AUTHBOUND_PID -> {
+                handleAuthboundPidSideMenuItemClicked()
+            }
+
             SideMenuTypeUi.VERIFY -> {
                 hideSideMenu()
                 setEffect { Effect.TriggerQuickAction("verify") }
@@ -347,6 +349,51 @@ class DashboardViewModel(
                 setEffect { Effect.Navigation.SwitchScreen(screenRoute = DashboardScreens.Settings.screenRoute) }
             }
         }
+    }
+
+    private fun loadAuthboundPidEntryState() {
+        viewModelScope.launch {
+            val sideMenuOptions: List<SideMenuItemUi> = getAuthboundPidAwareSideMenuOptions()
+            setState {
+                copy(
+                    sideMenuOptions = sideMenuOptions
+                )
+            }
+        }
+    }
+
+    private fun openSideMenu() {
+        viewModelScope.launch {
+            val sideMenuOptions: List<SideMenuItemUi> = getAuthboundPidAwareSideMenuOptions()
+            setState {
+                copy(
+                    sideMenuOptions = sideMenuOptions,
+                    isSideMenuVisible = true,
+                    sideMenuAnimation = SideMenuAnimation.SLIDE
+                )
+            }
+        }
+    }
+
+    private fun handleAuthboundPidSideMenuItemClicked() {
+        viewModelScope.launch {
+            val entryState = authboundPidEntryInteractor.getEntryState()
+            val sideMenuOptions: List<SideMenuItemUi> = dashboardInteractor.getSideMenuOptions(
+                shouldShowAuthboundPidEntry = entryState.shouldShowEntry
+            )
+            setState { copy(sideMenuOptions = sideMenuOptions) }
+            hideSideMenu()
+            if (entryState.shouldShowEntry) {
+                setEffect { Effect.TriggerQuickAction("authboundpid") }
+            }
+        }
+    }
+
+    private suspend fun getAuthboundPidAwareSideMenuOptions(): List<SideMenuItemUi> {
+        val entryState = authboundPidEntryInteractor.getEntryState()
+        return dashboardInteractor.getSideMenuOptions(
+            shouldShowAuthboundPidEntry = entryState.shouldShowEntry
+        )
     }
 
     private fun handleDeepLink(deepLinkUri: Uri?) {
