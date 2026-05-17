@@ -1098,58 +1098,125 @@ private fun AuthboundIdHomePrompt(
     onGetAuthboundIdClick: () -> Unit,
     onNotNowClick: () -> Unit,
 ) {
-    Surface(
+    val view = LocalView.current
+    val interactionSource = remember { MutableInteractionSource() }
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = SPACING_SMALL.dp),
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
-        tonalElevation = 1.dp
+            .padding(horizontal = SPACING_SMALL.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        Color(0xFF022C22),
+                        Color(0xFF064E3B),
+                        Color(0xFF065F46)
+                    ),
+                    start = Offset(0f, 0f),
+                    end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+                )
+            )
     ) {
+        // Diagonal stripe texture (distinct from the arc/orb pattern on hero card)
+        Canvas(modifier = Modifier.matchParentSize()) {
+            val stripeColor = Color(0xFF34D399).copy(alpha = 0.055f)
+            val stripeWidth = 1.dp.toPx()
+            val stripeSpacing = 18.dp.toPx()
+            var offset = -size.height
+            while (offset < size.width + size.height) {
+                drawLine(
+                    color = stripeColor,
+                    start = Offset(offset, 0f),
+                    end = Offset(offset + size.height, size.height),
+                    strokeWidth = stripeWidth
+                )
+                offset += stripeSpacing
+            }
+            // Emerald glow in top-right
+            drawCircle(
+                color = Color(0xFF34D399).copy(alpha = 0.10f),
+                radius = 68.dp.toPx(),
+                center = Offset(size.width * 0.92f, -size.height * 0.15f)
+            )
+        }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            // Shield/verified badge — emerald glow treatment
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(50.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                    .background(Color(0xFF34D399).copy(alpha = 0.18f)),
                 contentAlignment = Alignment.Center
             ) {
                 WrapIcon(
                     iconData = AppIcons.Verified,
-                    customTint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(22.dp)
+                    customTint = Color(0xFF6EE7B7),
+                    modifier = Modifier.size(27.dp)
                 )
             }
-            Column(modifier = Modifier.weight(1f)) {
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
                 Text(
                     text = stringResource(R.string.authboundpid_home_prompt_title),
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurface
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.2).sp
+                    ),
+                    color = Color.White
                 )
                 Text(
                     text = stringResource(R.string.authboundpid_home_prompt_description),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = Color.White.copy(alpha = 0.65f),
+                    maxLines = 2
                 )
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Button(
-                    onClick = onGetAuthboundIdClick,
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                // Emerald CTA pill
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(Color(0xFF059669))
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = ripple(color = Color.White.copy(alpha = 0.20f))
+                        ) {
+                            view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                            onGetAuthboundIdClick()
+                        }
+                        .padding(horizontal = 18.dp, vertical = 9.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(text = stringResource(R.string.authboundpid_home_prompt_action))
+                    Text(
+                        text = stringResource(R.string.authboundpid_home_prompt_action),
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White
+                    )
                 }
                 TextButton(
                     onClick = onNotNowClick,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
                 ) {
-                    Text(text = stringResource(R.string.authboundpid_not_now))
+                    Text(
+                        text = stringResource(R.string.authboundpid_not_now),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.42f)
+                    )
                 }
             }
         }
@@ -1291,14 +1358,6 @@ private fun HeroCredentialUi.isAuthboundIssued(): Boolean {
     return issuerName?.contains("authbound", ignoreCase = true) == true
 }
 
-/**
- * Premium empty hero card with dark navy theme - shown when user has no credentials.
- * Features:
- * - Dark navy gradient background matching Authbound web dashboard (#0A1A36)
- * - Decorative circular pattern elements (brand motif)
- * - Left-aligned layout with icon, text, and arrow indicator
- * - Smooth entrance animation and press feedback with haptics
- */
 @Composable
 private fun EmptyHeroCard(
     onAddCredentialClick: () -> Unit
@@ -1311,8 +1370,6 @@ private fun EmptyHeroCard(
         animationSpec = tween(durationMillis = 100),
         label = "scale"
     )
-
-    // Entrance animation
     var isVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         delay(100)
@@ -1321,140 +1378,165 @@ private fun EmptyHeroCard(
 
     AnimatedVisibility(
         visible = isVisible,
-        enter = fadeIn(tween(300)) + slideInVertically(
-            animationSpec = tween(300),
-            initialOffsetY = { it / 4 }
+        enter = fadeIn(tween(420)) + slideInVertically(
+            animationSpec = tween(380),
+            initialOffsetY = { it / 5 }
         )
     ) {
-        Surface(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(172.dp)
+                .height(200.dp)
                 .scale(scale)
+                .clip(RoundedCornerShape(24.dp))
                 .clickable(
                     interactionSource = interactionSource,
-                    indication = ripple(color = MaterialTheme.colorScheme.tertiary)
+                    indication = ripple(color = Color.White.copy(alpha = 0.10f))
                 ) {
                     view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                     onAddCredentialClick()
-                },
-            shape = RoundedCornerShape(20.dp),
-            color = Color.Transparent,
-            shadowElevation = 0.dp
+                }
+                .background(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFF0C1D3E),
+                            Color(0xFF112B52),
+                            Color(0xFF1A3A62)
+                        ),
+                        start = Offset(0f, 0f),
+                        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+                    )
+                )
         ) {
+            // Security dot-grid + concentric arc motif (ID card inspired)
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val spacing = 22.dp.toPx()
+                val dotR = 1.1.dp.toPx()
+                val dotColor = Color(0xFF3B82F6).copy(alpha = 0.09f)
+                var xi = 0f
+                while (xi <= size.width + spacing) {
+                    var yi = 0f
+                    while (yi <= size.height + spacing) {
+                        drawCircle(color = dotColor, radius = dotR, center = Offset(xi, yi))
+                        yi += spacing
+                    }
+                    xi += spacing
+                }
+                // Concentric arcs top-right
+                val arcColor = Color(0xFF60A5FA)
+                listOf(88.dp.toPx(), 130.dp.toPx(), 172.dp.toPx()).forEachIndexed { i, r ->
+                    drawArc(
+                        color = arcColor.copy(alpha = 0.068f - i * 0.014f),
+                        startAngle = 128f,
+                        sweepAngle = 124f,
+                        useCenter = false,
+                        topLeft = Offset(size.width - r, -r * 0.52f),
+                        size = androidx.compose.ui.geometry.Size(r * 2f, r * 2f),
+                        style = Stroke(width = 1.dp.toPx())
+                    )
+                }
+            }
+
+            // Radial glow accent (top-right)
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .size(190.dp)
+                    .align(Alignment.TopEnd)
                     .background(
-                        brush = Brush.linearGradient(
+                        brush = Brush.radialGradient(
                             colors = listOf(
-                                MaterialTheme.colorScheme.primary,
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)
+                                Color(0xFF3B82F6).copy(alpha = 0.15f),
+                                Color.Transparent
                             )
                         )
                     )
-            ) {
-                // Decorative circles (top-right, brand element)
-                DecorativeCircles(
-                    modifier = Modifier.align(Alignment.TopEnd),
-                    color = MaterialTheme.colorScheme.tertiary
-                )
+            )
 
-                // Content
+            // Content: icon/badge top — title/arrow bottom
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp, vertical = 20.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Top row: icon circle + "DIGITAL WALLET" pill
                 Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // Icon container
                     Box(
                         modifier = Modifier
-                            .size(56.dp)
+                            .size(40.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f)),
+                            .background(Color(0xFF3B82F6).copy(alpha = 0.22f)),
                         contentAlignment = Alignment.Center
                     ) {
                         WrapIcon(
                             iconData = AppIcons.Id,
-                            customTint = MaterialTheme.colorScheme.tertiary,
-                            modifier = Modifier.size(28.dp)
+                            customTint = Color(0xFF93C5FD),
+                            modifier = Modifier.size(22.dp)
                         )
                     }
-
-                    Spacer(modifier = Modifier.width(20.dp))
-
-                    // Text content
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.Center
+                    Surface(
+                        color = Color.White.copy(alpha = 0.09f),
+                        shape = RoundedCornerShape(50)
                     ) {
                         Text(
-                            text = stringResource(R.string.home_hero_empty_title),
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                letterSpacing = (-0.5).sp
+                            text = "DIGITAL WALLET",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.2.sp
                             ),
-                            color = MaterialTheme.colorScheme.onPrimary
+                            color = Color(0xFF93C5FD),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                         )
+                    }
+                }
 
-                        Spacer(modifier = Modifier.height(4.dp))
-
+                // Bottom row: headline + arrow
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.home_hero_empty_title),
+                            style = MaterialTheme.typography.headlineSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = (-0.5).sp,
+                                lineHeight = 30.sp
+                            ),
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.height(5.dp))
                         Text(
                             text = stringResource(R.string.home_hero_empty_description),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.55f),
                             maxLines = 2
                         )
                     }
-
-                    // Arrow indicator
-                    WrapIcon(
-                        iconData = AppIcons.KeyboardArrowRight,
-                        customTint = MaterialTheme.colorScheme.tertiary,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF2563EB).copy(alpha = 0.38f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        WrapIcon(
+                            iconData = AppIcons.KeyboardArrowRight,
+                            customTint = Color(0xFF93C5FD),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         }
     }
 }
 
-/**
- * Decorative circular pattern for premium card backgrounds.
- * Creates subtle brand-aligned visual interest with varying circle sizes and opacities.
- */
-@Composable
-private fun DecorativeCircles(
-    modifier: Modifier = Modifier,
-    color: Color
-) {
-    Canvas(
-        modifier = modifier
-            .size(120.dp)
-            .padding(12.dp)
-    ) {
-        // Large circle (outline)
-        drawCircle(
-            color = color.copy(alpha = 0.08f),
-            radius = 45.dp.toPx(),
-            center = Offset(size.width * 0.7f, size.height * 0.3f),
-            style = Stroke(width = 2.dp.toPx())
-        )
-        // Medium circle (filled)
-        drawCircle(
-            color = color.copy(alpha = 0.12f),
-            radius = 20.dp.toPx(),
-            center = Offset(size.width * 0.4f, size.height * 0.5f)
-        )
-        // Small circle (filled)
-        drawCircle(
-            color = color.copy(alpha = 0.1f),
-            radius = 8.dp.toPx(),
-            center = Offset(size.width * 0.85f, size.height * 0.65f)
-        )
-    }
-}
 
 /**
  * Credentials section to display user's digital documents
