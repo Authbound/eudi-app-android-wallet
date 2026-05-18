@@ -322,7 +322,7 @@ fun FloatingNavItem(
     )
 
     val indicatorWidth by animateDpAsState(
-        targetValue = if (selected) 16.dp else 4.dp,
+        targetValue = if (selected) 16.dp else 0.dp,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium
@@ -400,20 +400,13 @@ fun FloatingNavItem(
                     .height(4.dp)
                     .clip(RoundedCornerShape(2.dp))
                     .background(
-                        if (selected) {
-                            Brush.horizontalGradient(
-                                listOf(
-                                    MaterialTheme.colorScheme.activeHighlight,
-                                    MaterialTheme.colorScheme.activeHighlight.copy(alpha = 0.7f)
-                                )
+                        Brush.horizontalGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.activeHighlight,
+                                MaterialTheme.colorScheme.activeHighlight.copy(alpha = 0.7f)
                             )
-                        } else {
-                            Brush.horizontalGradient(
-                                listOf(Color.Transparent, Color.Transparent)
-                            )
-                        }
+                        )
                     )
-                    .alpha(if (selected) 1f else 0f)
             )
         }
     }

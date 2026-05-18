@@ -303,7 +303,7 @@ private fun Content(
                 .fillMaxWidth()
                 .height(380.dp)
                 .background(
-                    brush = Brush.radialGradient(
+                    brush = Brush.verticalGradient(
                         colors = listOf(
                             Color(0xFF1E3A5F).copy(alpha = 0.30f),
                             Color.Transparent
@@ -1032,6 +1032,7 @@ private fun QuickActionsSection(
     quickActions: List<QuickActionConfig>,
     onQuickActionClick: (String) -> Unit
 ) {
+    val context = LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1075,7 +1076,6 @@ private fun QuickActionsSection(
             ) {
                 quickActions.drop(2).take(2).forEachIndexed { index, action ->
                     if (action.id == "sign") {
-                        val context = LocalContext.current
                         Box(modifier = Modifier.weight(1f)) {
                             QuickActionCard(
                                 modifier = Modifier
@@ -1512,7 +1512,7 @@ private fun EmptyHeroCard(
                         shape = RoundedCornerShape(50)
                     ) {
                         Text(
-                            text = "DIGITAL WALLET",
+                            text = stringResource(R.string.home_hero_digital_wallet_label),
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 1.2.sp

@@ -1,11 +1,8 @@
 
 package eu.europa.ec.uilogic.component.wrap
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -37,6 +34,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -114,16 +113,25 @@ fun QuickActionCard(
         isVisible = true
     }
 
-    AnimatedVisibility(
-        modifier = modifier,
-        visible = isVisible,
-        enter = fadeIn(tween(280)) + slideInVertically(
-            animationSpec = tween(280),
-            initialOffsetY = { it / 5 }
-        )
-    ) {
-        Surface(
-            modifier = Modifier
+    val density = LocalDensity.current
+    val slideOffsetPx = with(density) { 28.dp.toPx() }
+    val cardAlpha by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = tween(280),
+        label = "card_alpha"
+    )
+    val cardOffsetY by animateFloatAsState(
+        targetValue = if (isVisible) 0f else slideOffsetPx,
+        animationSpec = tween(280),
+        label = "card_offset_y"
+    )
+
+    Surface(
+            modifier = modifier
+                .graphicsLayer {
+                    alpha = cardAlpha
+                    translationY = cardOffsetY
+                }
                 .scale(scale)
                 .clickable(
                     interactionSource = interactionSource,
@@ -220,7 +228,6 @@ fun QuickActionCard(
                 }
             }
         }
-    }
 }
 
 @Composable

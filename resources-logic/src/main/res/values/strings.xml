@@ -314,6 +314,7 @@
     <string name="side_menu_settings">Settings</string>
 
     <!-- Home Screen Hero Card -->
+    <string name="home_hero_digital_wallet_label">DIGITAL WALLET</string>
     <string name="home_hero_tap_to_share">Tap to share</string>
     <string name="home_hero_empty_title">Get Your Digital ID</string>
     <string name="home_hero_empty_description">Your wallet is ready for your first digital credential</string>
