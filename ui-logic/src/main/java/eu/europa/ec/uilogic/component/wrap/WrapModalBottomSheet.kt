@@ -357,42 +357,153 @@ fun <T : ViewEvent> BottomSheetWithTwoBigIcons(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     options.chunked(2).forEachIndexed { rowIndex, rowOptions ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(IntrinsicSize.Max),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            rowOptions.forEachIndexed { columnIndex, item ->
-                                val optionIndex = rowIndex * 2 + columnIndex
-                                BottomSheetOptionCard(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight()
-                                        .optionalTestTag(
-                                            hostTab?.let { safeHostTab ->
-                                                TestTag.buttonInBottomSheetWithTwoBigIcons(
-                                                    hostTab = safeHostTab,
-                                                    index = optionIndex
-                                                )
-                                            }
-                                        ),
-                                    title = item.title,
-                                    icon = item.leadingIcon,
-                                    iconTint = item.leadingIconTint,
-                                    accentColor = item.accentColor,
-                                    enabled = item.enabled,
-                                    onClick = { onEventSent(item.event) }
-                                )
-                            }
-                            // Balance odd last row so a lone card stays half-width
-                            if (rowOptions.size == 1) {
-                                Spacer(modifier = Modifier.weight(1f))
+                        if (rowOptions.size == 1) {
+                            // Lone item — render as full-width horizontal card
+                            val item = rowOptions[0]
+                            val optionIndex = rowIndex * 2
+                            BottomSheetWideOptionCard(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .optionalTestTag(
+                                        hostTab?.let { safeHostTab ->
+                                            TestTag.buttonInBottomSheetWithTwoBigIcons(
+                                                hostTab = safeHostTab,
+                                                index = optionIndex
+                                            )
+                                        }
+                                    ),
+                                title = item.title,
+                                icon = item.leadingIcon,
+                                iconTint = item.leadingIconTint,
+                                accentColor = item.accentColor,
+                                enabled = item.enabled,
+                                onClick = { onEventSent(item.event) }
+                            )
+                        } else {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(IntrinsicSize.Max),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                rowOptions.forEachIndexed { columnIndex, item ->
+                                    val optionIndex = rowIndex * 2 + columnIndex
+                                    BottomSheetOptionCard(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .fillMaxHeight()
+                                            .optionalTestTag(
+                                                hostTab?.let { safeHostTab ->
+                                                    TestTag.buttonInBottomSheetWithTwoBigIcons(
+                                                        hostTab = safeHostTab,
+                                                        index = optionIndex
+                                                    )
+                                                }
+                                            ),
+                                        title = item.title,
+                                        icon = item.leadingIcon,
+                                        iconTint = item.leadingIconTint,
+                                        accentColor = item.accentColor,
+                                        enabled = item.enabled,
+                                        onClick = { onEventSent(item.event) }
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
+        )
+    }
+}
+
+@Composable
+private fun BottomSheetWideOptionCard(
+    modifier: Modifier = Modifier,
+    title: String,
+    icon: IconDataUi? = null,
+    iconTint: Color? = null,
+    accentColor: Color? = null,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = tween(durationMillis = 100),
+        label = "wideCardScale"
+    )
+    val contentAlpha = if (enabled) ALPHA_ENABLED else ALPHA_DISABLED
+    val resolvedAccent = accentColor ?: MaterialTheme.colorScheme.tertiary
+    val view = LocalView.current
+
+    Row(
+        modifier = modifier
+            .scale(scale)
+            .alpha(contentAlpha)
+            .clip(RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .throttledClickable(
+                interactionSource = interactionSource,
+                indication = null,
+                enabled = enabled,
+            ) {
+                @Suppress("DEPRECATION")
+                view.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+                onClick()
+            }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        // Icon in glowing circle
+        Box(contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(resolvedAccent.copy(alpha = 0.08f))
+            )
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                resolvedAccent.copy(alpha = 0.18f),
+                                resolvedAccent.copy(alpha = 0.06f),
+                            )
+                        )
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                icon?.let {
+                    WrapIcon(
+                        iconData = it,
+                        customTint = iconTint ?: resolvedAccent,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+        }
+        // Title
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall.copy(
+                fontWeight = FontWeight.SemiBold,
+            ),
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        // Trailing chevron
+        WrapIcon(
+            iconData = AppIcons.KeyboardArrowRight,
+            customTint = resolvedAccent,
+            modifier = Modifier.size(20.dp)
         )
     }
 }
