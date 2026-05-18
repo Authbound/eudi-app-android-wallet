@@ -127,9 +127,9 @@ fun QuickActionCard(
                     )
                 )
         ) {
-            // Decorative circles (top-right, brand element)
-            QuickActionDecorativeCircles(
+            QuickActionMotif(
                 modifier = Modifier.align(Alignment.TopEnd),
+                id = config.id,
                 color = config.accentColor
             )
 
@@ -200,13 +200,10 @@ fun QuickActionCard(
     }
 }
 
-/**
- * Decorative circular pattern for QuickActionCard backgrounds.
- * Creates subtle brand-aligned visual interest.
- */
 @Composable
-private fun QuickActionDecorativeCircles(
+private fun QuickActionMotif(
     modifier: Modifier = Modifier,
+    id: String,
     color: Color
 ) {
     Canvas(
@@ -214,25 +211,84 @@ private fun QuickActionDecorativeCircles(
             .size(80.dp)
             .padding(8.dp)
     ) {
-        // Large circle (outline)
-        drawCircle(
-            color = color.copy(alpha = 0.10f),
-            radius = 28.dp.toPx(),
-            center = Offset(size.width * 0.7f, size.height * 0.3f),
-            style = Stroke(width = 1.5.dp.toPx())
-        )
-        // Medium circle (filled)
-        drawCircle(
-            color = color.copy(alpha = 0.08f),
-            radius = 12.dp.toPx(),
-            center = Offset(size.width * 0.35f, size.height * 0.55f)
-        )
-        // Small circle (filled)
-        drawCircle(
-            color = color.copy(alpha = 0.12f),
-            radius = 5.dp.toPx(),
-            center = Offset(size.width * 0.85f, size.height * 0.7f)
-        )
+        when (id) {
+            "authenticate" -> {
+                // Diagonal scan-beam lines (security scanner motif)
+                val lineColor = color.copy(alpha = 0.11f)
+                val gap = 11.dp.toPx()
+                for (i in 0..4) {
+                    val o = i * gap
+                    drawLine(
+                        color = lineColor,
+                        start = Offset(size.width - o, 0f),
+                        end = Offset(size.width, o),
+                        strokeWidth = 6.dp.toPx()
+                    )
+                }
+            }
+            "add_credentials" -> {
+                // Corner-bracket geometry (card-insertion motif)
+                val c = color.copy(alpha = 0.18f)
+                val s = 16.dp.toPx()
+                val sw = 1.8.dp.toPx()
+                val lx = size.width * 0.55f; val ly = size.height * 0.15f
+                val rx = size.width * 0.95f; val ry = size.height * 0.72f
+                drawLine(c, Offset(lx, ly), Offset(lx + s, ly), sw)
+                drawLine(c, Offset(lx, ly), Offset(lx, ly + s), sw)
+                drawLine(c, Offset(rx - s, ry), Offset(rx, ry), sw)
+                drawLine(c, Offset(rx, ry - s), Offset(rx, ry), sw)
+                drawRect(
+                    color = color.copy(alpha = 0.07f),
+                    topLeft = Offset(lx + 5.dp.toPx(), ly + 5.dp.toPx()),
+                    size = androidx.compose.ui.geometry.Size(
+                        rx - lx - 10.dp.toPx(),
+                        ry - ly - 10.dp.toPx()
+                    )
+                )
+            }
+            "verify" -> {
+                // Radiating concentric rings (trust/signal motif)
+                val center = Offset(size.width * 0.72f, size.height * 0.28f)
+                listOf(6.dp.toPx(), 14.dp.toPx(), 24.dp.toPx()).forEachIndexed { i, r ->
+                    drawCircle(
+                        color = color.copy(alpha = 0.18f - i * 0.04f),
+                        radius = r,
+                        center = center,
+                        style = Stroke(width = 1.4.dp.toPx())
+                    )
+                }
+                drawCircle(color = color.copy(alpha = 0.22f), radius = 3.dp.toPx(), center = center)
+            }
+            "sign" -> {
+                // Sweeping arc (handwritten signature motif)
+                drawArc(
+                    color = color.copy(alpha = 0.14f),
+                    startAngle = 200f, sweepAngle = 130f, useCenter = false,
+                    topLeft = Offset(size.width * 0.10f, size.height * 0.05f),
+                    size = androidx.compose.ui.geometry.Size(size.width * 0.80f, size.height * 0.80f),
+                    style = Stroke(
+                        width = 2.8.dp.toPx(),
+                        cap = androidx.compose.ui.graphics.StrokeCap.Round
+                    )
+                )
+                drawArc(
+                    color = color.copy(alpha = 0.08f),
+                    startAngle = 165f, sweepAngle = 70f, useCenter = false,
+                    topLeft = Offset(size.width * 0.30f, size.height * 0.28f),
+                    size = androidx.compose.ui.geometry.Size(size.width * 0.60f, size.height * 0.55f),
+                    style = Stroke(
+                        width = 1.6.dp.toPx(),
+                        cap = androidx.compose.ui.graphics.StrokeCap.Round
+                    )
+                )
+            }
+            else -> {
+                // Fallback: original three-circle pattern
+                drawCircle(color.copy(alpha = 0.10f), 28.dp.toPx(), Offset(size.width * 0.7f, size.height * 0.3f), style = Stroke(1.5.dp.toPx()))
+                drawCircle(color.copy(alpha = 0.08f), 12.dp.toPx(), Offset(size.width * 0.35f, size.height * 0.55f))
+                drawCircle(color.copy(alpha = 0.12f), 5.dp.toPx(), Offset(size.width * 0.85f, size.height * 0.7f))
+            }
+        }
     }
 }
 
