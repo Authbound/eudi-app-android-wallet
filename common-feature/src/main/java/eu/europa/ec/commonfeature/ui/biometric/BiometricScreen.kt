@@ -45,6 +45,7 @@ import androidx.navigation.NavController
 import eu.europa.ec.commonfeature.config.BiometricMode
 import eu.europa.ec.commonfeature.config.BiometricUiConfig
 import eu.europa.ec.commonfeature.config.OnBackNavigationConfig
+import eu.europa.ec.commonfeature.util.TestTag
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.uilogic.component.AppIconAndText
 import eu.europa.ec.uilogic.component.AppIconAndTextData
@@ -192,6 +193,7 @@ private fun Body(
     Column(
         Modifier
             .fillMaxSize()
+            .applyTestTag(TestTag.BiometricScreen.ROOT)
             .paddingFrom(padding, bottom = false)
     ) {
         Column(
@@ -228,6 +230,9 @@ private fun Body(
                     )
                 }
             } else null,
+            keypadTestTag = TestTag.BiometricScreen.KEYPAD,
+            digitTestTagProvider = TestTag.BiometricScreen::digit,
+            backspaceTestTag = TestTag.BiometricScreen.BACKSPACE,
             onDigitPressed = { digit ->
                 val current = state.quickPin
                 val next = if (!state.quickPinError.isNullOrEmpty()) {
@@ -290,6 +295,7 @@ private fun MainContent(
                 Text(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .applyTestTag(TestTag.BiometricScreen.PIN_TEXT)
                         .padding(vertical = SPACING_SMALL.dp),
                     text = mode.textAbovePin,
                     style = MaterialTheme.typography.titleMedium.copy(
@@ -323,7 +329,9 @@ private fun MainContent(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .applyTestTag(TestTag.BiometricScreen.PIN_TITLE),
                     text = mode.title,
                     style = MaterialTheme.typography.headlineLarge.copy(
                         color = MaterialTheme.colorScheme.onSurface

@@ -18,9 +18,6 @@ package eu.europa.ec.presentationfeature.ui.request
 
 import androidx.lifecycle.viewModelScope
 import eu.europa.ec.businesslogic.extension.ifEmptyOrNull
-import eu.europa.ec.commonfeature.config.BiometricMode
-import eu.europa.ec.commonfeature.config.BiometricUiConfig
-import eu.europa.ec.commonfeature.config.OnBackNavigationConfig
 import eu.europa.ec.commonfeature.config.RequestUriConfig
 import eu.europa.ec.commonfeature.ui.request.Event
 import eu.europa.ec.commonfeature.ui.request.RequestViewModel
@@ -32,12 +29,7 @@ import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.uilogic.component.RelyingPartyDataUi
 import eu.europa.ec.uilogic.component.content.ContentErrorConfig
 import eu.europa.ec.uilogic.component.content.ContentHeaderConfig
-import eu.europa.ec.uilogic.config.ConfigNavigation
-import eu.europa.ec.uilogic.config.NavigationType
-import eu.europa.ec.uilogic.navigation.CommonScreens
 import eu.europa.ec.uilogic.navigation.PresentationScreens
-import eu.europa.ec.uilogic.navigation.helper.generateComposableArguments
-import eu.europa.ec.uilogic.navigation.helper.generateComposableNavigationLink
 import eu.europa.ec.uilogic.serializer.UiSerializer
 import kotlinx.coroutines.launch
 import org.koin.android.annotation.KoinViewModel
@@ -63,34 +55,7 @@ class PresentationRequestViewModel(
     }
 
     override fun getNextScreen(): String {
-        return generateComposableNavigationLink(
-            screen = CommonScreens.Biometric,
-            arguments = generateComposableArguments(
-                mapOf(
-                    BiometricUiConfig.serializedKeyName to uiSerializer.toBase64(
-                        BiometricUiConfig(
-                            mode = BiometricMode.Default(
-                                descriptionWhenBiometricsEnabled = resourceProvider.getString(R.string.loading_biometry_biometrics_enabled_description),
-                                descriptionWhenBiometricsNotEnabled = resourceProvider.getString(R.string.loading_biometry_biometrics_not_enabled_description),
-                                textAbovePin = resourceProvider.getString(R.string.biometric_default_mode_text_above_pin_field),
-                            ),
-                            isPreAuthorization = false,
-                            shouldInitializeBiometricAuthOnCreate = true,
-                            onSuccessNavigation = ConfigNavigation(
-                                navigationType = NavigationType.PushScreen(PresentationScreens.PresentationLoading),
-                            ),
-                            onBackNavigationConfig = OnBackNavigationConfig(
-                                onBackNavigation = ConfigNavigation(
-                                    navigationType = NavigationType.PopTo(PresentationScreens.PresentationRequest),
-                                ),
-                                hasToolbarBackIcon = true
-                            )
-                        ),
-                        BiometricUiConfig.Parser
-                    ).orEmpty()
-                )
-            )
-        )
+        return PresentationScreens.PresentationLoading.screenRoute
     }
 
     override fun doWork() {

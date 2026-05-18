@@ -47,7 +47,12 @@ object TestTag {
     }
 
     object BiometricScreen {
+        const val ROOT = "biometric_screen_root"
         const val PIN_TEXT = "biometric_screen_pin_text"
         const val PIN_TITLE = "biometric_screen_title"
+        const val KEYPAD = "biometric_screen_keypad"
+        const val BACKSPACE = "biometric_screen_backspace"
+
+        fun digit(value: Int) = "biometric_screen_digit_$value"
     }
 }
