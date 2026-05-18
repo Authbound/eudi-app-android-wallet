@@ -50,7 +50,7 @@ android {
 
     defaultConfig {
         applicationId = "io.authbound.wallet"
-        versionCode = 3
+        versionCode = 4
 
         testInstrumentationRunner = "io.authbound.wallet.test.AuthTestRunner"
         vectorDrawables {
