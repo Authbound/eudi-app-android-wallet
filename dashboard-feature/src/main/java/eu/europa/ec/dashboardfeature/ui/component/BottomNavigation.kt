@@ -18,6 +18,7 @@ package eu.europa.ec.dashboardfeature.ui.component
 
 import android.view.HapticFeedbackConstants
 import androidx.annotation.StringRes
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -320,6 +321,15 @@ fun FloatingNavItem(
         label = "iconTint"
     )
 
+    val indicatorWidth by animateDpAsState(
+        targetValue = if (selected) 16.dp else 4.dp,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "indicator_width"
+    )
+
     // Trigger haptic feedback when selected
     LaunchedEffect(selected) {
         if (selected) {
@@ -386,7 +396,7 @@ fun FloatingNavItem(
             // Indicator pill
             Box(
                 modifier = Modifier
-                    .width(if (selected) 16.dp else 4.dp)
+                    .width(indicatorWidth)
                     .height(4.dp)
                     .clip(RoundedCornerShape(2.dp))
                     .background(
