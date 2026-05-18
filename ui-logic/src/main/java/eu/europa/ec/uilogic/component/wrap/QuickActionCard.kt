@@ -1,8 +1,11 @@
 
 package eu.europa.ec.uilogic.component.wrap
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,8 +27,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -87,6 +94,7 @@ data class QuickActionConfig(
 fun QuickActionCard(
     modifier: Modifier = Modifier,
     config: QuickActionConfig,
+    animationDelay: Int = 0,
     onClick: () -> Unit
 ) {
     val view = LocalView.current
@@ -100,100 +108,116 @@ fun QuickActionCard(
         label = "scale"
     )
 
-    Surface(
-        modifier = modifier
-            .scale(scale)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = ripple(bounded = true, color = Color.White.copy(alpha = 0.2f)),
-                enabled = config.isEnabled,
-                onClick = {
-                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                    onClick()
-                }
-            ),
-        shape = RoundedCornerShape(20.dp),
-        color = Color.Transparent,
-        shadowElevation = 8.dp
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    brush = Brush.linearGradient(
-                        colors = listOf(config.gradientStart, config.gradientEnd),
-                        start = Offset(0f, 0f),
-                        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
-                    )
-                )
-        ) {
-            QuickActionMotif(
-                modifier = Modifier.align(Alignment.TopEnd),
-                id = config.id,
-                color = config.accentColor
-            )
+    var isVisible by remember { mutableStateOf(animationDelay == 0) }
+    LaunchedEffect(Unit) {
+        if (animationDelay > 0) {
+            delay(animationDelay.toLong())
+            isVisible = true
+        }
+    }
 
-            // Main content
-            Column(
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = fadeIn(tween(280)) + slideInVertically(
+            animationSpec = tween(280),
+            initialOffsetY = { it / 5 }
+        )
+    ) {
+        Surface(
+            modifier = modifier
+                .scale(scale)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = ripple(bounded = true, color = Color.White.copy(alpha = 0.2f)),
+                    enabled = config.isEnabled,
+                    onClick = {
+                        view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                        onClick()
+                    }
+                ),
+            shape = RoundedCornerShape(20.dp),
+            color = Color.Transparent,
+            shadowElevation = 8.dp
+        ) {
+            Box(
                 modifier = Modifier
-                    .padding(16.dp)
-                    .fillMaxSize(),
-                verticalArrangement = Arrangement.SpaceBetween
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(config.gradientStart, config.gradientEnd),
+                            start = Offset(0f, 0f),
+                            end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+                        )
+                    )
             ) {
-                // Top section: Icon with glow + Title
+                QuickActionMotif(
+                    modifier = Modifier.align(Alignment.TopEnd),
+                    id = config.id,
+                    color = config.accentColor
+                )
+
+                // Main content
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxSize(),
+                    verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Icon with accent glow ring
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(config.accentColor.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
+                    // Top section: Icon with glow + Title
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        WrapIcon(
-                            iconData = config.icon,
-                            customTint = Color.White,
-                            modifier = Modifier.size(26.dp)
+                        // Icon with accent glow ring
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(config.accentColor.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            WrapIcon(
+                                iconData = config.icon,
+                                customTint = Color.White,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+
+                        // Title
+                        Text(
+                            text = config.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
-                    // Title
-                    Text(
-                        text = config.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+                    // Bottom section: Description + Arrow indicator
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        // Description
+                        Text(
+                            text = config.description,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.8f),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
 
-                // Bottom section: Description + Arrow indicator
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalAlignment = Alignment.Bottom,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    // Description
-                    Text(
-                        text = config.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.8f),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
+                        Spacer(modifier = Modifier.width(8.dp))
 
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    // Arrow indicator
-                    WrapIcon(
-                        iconData = AppIcons.KeyboardArrowRight,
-                        customTint = Color.White.copy(alpha = 0.6f),
-                        modifier = Modifier.size(20.dp)
-                    )
+                        // Arrow indicator
+                        WrapIcon(
+                            iconData = AppIcons.KeyboardArrowRight,
+                            customTint = Color.White.copy(alpha = 0.6f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         }

@@ -1026,12 +1026,13 @@ private fun QuickActionsSection(
                 .padding(horizontal = SPACING_SMALL.dp),
             horizontalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
         ) {
-            quickActions.take(2).forEach { action ->
+            quickActions.take(2).forEachIndexed { index, action ->
                 QuickActionCard(
                     modifier = Modifier
                         .weight(1f)
                         .height(140.dp),
                     config = action,
+                    animationDelay = index * 70,
                     onClick = { onQuickActionClick(action.id) }
                 )
             }
@@ -1045,7 +1046,7 @@ private fun QuickActionsSection(
                     .padding(horizontal = SPACING_SMALL.dp),
                 horizontalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
             ) {
-                quickActions.drop(2).take(2).forEach { action ->
+                quickActions.drop(2).take(2).forEachIndexed { index, action ->
                     if (action.id == "sign") {
                         val context = LocalContext.current
                         Box(modifier = Modifier.weight(1f)) {
@@ -1054,6 +1055,7 @@ private fun QuickActionsSection(
                                     .fillMaxWidth()
                                     .height(140.dp),
                                 config = action,
+                                animationDelay = (index + 2) * 70,
                                 onClick = {
                                     android.widget.Toast.makeText(
                                         context,
@@ -1084,6 +1086,7 @@ private fun QuickActionsSection(
                                 .weight(1f)
                                 .height(140.dp),
                             config = action,
+                            animationDelay = (index + 2) * 70,
                             onClick = { onQuickActionClick(action.id) }
                         )
                     }
