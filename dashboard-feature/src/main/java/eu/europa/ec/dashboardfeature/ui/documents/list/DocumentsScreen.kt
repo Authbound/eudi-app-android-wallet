@@ -760,7 +760,7 @@ private fun buildAddDocumentOptions(
             ModalOptionUi(
                 title = stringResource(R.string.documents_screen_add_document_option_list),
                 leadingIcon = AppIcons.AddDocumentFromList,
-                accentColor = Color(0xFFD97706),
+                accentColor = Color(0xFF3B82F6),
                 event = Event.BottomSheet.AddDocument.FromList,
             )
         )
@@ -768,7 +768,7 @@ private fun buildAddDocumentOptions(
             ModalOptionUi(
                 title = stringResource(R.string.documents_screen_add_document_option_qr),
                 leadingIcon = AppIcons.AddDocumentFromQr,
-                accentColor = Color(0xFFF59E0B),
+                accentColor = Color(0xFF3B82F6),
                 event = Event.BottomSheet.AddDocument.ScanQr,
             )
         )

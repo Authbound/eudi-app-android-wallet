@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -384,6 +385,10 @@ fun <T : ViewEvent> BottomSheetWithTwoBigIcons(
                                     onClick = { onEventSent(item.event) }
                                 )
                             }
+                            // Balance odd last row so a lone card stays half-width
+                            if (rowOptions.size == 1) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
                         }
                     }
                 }
@@ -502,20 +507,6 @@ private fun BottomSheetOptionCard(
                 overflow = TextOverflow.Ellipsis,
             )
 
-            // Arrow chip
-            Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .clip(CircleShape)
-                    .background(resolvedAccent.copy(alpha = 0.10f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                WrapIcon(
-                    iconData = AppIcons.KeyboardArrowRight,
-                    customTint = resolvedAccent,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
         }
     }
 }
