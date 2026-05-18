@@ -297,66 +297,81 @@ private fun Content(
 ) {
     // Scrollable content layout
     val scrollState = rememberScrollState()
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .paddingFrom(paddingValues, bottom = false)
-            .verticalScroll(scrollState)
-            .padding(vertical = SPACING_MEDIUM.dp),
-        verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
-    ) {
-        // Hero Credential Section at the top
-        HeroCredentialSection(
-            heroCredentials = state.heroCredentials,
-            isLoading = state.isLoadingHeroCredential,
-            onCredentialClick = {
-                onEventSent(Event.HeroCredentialPressed)
-            },
-            onAddCredentialClick = {
-                onEventSent(Event.AddCredentialPressed)
-            }
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(380.dp)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            Color(0xFF1E3A5F).copy(alpha = 0.30f),
+                            Color.Transparent
+                        )
+                    )
+                )
         )
-
-        if (state.shouldShowAuthboundPidHomePrompt) {
-            AuthboundIdHomePrompt(
-                onGetAuthboundIdClick = {
-                    onEventSent(Event.GetAuthboundIdPressed)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .paddingFrom(paddingValues, bottom = false)
+                .verticalScroll(scrollState)
+                .padding(vertical = SPACING_MEDIUM.dp),
+            verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
+        ) {
+            // Hero Credential Section at the top
+            HeroCredentialSection(
+                heroCredentials = state.heroCredentials,
+                isLoading = state.isLoadingHeroCredential,
+                onCredentialClick = {
+                    onEventSent(Event.HeroCredentialPressed)
                 },
-                onNotNowClick = {
-                    onEventSent(Event.AuthboundPidPromoNotNowPressed)
+                onAddCredentialClick = {
+                    onEventSent(Event.AddCredentialPressed)
                 }
             )
+
+            if (state.shouldShowAuthboundPidHomePrompt) {
+                AuthboundIdHomePrompt(
+                    onGetAuthboundIdClick = {
+                        onEventSent(Event.GetAuthboundIdPressed)
+                    },
+                    onNotNowClick = {
+                        onEventSent(Event.AuthboundPidPromoNotNowPressed)
+                    }
+                )
+            }
+
+            // Quick Actions section below hero
+            QuickActionsSection(
+                quickActions = state.quickActions,
+                onQuickActionClick = { actionId ->
+                    onEventSent(Event.QuickActionPressed(actionId))
+                }
+            )
+
+            // Guide carousel section
+            EudiWalletGuide()
+
+            // Credentials section with document list
+            CredentialsSection(
+                isLoading = state.isLoadingCredentials,
+                credentials = state.credentials,
+                showEmptyMessage = state.showEmptyCredentialsMessage,
+                onCredentialClick = { documentId ->
+                    onEventSent(Event.CredentialPressed(documentId))
+                },
+                onViewAllClick = {
+                    onEventSent(Event.ViewAllCredentialsPressed)
+                },
+                onAddCredentialClick = {
+                    onEventSent(Event.AddCredentialPressed)
+                }
+            )
+
+            // Bottom spacer for navigation bar clearance
+            Spacer(modifier = Modifier.height(90.dp))
         }
-
-        // Quick Actions section below hero
-        QuickActionsSection(
-            quickActions = state.quickActions,
-            onQuickActionClick = { actionId ->
-                onEventSent(Event.QuickActionPressed(actionId))
-            }
-        )
-
-        // Guide carousel section
-        EudiWalletGuide()
-
-        // Credentials section with document list
-        CredentialsSection(
-            isLoading = state.isLoadingCredentials,
-            credentials = state.credentials,
-            showEmptyMessage = state.showEmptyCredentialsMessage,
-            onCredentialClick = { documentId ->
-                onEventSent(Event.CredentialPressed(documentId))
-            },
-            onViewAllClick = {
-                onEventSent(Event.ViewAllCredentialsPressed)
-            },
-            onAddCredentialClick = {
-                onEventSent(Event.AddCredentialPressed)
-            }
-        )
-
-        // Bottom spacer for navigation bar clearance
-        Spacer(modifier = Modifier.height(90.dp))
     }
 
     if (state.bleAvailability == BleAvailability.NO_PERMISSION) {
