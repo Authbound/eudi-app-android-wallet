@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
@@ -57,9 +58,9 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.foundation.layout.width
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -448,6 +449,7 @@ private fun BottomSheetWideOptionCard(
                 interactionSource = interactionSource,
                 indication = null,
                 enabled = enabled,
+                role = Role.Button,
             ) {
                 @Suppress("DEPRECATION")
                 view.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
@@ -915,14 +917,14 @@ private fun BottomSheetWithThreeBigIconsPreview() {
                 ModalOptionUi(
                     title = "From list",
                     leadingIcon = AppIcons.AddDocumentFromList,
-                    accentColor = Color(0xFFD97706),
+                    accentColor = Color(0xFF3B82F6),
                     event = DummyEventForPreview,
                     enabled = true,
                 ),
                 ModalOptionUi(
                     title = "Scan QR",
                     leadingIcon = AppIcons.AddDocumentFromQr,
-                    accentColor = Color(0xFFF59E0B),
+                    accentColor = Color(0xFF3B82F6),
                     event = DummyEventForPreview,
                     enabled = true,
                 ),
