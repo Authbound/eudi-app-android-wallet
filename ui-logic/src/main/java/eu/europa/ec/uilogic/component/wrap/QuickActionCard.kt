@@ -108,15 +108,14 @@ fun QuickActionCard(
         label = "scale"
     )
 
-    var isVisible by remember { mutableStateOf(animationDelay == 0) }
-    LaunchedEffect(Unit) {
-        if (animationDelay > 0) {
-            delay(animationDelay.toLong())
-            isVisible = true
-        }
+    var isVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(animationDelay) {
+        delay(animationDelay.toLong())
+        isVisible = true
     }
 
     AnimatedVisibility(
+        modifier = modifier,
         visible = isVisible,
         enter = fadeIn(tween(280)) + slideInVertically(
             animationSpec = tween(280),
@@ -124,7 +123,7 @@ fun QuickActionCard(
         )
     ) {
         Surface(
-            modifier = modifier
+            modifier = Modifier
                 .scale(scale)
                 .clickable(
                     interactionSource = interactionSource,
