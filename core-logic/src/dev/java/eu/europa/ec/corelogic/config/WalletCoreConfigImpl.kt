@@ -205,7 +205,9 @@ internal class WalletCoreConfigImpl(
             walletProviderConfig = authboundWalletProviderConfig,
             config = OpenId4VciManager.Config.Builder()
                 .withIssuerUrl(issuerUrl = "${e2eIssuerBaseUrl}/api/v1/openid4vci")
-                .withClientAuthenticationType(OpenId4VciManager.ClientAuthenticationType.AttestationBased)
+                .withClientAuthenticationType(
+                    OpenId4VciManager.ClientAuthenticationType.None(clientId = "wallet.authbound.io")
+                )
                 .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
                 .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
                 .withDPopConfig(DPopConfig.Default)
