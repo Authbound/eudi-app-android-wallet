@@ -101,5 +101,6 @@ fun provideWalletAttestationRepository(httpClient: HttpClient): WalletAttestatio
 fun provideApiClient(httpClient: HttpClient, configLogic: ConfigLogic): ApiClient =
     KtorApiClient(
         httpClient = httpClient,
-        baseUrl = configLogic.environmentConfig.getServerHost()
+        baseUrl = configLogic.environmentConfig.getServerHost(),
+        gatewayBaseUrl = configLogic.environmentConfig.getGatewayHost()
     )

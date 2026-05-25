@@ -39,14 +39,8 @@ data class VerificationRecipientRequestDto(
 
 @Serializable
 data class CreateVerificationSessionRequest(
-    @SerialName("creatorId")
-    val creatorId: String,
-
     @SerialName("requestedAttributes")
     val requestedAttributes: Map<String, VerificationRequestedAttributeRequestDto>,
-
-    @SerialName("expectedValues")
-    val expectedValues: Map<String, String> = emptyMap(),
 
     @SerialName("recipients")
     val recipients: List<VerificationRecipientRequestDto> = emptyList(),

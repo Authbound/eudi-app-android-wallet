@@ -190,14 +190,33 @@ fun parseVerificationSessionDeepLink(uri: Uri): VerificationSessionDeepLink? {
         ?.takeIf(::isUuid)
         ?: return null
 
-    val accessToken: String = uri.getQueryParameter("token")
-        ?.takeIf(::isUuid)
+    val accessToken: String = uri.getFragmentParameter("token")
+        ?.takeIf(::isOpaqueAccessToken)
         ?: return null
 
     return VerificationSessionDeepLink(
         sessionId = sessionId,
         accessToken = accessToken
     )
+}
+
+private fun isOpaqueAccessToken(value: String): Boolean {
+    return value.length in 16..256 && value.all { character ->
+        character.isLetterOrDigit() || character == '-' || character == '_' || character == '.' || character == '~'
+    }
+}
+
+private fun Uri.getFragmentParameter(name: String): String? {
+    return fragment
+        ?.split('&')
+        ?.firstNotNullOfOrNull { part ->
+            val pieces = part.split('=', limit = 2)
+            if (pieces.size == 2 && Uri.decode(pieces[0]) == name) {
+                Uri.decode(pieces[1])
+            } else {
+                null
+            }
+        }
 }
 
 enum class DeepLinkType(val schemas: List<String>, val host: String? = null) {

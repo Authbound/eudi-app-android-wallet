@@ -189,17 +189,24 @@ private class FakeVerificationRepository : VerificationRepository {
                         expectedValue = null
                     )
                 ),
-                publicUrl = "https://app.authbound.io/verify/$sessionId?token=$accessToken",
-                gatewaySessionId = "gateway-session-1",
-                requestUri = "openid4vp://verify?request_uri=https%3A%2F%2Fgateway.authbound.io%2Frequest.jwt",
-                requestUriExpiresAt = Instant.parse("2026-04-14T12:00:00Z").toEpochMilli(),
-                sseToken = "test-sse-token",
-                statusStreamUrl = "https://gateway.authbound.io/v1/sessions/gateway-session-1/status/sse?token=test-sse-token"
+                publicUrl = "https://app.authbound.io/verify/$sessionId#token=$accessToken",
+                requestUri = null,
+                requestUriExpiresAt = null
             )
         )
     }
 
-    override fun observePublicVerificationSessionStatus(statusStreamUrl: String): Flow<String> = emptyFlow()
+    override suspend fun startPublicVerificationSession(
+        sessionId: String,
+        accessToken: String
+    ): Result<VerificationRecipientSession> {
+        return getPublicVerificationSession(sessionId, accessToken).map {
+            it.copy(
+                requestUri = "openid4vp://verify?request_uri=https%3A%2F%2Fgateway.authbound.io%2Frequest.jwt",
+                requestUriExpiresAt = Instant.parse("2026-04-14T12:00:00Z").toEpochMilli()
+            )
+        }
+    }
 
     override suspend fun getVerificationSession(sessionId: String): Result<VerificationSession> {
         return Result.failure(UnsupportedOperationException("Authenticated verification session not used in auth smoke tests"))

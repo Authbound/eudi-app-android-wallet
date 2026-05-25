@@ -26,7 +26,8 @@ enum class VerificationTemplateType {
 enum class VerificationRecipientContactType(val apiValue: String) {
     HANDLE("handle"),
     EMAIL("email"),
-    PHONE("phone");
+    PHONE("phone"),
+    LINK("link");
 
     companion object {
         fun fromApiValue(value: String): VerificationRecipientContactType = entries.firstOrNull {
@@ -98,10 +99,8 @@ data class VerificationSession(
     val recipients: List<VerificationRecipient> = emptyList(),
     val accessToken: String? = null,
     val publicUrl: String? = null,
-    val gatewaySessionId: String? = null,
     val qrPayload: String? = null,
     val qrPayloadExpiresAt: Long? = null,
-    val sseToken: String? = null,
     val creditsDeducted: Int? = null,
     val creditsRemaining: Int? = null
 )
@@ -109,17 +108,15 @@ data class VerificationSession(
 data class VerificationRecipientSession(
     val id: String,
     val status: String,
+    val verificationId: String? = null,
     val purpose: String,
     val createdAt: Long,
     val expiresAt: Long?,
     val requester: VerificationRequester?,
     val requestedAttributes: List<VerificationRequestedAttribute>,
     val publicUrl: String,
-    val gatewaySessionId: String? = null,
     val requestUri: String? = null,
-    val requestUriExpiresAt: Long? = null,
-    val sseToken: String? = null,
-    val statusStreamUrl: String? = null
+    val requestUriExpiresAt: Long? = null
 )
 
 private val ExpectedValueAttributes = setOf("full_name", "personal_id", "date_of_birth")

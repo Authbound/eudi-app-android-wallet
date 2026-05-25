@@ -42,4 +42,12 @@ private class DevEnvironmentConfig : EnvironmentConfig() {
         }
         ServerConfig.Release -> "https://mobile-backend.authbound.io"
     }
+
+    override fun getGatewayHost(): String = when (environment) {
+        ServerConfig.Debug -> {
+            val host = EmulatorDetector.getLocalhostAddress()
+            "http://$host:3001"
+        }
+        ServerConfig.Release -> "https://api.authbound.io"
+    }
 }

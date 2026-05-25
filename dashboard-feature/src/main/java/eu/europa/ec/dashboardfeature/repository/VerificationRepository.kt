@@ -31,6 +31,7 @@ import eu.europa.ec.networklogic.model.request.CreateVerificationSessionRequest
 import eu.europa.ec.networklogic.model.request.VerificationRecipientRequestDto
 import eu.europa.ec.networklogic.model.request.VerificationRequestedAttributeRequestDto
 import eu.europa.ec.networklogic.model.response.CreateVerificationSessionResponse
+import eu.europa.ec.networklogic.model.response.StartVerificationInvitationResponse
 import eu.europa.ec.networklogic.model.response.VerificationPublicSessionResponse
 import eu.europa.ec.networklogic.model.response.VerificationRecipientDto
 import eu.europa.ec.networklogic.model.response.VerificationSessionDetailResponse
@@ -42,7 +43,6 @@ import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
 import java.time.Instant
 
 interface VerificationRepository {
@@ -52,8 +52,11 @@ interface VerificationRepository {
         attributes: List<VerificationDraftAttribute>,
         recipients: List<VerificationRecipient>
     ): Result<VerificationSession>
-    fun observePublicVerificationSessionStatus(statusStreamUrl: String): Flow<String>
     suspend fun getPublicVerificationSession(
+        sessionId: String,
+        accessToken: String
+    ): Result<VerificationRecipientSession>
+    suspend fun startPublicVerificationSession(
         sessionId: String,
         accessToken: String
     ): Result<VerificationRecipientSession>
@@ -156,7 +159,6 @@ class VerificationRepositoryImpl(
     ): Result<VerificationSession> {
         return try {
             val token = getAuthToken() ?: return Result.failure(Exception("Not authenticated"))
-            val creatorId = getCurrentUserId() ?: return Result.failure(Exception("Not authenticated"))
 
             val selectedAttributes = attributes.filter { it.selected }
             if (selectedAttributes.isEmpty()) {
@@ -178,15 +180,9 @@ class VerificationRepositoryImpl(
                     expectedValue = attribute.expectedValue.trim().ifBlank { null }
                 )
             }
-            val expectedValues = selectedAttributes.mapNotNull { attribute ->
-                attribute.expectedValue.trim().takeIf { it.isNotBlank() }?.let { attribute.key to it }
-            }.toMap()
-
             val response = apiClient.createVerificationSession(
                 body = CreateVerificationSessionRequest(
-                    creatorId = creatorId,
                     requestedAttributes = requestedAttributes,
-                    expectedValues = expectedValues,
                     recipients = recipients.map {
                         VerificationRecipientRequestDto(
                             contactType = it.contactType.apiValue,
@@ -203,7 +199,7 @@ class VerificationRepositoryImpl(
             }
 
             val body = response.body() ?: return Result.failure(Exception("Empty response"))
-            val session = getVerificationSession(body.sessionId).getOrElse {
+            val session = getVerificationSession(body.invitationId).getOrElse {
                 mapCreatedSession(body, purpose, selectedAttributes)
             }
             refreshVerificationSessions()
@@ -213,8 +209,26 @@ class VerificationRepositoryImpl(
         }
     }
 
-    override fun observePublicVerificationSessionStatus(statusStreamUrl: String): Flow<String> {
-        return apiClient.observeVerificationSessionStatus(statusStreamUrl).map { it.status }
+    override suspend fun startPublicVerificationSession(
+        sessionId: String,
+        accessToken: String
+    ): Result<VerificationRecipientSession> {
+        return try {
+            val current = getPublicVerificationSession(sessionId, accessToken).getOrNull()
+            val response = apiClient.startPublicVerificationSession(
+                sessionId = sessionId,
+                accessToken = accessToken
+            )
+
+            if (!response.isSuccessful) {
+                return Result.failure(Exception("HTTP ${response.code()}: ${response.message()}"))
+            }
+
+            val body = response.body() ?: return Result.failure(Exception("Empty response"))
+            Result.success(mapStartedPublicSession(body, current))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     override suspend fun getPublicVerificationSession(
@@ -264,10 +278,7 @@ class VerificationRepositoryImpl(
     override suspend fun refreshVerificationSessions(): Result<Unit> {
         return try {
             val token = getAuthToken() ?: return Result.failure(Exception("Not authenticated"))
-            val userId = getCurrentUserId() ?: return Result.failure(Exception("Not authenticated"))
-
             val response = apiClient.getVerificationSessions(
-                userId = userId,
                 bearerToken = token
             )
 
@@ -276,7 +287,7 @@ class VerificationRepositoryImpl(
             }
 
             val body = response.body() ?: return Result.failure(Exception("Empty response"))
-            sessionsFlow.value = body.sessions
+            sessionsFlow.value = body.invitations
                 .map { mapSessionListItem(it) }
                 .sortedByDescending { it.createdAt }
             Result.success(Unit)
@@ -287,15 +298,13 @@ class VerificationRepositoryImpl(
 
     private suspend fun getAuthToken(): String? = supabaseClient.auth.currentSessionOrNull()?.accessToken
 
-    private suspend fun getCurrentUserId(): String? = supabaseClient.auth.currentSessionOrNull()?.user?.id
-
     private fun mapCreatedSession(
         response: CreateVerificationSessionResponse,
         purpose: String,
         selectedAttributes: List<VerificationDraftAttribute>
     ): VerificationSession {
         return VerificationSession(
-            id = response.sessionId,
+            id = response.invitationId,
             status = response.status,
             purpose = purpose,
             createdAt = response.createdAt?.let(::parseIsoToMillis) ?: System.currentTimeMillis(),
@@ -303,13 +312,8 @@ class VerificationRepositoryImpl(
             expiresAt = parseIsoToMillis(response.expiresAt),
             requestedAttributes = selectedAttributes,
             recipients = response.recipients.map(::mapRecipient),
-            accessToken = response.accessToken,
-            publicUrl = response.publicUrl,
-            gatewaySessionId = response.gatewaySessionId,
-            qrPayload = response.clientAction?.data,
-            qrPayloadExpiresAt = response.clientAction?.expiresAt?.let(::parseIsoToMillis),
-            sseToken = response.sseToken,
-            creditsDeducted = response.creditsDeducted,
+            publicUrl = response.recipients.firstOrNull()?.publicUrl,
+            creditsDeducted = response.creditsReserved,
             creditsRemaining = response.creditsRemaining
         )
     }
@@ -333,18 +337,14 @@ class VerificationRepositoryImpl(
             status = response.session.status,
             purpose = response.session.purpose,
             createdAt = parseIsoToMillis(response.session.createdAt),
-            updatedAt = parseIsoToMillis(response.session.updatedAt),
+            updatedAt = response.session.updatedAt?.let(::parseIsoToMillis)
+                ?: parseIsoToMillis(response.session.createdAt),
             expiresAt = response.session.expiresAt?.let(::parseIsoToMillis),
             completedAt = response.session.completedAt?.let(::parseIsoToMillis),
             failedAt = response.session.failedAt?.let(::parseIsoToMillis),
             requestedAttributes = requestedAttributes,
-            recipients = response.recipients.map(::mapRecipient),
-            accessToken = response.accessToken,
-            publicUrl = response.publicUrl,
-            gatewaySessionId = response.gatewaySessionId,
-            qrPayload = response.clientAction?.data,
-            qrPayloadExpiresAt = response.clientAction?.expiresAt?.let(::parseIsoToMillis),
-            sseToken = response.sseToken
+            recipients = response.session.recipients.map(::mapRecipient),
+            publicUrl = response.session.recipients.firstOrNull()?.publicUrl
         )
     }
 
@@ -355,13 +355,13 @@ class VerificationRepositoryImpl(
                 key = entry.key,
                 label = definition?.label ?: humanizeAttributeKey(entry.key),
                 description = definition?.description ?: "",
-                expectedValue = response.expectedValues[entry.key] ?: entry.value.expectedValue
+                expectedValue = null
             )
         }
 
         return VerificationRecipientSession(
             id = response.session.id,
-            status = response.session.status,
+            status = response.recipient.status ?: response.session.status,
             purpose = response.session.purpose,
             createdAt = parseIsoToMillis(response.session.createdAt),
             expiresAt = response.session.expiresAt?.let(::parseIsoToMillis),
@@ -374,11 +374,28 @@ class VerificationRepositoryImpl(
             },
             requestedAttributes = requestedAttributes,
             publicUrl = response.publicUrl ?: "",
-            gatewaySessionId = response.gatewaySessionId,
+            requestUri = null,
+            requestUriExpiresAt = null
+        )
+    }
+
+    private fun mapStartedPublicSession(
+        response: StartVerificationInvitationResponse,
+        current: VerificationRecipientSession?
+    ): VerificationRecipientSession {
+        val fallbackNow = System.currentTimeMillis()
+        return VerificationRecipientSession(
+            id = current?.id ?: response.invitationId,
+            status = "verification_started",
+            verificationId = response.verificationId,
+            purpose = current?.purpose ?: "",
+            createdAt = current?.createdAt ?: fallbackNow,
+            expiresAt = current?.expiresAt,
+            requester = current?.requester,
+            requestedAttributes = current?.requestedAttributes.orEmpty(),
+            publicUrl = current?.publicUrl.orEmpty(),
             requestUri = response.clientAction?.data,
-            requestUriExpiresAt = response.clientAction?.expiresAt?.let(::parseIsoToMillis),
-            sseToken = response.sseToken,
-            statusStreamUrl = response.statusStreamUrl
+            requestUriExpiresAt = response.clientAction?.expiresAt?.let(::parseIsoToMillis)
         )
     }
 
@@ -400,7 +417,7 @@ class VerificationRepositoryImpl(
             status = dto.status,
             purpose = dto.purpose,
             createdAt = parseIsoToMillis(dto.createdAt),
-            updatedAt = parseIsoToMillis(dto.updatedAt),
+            updatedAt = dto.updatedAt?.let(::parseIsoToMillis) ?: parseIsoToMillis(dto.createdAt),
             expiresAt = dto.expiresAt?.let(::parseIsoToMillis),
             completedAt = dto.completedAt?.let(::parseIsoToMillis),
             failedAt = dto.failedAt?.let(::parseIsoToMillis),
@@ -412,7 +429,7 @@ class VerificationRepositoryImpl(
     private fun mapRecipient(dto: VerificationRecipientDto): VerificationRecipient {
         return VerificationRecipient(
             contactType = VerificationRecipientContactType.fromApiValue(dto.contactType),
-            value = dto.value,
+            value = dto.value.orEmpty(),
             status = dto.status,
             resolvedUserId = dto.resolvedUserId,
             invitedAt = dto.invitedAt?.let(::parseIsoToMillis),

@@ -42,7 +42,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -168,8 +167,7 @@ private fun VerificationRecipientContent(
     onDismissError: () -> Unit,
 ) {
     val session: VerificationRecipientSession? = state.session
-    val canStartVerification: Boolean = session?.requestUri?.isNotBlank() == true &&
-        !isVerificationHistoryStatus(session.status)
+    val canStartVerification: Boolean = session != null && !isVerificationHistoryStatus(session.status)
 
     Box(
         modifier = Modifier
@@ -352,18 +350,6 @@ private fun RequestedAttributesCard(attributes: List<VerificationRequestedAttrib
                             text = attribute.description,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    attribute.expectedValue?.takeIf { it.isNotBlank() }?.let { expectedValue ->
-                        Text(
-                            text = stringResource(
-                                R.string.verification_recipient_expected_value,
-                                expectedValue
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }

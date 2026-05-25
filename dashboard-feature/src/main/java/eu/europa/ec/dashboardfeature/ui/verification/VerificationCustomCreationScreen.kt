@@ -449,7 +449,9 @@ private fun RecipientSection(
             color = MaterialTheme.colorScheme.surfaceContainerHigh
         ) {
             Row(modifier = Modifier.padding(3.dp)) {
-                VerificationRecipientContactType.entries.forEach { type ->
+                VerificationRecipientContactType.entries
+                    .filter { it != VerificationRecipientContactType.LINK }
+                    .forEach { type ->
                     val isSelected = type == contactType
                     Surface(
                         modifier = Modifier
@@ -499,6 +501,7 @@ private fun RecipientSection(
                             VerificationRecipientContactType.HANDLE -> "handle"
                             VerificationRecipientContactType.EMAIL -> "email@example.com"
                             VerificationRecipientContactType.PHONE -> "+1 555 0000"
+                            VerificationRecipientContactType.LINK -> "share link"
                         }
                         if (recipientValue.isEmpty()) {
                             Text(

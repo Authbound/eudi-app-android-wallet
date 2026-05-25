@@ -494,6 +494,7 @@ private fun humanizeRecipientContactType(contactType: VerificationRecipientConta
     VerificationRecipientContactType.HANDLE -> "Handle"
     VerificationRecipientContactType.EMAIL -> "Email"
     VerificationRecipientContactType.PHONE -> "Phone"
+    VerificationRecipientContactType.LINK -> "Link"
 }
 
 private fun humanizeRecipientStatus(status: String?): String = when (status?.lowercase()) {

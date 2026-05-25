@@ -277,6 +277,7 @@ class VerificationViewModel(
             VerificationRecipientContactType.HANDLE -> trimmed.removePrefix("@").lowercase()
             VerificationRecipientContactType.EMAIL -> trimmed.lowercase()
             VerificationRecipientContactType.PHONE -> trimmed
+            VerificationRecipientContactType.LINK -> trimmed
         }
     }
 

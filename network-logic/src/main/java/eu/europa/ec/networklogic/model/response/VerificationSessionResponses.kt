@@ -34,10 +34,13 @@ data class VerificationRecipientDto(
     val contactType: String,
 
     @SerialName("value")
-    val value: String,
+    val value: String? = null,
 
     @SerialName("status")
     val status: String? = null,
+
+    @SerialName("publicUrl")
+    val publicUrl: String? = null,
 
     @SerialName("resolvedUserId")
     val resolvedUserId: String? = null,
@@ -63,7 +66,7 @@ data class VerificationRecipientDto(
 
 @Serializable
 data class VerificationSessionDto(
-    @SerialName("id")
+    @SerialName("invitationId")
     val id: String,
 
     @SerialName("status")
@@ -75,11 +78,14 @@ data class VerificationSessionDto(
     @SerialName("requestedAttributes")
     val requestedAttributes: Map<String, VerificationRequestedAttributeDto> = emptyMap(),
 
+    @SerialName("recipients")
+    val recipients: List<VerificationRecipientDto> = emptyList(),
+
     @SerialName("createdAt")
     val createdAt: String,
 
     @SerialName("updatedAt")
-    val updatedAt: String,
+    val updatedAt: String? = null,
 
     @SerialName("expiresAt")
     val expiresAt: String? = null,
@@ -88,10 +94,7 @@ data class VerificationSessionDto(
     val completedAt: String? = null,
 
     @SerialName("failedAt")
-    val failedAt: String? = null,
-
-    @SerialName("creatorId")
-    val creatorId: String? = null
+    val failedAt: String? = null
 )
 
 @Serializable
@@ -207,8 +210,8 @@ data class VerificationNotificationSummaryDto(
 
 @Serializable
 data class CreateVerificationSessionResponse(
-    @SerialName("sessionId")
-    val sessionId: String,
+    @SerialName("invitationId")
+    val invitationId: String,
 
     @SerialName("status")
     val status: String,
@@ -222,29 +225,11 @@ data class CreateVerificationSessionResponse(
     @SerialName("expiresAt")
     val expiresAt: String,
 
-    @SerialName("accessToken")
-    val accessToken: String,
-
-    @SerialName("publicUrl")
-    val publicUrl: String? = null,
-
     @SerialName("recipients")
     val recipients: List<VerificationRecipientDto> = emptyList(),
 
-    @SerialName("gatewaySessionId")
-    val gatewaySessionId: String? = null,
-
-    @SerialName("clientAction")
-    val clientAction: VerificationClientActionDto? = null,
-
-    @SerialName("sseToken")
-    val sseToken: String? = null,
-
-    @SerialName("statusStreamUrl")
-    val statusStreamUrl: String? = null,
-
-    @SerialName("creditsDeducted")
-    val creditsDeducted: Int? = null,
+    @SerialName("creditsReserved")
+    val creditsReserved: Int? = null,
 
     @SerialName("creditsRemaining")
     val creditsRemaining: Int? = null,
@@ -255,13 +240,13 @@ data class CreateVerificationSessionResponse(
 
 @Serializable
 data class VerificationSessionsListResponse(
-    @SerialName("sessions")
-    val sessions: List<VerificationSessionListItemDto> = emptyList()
+    @SerialName("invitations")
+    val invitations: List<VerificationSessionListItemDto> = emptyList()
 )
 
 @Serializable
 data class VerificationSessionListItemDto(
-    @SerialName("id")
+    @SerialName("invitationId")
     val id: String,
 
     @SerialName("status")
@@ -283,7 +268,7 @@ data class VerificationSessionListItemDto(
     val createdAt: String,
 
     @SerialName("updatedAt")
-    val updatedAt: String,
+    val updatedAt: String? = null,
 
     @SerialName("expiresAt")
     val expiresAt: String? = null,
@@ -292,68 +277,47 @@ data class VerificationSessionListItemDto(
     val completedAt: String? = null,
 
     @SerialName("failedAt")
-    val failedAt: String? = null
+    val failedAt: String? = null,
+
+    @SerialName("creditsReserved")
+    val creditsReserved: Int? = null
 )
 
 @Serializable
 data class VerificationSessionDetailResponse(
-    @SerialName("session")
+    @SerialName("invitation")
     val session: VerificationSessionDto,
 
-    @SerialName("accessMethods")
-    val accessMethods: List<VerificationAccessMethodDto> = emptyList(),
-
-    @SerialName("accessToken")
-    val accessToken: String? = null,
-
-    @SerialName("publicUrl")
-    val publicUrl: String? = null,
-
-    @SerialName("verificationRequests")
-    val verificationRequests: List<VerificationRequestDto> = emptyList(),
-
-    @SerialName("recipients")
-    val recipients: List<VerificationRecipientDto> = emptyList(),
-
     @SerialName("expectedValues")
-    val expectedValues: Map<String, String?> = emptyMap(),
-
-    @SerialName("gatewaySessionId")
-    val gatewaySessionId: String? = null,
-
-    @SerialName("clientAction")
-    val clientAction: VerificationClientActionDto? = null,
-
-    @SerialName("sseToken")
-    val sseToken: String? = null,
-
-    @SerialName("statusStreamUrl")
-    val statusStreamUrl: String? = null
+    val expectedValues: Map<String, String?> = emptyMap()
 )
 
 @Serializable
 data class VerificationPublicSessionResponse(
-    @SerialName("session")
+    @SerialName("invitation")
     val session: VerificationPublicSessionDto,
+
+    @SerialName("recipient")
+    val recipient: VerificationRecipientDto,
 
     @SerialName("publicUrl")
     val publicUrl: String? = null,
 
     @SerialName("requester")
-    val requester: VerificationRequesterDto? = null,
+    val requester: VerificationRequesterDto? = null
+)
 
-    @SerialName("expectedValues")
-    val expectedValues: Map<String, String?> = emptyMap(),
+@Serializable
+data class StartVerificationInvitationResponse(
+    @SerialName("invitationId")
+    val invitationId: String,
 
-    @SerialName("gatewaySessionId")
-    val gatewaySessionId: String? = null,
+    @SerialName("recipientId")
+    val recipientId: String,
+
+    @SerialName("verificationId")
+    val verificationId: String,
 
     @SerialName("clientAction")
-    val clientAction: VerificationClientActionDto? = null,
-
-    @SerialName("sseToken")
-    val sseToken: String? = null,
-
-    @SerialName("statusStreamUrl")
-    val statusStreamUrl: String? = null
+    val clientAction: VerificationClientActionDto? = null
 )
