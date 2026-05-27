@@ -45,6 +45,22 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.time.Instant
 
+private fun String?.presentOrNull(): String? = this?.takeIf { it.isNotBlank() }
+
+internal fun mergeCreateInvitationShareTarget(
+    detail: VerificationSession,
+    created: VerificationSession
+): VerificationSession {
+    return detail.copy(
+        accessToken = detail.accessToken.presentOrNull() ?: created.accessToken.presentOrNull(),
+        publicUrl = detail.publicUrl.presentOrNull() ?: created.publicUrl.presentOrNull(),
+        qrPayload = detail.qrPayload.presentOrNull() ?: created.qrPayload.presentOrNull(),
+        qrPayloadExpiresAt = detail.qrPayloadExpiresAt ?: created.qrPayloadExpiresAt,
+        creditsDeducted = detail.creditsDeducted ?: created.creditsDeducted,
+        creditsRemaining = detail.creditsRemaining ?: created.creditsRemaining
+    )
+}
+
 interface VerificationRepository {
     suspend fun getVerificationTemplates(): List<VerificationTemplate>
     suspend fun createVerificationSession(
@@ -199,9 +215,11 @@ class VerificationRepositoryImpl(
             }
 
             val body = response.body() ?: return Result.failure(Exception("Empty response"))
-            val session = getVerificationSession(body.invitationId).getOrElse {
-                mapCreatedSession(body, purpose, selectedAttributes)
-            }
+            val createdSession = mapCreatedSession(body, purpose, selectedAttributes)
+            val session = mergeCreateInvitationShareTarget(
+                detail = getVerificationSession(body.invitationId).getOrElse { createdSession },
+                created = createdSession
+            )
             refreshVerificationSessions()
             Result.success(session)
         } catch (e: Exception) {

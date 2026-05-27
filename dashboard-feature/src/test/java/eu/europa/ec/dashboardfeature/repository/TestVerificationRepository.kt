@@ -16,6 +16,7 @@
 
 package eu.europa.ec.dashboardfeature.repository
 
+import eu.europa.ec.dashboardfeature.model.verification.VerificationSession
 import eu.europa.ec.networklogic.api.ApiClient
 import eu.europa.ec.networklogic.model.ApiResponse
 import eu.europa.ec.networklogic.model.response.StartVerificationInvitationResponse
@@ -65,6 +66,31 @@ class TestVerificationRepository {
     @After
     fun after() {
         closeable.close()
+    }
+
+    @Test
+    fun `Given create response public URL and requester detail omits it, When merged, Then sharing keeps link`() {
+        val sessionId = "550e8400-e29b-41d4-a716-446655440000"
+        val publicUrl = "https://app.authbound.test/verify/$sessionId#token=recipient-token"
+        val created = verificationSession(
+            sessionId = sessionId,
+            status = "created",
+            publicUrl = publicUrl,
+            creditsDeducted = 1,
+            creditsRemaining = 9
+        )
+        val detail = verificationSession(
+            sessionId = sessionId,
+            status = "active",
+            publicUrl = null
+        )
+
+        val result = mergeCreateInvitationShareTarget(detail = detail, created = created)
+
+        assertEquals("active", result.status)
+        assertEquals(publicUrl, result.publicUrl)
+        assertEquals(1, result.creditsDeducted)
+        assertEquals(9, result.creditsRemaining)
     }
 
     @Test
@@ -139,6 +165,27 @@ class TestVerificationRepository {
                 status = recipientStatus
             ),
             publicUrl = "https://app.authbound.test/verify/$sessionId#token=recipient-token"
+        )
+    }
+
+    private fun verificationSession(
+        sessionId: String,
+        status: String,
+        publicUrl: String?,
+        creditsDeducted: Int? = null,
+        creditsRemaining: Int? = null
+    ): VerificationSession {
+        return VerificationSession(
+            id = sessionId,
+            status = status,
+            purpose = "Verify age",
+            createdAt = 0,
+            updatedAt = 0,
+            expiresAt = null,
+            requestedAttributes = emptyList(),
+            publicUrl = publicUrl,
+            creditsDeducted = creditsDeducted,
+            creditsRemaining = creditsRemaining
         )
     }
 }
