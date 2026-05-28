@@ -405,7 +405,7 @@ open class VerificationRepositoryImpl(
                 )
             },
             requestedAttributes = requestedAttributes,
-            publicUrl = response.publicUrl ?: "",
+            publicUrl = "",
             requestUri = null,
             requestUriExpiresAt = null
         )

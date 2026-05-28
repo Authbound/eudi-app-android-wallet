@@ -174,6 +174,7 @@ class TestVerificationRepository {
             assertEquals("opened", result.status)
             assertNull(result.verificationId)
             assertNull(result.requestedAttributes.single().expectedValue)
+            assertEquals("", result.publicUrl)
         }
 
     @Test
@@ -230,8 +231,7 @@ class TestVerificationRepository {
             recipient = VerificationRecipientDto(
                 contactType = "link",
                 status = recipientStatus
-            ),
-            publicUrl = "https://app.authbound.test/verify/$sessionId#token=recipient-token"
+            )
         )
     }
 

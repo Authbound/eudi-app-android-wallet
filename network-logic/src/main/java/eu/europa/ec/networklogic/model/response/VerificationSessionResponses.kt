@@ -300,9 +300,6 @@ data class VerificationPublicSessionResponse(
     @SerialName("recipient")
     val recipient: VerificationRecipientDto,
 
-    @SerialName("publicUrl")
-    val publicUrl: String? = null,
-
     @SerialName("requester")
     val requester: VerificationRequesterDto? = null
 )
