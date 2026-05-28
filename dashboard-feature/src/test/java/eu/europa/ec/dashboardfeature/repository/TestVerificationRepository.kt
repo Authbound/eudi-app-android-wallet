@@ -18,14 +18,23 @@ package eu.europa.ec.dashboardfeature.repository
 
 import eu.europa.ec.dashboardfeature.model.verification.VerificationSession
 import eu.europa.ec.dashboardfeature.model.verification.VerificationTemplateType
+import eu.europa.ec.dashboardfeature.model.verification.VerificationDraftAttribute
+import eu.europa.ec.dashboardfeature.model.verification.VerificationRecipient
+import eu.europa.ec.dashboardfeature.model.verification.VerificationRecipientContactType
 import eu.europa.ec.networklogic.api.ApiClient
 import eu.europa.ec.networklogic.model.ApiResponse
+import eu.europa.ec.networklogic.model.request.CreateVerificationSessionRequest
+import eu.europa.ec.networklogic.model.response.CreateVerificationSessionResponse
 import eu.europa.ec.networklogic.model.response.StartVerificationInvitationResponse
 import eu.europa.ec.networklogic.model.response.VerificationClientActionDto
 import eu.europa.ec.networklogic.model.response.VerificationPublicSessionDto
 import eu.europa.ec.networklogic.model.response.VerificationPublicSessionResponse
 import eu.europa.ec.networklogic.model.response.VerificationRecipientDto
 import eu.europa.ec.networklogic.model.response.VerificationRequestedAttributeDto
+import eu.europa.ec.networklogic.model.response.VerificationSessionDetailResponse
+import eu.europa.ec.networklogic.model.response.VerificationSessionDto
+import eu.europa.ec.networklogic.model.response.VerificationSessionListItemDto
+import eu.europa.ec.networklogic.model.response.VerificationSessionsListResponse
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import io.github.jan.supabase.SupabaseClient
 import junit.framework.TestCase.assertEquals
@@ -38,6 +47,7 @@ import org.junit.Test
 import org.mockito.Mock
 import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.any
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.whenever
 
 class TestVerificationRepository {
@@ -51,17 +61,20 @@ class TestVerificationRepository {
     @Mock
     private lateinit var resourceProvider: ResourceProvider
 
+    private val authToken = "requester-token"
+
     private lateinit var closeable: AutoCloseable
-    private lateinit var repository: VerificationRepository
+    private lateinit var repository: TestableVerificationRepository
 
     @Before
     fun before() {
         closeable = MockitoAnnotations.openMocks(this)
         whenever(resourceProvider.getString(any<Int>())).thenReturn("Attribute")
-        repository = VerificationRepositoryImpl(
+        repository = TestableVerificationRepository(
             apiClient = apiClient,
             supabaseClient = supabaseClient,
-            resourceProvider = resourceProvider
+            resourceProvider = resourceProvider,
+            authToken = authToken
         )
     }
 
@@ -94,6 +107,43 @@ class TestVerificationRepository {
         assertEquals(1, result.creditsDeducted)
         assertEquals(9, result.creditsRemaining)
     }
+
+    @Test
+    fun `Given newly created invitation, When sharing reloads by id, Then create-time public URL is retained`() =
+        runTest {
+            val sessionId = "550e8400-e29b-41d4-a716-446655440000"
+            val publicUrl = "https://app.authbound.test/verify/$sessionId#token=recipient-token"
+
+            whenever(apiClient.createVerificationSession(any<CreateVerificationSessionRequest>(), eq(authToken)))
+                .thenReturn(
+                    ApiResponse.Success(
+                        createSessionResponse(
+                            sessionId = sessionId,
+                            publicUrl = publicUrl
+                        )
+                    )
+                )
+            whenever(apiClient.getVerificationSession(sessionId, authToken)).thenReturn(
+                ApiResponse.Success(detailResponse(sessionId = sessionId, publicUrl = null))
+            )
+            whenever(apiClient.getVerificationSessions(authToken)).thenReturn(
+                ApiResponse.Success(
+                    VerificationSessionsListResponse(
+                        invitations = listOf(listItem(sessionId = sessionId, publicUrl = null))
+                    )
+                )
+            )
+
+            val created = repository.createVerificationSession(
+                purpose = "Verify age",
+                attributes = listOf(selectedAgeAttribute()),
+                recipients = listOf(linkRecipient())
+            ).getOrThrow()
+            val reloaded = repository.getVerificationSession(sessionId).getOrThrow()
+
+            assertEquals(publicUrl, created.publicUrl)
+            assertEquals(publicUrl, reloaded.publicUrl)
+        }
 
     @Test
     fun `Given invitation templates, When loaded, Then only backend supported attributes are offered`() =
@@ -185,6 +235,95 @@ class TestVerificationRepository {
         )
     }
 
+    private fun createSessionResponse(
+        sessionId: String,
+        publicUrl: String?
+    ): CreateVerificationSessionResponse {
+        return CreateVerificationSessionResponse(
+            invitationId = sessionId,
+            status = "created",
+            createdAt = "2026-05-26T08:00:00Z",
+            updatedAt = "2026-05-26T08:00:00Z",
+            expiresAt = "2026-05-27T08:00:00Z",
+            recipients = listOf(
+                VerificationRecipientDto(
+                    contactType = "link",
+                    status = "pending",
+                    publicUrl = publicUrl
+                )
+            ),
+            creditsReserved = 1,
+            creditsRemaining = 9
+        )
+    }
+
+    private fun detailResponse(
+        sessionId: String,
+        publicUrl: String?
+    ): VerificationSessionDetailResponse {
+        return VerificationSessionDetailResponse(
+            session = VerificationSessionDto(
+                id = sessionId,
+                status = "created",
+                purpose = "Verify age",
+                requestedAttributes = mapOf(
+                    "age_over_18" to VerificationRequestedAttributeDto(type = "age_over_18")
+                ),
+                recipients = listOf(
+                    VerificationRecipientDto(
+                        contactType = "link",
+                        status = "pending",
+                        publicUrl = publicUrl
+                    )
+                ),
+                createdAt = "2026-05-26T08:00:00Z",
+                updatedAt = "2026-05-26T08:00:00Z",
+                expiresAt = "2026-05-27T08:00:00Z"
+            )
+        )
+    }
+
+    private fun listItem(
+        sessionId: String,
+        publicUrl: String?
+    ): VerificationSessionListItemDto {
+        return VerificationSessionListItemDto(
+            id = sessionId,
+            status = "created",
+            purpose = "Verify age",
+            requestedAttributes = mapOf(
+                "age_over_18" to VerificationRequestedAttributeDto(type = "age_over_18")
+            ),
+            recipients = listOf(
+                VerificationRecipientDto(
+                    contactType = "link",
+                    status = "pending",
+                    publicUrl = publicUrl
+                )
+            ),
+            createdAt = "2026-05-26T08:00:00Z",
+            updatedAt = "2026-05-26T08:00:00Z",
+            expiresAt = "2026-05-27T08:00:00Z"
+        )
+    }
+
+    private fun selectedAgeAttribute(): VerificationDraftAttribute {
+        return VerificationDraftAttribute(
+            key = "age_over_18",
+            label = "Age over 18",
+            description = "Age proof",
+            requiresExpectedValue = false,
+            selected = true
+        )
+    }
+
+    private fun linkRecipient(): VerificationRecipient {
+        return VerificationRecipient(
+            contactType = VerificationRecipientContactType.LINK,
+            value = ""
+        )
+    }
+
     private fun verificationSession(
         sessionId: String,
         status: String,
@@ -204,5 +343,18 @@ class TestVerificationRepository {
             creditsDeducted = creditsDeducted,
             creditsRemaining = creditsRemaining
         )
+    }
+
+    private class TestableVerificationRepository(
+        apiClient: ApiClient,
+        supabaseClient: SupabaseClient,
+        resourceProvider: ResourceProvider,
+        private val authToken: String?
+    ) : VerificationRepositoryImpl(
+        apiClient = apiClient,
+        supabaseClient = supabaseClient,
+        resourceProvider = resourceProvider
+    ) {
+        override suspend fun getAuthToken(): String? = authToken
     }
 }

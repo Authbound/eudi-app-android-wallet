@@ -81,13 +81,14 @@ interface VerificationRepository {
     suspend fun refreshVerificationSessions(): Result<Unit>
 }
 
-class VerificationRepositoryImpl(
+open class VerificationRepositoryImpl(
     private val apiClient: ApiClient,
     private val supabaseClient: SupabaseClient,
     private val resourceProvider: ResourceProvider
 ) : VerificationRepository {
 
     private val sessionsFlow = MutableStateFlow<List<VerificationSession>>(emptyList())
+    private val shareTargetsByInvitationId = mutableMapOf<String, VerificationSession>()
 
     private data class AttributeCatalogItem(
         val key: String,
@@ -205,7 +206,9 @@ class VerificationRepositoryImpl(
                 detail = getVerificationSession(body.invitationId).getOrElse { createdSession },
                 created = createdSession
             )
+            rememberShareTarget(session)
             refreshVerificationSessions()
+            storeSession(session)
             Result.success(session)
         } catch (e: Exception) {
             Result.failure(e)
@@ -268,7 +271,7 @@ class VerificationRepositoryImpl(
             }
 
             val body = response.body() ?: return Result.failure(Exception("Empty response"))
-            val session = mapSessionDetail(body)
+            val session = mergeRememberedShareTarget(mapSessionDetail(body))
             storeSession(session)
             Result.success(session)
         } catch (e: Exception) {
@@ -292,6 +295,7 @@ class VerificationRepositoryImpl(
             val body = response.body() ?: return Result.failure(Exception("Empty response"))
             sessionsFlow.value = body.invitations
                 .map { mapSessionListItem(it) }
+                .map(::mergeRememberedShareTarget)
                 .sortedByDescending { it.createdAt }
             Result.success(Unit)
         } catch (e: Exception) {
@@ -299,7 +303,32 @@ class VerificationRepositoryImpl(
         }
     }
 
-    private suspend fun getAuthToken(): String? = supabaseClient.auth.currentSessionOrNull()?.accessToken
+    protected open suspend fun getAuthToken(): String? =
+        supabaseClient.auth.currentSessionOrNull()?.accessToken
+
+    private fun rememberShareTarget(session: VerificationSession) {
+        if (!session.hasShareTarget()) {
+            return
+        }
+
+        val existing = shareTargetsByInvitationId[session.id]
+        shareTargetsByInvitationId[session.id] = if (existing == null) {
+            session
+        } else {
+            mergeCreateInvitationShareTarget(detail = session, created = existing)
+        }
+    }
+
+    private fun mergeRememberedShareTarget(session: VerificationSession): VerificationSession {
+        val remembered = shareTargetsByInvitationId[session.id] ?: return session
+        return mergeCreateInvitationShareTarget(detail = session, created = remembered)
+    }
+
+    private fun VerificationSession.hasShareTarget(): Boolean {
+        return accessToken.presentOrNull() != null ||
+            publicUrl.presentOrNull() != null ||
+            qrPayload.presentOrNull() != null
+    }
 
     private fun mapCreatedSession(
         response: CreateVerificationSessionResponse,
