@@ -17,6 +17,7 @@
 package eu.europa.ec.dashboardfeature.repository
 
 import eu.europa.ec.dashboardfeature.model.verification.VerificationSession
+import eu.europa.ec.dashboardfeature.model.verification.VerificationTemplateType
 import eu.europa.ec.networklogic.api.ApiClient
 import eu.europa.ec.networklogic.model.ApiResponse
 import eu.europa.ec.networklogic.model.response.StartVerificationInvitationResponse
@@ -28,6 +29,7 @@ import eu.europa.ec.networklogic.model.response.VerificationRequestedAttributeDt
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import io.github.jan.supabase.SupabaseClient
 import junit.framework.TestCase.assertEquals
+import junit.framework.TestCase.assertFalse
 import junit.framework.TestCase.assertNull
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -92,6 +94,21 @@ class TestVerificationRepository {
         assertEquals(1, result.creditsDeducted)
         assertEquals(9, result.creditsRemaining)
     }
+
+    @Test
+    fun `Given invitation templates, When loaded, Then only backend supported attributes are offered`() =
+        runTest {
+            val templates = repository.getVerificationTemplates()
+            val identityTemplate = templates.single {
+                it.type == VerificationTemplateType.IDENTITY_VERIFICATION
+            }
+            val offeredAttributes = templates.flatMap { it.attributes }.toSet()
+
+            assertEquals(listOf("full_name", "date_of_birth"), identityTemplate.attributes)
+            assertFalse(offeredAttributes.contains("personal_id"))
+            assertFalse(offeredAttributes.contains("address"))
+            assertFalse(offeredAttributes.contains("phone"))
+        }
 
     @Test
     fun `Given public invitation response, When mapped, Then recipient status owns display state`() =

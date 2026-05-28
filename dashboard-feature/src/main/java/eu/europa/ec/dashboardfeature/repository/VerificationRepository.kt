@@ -115,21 +115,6 @@ class VerificationRepositoryImpl(
             key = "nationality",
             label = resourceProvider.getString(R.string.verification_parameter_nationality),
             description = resourceProvider.getString(R.string.verification_parameter_nationality_description)
-        ),
-        AttributeCatalogItem(
-            key = "personal_id",
-            label = resourceProvider.getString(R.string.verification_parameter_document_number),
-            description = resourceProvider.getString(R.string.verification_parameter_document_number_description)
-        ),
-        AttributeCatalogItem(
-            key = "address",
-            label = "Address",
-            description = "Residential address from the holder's credential"
-        ),
-        AttributeCatalogItem(
-            key = "phone",
-            label = "Phone",
-            description = "Phone number from the holder's credential"
         )
     )
 
@@ -149,7 +134,7 @@ class VerificationRepositoryImpl(
                 title = resourceProvider.getString(R.string.verification_template_identity_title),
                 description = resourceProvider.getString(R.string.verification_template_identity_description),
                 purpose = resourceProvider.getString(R.string.verification_template_identity_description),
-                attributes = listOf("full_name", "date_of_birth", "personal_id")
+                attributes = listOf("full_name", "date_of_birth")
             ),
             VerificationTemplate(
                 type = VerificationTemplateType.NATIONALITY_VERIFICATION,

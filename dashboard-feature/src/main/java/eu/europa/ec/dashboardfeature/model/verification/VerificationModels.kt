@@ -119,7 +119,7 @@ data class VerificationRecipientSession(
     val requestUriExpiresAt: Long? = null
 )
 
-private val ExpectedValueAttributes = setOf("full_name", "personal_id", "date_of_birth")
+private val ExpectedValueAttributes = setOf("full_name", "date_of_birth")
 
 fun requiresExpectedValue(attributeKey: String): Boolean = attributeKey in ExpectedValueAttributes
 

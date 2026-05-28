@@ -80,6 +80,9 @@ sealed class Effect : ViewSideEffect {
     data class ShowToast(val message: String) : Effect()
 }
 
+private val exclusiveInvitationAttributes = setOf("age_over_18", "nationality")
+private val identityInvitationAttributes = setOf("full_name", "date_of_birth")
+
 @KoinViewModel
 class VerificationViewModel(
     private val verificationRepository: VerificationRepository,
@@ -152,24 +155,6 @@ class VerificationViewModel(
             label = resourceProvider.getString(R.string.verification_parameter_nationality),
             description = resourceProvider.getString(R.string.verification_parameter_nationality_description),
             requiresExpectedValue = false
-        ),
-        VerificationAttributeDefinition(
-            key = "personal_id",
-            label = resourceProvider.getString(R.string.verification_parameter_document_number),
-            description = resourceProvider.getString(R.string.verification_parameter_document_number_description),
-            requiresExpectedValue = true
-        ),
-        VerificationAttributeDefinition(
-            key = "address",
-            label = "Address",
-            description = "Residential address from the holder's credential",
-            requiresExpectedValue = false
-        ),
-        VerificationAttributeDefinition(
-            key = "phone",
-            label = "Phone",
-            description = "Phone number from the holder's credential",
-            requiresExpectedValue = false
         )
     )
 
@@ -217,10 +202,27 @@ class VerificationViewModel(
     }
 
     private fun toggleAttribute(key: String, selected: Boolean) {
+        val attributesToClear = when {
+            selected && key in exclusiveInvitationAttributes ->
+                (exclusiveInvitationAttributes + identityInvitationAttributes) - key
+            selected && key in identityInvitationAttributes -> exclusiveInvitationAttributes
+            else -> emptySet()
+        }
+
         setState {
             copy(
                 attributes = attributes.map { attribute ->
-                    if (attribute.key == key) attribute.copy(selected = selected) else attribute
+                    when {
+                        attribute.key == key -> attribute.copy(
+                            selected = selected,
+                            expectedValue = if (selected) attribute.expectedValue else ""
+                        )
+                        attribute.key in attributesToClear -> attribute.copy(
+                            selected = false,
+                            expectedValue = ""
+                        )
+                        else -> attribute
+                    }
                 }
             )
         }
