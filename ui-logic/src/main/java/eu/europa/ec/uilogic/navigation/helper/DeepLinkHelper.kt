@@ -85,9 +85,9 @@ fun generateNewTaskDeepLink(
     }
 
 fun hasDeepLink(deepLinkUri: Uri?): DeepLinkAction? {
-    return deepLinkUri?.let { uri ->
-        DeepLinkAction(link = uri, type = DeepLinkType.parse(uri))
-    }
+    val uri = deepLinkUri ?: return null
+    if (isVerificationPortalLinkWithTokenQuery(uri)) return null
+    return DeepLinkAction(link = uri, type = DeepLinkType.parse(uri))
 }
 
 fun handleDeepLinkAction(
@@ -199,6 +199,29 @@ fun parseVerificationSessionDeepLink(uri: Uri): VerificationSessionDeepLink? {
         sessionId = sessionId,
         accessToken = accessToken
     )
+}
+
+fun isVerificationPortalLinkWithTokenQuery(uri: Uri): Boolean {
+    val isVerificationPortalLink = uri.scheme == "https" &&
+        uri.host.equals(BuildConfig.VERIFICATION_PORTAL_HOST, ignoreCase = true) &&
+        uri.pathSegments.size >= 2 &&
+        uri.pathSegments.first() == "verify" &&
+        isUuid(uri.pathSegments[1])
+
+    if (!isVerificationPortalLink) return false
+
+    return uri.queryParameterNames.any { name ->
+        when (name.lowercase()) {
+            "token",
+            "access_token",
+            "verification_token",
+            "authbound_verification_token",
+            "x-authbound-verification-token",
+            "x_authbound_verification_token",
+            "public_token" -> true
+            else -> false
+        }
+    }
 }
 
 private fun isOpaqueAccessToken(value: String): Boolean {

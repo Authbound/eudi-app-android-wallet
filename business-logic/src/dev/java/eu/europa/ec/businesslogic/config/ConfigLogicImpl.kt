@@ -46,7 +46,7 @@ private class DevEnvironmentConfig : EnvironmentConfig() {
     override fun getGatewayHost(): String = when (environment) {
         ServerConfig.Debug -> {
             val host = EmulatorDetector.getLocalhostAddress()
-            "http://$host:3001"
+            "http://$host:8080"
         }
         ServerConfig.Release -> "https://api.authbound.io"
     }

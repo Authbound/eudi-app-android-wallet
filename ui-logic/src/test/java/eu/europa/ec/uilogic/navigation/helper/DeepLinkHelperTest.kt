@@ -74,6 +74,27 @@ class DeepLinkHelperTest {
     }
 
     @Test
+    fun `verification portal link with query token is rejected instead of opened externally`() {
+        val sessionId = "550e8400-e29b-41d4-a716-446655440000"
+
+        listOf(
+            "token",
+            "access_token",
+            "verification_token",
+            "AUTHBOUND_VERIFICATION_TOKEN",
+            "x-authbound-verification-token",
+            "public_token"
+        ).forEach { tokenKey ->
+            val uri = Uri.parse(
+                "https://${BuildConfig.VERIFICATION_PORTAL_HOST}/verify/$sessionId?$tokenKey=recipient-secret"
+            )
+
+            assertNull(parseVerificationSessionDeepLink(uri))
+            assertNull(hasDeepLink(uri))
+        }
+    }
+
+    @Test
     fun `verification link on another host is treated as external`() {
         val uri = Uri.parse(
             "https://example.com/verify/550e8400-e29b-41d4-a716-446655440000#token=123e4567-e89b-12d3-a456-426614174000"
