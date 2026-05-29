@@ -61,9 +61,12 @@ data class VerificationDraftAttribute(
 )
 
 data class VerificationRecipient(
+    val id: String? = null,
     val contactType: VerificationRecipientContactType,
     val value: String,
     val status: String? = null,
+    val verificationId: String? = null,
+    val verificationStartedAt: Long? = null,
     val resolvedUserId: String? = null,
     val invitedAt: Long? = null,
     val openedAt: Long? = null,
@@ -127,6 +130,7 @@ fun VerificationRecipient.lastStatusChangedAt(): Long? = when (status?.lowercase
     "verified" -> verifiedAt ?: updatedAt
     "failed", "rejected", "invalid", "canceled" -> failedAt ?: updatedAt
     "expired" -> updatedAt
+    "verification_started" -> verificationStartedAt ?: updatedAt
     "opened" -> openedAt ?: updatedAt
     null, "", "pending", "invited" -> invitedAt
     else -> listOfNotNull(verifiedAt, failedAt, openedAt, invitedAt, updatedAt).maxOrNull()
@@ -136,6 +140,7 @@ fun VerificationRecipient.lastSessionActivityAt(): Long? = when (status?.lowerca
     "verified" -> verifiedAt ?: updatedAt
     "failed", "rejected", "invalid", "canceled" -> failedAt ?: updatedAt
     "expired" -> updatedAt
+    "verification_started" -> verificationStartedAt ?: updatedAt
     "opened" -> openedAt ?: updatedAt
     else -> null
 }
@@ -157,6 +162,7 @@ fun isVerificationHistoryStatus(status: String): Boolean = status in setOf(
     "verified",
     "failed",
     "rejected",
+    "completed",
     "expired",
     "invalid",
     "canceled",
@@ -168,6 +174,7 @@ fun humanizeVerificationStatus(status: String): String = when (status.lowercase(
     "verified" -> "Verified"
     "failed" -> "Failed"
     "rejected" -> "Rejected"
+    "completed" -> "Completed"
     "expired" -> "Expired"
     "invalid" -> "Invalid"
     "canceled" -> "Canceled"

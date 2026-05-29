@@ -30,6 +30,9 @@ data class VerificationRequestedAttributeDto(
 
 @Serializable
 data class VerificationRecipientDto(
+    @SerialName("id")
+    val id: String? = null,
+
     @SerialName("contactType")
     val contactType: String,
 
@@ -38,6 +41,12 @@ data class VerificationRecipientDto(
 
     @SerialName("status")
     val status: String? = null,
+
+    @SerialName("verificationId")
+    val verificationId: String? = null,
+
+    @SerialName("verificationStartedAt")
+    val verificationStartedAt: String? = null,
 
     @SerialName("publicUrl")
     val publicUrl: String? = null,
@@ -191,6 +200,12 @@ data class VerificationNotificationResultDto(
 
     @SerialName("success")
     val success: Boolean,
+
+    @SerialName("providerDisabled")
+    val providerDisabled: Boolean? = null,
+
+    @SerialName("errorCode")
+    val errorCode: String? = null,
 
     @SerialName("error")
     val error: String? = null

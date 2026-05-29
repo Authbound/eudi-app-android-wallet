@@ -40,6 +40,7 @@ import io.github.jan.supabase.SupabaseClient
 import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertFalse
 import junit.framework.TestCase.assertNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
@@ -158,6 +159,39 @@ class TestVerificationRepository {
             assertFalse(offeredAttributes.contains("personal_id"))
             assertFalse(offeredAttributes.contains("address"))
             assertFalse(offeredAttributes.contains("phone"))
+        }
+
+    @Test
+    fun `Given requester invitation recipient metadata, When sessions refresh, Then metadata is retained`() =
+        runTest {
+            val sessionId = "550e8400-e29b-41d4-a716-446655440000"
+            whenever(apiClient.getVerificationSessions(authToken)).thenReturn(
+                ApiResponse.Success(
+                    VerificationSessionsListResponse(
+                        invitations = listOf(
+                            listItem(sessionId = sessionId, publicUrl = null).copy(
+                                recipients = listOf(
+                                    VerificationRecipientDto(
+                                        id = "recipient-1",
+                                        contactType = "link",
+                                        status = "verification_started",
+                                        verificationId = "verification-1",
+                                        verificationStartedAt = "2026-05-26T08:05:00Z",
+                                        updatedAt = "2026-05-26T08:06:00Z"
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+
+            repository.refreshVerificationSessions().getOrThrow()
+
+            val recipient = repository.getVerificationSessions().first().single().recipients.single()
+            assertEquals("recipient-1", recipient.id)
+            assertEquals("verification-1", recipient.verificationId)
+            assertEquals(1779782700000L, recipient.verificationStartedAt)
         }
 
     @Test

@@ -460,9 +460,12 @@ open class VerificationRepositoryImpl(
 
     private fun mapRecipient(dto: VerificationRecipientDto): VerificationRecipient {
         return VerificationRecipient(
+            id = dto.id,
             contactType = VerificationRecipientContactType.fromApiValue(dto.contactType),
             value = dto.value.orEmpty(),
             status = dto.status,
+            verificationId = dto.verificationId,
+            verificationStartedAt = dto.verificationStartedAt?.let(::parseIsoToMillis),
             resolvedUserId = dto.resolvedUserId,
             invitedAt = dto.invitedAt?.let(::parseIsoToMillis),
             openedAt = dto.openedAt?.let(::parseIsoToMillis),
