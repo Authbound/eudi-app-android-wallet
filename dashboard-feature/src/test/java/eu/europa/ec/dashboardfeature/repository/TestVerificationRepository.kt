@@ -195,6 +195,63 @@ class TestVerificationRepository {
         }
 
     @Test
+    fun `Given multi-recipient invitation creation, When mapped, Then recipient public URLs stay per recipient`() =
+        runTest {
+            val sessionId = "550e8400-e29b-41d4-a716-446655440000"
+            val firstUrl = "https://app.authbound.test/verify/$sessionId#token=first-recipient-token"
+            val secondUrl = "https://app.authbound.test/verify/$sessionId#token=second-recipient-token"
+            whenever(apiClient.createVerificationSession(any<CreateVerificationSessionRequest>(), eq(authToken)))
+                .thenReturn(
+                    ApiResponse.Success(
+                        CreateVerificationSessionResponse(
+                            invitationId = sessionId,
+                            status = "created",
+                            createdAt = "2026-05-26T08:00:00Z",
+                            updatedAt = "2026-05-26T08:00:00Z",
+                            expiresAt = "2026-05-27T08:00:00Z",
+                            recipients = listOf(
+                                VerificationRecipientDto(
+                                    id = "recipient-1",
+                                    contactType = "email",
+                                    value = "first@example.com",
+                                    status = "pending",
+                                    publicUrl = firstUrl
+                                ),
+                                VerificationRecipientDto(
+                                    id = "recipient-2",
+                                    contactType = "email",
+                                    value = "second@example.com",
+                                    status = "pending",
+                                    publicUrl = secondUrl
+                                )
+                            ),
+                            creditsReserved = 2,
+                            creditsRemaining = 8
+                        )
+                    )
+                )
+
+            val created = repository.createVerificationSession(
+                purpose = "Verify age",
+                attributes = listOf(selectedAgeAttribute()),
+                recipients = listOf(
+                    VerificationRecipient(
+                        contactType = VerificationRecipientContactType.EMAIL,
+                        value = "first@example.com"
+                    ),
+                    VerificationRecipient(
+                        contactType = VerificationRecipientContactType.EMAIL,
+                        value = "second@example.com"
+                    )
+                )
+            ).getOrThrow()
+
+            assertNull(created.publicUrl)
+            assertEquals(firstUrl, created.recipients[0].publicUrl)
+            assertEquals(secondUrl, created.recipients[1].publicUrl)
+        }
+
+    @Test
     fun `Given public invitation response, When mapped, Then recipient status owns display state`() =
         runTest {
             val sessionId = "550e8400-e29b-41d4-a716-446655440000"

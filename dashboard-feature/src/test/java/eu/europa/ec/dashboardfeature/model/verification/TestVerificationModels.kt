@@ -17,6 +17,7 @@
 package eu.europa.ec.dashboardfeature.model.verification
 
 import junit.framework.TestCase.assertTrue
+import junit.framework.TestCase.assertEquals
 import org.junit.Test
 
 class TestVerificationModels {
@@ -24,5 +25,10 @@ class TestVerificationModels {
     @Test
     fun `Given backend completed invitation status, When classifying, Then it is history`() {
         assertTrue(isVerificationHistoryStatus("completed"))
+    }
+
+    @Test
+    fun `Given verification started recipient status, When humanized, Then raw API value is hidden`() {
+        assertEquals("Verification started", humanizeVerificationStatus("verification_started"))
     }
 }

@@ -344,7 +344,9 @@ open class VerificationRepositoryImpl(
             expiresAt = parseIsoToMillis(response.expiresAt),
             requestedAttributes = selectedAttributes,
             recipients = response.recipients.map(::mapRecipient),
-            publicUrl = response.recipients.firstOrNull()?.publicUrl,
+            publicUrl = response.recipients.firstOrNull {
+                VerificationRecipientContactType.fromApiValue(it.contactType) == VerificationRecipientContactType.LINK
+            }?.publicUrl,
             creditsDeducted = response.creditsReserved,
             creditsRemaining = response.creditsRemaining
         )
@@ -463,6 +465,7 @@ open class VerificationRepositoryImpl(
             id = dto.id,
             contactType = VerificationRecipientContactType.fromApiValue(dto.contactType),
             value = dto.value.orEmpty(),
+            publicUrl = dto.publicUrl,
             status = dto.status,
             verificationId = dto.verificationId,
             verificationStartedAt = dto.verificationStartedAt?.let(::parseIsoToMillis),

@@ -64,6 +64,7 @@ data class VerificationRecipient(
     val id: String? = null,
     val contactType: VerificationRecipientContactType,
     val value: String,
+    val publicUrl: String? = null,
     val status: String? = null,
     val verificationId: String? = null,
     val verificationStartedAt: Long? = null,
@@ -171,6 +172,7 @@ fun isVerificationHistoryStatus(status: String): Boolean = status in setOf(
 fun humanizeVerificationStatus(status: String): String = when (status.lowercase()) {
     "pending" -> "Pending"
     "active" -> "Active"
+    "verification_started" -> "Verification started"
     "verified" -> "Verified"
     "failed" -> "Failed"
     "rejected" -> "Rejected"

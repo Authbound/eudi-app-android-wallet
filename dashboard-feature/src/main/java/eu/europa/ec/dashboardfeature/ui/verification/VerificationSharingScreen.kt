@@ -506,7 +506,7 @@ private fun humanizeRecipientStatus(status: String?): String = when (status?.low
     "rejected" -> "Rejected"
     "invalid" -> "Invalid"
     "canceled" -> "Canceled"
-    else -> status.replaceFirstChar { it.uppercase() }
+    else -> humanizeVerificationStatus(status)
 }
 
 private fun ColorScheme.recipientStatusColor(status: String?): Color = when (status?.lowercase()) {
