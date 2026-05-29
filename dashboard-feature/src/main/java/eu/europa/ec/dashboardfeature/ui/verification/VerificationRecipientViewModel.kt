@@ -41,6 +41,7 @@ import org.koin.android.annotation.KoinViewModel
 
 data class VerificationRecipientState(
     val isLoading: Boolean = false,
+    val isStartingVerification: Boolean = false,
     val hasConsent: Boolean = false,
     val session: VerificationRecipientSession? = null,
     val error: String? = null,
@@ -179,6 +180,8 @@ class VerificationRecipientViewModel(
                         }
                         if (isVerificationHistoryStatus(session.status)) {
                             refreshJob?.cancel()
+                            refreshJob = null
+                            VerificationRecipientRoutePayloadStore.remove(routePayloadKey)
                         } else {
                             ensureLiveUpdates()
                         }
@@ -222,6 +225,7 @@ class VerificationRecipientViewModel(
 
     private fun startVerification() {
         val session = viewState.value.session ?: return
+        if (viewState.value.isStartingVerification) return
         if (!viewState.value.hasConsent) {
             setEffect {
                 VerificationRecipientEffect.ShowToast(
@@ -230,48 +234,63 @@ class VerificationRecipientViewModel(
             }
             return
         }
+        if (isVerificationHistoryStatus(session.status)) {
+            setEffect {
+                VerificationRecipientEffect.ShowToast(
+                    resourceProvider.getString(R.string.verification_recipient_request_unavailable)
+                )
+            }
+            return
+        }
         val sessionId = sessionId ?: return
         val accessToken = accessToken ?: return
+        setState { copy(isStartingVerification = true) }
         viewModelScope.launch {
-            verificationRepository.startPublicVerificationSession(sessionId, accessToken).fold(
-                onSuccess = { startedSession ->
-                    setState { copy(session = startedSession) }
-                    val requestUri = startedSession.requestUri
-                    if (requestUri.isNullOrBlank()) {
+            try {
+                verificationRepository.startPublicVerificationSession(sessionId, accessToken).fold(
+                    onSuccess = { startedSession ->
+                        setState { copy(session = startedSession) }
+                        val requestUri = startedSession.requestUri
+                        if (requestUri.isNullOrBlank()) {
+                            setEffect {
+                                VerificationRecipientEffect.ShowToast(
+                                    resourceProvider.getString(R.string.verification_recipient_request_unavailable)
+                                )
+                            }
+                            return@fold
+                        }
+                        val serializedConfig = uiSerializer.toBase64(
+                            RequestUriConfig(
+                                PresentationMode.OpenId4Vp(
+                                    uri = requestUri,
+                                    initiatorRoute = recipientRoute()
+                                )
+                            ),
+                            RequestUriConfig.Parser
+                        )
+                        val screenRoute = generateComposableNavigationLink(
+                            screen = PresentationScreens.PresentationRequest,
+                            arguments = generateComposableArguments(
+                                mapOf(RequestUriConfig.serializedKeyName to serializedConfig)
+                            )
+                        )
+                        refreshJob?.cancel()
+                        refreshJob = null
+                        setEffect {
+                            VerificationRecipientEffect.Navigation.SwitchScreen(screenRoute = screenRoute)
+                        }
+                    },
+                    onFailure = {
                         setEffect {
                             VerificationRecipientEffect.ShowToast(
                                 resourceProvider.getString(R.string.verification_recipient_request_unavailable)
                             )
                         }
-                        return@fold
                     }
-                    val serializedConfig = uiSerializer.toBase64(
-                        RequestUriConfig(
-                            PresentationMode.OpenId4Vp(
-                                uri = requestUri,
-                                initiatorRoute = recipientRoute()
-                            )
-                        ),
-                        RequestUriConfig.Parser
-                    )
-                    val screenRoute = generateComposableNavigationLink(
-                        screen = PresentationScreens.PresentationRequest,
-                        arguments = generateComposableArguments(
-                            mapOf(RequestUriConfig.serializedKeyName to serializedConfig)
-                        )
-                    )
-                    setEffect {
-                        VerificationRecipientEffect.Navigation.SwitchScreen(screenRoute = screenRoute)
-                    }
-                },
-                onFailure = {
-                    setEffect {
-                        VerificationRecipientEffect.ShowToast(
-                            resourceProvider.getString(R.string.verification_recipient_request_unavailable)
-                        )
-                    }
-                }
-            )
+                )
+            } finally {
+                setState { copy(isStartingVerification = false) }
+            }
         }
     }
 

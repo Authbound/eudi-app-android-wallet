@@ -37,6 +37,9 @@ class TestVerificationRecipientRoutingContract {
         val recipientViewModel = readWalletSource(
             "dashboard-feature/src/main/java/eu/europa/ec/dashboardfeature/ui/verification/VerificationRecipientViewModel.kt"
         )
+        val deepLinkHelper = readWalletSource(
+            "ui-logic/src/main/java/eu/europa/ec/uilogic/navigation/helper/DeepLinkHelper.kt"
+        )
 
         assertTrue(routerContract.contains("payloadKey={payloadKey}"))
         assertFalse(routerContract.contains("accessToken={accessToken}"))
@@ -52,6 +55,8 @@ class TestVerificationRecipientRoutingContract {
 
         assertFalse(recipientViewModel.contains("\"accessToken\" to accessToken"))
         assertFalse(recipientViewModel.contains("arguments[\"verificationUrl\"]"))
+
+        assertTrue(deepLinkHelper.contains("if (arguments == null) return"))
     }
 
     private fun readWalletSource(pathFromWalletRoot: String): String {

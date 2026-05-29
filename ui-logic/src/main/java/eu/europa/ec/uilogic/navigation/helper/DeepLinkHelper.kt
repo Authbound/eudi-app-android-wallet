@@ -113,6 +113,7 @@ fun handleDeepLinkAction(
         }
 
         DeepLinkType.VERIFICATION_SESSION -> {
+            if (arguments == null) return
             screen = DashboardScreens.VerificationRecipient
         }
 

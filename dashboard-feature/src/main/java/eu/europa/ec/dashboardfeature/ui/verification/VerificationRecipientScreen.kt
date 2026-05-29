@@ -229,7 +229,7 @@ private fun VerificationRecipientContent(
                         .fillMaxWidth()
                         .applyTestTag(DashboardTestTags.VerificationRecipient.PRIMARY_BUTTON),
                     onClick = onStartVerification,
-                    enabled = canStartVerification && state.hasConsent
+                    enabled = canStartVerification && state.hasConsent && !state.isStartingVerification
                 ) {
                     Text(
                         text = if (session.status.equals("active", ignoreCase = true)) {

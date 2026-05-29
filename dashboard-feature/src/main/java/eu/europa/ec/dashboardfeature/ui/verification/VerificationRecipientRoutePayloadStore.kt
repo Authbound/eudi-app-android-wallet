@@ -66,6 +66,11 @@ object VerificationRecipientRoutePayloadStore {
         payloadKey?.takeIf(String::isNotBlank)?.let(payloads::remove)
     }
 
+    @Synchronized
+    fun clear() {
+        payloads.clear()
+    }
+
     private fun prune(now: Long) {
         payloads.entries.removeIf { now - it.value.createdAtMillis > ROUTE_PAYLOAD_TTL_MILLIS }
     }

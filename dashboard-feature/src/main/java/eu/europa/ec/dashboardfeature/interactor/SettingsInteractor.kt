@@ -52,6 +52,7 @@ import eu.europa.ec.corelogic.model.DocumentCategory
 import eu.europa.ec.corelogic.model.DocumentIdentifier
 import eu.europa.ec.corelogic.model.toDocumentCategory
 import eu.europa.ec.corelogic.model.toDocumentIdentifier
+import eu.europa.ec.dashboardfeature.ui.verification.VerificationRecipientRoutePayloadStore
 import io.github.jan.supabase.auth.user.UserInfo
 import kotlinx.coroutines.flow.collect
 
@@ -323,6 +324,7 @@ class SettingsInteractorImpl(
     }
 
     override suspend fun logout() {
+        VerificationRecipientRoutePayloadStore.clear()
         signOutUseCase(SignOutMode.Soft)
     }
 

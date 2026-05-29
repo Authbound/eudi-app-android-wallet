@@ -48,6 +48,8 @@ import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -170,7 +172,7 @@ class TestVerificationRecipientViewModel {
                     createRecipientSession(
                         id = sessionId,
                         publicUrl = "https://app.authbound.io/verify/$sessionId#token=$accessToken",
-                        status = "verified"
+                        status = "opened"
                     )
                 )
             )
@@ -232,7 +234,7 @@ class TestVerificationRecipientViewModel {
                     createRecipientSession(
                         id = sessionId,
                         publicUrl = incomingUrl,
-                        status = "verified"
+                        status = "opened"
                     )
                 )
             )
@@ -311,6 +313,94 @@ class TestVerificationRecipientViewModel {
                 val effect = awaitItem() as VerificationRecipientEffect.ShowToast
                 assertEquals("Consent required", effect.message)
             }
+        }
+
+    @Test
+    fun `Given start is already in flight, When start requested again, Then only one start call is sent`() =
+        coroutineRule.runTest {
+            val sessionId = "550e8400-e29b-41d4-a716-446655440000"
+            val accessToken = "123e4567-e89b-12d3-a456-426614174000"
+            val requestUri = "openid4vp://verify?request_uri=https%3A%2F%2Fapi.authbound.io"
+            whenever(
+                verificationRepository.getPublicVerificationSession(sessionId, accessToken)
+            ).thenReturn(
+                Result.success(
+                    createRecipientSession(
+                        id = sessionId,
+                        publicUrl = "https://app.authbound.io/verify/$sessionId#token=$accessToken",
+                        status = "opened"
+                    )
+                )
+            )
+            whenever(
+                verificationRepository.startPublicVerificationSession(sessionId, accessToken)
+            ).thenReturn(
+                Result.success(
+                    createRecipientSession(
+                        id = sessionId,
+                        publicUrl = "https://app.authbound.io/verify/$sessionId#token=$accessToken",
+                        status = "verification_started",
+                        verificationId = "verification-1",
+                        requestUri = requestUri
+                    )
+                )
+            )
+            whenever(uiSerializer.toBase64(any<RequestUriConfig>(), eq(RequestUriConfig.Parser)))
+                .thenReturn("serialized-request-uri")
+
+            val viewModel = createViewModel()
+            viewModel.handleEvents(
+                VerificationRecipientEvent.Init(
+                    sessionId = sessionId,
+                    accessToken = accessToken
+                )
+            )
+            testScope.runCurrent()
+            viewModel.handleEvents(VerificationRecipientEvent.ConsentChanged(true))
+
+            viewModel.handleEvents(VerificationRecipientEvent.StartVerification)
+            viewModel.handleEvents(VerificationRecipientEvent.StartVerification)
+            testScope.runCurrent()
+
+            verify(verificationRepository, times(1))
+                .startPublicVerificationSession(sessionId, accessToken)
+        }
+
+    @Test
+    fun `Given terminal recipient loads from route payload, When session is terminal, Then payload is cleared`() =
+        coroutineRule.runTest {
+            val sessionId = "550e8400-e29b-41d4-a716-446655440000"
+            val accessToken = "123e4567-e89b-12d3-a456-426614174000"
+            val routePayloadKey = VerificationRecipientRoutePayloadStore.put(
+                VerificationRecipientRoutePayload(
+                    sessionId = sessionId,
+                    accessToken = accessToken,
+                    verificationUrl = "https://app.authbound.io/verify/$sessionId#token=$accessToken"
+                )
+            )
+            whenever(
+                verificationRepository.getPublicVerificationSession(sessionId, accessToken)
+            ).thenReturn(
+                Result.success(
+                    createRecipientSession(
+                        id = sessionId,
+                        publicUrl = "https://app.authbound.io/verify/$sessionId#token=$accessToken",
+                        status = "verified"
+                    )
+                )
+            )
+
+            val viewModel = createViewModel()
+            viewModel.handleEvents(
+                VerificationRecipientEvent.Init(
+                    sessionId = sessionId,
+                    accessToken = accessToken,
+                    routePayloadKey = routePayloadKey
+                )
+            )
+            testScope.advanceUntilIdle()
+
+            assertNull(VerificationRecipientRoutePayloadStore.get(routePayloadKey))
         }
 
     private fun createViewModel(): VerificationRecipientViewModel {
