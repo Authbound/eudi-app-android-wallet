@@ -378,7 +378,9 @@ open class VerificationRepositoryImpl(
             failedAt = response.session.failedAt?.let(::parseIsoToMillis),
             requestedAttributes = requestedAttributes,
             recipients = response.session.recipients.map(::mapRecipient),
-            publicUrl = response.session.recipients.firstOrNull()?.publicUrl
+            publicUrl = response.session.recipients.firstOrNull {
+                VerificationRecipientContactType.fromApiValue(it.contactType) == VerificationRecipientContactType.LINK
+            }?.publicUrl
         )
     }
 

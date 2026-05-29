@@ -252,6 +252,53 @@ class TestVerificationRepository {
         }
 
     @Test
+    fun `Given detail has only addressed recipient URLs, When mapped, Then generic sharing URL stays empty`() =
+        runTest {
+            val sessionId = "550e8400-e29b-41d4-a716-446655440000"
+            val firstUrl = "https://app.authbound.test/verify/$sessionId#token=first-recipient-token"
+            val secondUrl = "https://app.authbound.test/verify/$sessionId#token=second-recipient-token"
+            whenever(apiClient.getVerificationSession(sessionId, authToken)).thenReturn(
+                ApiResponse.Success(
+                    VerificationSessionDetailResponse(
+                        session = VerificationSessionDto(
+                            id = sessionId,
+                            status = "created",
+                            purpose = "Verify age",
+                            requestedAttributes = mapOf(
+                                "age_over_18" to VerificationRequestedAttributeDto(type = "age_over_18")
+                            ),
+                            recipients = listOf(
+                                VerificationRecipientDto(
+                                    id = "recipient-1",
+                                    contactType = "email",
+                                    value = "first@example.com",
+                                    status = "pending",
+                                    publicUrl = firstUrl
+                                ),
+                                VerificationRecipientDto(
+                                    id = "recipient-2",
+                                    contactType = "email",
+                                    value = "second@example.com",
+                                    status = "pending",
+                                    publicUrl = secondUrl
+                                )
+                            ),
+                            createdAt = "2026-05-26T08:00:00Z",
+                            updatedAt = "2026-05-26T08:00:00Z",
+                            expiresAt = "2026-05-27T08:00:00Z"
+                        )
+                    )
+                )
+            )
+
+            val detail = repository.getVerificationSession(sessionId).getOrThrow()
+
+            assertNull(detail.publicUrl)
+            assertEquals(firstUrl, detail.recipients[0].publicUrl)
+            assertEquals(secondUrl, detail.recipients[1].publicUrl)
+        }
+
+    @Test
     fun `Given public invitation response, When mapped, Then recipient status owns display state`() =
         runTest {
             val sessionId = "550e8400-e29b-41d4-a716-446655440000"

@@ -16,7 +16,6 @@
 
 package eu.europa.ec.dashboardfeature.ui.verification
 
-import android.net.Uri
 import androidx.lifecycle.viewModelScope
 import eu.europa.ec.commonfeature.config.PresentationMode
 import eu.europa.ec.commonfeature.config.RequestUriConfig
@@ -52,6 +51,7 @@ sealed class VerificationRecipientEvent : ViewEvent {
     data class Init(
         val sessionId: String,
         val accessToken: String,
+        val routePayloadKey: String? = null,
         val verificationUrl: String? = null
     ) : VerificationRecipientEvent()
 
@@ -86,6 +86,7 @@ class VerificationRecipientViewModel(
 
     private var sessionId: String? = null
     private var accessToken: String? = null
+    private var routePayloadKey: String? = null
     private var refreshJob: Job? = null
     private var isLoadingSession: Boolean = false
 
@@ -98,6 +99,7 @@ class VerificationRecipientViewModel(
             is VerificationRecipientEvent.Init -> initializeSession(
                 sessionId = event.sessionId,
                 accessToken = event.accessToken,
+                routePayloadKey = event.routePayloadKey,
                 verificationUrl = event.verificationUrl
             )
 
@@ -105,8 +107,11 @@ class VerificationRecipientViewModel(
             is VerificationRecipientEvent.ConsentChanged -> setState { copy(hasConsent = event.accepted) }
             VerificationRecipientEvent.StartVerification -> startVerification()
             VerificationRecipientEvent.OpenInBrowser -> openInBrowser()
-            VerificationRecipientEvent.NavigateBack -> setEffect {
-                VerificationRecipientEffect.Navigation.Back
+            VerificationRecipientEvent.NavigateBack -> {
+                VerificationRecipientRoutePayloadStore.remove(routePayloadKey)
+                setEffect {
+                    VerificationRecipientEffect.Navigation.Back
+                }
             }
 
             VerificationRecipientEvent.DismissError -> setState { copy(error = null) }
@@ -118,12 +123,27 @@ class VerificationRecipientViewModel(
         super.onCleared()
     }
 
-    private fun initializeSession(sessionId: String, accessToken: String, verificationUrl: String?) {
+    private fun initializeSession(
+        sessionId: String,
+        accessToken: String,
+        routePayloadKey: String?,
+        verificationUrl: String?
+    ) {
         setState {
             copy(
                 incomingVerificationUrl = verificationUrl?.takeIf(String::isNotBlank)
                     ?: incomingVerificationUrl
             )
+        }
+        this.routePayloadKey = routePayloadKey?.takeIf(String::isNotBlank)
+        if (sessionId.isBlank() || accessToken.isBlank()) {
+            setState {
+                copy(
+                    isLoading = false,
+                    error = resourceProvider.getString(R.string.verification_recipient_refresh_error_empty)
+                )
+            }
+            return
         }
         if (this.sessionId == sessionId && this.accessToken == accessToken && viewState.value.session != null) {
             return
@@ -274,19 +294,11 @@ class VerificationRecipientViewModel(
     }
 
     private fun recipientRoute(): String {
-        val sessionId = sessionId ?: return DashboardScreens.Dashboard.screenRoute
-        val accessToken = accessToken ?: return DashboardScreens.Dashboard.screenRoute
-        val arguments = mutableMapOf(
-            "sessionId" to sessionId,
-            "accessToken" to accessToken
-        )
-        viewState.value.incomingVerificationUrl
-            ?.takeIf { it.isNotBlank() }
-            ?.let { arguments["verificationUrl"] = Uri.encode(it) }
+        val payloadKey = routePayloadKey ?: return DashboardScreens.Dashboard.screenRoute
         return generateComposableNavigationLink(
             screen = DashboardScreens.VerificationRecipient,
             arguments = generateComposableArguments(
-                arguments
+                mapOf("payloadKey" to payloadKey)
             )
         )
     }

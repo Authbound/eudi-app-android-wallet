@@ -71,6 +71,7 @@ import java.util.Locale
 fun VerificationRecipientScreen(
     navController: NavController,
     viewModel: VerificationRecipientViewModel,
+    routePayloadKey: String,
     sessionId: String,
     accessToken: String,
     verificationUrl: String? = null,
@@ -143,6 +144,7 @@ fun VerificationRecipientScreen(
             VerificationRecipientEvent.Init(
                 sessionId = sessionId,
                 accessToken = accessToken,
+                routePayloadKey = routePayloadKey,
                 verificationUrl = verificationUrl?.let(Uri::decode)
             )
         )

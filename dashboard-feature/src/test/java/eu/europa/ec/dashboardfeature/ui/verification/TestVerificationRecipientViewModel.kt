@@ -17,6 +17,7 @@
 package eu.europa.ec.dashboardfeature.ui.verification
 
 import eu.europa.ec.commonfeature.config.RequestUriConfig
+import eu.europa.ec.commonfeature.config.PresentationMode
 import eu.europa.ec.dashboardfeature.model.verification.VerificationRecipientSession
 import eu.europa.ec.dashboardfeature.repository.VerificationRepository
 import eu.europa.ec.resourceslogic.R
@@ -27,6 +28,7 @@ import eu.europa.ec.testlogic.extension.runTest
 import eu.europa.ec.testlogic.rule.CoroutineTestRule
 import eu.europa.ec.uilogic.serializer.UiSerializer
 import junit.framework.TestCase.assertEquals
+import junit.framework.TestCase.assertFalse
 import junit.framework.TestCase.assertNull
 import junit.framework.TestCase.assertTrue
 import kotlinx.coroutines.Dispatchers
@@ -44,6 +46,7 @@ import org.junit.Test
 import org.mockito.Mock
 import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.whenever
 
@@ -212,6 +215,66 @@ class TestVerificationRecipientViewModel {
                 )
                 assertEquals(requestUri, viewModel.viewState.value.session?.requestUri)
                 assertTrue(effect.screenRoute.contains("serialized-request-uri"))
+            }
+        }
+
+    @Test
+    fun `Given route payload key, When start succeeds, Then initiator route does not expose recipient token`() =
+        coroutineRule.runTest {
+            val sessionId = "550e8400-e29b-41d4-a716-446655440000"
+            val accessToken = "123e4567-e89b-12d3-a456-426614174000"
+            val incomingUrl = "https://app.authbound.io/verify/$sessionId#token=$accessToken"
+            val requestUri = "openid4vp://verify?request_uri=https%3A%2F%2Fapi.authbound.io"
+            whenever(
+                verificationRepository.getPublicVerificationSession(sessionId, accessToken)
+            ).thenReturn(
+                Result.success(
+                    createRecipientSession(
+                        id = sessionId,
+                        publicUrl = incomingUrl,
+                        status = "verified"
+                    )
+                )
+            )
+            whenever(
+                verificationRepository.startPublicVerificationSession(sessionId, accessToken)
+            ).thenReturn(
+                Result.success(
+                    createRecipientSession(
+                        id = sessionId,
+                        publicUrl = incomingUrl,
+                        status = "verification_started",
+                        verificationId = "verification-1",
+                        requestUri = requestUri
+                    )
+                )
+            )
+            val configCaptor = argumentCaptor<RequestUriConfig>()
+            whenever(uiSerializer.toBase64(configCaptor.capture(), eq(RequestUriConfig.Parser)))
+                .thenReturn("serialized-request-uri")
+
+            val viewModel = createViewModel()
+            viewModel.handleEvents(
+                VerificationRecipientEvent.Init(
+                    sessionId = sessionId,
+                    accessToken = accessToken,
+                    verificationUrl = incomingUrl,
+                    routePayloadKey = "payload-key"
+                )
+            )
+            testScope.runCurrent()
+            viewModel.handleEvents(VerificationRecipientEvent.ConsentChanged(true))
+
+            viewModel.effect.runFlowTest {
+                viewModel.handleEvents(VerificationRecipientEvent.StartVerification)
+                testScope.runCurrent()
+
+                awaitItem() as VerificationRecipientEffect.Navigation.SwitchScreen
+                val mode = configCaptor.firstValue.mode as PresentationMode.OpenId4Vp
+                assertTrue(mode.initiatorRoute.contains("payloadKey=payload-key"))
+                assertFalse(mode.initiatorRoute.contains(accessToken))
+                assertFalse(mode.initiatorRoute.contains("verificationUrl"))
+                assertFalse(mode.initiatorRoute.contains(incomingUrl))
             }
         }
 
