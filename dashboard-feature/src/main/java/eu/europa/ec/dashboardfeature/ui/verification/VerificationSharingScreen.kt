@@ -70,6 +70,33 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+private val publicTokenDisplayQueryKeys = setOf(
+    "token",
+    "access_token",
+    "verification_token",
+    "authbound_verification_token",
+    "x-authbound-verification-token",
+    "x_authbound_verification_token",
+    "public_token"
+)
+
+internal fun displayPublicVerificationUrl(publicUrl: String?): String? {
+    val value = publicUrl?.takeIf { it.isNotBlank() } ?: return null
+    val fragmentStripped = value.substringBefore('#')
+
+    val hasTokenQuery = fragmentStripped
+        .substringAfter('?', missingDelimiterValue = "")
+        .split('&')
+        .map { it.substringBefore('=').lowercase(Locale.ROOT) }
+        .any(publicTokenDisplayQueryKeys::contains)
+
+    return if (hasTokenQuery) {
+        fragmentStripped.substringBefore('?')
+    } else {
+        fragmentStripped
+    }
+}
+
 @Composable
 fun VerificationSharingScreen(
     navController: NavController,
@@ -346,7 +373,8 @@ private fun ShareTargetsCard(session: VerificationSession) {
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = session.publicUrl ?: stringResource(R.string.verification_sharing_public_link_missing),
+                text = displayPublicVerificationUrl(session.publicUrl)
+                    ?: stringResource(R.string.verification_sharing_public_link_missing),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 4,
@@ -494,6 +522,7 @@ private fun humanizeRecipientContactType(contactType: VerificationRecipientConta
     VerificationRecipientContactType.HANDLE -> "Handle"
     VerificationRecipientContactType.EMAIL -> "Email"
     VerificationRecipientContactType.PHONE -> "Phone"
+    VerificationRecipientContactType.LINK -> "Link"
 }
 
 private fun humanizeRecipientStatus(status: String?): String = when (status?.lowercase()) {
@@ -505,7 +534,7 @@ private fun humanizeRecipientStatus(status: String?): String = when (status?.low
     "rejected" -> "Rejected"
     "invalid" -> "Invalid"
     "canceled" -> "Canceled"
-    else -> status.replaceFirstChar { it.uppercase() }
+    else -> humanizeVerificationStatus(status)
 }
 
 private fun ColorScheme.recipientStatusColor(status: String?): Color = when (status?.lowercase()) {

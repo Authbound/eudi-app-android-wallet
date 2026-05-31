@@ -70,10 +70,7 @@ fun provideHttpClient(json: Json, configLogic: ConfigLogic): HttpClient {
 
         install(Logging) {
             logger = Logger.DEFAULT
-            level = when (configLogic.appBuildType) {
-                AppBuildType.DEBUG -> LogLevel.BODY
-                AppBuildType.RELEASE -> LogLevel.NONE
-            }
+            level = networkLogLevelFor(configLogic.appBuildType)
         }
 
         install(ContentNegotiation) {
@@ -82,6 +79,13 @@ fun provideHttpClient(json: Json, configLogic: ConfigLogic): HttpClient {
                 contentType = ContentType.Application.Json
             )
         }
+    }
+}
+
+internal fun networkLogLevelFor(appBuildType: AppBuildType): LogLevel {
+    return when (appBuildType) {
+        AppBuildType.DEBUG -> LogLevel.NONE
+        AppBuildType.RELEASE -> LogLevel.NONE
     }
 }
 
@@ -101,5 +105,6 @@ fun provideWalletAttestationRepository(httpClient: HttpClient): WalletAttestatio
 fun provideApiClient(httpClient: HttpClient, configLogic: ConfigLogic): ApiClient =
     KtorApiClient(
         httpClient = httpClient,
-        baseUrl = configLogic.environmentConfig.getServerHost()
+        baseUrl = configLogic.environmentConfig.getServerHost(),
+        gatewayBaseUrl = configLogic.environmentConfig.getGatewayHost()
     )

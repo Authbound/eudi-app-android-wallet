@@ -38,6 +38,7 @@ import eu.europa.ec.dashboardfeature.ui.settings.AccountDetailsScreen
 import eu.europa.ec.dashboardfeature.ui.transactions.detail.TransactionDetailsScreen
 import eu.europa.ec.dashboardfeature.ui.verification.VerificationCustomCreationScreen
 import eu.europa.ec.dashboardfeature.ui.verification.VerificationRecipientScreen
+import eu.europa.ec.dashboardfeature.ui.verification.VerificationRecipientRoutePayloadStore
 import eu.europa.ec.dashboardfeature.ui.verification.VerificationRecipientViewModel
 import eu.europa.ec.dashboardfeature.ui.verification.VerificationSharingScreen
 import eu.europa.ec.dashboardfeature.ui.verification.VerificationSharingViewModel
@@ -228,16 +229,8 @@ fun NavGraphBuilder.featureDashboardGraph(navController: NavController) {
         composable(
             route = DashboardScreens.VerificationRecipient.screenRoute,
             arguments = listOf(
-                navArgument("sessionId") {
+                navArgument("payloadKey") {
                     type = NavType.StringType
-                },
-                navArgument("accessToken") {
-                    type = NavType.StringType
-                },
-                navArgument("verificationUrl") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
                 },
             )
         ) {
@@ -258,13 +251,16 @@ fun NavGraphBuilder.featureDashboardGraph(navController: NavController) {
             LaunchedEffect(Unit) {
                 actionsViewModel.setEvent(eu.europa.ec.dashboardfeature.ui.actions.Event.OnResume)
             }
+            val payloadKey = it.arguments?.getString("payloadKey").orEmpty()
+            val routePayload = VerificationRecipientRoutePayloadStore.get(payloadKey)
             val verificationRecipientViewModel: VerificationRecipientViewModel = koinViewModel()
             VerificationRecipientScreen(
                 navController = navController,
                 viewModel = verificationRecipientViewModel,
-                sessionId = it.arguments?.getString("sessionId").orEmpty(),
-                accessToken = it.arguments?.getString("accessToken").orEmpty(),
-                verificationUrl = it.arguments?.getString("verificationUrl"),
+                routePayloadKey = payloadKey,
+                sessionId = routePayload?.sessionId.orEmpty(),
+                accessToken = routePayload?.accessToken.orEmpty(),
+                verificationUrl = routePayload?.verificationUrl,
                 notificationCount = actionsState.pendingCount,
                 onNotificationsClick = onNotificationsClick,
             )

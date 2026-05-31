@@ -26,7 +26,8 @@ enum class VerificationTemplateType {
 enum class VerificationRecipientContactType(val apiValue: String) {
     HANDLE("handle"),
     EMAIL("email"),
-    PHONE("phone");
+    PHONE("phone"),
+    LINK("link");
 
     companion object {
         fun fromApiValue(value: String): VerificationRecipientContactType = entries.firstOrNull {
@@ -60,9 +61,13 @@ data class VerificationDraftAttribute(
 )
 
 data class VerificationRecipient(
+    val id: String? = null,
     val contactType: VerificationRecipientContactType,
     val value: String,
+    val publicUrl: String? = null,
     val status: String? = null,
+    val verificationId: String? = null,
+    val verificationStartedAt: Long? = null,
     val resolvedUserId: String? = null,
     val invitedAt: Long? = null,
     val openedAt: Long? = null,
@@ -98,10 +103,8 @@ data class VerificationSession(
     val recipients: List<VerificationRecipient> = emptyList(),
     val accessToken: String? = null,
     val publicUrl: String? = null,
-    val gatewaySessionId: String? = null,
     val qrPayload: String? = null,
     val qrPayloadExpiresAt: Long? = null,
-    val sseToken: String? = null,
     val creditsDeducted: Int? = null,
     val creditsRemaining: Int? = null
 )
@@ -109,20 +112,18 @@ data class VerificationSession(
 data class VerificationRecipientSession(
     val id: String,
     val status: String,
+    val verificationId: String? = null,
     val purpose: String,
     val createdAt: Long,
     val expiresAt: Long?,
     val requester: VerificationRequester?,
     val requestedAttributes: List<VerificationRequestedAttribute>,
     val publicUrl: String,
-    val gatewaySessionId: String? = null,
     val requestUri: String? = null,
-    val requestUriExpiresAt: Long? = null,
-    val sseToken: String? = null,
-    val statusStreamUrl: String? = null
+    val requestUriExpiresAt: Long? = null
 )
 
-private val ExpectedValueAttributes = setOf("full_name", "personal_id", "date_of_birth")
+private val ExpectedValueAttributes = setOf("full_name", "date_of_birth")
 
 fun requiresExpectedValue(attributeKey: String): Boolean = attributeKey in ExpectedValueAttributes
 
@@ -130,6 +131,7 @@ fun VerificationRecipient.lastStatusChangedAt(): Long? = when (status?.lowercase
     "verified" -> verifiedAt ?: updatedAt
     "failed", "rejected", "invalid", "canceled" -> failedAt ?: updatedAt
     "expired" -> updatedAt
+    "verification_started" -> verificationStartedAt ?: updatedAt
     "opened" -> openedAt ?: updatedAt
     null, "", "pending", "invited" -> invitedAt
     else -> listOfNotNull(verifiedAt, failedAt, openedAt, invitedAt, updatedAt).maxOrNull()
@@ -139,6 +141,7 @@ fun VerificationRecipient.lastSessionActivityAt(): Long? = when (status?.lowerca
     "verified" -> verifiedAt ?: updatedAt
     "failed", "rejected", "invalid", "canceled" -> failedAt ?: updatedAt
     "expired" -> updatedAt
+    "verification_started" -> verificationStartedAt ?: updatedAt
     "opened" -> openedAt ?: updatedAt
     else -> null
 }
@@ -160,6 +163,7 @@ fun isVerificationHistoryStatus(status: String): Boolean = status in setOf(
     "verified",
     "failed",
     "rejected",
+    "completed",
     "expired",
     "invalid",
     "canceled",
@@ -168,9 +172,11 @@ fun isVerificationHistoryStatus(status: String): Boolean = status in setOf(
 fun humanizeVerificationStatus(status: String): String = when (status.lowercase()) {
     "pending" -> "Pending"
     "active" -> "Active"
+    "verification_started" -> "Verification started"
     "verified" -> "Verified"
     "failed" -> "Failed"
     "rejected" -> "Rejected"
+    "completed" -> "Completed"
     "expired" -> "Expired"
     "invalid" -> "Invalid"
     "canceled" -> "Canceled"

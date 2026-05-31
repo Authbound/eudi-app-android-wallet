@@ -34,7 +34,7 @@ class ContextExtensionsTest {
     @Test
     fun `create browser only intent returns direct browser target when one package is available`() {
         val intent = createBrowserOnlyIntent(
-            uri = Uri.parse("https://app.authbound.io/verify/session-1?token=token-1"),
+            uri = Uri.parse("https://app.authbound.io/verify/session-1#token=token-1"),
             browserPackages = listOf("com.example.browser")
         )
 
@@ -46,7 +46,7 @@ class ContextExtensionsTest {
     @Test
     fun `create browser only intent returns chooser with packaged browser intents when multiple packages are available`() {
         val intent = createBrowserOnlyIntent(
-            uri = Uri.parse("https://app.authbound.io/verify/session-1?token=token-1"),
+            uri = Uri.parse("https://app.authbound.io/verify/session-1#token=token-1"),
             browserPackages = listOf("com.example.browser", "org.mozilla.firefox")
         )
 
@@ -65,7 +65,7 @@ class ContextExtensionsTest {
     @Test
     fun `create browser only intent returns null when no browser package is available`() {
         val intent = createBrowserOnlyIntent(
-            uri = Uri.parse("https://app.authbound.io/verify/session-1?token=token-1"),
+            uri = Uri.parse("https://app.authbound.io/verify/session-1#token=token-1"),
             browserPackages = emptyList()
         )
 

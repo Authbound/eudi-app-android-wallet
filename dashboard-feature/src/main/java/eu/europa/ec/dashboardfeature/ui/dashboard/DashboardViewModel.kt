@@ -33,6 +33,8 @@ import eu.europa.ec.dashboardfeature.ui.component.BottomNavigationItem
 import eu.europa.ec.dashboardfeature.ui.dashboard.model.SideMenuItemUi
 import eu.europa.ec.dashboardfeature.ui.dashboard.model.SideMenuTypeUi
 import eu.europa.ec.dashboardfeature.ui.dashboard.model.UserProfileUi
+import eu.europa.ec.dashboardfeature.ui.verification.VerificationRecipientRoutePayload
+import eu.europa.ec.dashboardfeature.ui.verification.VerificationRecipientRoutePayloadStore
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 import eu.europa.ec.eudi.wallet.document.DocumentId
@@ -441,11 +443,16 @@ class DashboardViewModel(
 
                     DeepLinkType.VERIFICATION_SESSION -> {
                         parseVerificationSessionDeepLink(uri)?.let { verificationDeepLink ->
+                            val payloadKey = VerificationRecipientRoutePayloadStore.put(
+                                VerificationRecipientRoutePayload(
+                                    sessionId = verificationDeepLink.sessionId,
+                                    accessToken = verificationDeepLink.accessToken,
+                                    verificationUrl = uri.toString()
+                                )
+                            )
                             generateComposableArguments(
                                 mapOf(
-                                    "sessionId" to verificationDeepLink.sessionId,
-                                    "accessToken" to verificationDeepLink.accessToken,
-                                    "verificationUrl" to Uri.encode(uri.toString())
+                                    "payloadKey" to payloadKey
                                 )
                             )
                         }

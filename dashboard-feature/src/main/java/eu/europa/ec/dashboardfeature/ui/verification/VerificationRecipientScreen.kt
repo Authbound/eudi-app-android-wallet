@@ -42,7 +42,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -72,6 +71,7 @@ import java.util.Locale
 fun VerificationRecipientScreen(
     navController: NavController,
     viewModel: VerificationRecipientViewModel,
+    routePayloadKey: String,
     sessionId: String,
     accessToken: String,
     verificationUrl: String? = null,
@@ -144,6 +144,7 @@ fun VerificationRecipientScreen(
             VerificationRecipientEvent.Init(
                 sessionId = sessionId,
                 accessToken = accessToken,
+                routePayloadKey = routePayloadKey,
                 verificationUrl = verificationUrl?.let(Uri::decode)
             )
         )
@@ -168,8 +169,7 @@ private fun VerificationRecipientContent(
     onDismissError: () -> Unit,
 ) {
     val session: VerificationRecipientSession? = state.session
-    val canStartVerification: Boolean = session?.requestUri?.isNotBlank() == true &&
-        !isVerificationHistoryStatus(session.status)
+    val canStartVerification: Boolean = session != null && !isVerificationHistoryStatus(session.status)
 
     Box(
         modifier = Modifier
@@ -229,7 +229,7 @@ private fun VerificationRecipientContent(
                         .fillMaxWidth()
                         .applyTestTag(DashboardTestTags.VerificationRecipient.PRIMARY_BUTTON),
                     onClick = onStartVerification,
-                    enabled = canStartVerification && state.hasConsent
+                    enabled = canStartVerification && state.hasConsent && !state.isStartingVerification
                 ) {
                     Text(
                         text = if (session.status.equals("active", ignoreCase = true)) {
@@ -352,18 +352,6 @@ private fun RequestedAttributesCard(attributes: List<VerificationRequestedAttrib
                             text = attribute.description,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    attribute.expectedValue?.takeIf { it.isNotBlank() }?.let { expectedValue ->
-                        Text(
-                            text = stringResource(
-                                R.string.verification_recipient_expected_value,
-                                expectedValue
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }

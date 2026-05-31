@@ -85,9 +85,9 @@ fun generateNewTaskDeepLink(
     }
 
 fun hasDeepLink(deepLinkUri: Uri?): DeepLinkAction? {
-    return deepLinkUri?.let { uri ->
-        DeepLinkAction(link = uri, type = DeepLinkType.parse(uri))
-    }
+    val uri = deepLinkUri ?: return null
+    if (isVerificationPortalLinkWithTokenQuery(uri)) return null
+    return DeepLinkAction(link = uri, type = DeepLinkType.parse(uri))
 }
 
 fun handleDeepLinkAction(
@@ -113,6 +113,7 @@ fun handleDeepLinkAction(
         }
 
         DeepLinkType.VERIFICATION_SESSION -> {
+            if (arguments == null) return
             screen = DashboardScreens.VerificationRecipient
         }
 
@@ -190,14 +191,56 @@ fun parseVerificationSessionDeepLink(uri: Uri): VerificationSessionDeepLink? {
         ?.takeIf(::isUuid)
         ?: return null
 
-    val accessToken: String = uri.getQueryParameter("token")
-        ?.takeIf(::isUuid)
+    val accessToken: String = uri.getFragmentParameter("token")
+        ?.takeIf(::isOpaqueAccessToken)
         ?: return null
 
     return VerificationSessionDeepLink(
         sessionId = sessionId,
         accessToken = accessToken
     )
+}
+
+fun isVerificationPortalLinkWithTokenQuery(uri: Uri): Boolean {
+    val isVerificationPortalLink = uri.scheme == "https" &&
+        uri.host.equals(BuildConfig.VERIFICATION_PORTAL_HOST, ignoreCase = true) &&
+        uri.pathSegments.size >= 2 &&
+        uri.pathSegments.first() == "verify" &&
+        isUuid(uri.pathSegments[1])
+
+    if (!isVerificationPortalLink) return false
+
+    return uri.queryParameterNames.any { name ->
+        when (name.lowercase()) {
+            "token",
+            "access_token",
+            "verification_token",
+            "authbound_verification_token",
+            "x-authbound-verification-token",
+            "x_authbound_verification_token",
+            "public_token" -> true
+            else -> false
+        }
+    }
+}
+
+private fun isOpaqueAccessToken(value: String): Boolean {
+    return value.length in 16..256 && value.all { character ->
+        character.isLetterOrDigit() || character == '-' || character == '_' || character == '.' || character == '~'
+    }
+}
+
+private fun Uri.getFragmentParameter(name: String): String? {
+    return fragment
+        ?.split('&')
+        ?.firstNotNullOfOrNull { part ->
+            val pieces = part.split('=', limit = 2)
+            if (pieces.size == 2 && Uri.decode(pieces[0]) == name) {
+                Uri.decode(pieces[1])
+            } else {
+                null
+            }
+        }
 }
 
 enum class DeepLinkType(val schemas: List<String>, val host: String? = null) {

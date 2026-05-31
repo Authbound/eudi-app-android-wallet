@@ -22,6 +22,7 @@ import eu.europa.ec.authenticationlogic.usecase.GetCachedLegalAcceptanceUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetMyProfileUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsUserAuthenticatedUseCase
+import eu.europa.ec.authenticationlogic.usecase.SignOutMode
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
 import eu.europa.ec.businesslogic.config.AppBuildType
 import eu.europa.ec.businesslogic.config.ConfigLogic
@@ -30,6 +31,8 @@ import eu.europa.ec.businesslogic.controller.storage.PrefKeys
 import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
 import eu.europa.ec.dashboardfeature.ui.settings.model.SettingsMenuItemType
+import eu.europa.ec.dashboardfeature.ui.verification.VerificationRecipientRoutePayload
+import eu.europa.ec.dashboardfeature.ui.verification.VerificationRecipientRoutePayloadStore
 import eu.europa.ec.dashboardfeature.util.mockedChangeLogUrl
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
@@ -41,6 +44,8 @@ import eu.europa.ec.uilogic.component.ListItemLeadingContentDataUi
 import eu.europa.ec.uilogic.component.ListItemMainContentDataUi
 import eu.europa.ec.uilogic.component.ListItemTrailingContentDataUi
 import junit.framework.TestCase.assertEquals
+import junit.framework.TestCase.assertNull
+import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -114,6 +119,7 @@ class TestSettingsInteractor {
 
     @After
     fun after() {
+        VerificationRecipientRoutePayloadStore.clear()
         closeable.close()
     }
 
@@ -134,6 +140,23 @@ class TestSettingsInteractor {
             .appVersion
     }
     //endregion
+
+    @Test
+    fun `Given verification recipient payloads are cached, When logout, Then payloads are cleared`() =
+        runTest {
+            val payloadKey = VerificationRecipientRoutePayloadStore.put(
+                VerificationRecipientRoutePayload(
+                    sessionId = "550e8400-e29b-41d4-a716-446655440000",
+                    accessToken = "recipient-token",
+                    verificationUrl = "https://app.authbound.io/verify/550e8400-e29b-41d4-a716-446655440000#token=recipient-token"
+                )
+            )
+
+            interactor.logout()
+
+            assertNull(VerificationRecipientRoutePayloadStore.get(payloadKey))
+            verify(signOutUseCase, times(1)).invoke(SignOutMode.Soft)
+        }
 
     //region getChangelogUrl
     @Test

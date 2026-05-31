@@ -49,32 +49,25 @@ import eu.europa.ec.networklogic.model.response.ActionsListResponse
 import eu.europa.ec.networklogic.model.response.DeviceStatusResponse
 import eu.europa.ec.networklogic.model.response.PairingCompleteResponse
 import eu.europa.ec.networklogic.model.response.VerificationPublicSessionResponse
+import eu.europa.ec.networklogic.model.response.StartVerificationInvitationResponse
 import eu.europa.ec.networklogic.model.response.VerificationSessionDetailResponse
-import eu.europa.ec.networklogic.model.response.VerificationSessionStatusEventDto
 import eu.europa.ec.networklogic.model.response.VerificationSessionsListResponse
 import eu.europa.ec.networklogic.model.response.WalletActivationResponse
 import eu.europa.ec.networklogic.model.response.WalletRecoveryPrepareResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
-import io.ktor.client.plugins.timeout
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
-import io.ktor.client.request.prepareGet
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
-import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
-import io.ktor.utils.io.readLine
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
-import kotlinx.serialization.json.Json
 
 /**
  * API client interface for Authbound REST endpoints.
@@ -117,16 +110,13 @@ interface ApiClient {
         bearerToken: String
     ): ApiResponse<ActionRespondResponse>
 
-    // Verification session endpoints
+    // Verification invitation endpoints
     suspend fun createVerificationSession(
         body: CreateVerificationSessionRequest,
         bearerToken: String
     ): ApiResponse<CreateVerificationSessionResponse>
 
-    suspend fun getVerificationSessions(
-        userId: String,
-        bearerToken: String
-    ): ApiResponse<VerificationSessionsListResponse>
+    suspend fun getVerificationSessions(bearerToken: String): ApiResponse<VerificationSessionsListResponse>
 
     suspend fun getVerificationSession(
         sessionId: String,
@@ -138,9 +128,10 @@ interface ApiClient {
         accessToken: String
     ): ApiResponse<VerificationPublicSessionResponse>
 
-    fun observeVerificationSessionStatus(
-        statusStreamUrl: String
-    ): Flow<VerificationSessionStatusEventDto>
+    suspend fun startPublicVerificationSession(
+        sessionId: String,
+        accessToken: String
+    ): ApiResponse<StartVerificationInvitationResponse>
 
     // Device linking endpoints
     suspend fun completePairing(
@@ -169,18 +160,16 @@ interface ApiClient {
  */
 class KtorApiClient(
     private val httpClient: HttpClient,
-    private val baseUrl: String
+    private val baseUrl: String,
+    private val gatewayBaseUrl: String = baseUrl
 ) : ApiClient {
 
     companion object {
         private const val TAG = "KtorApiClient"
-        private val sseJson = Json {
-            ignoreUnknownKeys = true
-        }
     }
 
     init {
-        android.util.Log.d(TAG, "Initialized with baseUrl: $baseUrl")
+        android.util.Log.d(TAG, "Initialized with baseUrl: $baseUrl, gatewayBaseUrl: $gatewayBaseUrl")
     }
 
     /**
@@ -464,7 +453,7 @@ class KtorApiClient(
         bearerToken: String
     ): ApiResponse<CreateVerificationSessionResponse> {
         return executeRequest {
-            httpClient.post("$baseUrl/api/verification-sessions") {
+            httpClient.post("$gatewayBaseUrl/v1/verification-invitations") {
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
                 setBody(body)
@@ -472,14 +461,10 @@ class KtorApiClient(
         }
     }
 
-    override suspend fun getVerificationSessions(
-        userId: String,
-        bearerToken: String
-    ): ApiResponse<VerificationSessionsListResponse> {
+    override suspend fun getVerificationSessions(bearerToken: String): ApiResponse<VerificationSessionsListResponse> {
         return executeRequest {
-            httpClient.get("$baseUrl/api/verification-sessions") {
+            httpClient.get("$gatewayBaseUrl/v1/verification-invitations") {
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
-                parameter("userId", userId)
             }
         }
     }
@@ -489,7 +474,7 @@ class KtorApiClient(
         bearerToken: String
     ): ApiResponse<VerificationSessionDetailResponse> {
         return executeRequest {
-            httpClient.get("$baseUrl/api/verification-sessions/$sessionId") {
+            httpClient.get("$gatewayBaseUrl/v1/verification-invitations/$sessionId") {
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
             }
         }
@@ -500,54 +485,19 @@ class KtorApiClient(
         accessToken: String
     ): ApiResponse<VerificationPublicSessionResponse> {
         return executeRequest {
-            httpClient.get("$baseUrl/api/verification-sessions/public/$sessionId") {
-                parameter("token", accessToken)
+            httpClient.get("$gatewayBaseUrl/v1/verification-invitations/public/$sessionId") {
+                header("X-Authbound-Verification-Token", accessToken)
             }
         }
     }
 
-    override fun observeVerificationSessionStatus(
-        statusStreamUrl: String
-    ): Flow<VerificationSessionStatusEventDto> = flow {
-        httpClient.prepareGet(statusStreamUrl) {
-            header(HttpHeaders.Accept, "text/event-stream")
-            timeout {
-                requestTimeoutMillis = 0
-                socketTimeoutMillis = 0
-            }
-        }.execute { response ->
-            if (!response.status.isSuccess()) {
-                throw IllegalStateException("HTTP ${response.status.value}: ${response.status.description}")
-            }
-
-            val channel = response.bodyAsChannel()
-            var eventName: String? = null
-            val dataLines = mutableListOf<String>()
-
-            while (true) {
-                val line = channel.readLine() ?: break
-
-                when {
-                    line.startsWith("event:") -> {
-                        eventName = line.substringAfter(':').trim()
-                    }
-
-                    line.startsWith("data:") -> {
-                        dataLines += line.substringAfter(':').trimStart()
-                    }
-
-                    line.isBlank() -> {
-                        if (eventName == "status" && dataLines.isNotEmpty()) {
-                            val payload = dataLines.joinToString(separator = "\n")
-                            runCatching {
-                                sseJson.decodeFromString<VerificationSessionStatusEventDto>(payload)
-                            }.onSuccess { emit(it) }
-                        }
-
-                        eventName = null
-                        dataLines.clear()
-                    }
-                }
+    override suspend fun startPublicVerificationSession(
+        sessionId: String,
+        accessToken: String
+    ): ApiResponse<StartVerificationInvitationResponse> {
+        return executeRequest {
+            httpClient.post("$gatewayBaseUrl/v1/verification-invitations/public/$sessionId/start") {
+                header("X-Authbound-Verification-Token", accessToken)
             }
         }
     }

@@ -96,6 +96,8 @@ abstract class EnvironmentConfig {
 
     abstract fun getServerHost(): String
 
+    open fun getGatewayHost(): String = getServerHost()
+
     sealed class ServerConfig {
         data object Debug : ServerConfig()
         data object Release : ServerConfig()

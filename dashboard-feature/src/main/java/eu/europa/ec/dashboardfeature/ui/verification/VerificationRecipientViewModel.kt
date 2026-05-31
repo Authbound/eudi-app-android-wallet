@@ -16,7 +16,6 @@
 
 package eu.europa.ec.dashboardfeature.ui.verification
 
-import android.net.Uri
 import androidx.lifecycle.viewModelScope
 import eu.europa.ec.commonfeature.config.PresentationMode
 import eu.europa.ec.commonfeature.config.RequestUriConfig
@@ -38,11 +37,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.collect
 import org.koin.android.annotation.KoinViewModel
 
 data class VerificationRecipientState(
     val isLoading: Boolean = false,
+    val isStartingVerification: Boolean = false,
     val hasConsent: Boolean = false,
     val session: VerificationRecipientSession? = null,
     val error: String? = null,
@@ -53,6 +52,7 @@ sealed class VerificationRecipientEvent : ViewEvent {
     data class Init(
         val sessionId: String,
         val accessToken: String,
+        val routePayloadKey: String? = null,
         val verificationUrl: String? = null
     ) : VerificationRecipientEvent()
 
@@ -87,9 +87,8 @@ class VerificationRecipientViewModel(
 
     private var sessionId: String? = null
     private var accessToken: String? = null
+    private var routePayloadKey: String? = null
     private var refreshJob: Job? = null
-    private var statusStreamJob: Job? = null
-    private var activeStatusStreamUrl: String? = null
     private var isLoadingSession: Boolean = false
 
     override fun setInitialState(): VerificationRecipientState = VerificationRecipientState(
@@ -101,6 +100,7 @@ class VerificationRecipientViewModel(
             is VerificationRecipientEvent.Init -> initializeSession(
                 sessionId = event.sessionId,
                 accessToken = event.accessToken,
+                routePayloadKey = event.routePayloadKey,
                 verificationUrl = event.verificationUrl
             )
 
@@ -108,8 +108,11 @@ class VerificationRecipientViewModel(
             is VerificationRecipientEvent.ConsentChanged -> setState { copy(hasConsent = event.accepted) }
             VerificationRecipientEvent.StartVerification -> startVerification()
             VerificationRecipientEvent.OpenInBrowser -> openInBrowser()
-            VerificationRecipientEvent.NavigateBack -> setEffect {
-                VerificationRecipientEffect.Navigation.Back
+            VerificationRecipientEvent.NavigateBack -> {
+                VerificationRecipientRoutePayloadStore.remove(routePayloadKey)
+                setEffect {
+                    VerificationRecipientEffect.Navigation.Back
+                }
             }
 
             VerificationRecipientEvent.DismissError -> setState { copy(error = null) }
@@ -118,16 +121,30 @@ class VerificationRecipientViewModel(
 
     override fun onCleared() {
         refreshJob?.cancel()
-        statusStreamJob?.cancel()
         super.onCleared()
     }
 
-    private fun initializeSession(sessionId: String, accessToken: String, verificationUrl: String?) {
+    private fun initializeSession(
+        sessionId: String,
+        accessToken: String,
+        routePayloadKey: String?,
+        verificationUrl: String?
+    ) {
         setState {
             copy(
                 incomingVerificationUrl = verificationUrl?.takeIf(String::isNotBlank)
                     ?: incomingVerificationUrl
             )
+        }
+        this.routePayloadKey = routePayloadKey?.takeIf(String::isNotBlank)
+        if (sessionId.isBlank() || accessToken.isBlank()) {
+            setState {
+                copy(
+                    isLoading = false,
+                    error = resourceProvider.getString(R.string.verification_recipient_refresh_error_empty)
+                )
+            }
+            return
         }
         if (this.sessionId == sessionId && this.accessToken == accessToken && viewState.value.session != null) {
             return
@@ -163,10 +180,10 @@ class VerificationRecipientViewModel(
                         }
                         if (isVerificationHistoryStatus(session.status)) {
                             refreshJob?.cancel()
-                            statusStreamJob?.cancel()
-                            activeStatusStreamUrl = null
+                            refreshJob = null
+                            VerificationRecipientRoutePayloadStore.remove(routePayloadKey)
                         } else {
-                            ensureLiveUpdates(session)
+                            ensureLiveUpdates()
                         }
                     },
                     onFailure = {
@@ -190,8 +207,6 @@ class VerificationRecipientViewModel(
 
     private fun ensurePolling() {
         if (refreshJob?.isActive == true) return
-        statusStreamJob?.cancel()
-        activeStatusStreamUrl = null
         refreshJob = viewModelScope.launch {
             while (isActive) {
                 delay(5_000)
@@ -204,39 +219,13 @@ class VerificationRecipientViewModel(
         }
     }
 
-    private fun ensureLiveUpdates(session: VerificationRecipientSession) {
-        val statusStreamUrl = session.statusStreamUrl
-        if (statusStreamUrl.isNullOrBlank()) {
-            ensurePolling()
-            return
-        }
-        if (activeStatusStreamUrl == statusStreamUrl && statusStreamJob?.isActive == true) {
-            return
-        }
-        refreshJob?.cancel()
-        statusStreamJob?.cancel()
-        activeStatusStreamUrl = statusStreamUrl
-        statusStreamJob = viewModelScope.launch {
-            try {
-                verificationRepository.observePublicVerificationSessionStatus(statusStreamUrl).collect {
-                    loadSession(showLoading = false)
-                }
-            } catch (_: Exception) {
-                activeStatusStreamUrl = null
-                ensurePolling()
-                return@launch
-            }
-
-            activeStatusStreamUrl = null
-            val currentSession = viewState.value.session
-            if (currentSession != null && !isVerificationHistoryStatus(currentSession.status)) {
-                ensurePolling()
-            }
-        }
+    private fun ensureLiveUpdates() {
+        ensurePolling()
     }
 
     private fun startVerification() {
         val session = viewState.value.session ?: return
+        if (viewState.value.isStartingVerification) return
         if (!viewState.value.hasConsent) {
             setEffect {
                 VerificationRecipientEffect.ShowToast(
@@ -245,8 +234,7 @@ class VerificationRecipientViewModel(
             }
             return
         }
-        val requestUri = session.requestUri
-        if (requestUri.isNullOrBlank()) {
+        if (isVerificationHistoryStatus(session.status)) {
             setEffect {
                 VerificationRecipientEffect.ShowToast(
                     resourceProvider.getString(R.string.verification_recipient_request_unavailable)
@@ -254,23 +242,55 @@ class VerificationRecipientViewModel(
             }
             return
         }
-        val serializedConfig = uiSerializer.toBase64(
-            RequestUriConfig(
-                PresentationMode.OpenId4Vp(
-                    uri = requestUri,
-                    initiatorRoute = recipientRoute()
+        val sessionId = sessionId ?: return
+        val accessToken = accessToken ?: return
+        setState { copy(isStartingVerification = true) }
+        viewModelScope.launch {
+            try {
+                verificationRepository.startPublicVerificationSession(sessionId, accessToken).fold(
+                    onSuccess = { startedSession ->
+                        setState { copy(session = startedSession) }
+                        val requestUri = startedSession.requestUri
+                        if (requestUri.isNullOrBlank()) {
+                            setEffect {
+                                VerificationRecipientEffect.ShowToast(
+                                    resourceProvider.getString(R.string.verification_recipient_request_unavailable)
+                                )
+                            }
+                            return@fold
+                        }
+                        val serializedConfig = uiSerializer.toBase64(
+                            RequestUriConfig(
+                                PresentationMode.OpenId4Vp(
+                                    uri = requestUri,
+                                    initiatorRoute = recipientRoute()
+                                )
+                            ),
+                            RequestUriConfig.Parser
+                        )
+                        val screenRoute = generateComposableNavigationLink(
+                            screen = PresentationScreens.PresentationRequest,
+                            arguments = generateComposableArguments(
+                                mapOf(RequestUriConfig.serializedKeyName to serializedConfig)
+                            )
+                        )
+                        refreshJob?.cancel()
+                        refreshJob = null
+                        setEffect {
+                            VerificationRecipientEffect.Navigation.SwitchScreen(screenRoute = screenRoute)
+                        }
+                    },
+                    onFailure = {
+                        setEffect {
+                            VerificationRecipientEffect.ShowToast(
+                                resourceProvider.getString(R.string.verification_recipient_request_unavailable)
+                            )
+                        }
+                    }
                 )
-            ),
-            RequestUriConfig.Parser
-        )
-        val screenRoute = generateComposableNavigationLink(
-            screen = PresentationScreens.PresentationRequest,
-            arguments = generateComposableArguments(
-                mapOf(RequestUriConfig.serializedKeyName to serializedConfig)
-            )
-        )
-        setEffect {
-            VerificationRecipientEffect.Navigation.SwitchScreen(screenRoute = screenRoute)
+            } finally {
+                setState { copy(isStartingVerification = false) }
+            }
         }
     }
 
@@ -293,19 +313,11 @@ class VerificationRecipientViewModel(
     }
 
     private fun recipientRoute(): String {
-        val sessionId = sessionId ?: return DashboardScreens.Dashboard.screenRoute
-        val accessToken = accessToken ?: return DashboardScreens.Dashboard.screenRoute
-        val arguments = mutableMapOf(
-            "sessionId" to sessionId,
-            "accessToken" to accessToken
-        )
-        viewState.value.incomingVerificationUrl
-            ?.takeIf { it.isNotBlank() }
-            ?.let { arguments["verificationUrl"] = Uri.encode(it) }
+        val payloadKey = routePayloadKey ?: return DashboardScreens.Dashboard.screenRoute
         return generateComposableNavigationLink(
             screen = DashboardScreens.VerificationRecipient,
             arguments = generateComposableArguments(
-                arguments
+                mapOf("payloadKey" to payloadKey)
             )
         )
     }
