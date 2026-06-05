@@ -9,6 +9,10 @@ val candourJitpackAuthToken = providers.gradleProperty("JITPACK_AUTH_TOKEN")
     .orElse(providers.environmentVariable("JITPACK_AUTH_TOKEN"))
     .orElse(providers.environmentVariable("jitpackAuthToken"))
 val hasCandourJitpackAuthToken: Boolean = !candourJitpackAuthToken.orNull.isNullOrBlank()
+val isE2eMode: Boolean = providers.gradleProperty("E2E_MODE")
+    .orElse(providers.environmentVariable("E2E_MODE"))
+    .map(String::toBoolean)
+    .getOrElse(false)
 val requestedTaskNames: List<String> = gradle.startParameter.taskNames
 val ideSyncFlags: List<String> = listOf(
     "android.injected.invoked.from.ide",
@@ -34,7 +38,7 @@ val requiresCandourSdkAccess: Boolean = requestedTaskNames.any { taskName ->
         || normalizedTaskName == "lint"
 } || requestedTaskNames.isEmpty() || isIdeSyncOrModelFetch
 
-if (requiresCandourSdkAccess) {
+if (requiresCandourSdkAccess && !isE2eMode) {
     check(hasCandourJitpackAuthToken) {
         "Candour SDK requires private JitPack credentials. Configure JITPACK_AUTH_TOKEN " +
             "or set jitpackAuthToken in ~/.gradle/gradle.properties."
@@ -43,6 +47,15 @@ if (requiresCandourSdkAccess) {
 
 android {
     namespace = "eu.europa.ec.authboundpidfeature"
+
+    if (isE2eMode) {
+        sourceSets.getByName("main") {
+            java.srcDir("src/e2eCandourStub/java")
+            kotlin.directories.add("src/e2eCandourStub/java")
+            res.srcDir("src/e2eCandourStub/res")
+            manifest.srcFile("src/e2eCandourStub/AndroidManifest.xml")
+        }
+    }
 
     buildFeatures {
         dataBinding = true
@@ -55,6 +68,9 @@ moduleConfig {
 
 dependencies {
     implementation(project(LibraryModule.AuthboundPidLogic.path))
+    implementation(libs.timber)
 
-    implementation(libs.candour.sdk) { isTransitive = true }
+    if (!isE2eMode) {
+        implementation(libs.candour.sdk) { isTransitive = true }
+    }
 }
