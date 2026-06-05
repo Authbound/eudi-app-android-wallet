@@ -122,7 +122,7 @@ internal class WalletCoreConfigImpl(
 
                 _config = EudiWalletConfig {
                     configureDocumentKeyCreation(
-                        userAuthenticationRequired = true,
+                        userAuthenticationRequired = !isE2eMode,
                         userAuthenticationTimeout = 30.seconds,
                         useStrongBoxForKeys = true
                     )
