@@ -83,9 +83,6 @@ import eu.europa.ec.uilogic.component.utils.SPACING_EXTRA_SMALL
 import eu.europa.ec.uilogic.component.utils.SPACING_MEDIUM
 import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
 import eu.europa.ec.uilogic.component.wrap.DocumentStatus
-import eu.europa.ec.uilogic.component.wrap.EmptyStateIllustration
-import eu.europa.ec.uilogic.component.wrap.FeatureHighlight
-import eu.europa.ec.uilogic.component.wrap.PremiumEmptyState
 import eu.europa.ec.uilogic.component.wrap.PremiumTab
 import eu.europa.ec.uilogic.component.wrap.PremiumTabRow
 import eu.europa.ec.uilogic.component.wrap.QuickActionCard
@@ -267,27 +264,27 @@ private fun VerificationSessionsContent(
     onSessionClick: (String) -> Unit,
 ) {
     if (sessions.isEmpty()) {
-        PremiumEmptyState(
-            illustration = EmptyStateIllustration.VERIFICATION,
-            title = emptyTitle,
-            description = emptyDescription,
-            features = listOf(
-                FeatureHighlight(
-                    icon = AppIcons.QrScanner,
-                    title = stringResource(R.string.verification_feature_qr_title),
-                    description = stringResource(R.string.verification_feature_qr_description)
-                ),
-                FeatureHighlight(
-                    icon = AppIcons.OpenNew,
-                    title = stringResource(R.string.verification_feature_link_title),
-                    description = stringResource(R.string.verification_feature_link_description)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                CreateVerificationButton(onClick = onCreateClick)
+            }
+            item {
+                VerificationEmptyPanel(
+                    title = emptyTitle,
+                    description = emptyDescription
                 )
-            ),
-            actionLabel = stringResource(R.string.verification_home_create_button),
-            onActionClick = onCreateClick,
-            enableAnimations = false,
-            useActionsStyle = true
-        )
+            }
+            item {
+                VerificationSharingMethodsPanel()
+            }
+            item {
+                Spacer(modifier = Modifier.height(112.dp))
+            }
+        }
         return
     }
 
@@ -316,19 +313,133 @@ private fun VerificationSessionsContent(
 }
 
 @Composable
+private fun VerificationEmptyPanel(
+    title: String,
+    description: String,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            VerificationIconTile(icon = AppIcons.Verified)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun VerificationSharingMethodsPanel() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.10f))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            VerificationMethodRow(
+                icon = AppIcons.QrScanner,
+                title = stringResource(R.string.verification_feature_qr_title),
+                description = stringResource(R.string.verification_feature_qr_description)
+            )
+            VerificationMethodRow(
+                icon = AppIcons.OpenNew,
+                title = stringResource(R.string.verification_feature_link_title),
+                description = stringResource(R.string.verification_feature_link_description)
+            )
+        }
+    }
+}
+
+@Composable
+private fun VerificationMethodRow(
+    icon: eu.europa.ec.uilogic.component.IconDataUi,
+    title: String,
+    description: String,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        VerificationIconTile(icon = icon)
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun VerificationIconTile(icon: eu.europa.ec.uilogic.component.IconDataUi) {
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .background(
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                shape = RoundedCornerShape(12.dp)
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        WrapIcon(
+            iconData = icon,
+            customTint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(22.dp)
+        )
+    }
+}
+
+@Composable
 private fun CreateVerificationButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     QuickActionCard(
-        modifier = modifier.fillMaxWidth().height(80.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .height(92.dp),
         config = QuickActionConfig(
             id = "create_verification",
             title = stringResource(R.string.verification_home_create_button),
             description = stringResource(R.string.verification_home_create_description),
             icon = AppIcons.Add,
-            gradientStart = Color(0xFF1D4ED8),
-            gradientEnd = Color(0xFF3B82F6),
+            gradientStart = MaterialTheme.colorScheme.primary,
+            gradientEnd = MaterialTheme.colorScheme.primary.copy(alpha = 0.86f),
             accentColor = Color.White
         ),
         onClick = onClick

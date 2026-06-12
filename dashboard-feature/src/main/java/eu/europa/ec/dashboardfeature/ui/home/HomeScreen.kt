@@ -959,10 +959,13 @@ private fun buildAddDocumentOptions(
     shouldShowAuthboundPidEntry: Boolean,
 ): List<ModalOptionUi<Event>> {
     return buildList {
+        // Option cards tint their icons, so these must be single-path glyphs:
+        // the AddDocumentFrom* drawables are multi-color illustrations that
+        // flatten into unreadable silhouettes when tinted.
         add(
             ModalOptionUi(
                 title = stringResource(R.string.documents_screen_add_document_option_list),
-                leadingIcon = AppIcons.AddDocumentFromList,
+                leadingIcon = AppIcons.Documents,
                 accentColor = Color(0xFF3B82F6),
                 event = Event.BottomSheet.AddDocument.FromList,
             )
@@ -970,7 +973,7 @@ private fun buildAddDocumentOptions(
         add(
             ModalOptionUi(
                 title = stringResource(R.string.documents_screen_add_document_option_qr),
-                leadingIcon = AppIcons.AddDocumentFromQr,
+                leadingIcon = AppIcons.QrScanner,
                 accentColor = Color(0xFF3B82F6),
                 event = Event.BottomSheet.AddDocument.ScanQr,
             )

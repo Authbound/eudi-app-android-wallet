@@ -20,8 +20,15 @@ import eu.europa.ec.uilogic.component.ListItemDataUi
 
 data class SettingsItemUi(
     val type: SettingsMenuItemType,
+    val section: SettingsSection,
     val data: ListItemDataUi,
 )
+
+enum class SettingsSection {
+    ACCOUNT,
+    SECURITY,
+    SUPPORT,
+}
 
 enum class SettingsMenuItemType {
     ACCOUNT_DETAILS,

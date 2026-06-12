@@ -226,15 +226,6 @@ class HomeViewModel(
                     accentColor = Color(0xFFFBBF24)     // Yellow accent
                 ),
                 QuickActionConfig(
-                    id = "verify",
-                    title = resourceProvider.getString(R.string.verification_quick_action_title),
-                    description = resourceProvider.getString(R.string.verification_quick_action_description),
-                    icon = AppIcons.Verified,
-                    gradientStart = Color(0xFF047857),  // Emerald dark
-                    gradientEnd = Color(0xFF059669),    // Emerald light
-                    accentColor = Color(0xFF34D399)     // Green accent
-                ),
-                QuickActionConfig(
                     id = "sign",
                     title = resourceProvider.getString(R.string.home_screen_sign),
                     description = resourceProvider.getString(R.string.home_screen_sign_card_title),
@@ -775,10 +766,6 @@ class HomeViewModel(
 
             "sign" -> {
                 navigateToDocumentSign()
-            }
-
-            "verify" -> {
-                showBottomSheet(sheetContent = HomeScreenBottomSheetContent.Verification)
             }
 
             "add_credentials" -> {

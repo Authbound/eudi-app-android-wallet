@@ -235,6 +235,12 @@ class ThemeColors {
         internal const val eudiw_theme_dark_glow_accent: Long = 0x4D3B82F6       // 30% opacity accent glow
         internal const val eudiw_theme_dark_glow_primary: Long = 0x263B82F6      // 15% opacity primary glow
 
+        // Brand-fixed navy tokens - identical in light and dark mode.
+        // Hero gradients and icon chips must stay navy in dark mode, where
+        // colorScheme.primary flips to bright blue.
+        internal const val eudiw_theme_brand_navy_deep: Long = 0xFF0A1A36
+        internal const val eudiw_theme_brand_navy_medium: Long = 0xFF1E3A5F
+
         const val eudiw_theme_light_background_preview: Long =
             eudiw_theme_light_surface
         const val eudiw_theme_dark_background_preview: Long =
@@ -443,6 +449,13 @@ class ThemeColors {
             } else {
                 Color(eudiw_theme_light_onActiveHighlight)
             }
+
+        // Brand-fixed navy tokens - identical in light and dark mode
+        val brandNavyDeep: Color
+            get() = Color(eudiw_theme_brand_navy_deep)
+
+        val brandNavyMedium: Color
+            get() = Color(eudiw_theme_brand_navy_medium)
     }
 }
 
@@ -532,3 +545,10 @@ val ColorScheme.onActiveHighlight: Color
     } else {
         Color(ThemeColors.eudiw_theme_light_onActiveHighlight)
     }
+
+// Brand-fixed navy tokens - identical in light and dark mode
+val ColorScheme.brandNavyDeep: Color
+    @Composable get() = Color(ThemeColors.eudiw_theme_brand_navy_deep)
+
+val ColorScheme.brandNavyMedium: Color
+    @Composable get() = Color(ThemeColors.eudiw_theme_brand_navy_medium)

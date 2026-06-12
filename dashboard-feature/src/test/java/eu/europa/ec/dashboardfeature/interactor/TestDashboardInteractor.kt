@@ -110,6 +110,7 @@ class TestDashboardInteractor {
         val verifyItem = sideMenuItems[3] as SideMenuItemUi.ActionItem
         assertEquals(SideMenuTypeUi.VERIFY, verifyItem.type)
         assertEquals("verify", verifyItem.data.itemId)
+        assertEquals(false, verifyItem.isEnabled)
         val verifyMain = verifyItem.data.mainContentData as ListItemMainContentDataUi.Text
         assertEquals(verifyText, verifyMain.text)
         val verifyLeading = verifyItem.data.leadingContentData as ListItemLeadingContentDataUi.Icon

@@ -16,12 +16,22 @@
 
 package eu.europa.ec.dashboardfeature.ui.documents.list
 
+import eu.europa.ec.businesslogic.validator.model.FilterableAttributes
+import eu.europa.ec.businesslogic.validator.model.FilterableItem
 import eu.europa.ec.businesslogic.validator.model.FilterableList
+import eu.europa.ec.corelogic.model.DocumentCategory
+import eu.europa.ec.corelogic.model.DocumentIdentifier
 import eu.europa.ec.dashboardfeature.interactor.AuthboundPidEntryInteractor
 import eu.europa.ec.dashboardfeature.interactor.AuthboundPidEntryState
 import eu.europa.ec.dashboardfeature.interactor.DocumentInteractorGetDocumentsPartialState
 import eu.europa.ec.dashboardfeature.interactor.DocumentsInteractor
+import eu.europa.ec.dashboardfeature.ui.documents.detail.model.DocumentIssuanceStateUi
+import eu.europa.ec.dashboardfeature.ui.documents.list.model.DocumentUi
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
+import eu.europa.ec.uilogic.component.DualSelectorButton
+import eu.europa.ec.uilogic.component.DualSelectorButtonDataUi
+import eu.europa.ec.uilogic.component.ListItemDataUi
+import eu.europa.ec.uilogic.component.ListItemMainContentDataUi
 import eu.europa.ec.testlogic.extension.runTest
 import eu.europa.ec.testlogic.rule.CoroutineTestRule
 import eu.europa.ec.uilogic.navigation.AuthboundPidScreens
@@ -182,6 +192,119 @@ class TestDocumentsViewModel {
             assertFalse(hasAuthboundNavigation)
             collectJob.cancel()
         }
+
+    @Test
+    fun `Given wallet has no documents, When GetDocuments succeeds, Then totalDocumentsCount is zero`() =
+        coroutineRule.runTest {
+            whenever(interactor.getDocuments()).thenReturn(
+                flow {
+                    emit(
+                        DocumentInteractorGetDocumentsPartialState.Success(
+                            allDocuments = FilterableList(emptyList()),
+                            shouldAllowUserInteraction = true
+                        )
+                    )
+                }
+            )
+            val viewModel = createViewModel()
+            viewModel.setEvent(Event.GetDocuments)
+            testScope.advanceUntilIdle()
+            assertEquals(0, viewModel.viewState.value.totalDocumentsCount)
+        }
+
+    @Test
+    fun `Given wallet has documents, When GetDocuments succeeds, Then totalDocumentsCount matches`() =
+        coroutineRule.runTest {
+            whenever(interactor.getDocuments()).thenReturn(
+                flow {
+                    emit(
+                        DocumentInteractorGetDocumentsPartialState.Success(
+                            allDocuments = FilterableList(
+                                listOf(
+                                    mockFilterableDocument(itemId = "doc1"),
+                                    mockFilterableDocument(itemId = "doc2")
+                                )
+                            ),
+                            shouldAllowUserInteraction = true
+                        )
+                    )
+                }
+            )
+            val viewModel = createViewModel()
+            viewModel.setEvent(Event.GetDocuments)
+            testScope.advanceUntilIdle()
+            assertEquals(2, viewModel.viewState.value.totalDocumentsCount)
+        }
+
+    @Test
+    fun `Given no results and zero total documents, Then state resolves to empty wallet`() {
+        val state = stateWith(showNoResultsFound = true, totalDocumentsCount = 0)
+        assertTrue(state.isWalletEmpty)
+        assertFalse(state.showNoMatches)
+    }
+
+    @Test
+    fun `Given no results but existing documents, Then state resolves to no matches`() {
+        val state = stateWith(showNoResultsFound = true, totalDocumentsCount = 2)
+        assertFalse(state.isWalletEmpty)
+        assertTrue(state.showNoMatches)
+    }
+
+    @Test
+    fun `Given results are shown, Then neither empty wallet nor no matches resolves`() {
+        val state = stateWith(showNoResultsFound = false, totalDocumentsCount = 2)
+        assertFalse(state.isWalletEmpty)
+        assertFalse(state.showNoMatches)
+    }
+
+    @Test
+    fun `When EntranceAnimationCompleted, Then hasPlayedEntranceAnimation is true`() =
+        coroutineRule.runTest {
+            val viewModel = createViewModel()
+            assertFalse(viewModel.viewState.value.hasPlayedEntranceAnimation)
+            viewModel.setEvent(Event.EntranceAnimationCompleted)
+            testScope.advanceUntilIdle()
+            assertTrue(viewModel.viewState.value.hasPlayedEntranceAnimation)
+        }
+
+    private fun stateWith(
+        showNoResultsFound: Boolean,
+        totalDocumentsCount: Int,
+    ): State {
+        return State(
+            isLoading = false,
+            sortOrder = DualSelectorButtonDataUi(
+                first = "",
+                second = "",
+                selectedButton = DualSelectorButton.FIRST
+            ),
+            isFilteringActive = false,
+            showNoResultsFound = showNoResultsFound,
+            totalDocumentsCount = totalDocumentsCount,
+        )
+    }
+
+    private fun mockFilterableDocument(itemId: String): FilterableItem {
+        return FilterableItem(
+            payload = DocumentUi(
+                documentIssuanceState = DocumentIssuanceStateUi.Issued,
+                uiData = ListItemDataUi(
+                    itemId = itemId,
+                    mainContentData = ListItemMainContentDataUi.Text("test"),
+                    overlineText = null,
+                    supportingText = null,
+                    leadingContentData = null,
+                    trailingContentData = null
+                ),
+                documentIdentifier = DocumentIdentifier.MdocPid,
+                documentCategory = DocumentCategory.Government,
+            ),
+            attributes = object : FilterableAttributes {
+                override val searchTags: List<String>
+                    get() = emptyList()
+            }
+        )
+    }
 
     private fun createViewModel(): DocumentsViewModel {
         return DocumentsViewModel(

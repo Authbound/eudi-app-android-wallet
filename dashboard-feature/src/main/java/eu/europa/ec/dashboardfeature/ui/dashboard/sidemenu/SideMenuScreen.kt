@@ -49,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.res.stringResource
@@ -342,15 +343,19 @@ private fun SideMenuOptions(
 
                 is SideMenuItemUi.ActionItem -> {
                     WrapListItem(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .alpha(if (item.isEnabled) 1f else 0.38f),
                         mainContentVerticalPadding = SPACING_MEDIUM.dp,
                         item = item.data,
                         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                        onItemClick = {
-                            onEventSent(
-                                Event.SideMenu.ItemClicked(itemType = item.type)
-                            )
-                        }
+                        onItemClick = if (item.isEnabled) {
+                            { _: ListItemDataUi ->
+                                onEventSent(
+                                    Event.SideMenu.ItemClicked(itemType = item.type)
+                                )
+                            }
+                        } else null
                     )
 
                     if (index != sideMenuOptions.lastIndex && sideMenuOptions[index + 1] is SideMenuItemUi.ActionItem) {

@@ -17,6 +17,7 @@
 package io.authbound.wallet.test
 
 import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
+import eu.europa.ec.authenticationlogic.model.LegalAcceptanceSnapshot
 import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.auth.user.UserSession
 import io.mockk.mockk
@@ -53,6 +54,14 @@ data class AuthScenarioState(
     val migrationCompleted: Boolean = false,
     val biometricsEnabled: Boolean = false,
     val biometricsPreferenceDecided: Boolean = true,
+    val legalAcceptanceSnapshot: LegalAcceptanceSnapshot = LegalAcceptanceSnapshot(
+        requiredTermsVersion = "terms-2026-04-08",
+        acceptedTermsVersion = "terms-2026-04-08",
+        acceptedTermsAt = "2026-04-08T00:00:00Z",
+        requiredPrivacyVersion = "privacy-2026-04-08",
+        acknowledgedPrivacyVersion = "privacy-2026-04-08",
+        acknowledgedPrivacyAt = "2026-04-08T00:00:00Z",
+    ),
 ) {
     fun isUnlocked(): Boolean {
         return unlockDeadlineMillis?.let { currentTimeMillis < it } == true

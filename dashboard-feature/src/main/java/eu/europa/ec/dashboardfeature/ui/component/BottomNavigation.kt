@@ -82,6 +82,7 @@ sealed class BottomNavigationItem(
     @param:StringRes val titleRes: Int,
     val icon: IconDataUi,
     val iconSize: Dp = 24.dp,
+    val isDisabled: Boolean = false,
 ) {
     data object Home : BottomNavigationItem(
         route = "HOME",
@@ -98,7 +99,8 @@ sealed class BottomNavigationItem(
     data object Verify : BottomNavigationItem(
         route = "VERIFY",
         titleRes = R.string.verification_quick_action_title,
-        icon = AppIcons.Verified
+        icon = AppIcons.Verified,
+        isDisabled = true,
     )
 
     data object Settings: BottomNavigationItem(
@@ -108,17 +110,21 @@ sealed class BottomNavigationItem(
     )
 }
 
-@Composable
-fun BottomNavigationBar(
-    navController: NavController,
-    onQrScanClick: () -> Unit = {}
-) {
-    val navItems = listOf(
+fun getBottomNavigationItems(): List<BottomNavigationItem> {
+    return listOf(
         BottomNavigationItem.Home,
         BottomNavigationItem.Wallet,
         BottomNavigationItem.Verify,
         BottomNavigationItem.Settings
     )
+}
+
+@Composable
+fun BottomNavigationBar(
+    navController: NavController,
+    onQrScanClick: () -> Unit = {}
+) {
+    val navItems: List<BottomNavigationItem> = getBottomNavigationItems()
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -181,8 +187,9 @@ fun BottomNavigationBar(
                             label = stringResource(screen.titleRes),
                             selected = selected,
                             iconSize = screen.iconSize,
+                            isDisabled = screen.isDisabled,
                             onItemClick = {
-                                if (!selected) {
+                                if (!screen.isDisabled && !selected) {
                                     navController.navigate(screen.route) {
                                         popUpTo(navController.graph.findStartDestination().id) {
                                             saveState = true
@@ -220,8 +227,9 @@ fun BottomNavigationBar(
                             label = stringResource(screen.titleRes),
                             selected = selected,
                             iconSize = screen.iconSize,
+                            isDisabled = screen.isDisabled,
                             onItemClick = {
-                                if (!selected) {
+                                if (!screen.isDisabled && !selected) {
                                     navController.navigate(screen.route) {
                                         popUpTo(navController.graph.findStartDestination().id) {
                                             saveState = true
@@ -292,14 +300,16 @@ fun FloatingNavItem(
     label: String,
     selected: Boolean,
     iconSize: Dp = 24.dp,
+    isDisabled: Boolean = false,
     onItemClick: () -> Unit
 ) {
     val view = LocalView.current
     val interactionSource = remember { MutableInteractionSource() }
+    val isActive: Boolean = selected && !isDisabled
 
     // Smooth scale animation with spring
     val scale by animateFloatAsState(
-        targetValue = if (selected) 1.15f else 1f,
+        targetValue = if (isActive) 1.15f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium
@@ -309,20 +319,24 @@ fun FloatingNavItem(
 
     // Animated background alpha
     val backgroundAlpha by animateFloatAsState(
-        targetValue = if (selected) 0.12f else 0f,
+        targetValue = if (isActive) 0.12f else 0f,
         animationSpec = tween(durationMillis = 200),
         label = "backgroundAlpha"
     )
 
     // Animated icon tint - uses activeHighlight for proper dark theme contrast
     val iconTint by animateColorAsState(
-        targetValue = if (selected) MaterialTheme.colorScheme.activeHighlight else MaterialTheme.colorScheme.outline,
+        targetValue = when {
+            isDisabled -> MaterialTheme.colorScheme.outline.copy(alpha = 0.38f)
+            isActive -> MaterialTheme.colorScheme.activeHighlight
+            else -> MaterialTheme.colorScheme.outline
+        },
         animationSpec = tween(durationMillis = 200),
         label = "iconTint"
     )
 
     val indicatorWidth by animateDpAsState(
-        targetValue = if (selected) 16.dp else 0.dp,
+        targetValue = if (isActive) 16.dp else 0.dp,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium
@@ -331,8 +345,8 @@ fun FloatingNavItem(
     )
 
     // Trigger haptic feedback when selected
-    LaunchedEffect(selected) {
-        if (selected) {
+    LaunchedEffect(isActive) {
+        if (isActive) {
             view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
         }
     }
@@ -341,11 +355,13 @@ fun FloatingNavItem(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
             .clickable(
+                enabled = !isDisabled,
                 interactionSource = interactionSource,
                 indication = null
             ) {
                 onItemClick()
             }
+            .alpha(if (isDisabled) 0.62f else 1f)
             .padding(horizontal = 4.dp, vertical = 8.dp)
     ) {
         // Icon container with fixed size - requiredSize ensures it won't be constrained
@@ -361,7 +377,7 @@ fun FloatingNavItem(
             // Scaled icon
             WrapIcon(
                 iconData = icon,
-                enabled = true,
+                enabled = !isDisabled,
                 customTint = iconTint,
                 modifier = Modifier
                     .size(iconSize)
@@ -375,7 +391,7 @@ fun FloatingNavItem(
             contentAlignment = Alignment.Center
         ) {
             // Glow effect behind indicator (only when selected)
-            if (selected) {
+            if (isActive) {
                 Box(
                     modifier = Modifier
                         .width(24.dp)

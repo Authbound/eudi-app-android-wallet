@@ -30,7 +30,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
@@ -42,7 +41,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -55,18 +53,17 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import eu.europa.ec.dashboardfeature.interactor.CredentialSummaryUi
 import eu.europa.ec.resourceslogic.R
+import eu.europa.ec.resourceslogic.theme.values.brandNavyDeep
+import eu.europa.ec.resourceslogic.theme.values.brandNavyMedium
 import eu.europa.ec.uilogic.component.AppIcons
-import eu.europa.ec.uilogic.component.ImageOrPlaceholder
 import eu.europa.ec.uilogic.component.content.ContentScreen
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
 import eu.europa.ec.uilogic.component.content.ToolbarConfig
 import eu.europa.ec.uilogic.component.utils.SPACING_MEDIUM
 import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
 import eu.europa.ec.uilogic.component.utils.VSpacer
+import eu.europa.ec.uilogic.component.wrap.ProfileAvatar
 import eu.europa.ec.uilogic.component.wrap.WrapIcon
-import androidx.compose.foundation.Image
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
@@ -166,8 +163,8 @@ private fun ProfileHeroCard(
                 .background(
                     brush = Brush.linearGradient(
                         colors = listOf(
-                            Color(0xFF0A1A36),
-                            Color(0xFF1E3A5F)
+                            MaterialTheme.colorScheme.brandNavyDeep,
+                            MaterialTheme.colorScheme.brandNavyMedium
                         )
                     )
                 )
@@ -177,34 +174,13 @@ private fun ProfileHeroCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Avatar with initials
-                Box(
-                    modifier = Modifier
-                        .size(52.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (!pidPortraitBase64.isNullOrBlank()) {
-                        ImageOrPlaceholder(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(CircleShape),
-                            base64Image = pidPortraitBase64,
-                            contentScale = ContentScale.Crop,
-                            fallbackIcon = AppIcons.User,
-                        )
-                    } else {
-                        Image(
-                            painter = painterResource(id = R.drawable.authbound_avatar_placeholder_mascot),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
-                }
+                // Shared avatar: PID portrait or initials monogram
+                ProfileAvatar(
+                    displayName = displayName,
+                    avatarUrl = null,
+                    portraitBase64 = pidPortraitBase64,
+                    size = 52,
+                )
 
                 Spacer(modifier = Modifier.width(16.dp))
 

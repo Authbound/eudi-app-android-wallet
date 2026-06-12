@@ -104,6 +104,26 @@ class TestHomeViewModel {
 
     // Test 1: GetCredentials event fetches and updates credentials in state
     @Test
+    fun `Given verification is incomplete, When initial state is created, Then verify quick action is not shown`() {
+        val viewModel = createViewModel()
+
+        val hasVerifyQuickAction: Boolean = viewModel.viewState.value.quickActions.any { action ->
+            action.id == "verify"
+        }
+
+        assertFalse(hasVerifyQuickAction)
+    }
+
+    @Test
+    fun `Given verification is incomplete, When verify quick action event is received, Then verification sheet is not opened`() {
+        val viewModel = createViewModel()
+
+        viewModel.setEvent(Event.QuickActionPressed("verify"))
+
+        assertFalse(viewModel.viewState.value.isBottomSheetOpen)
+    }
+
+    @Test
     fun `Given credentials available, When GetCredentials event, Then state contains credentials`() =
         coroutineRule.runTest {
             // Given

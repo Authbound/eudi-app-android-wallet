@@ -916,14 +916,14 @@ private fun BottomSheetWithThreeBigIconsPreview() {
             options = listOf(
                 ModalOptionUi(
                     title = "From list",
-                    leadingIcon = AppIcons.AddDocumentFromList,
+                    leadingIcon = AppIcons.Documents,
                     accentColor = Color(0xFF3B82F6),
                     event = DummyEventForPreview,
                     enabled = true,
                 ),
                 ModalOptionUi(
                     title = "Scan QR",
-                    leadingIcon = AppIcons.AddDocumentFromQr,
+                    leadingIcon = AppIcons.QrScanner,
                     accentColor = Color(0xFF3B82F6),
                     event = DummyEventForPreview,
                     enabled = true,

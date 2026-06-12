@@ -16,25 +16,38 @@
 
 package eu.europa.ec.uilogic.component
 
+import android.view.HapticFeedbackConstants
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
-import eu.europa.ec.uilogic.component.utils.SIZE_SMALL
 import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
 import eu.europa.ec.uilogic.component.wrap.WrapIcon
 import eu.europa.ec.uilogic.component.wrap.WrapIconButton
@@ -49,9 +62,9 @@ fun FiltersSearchBar(
     isFilteringActive: Boolean = false,
 ) {
     val focusManager = LocalFocusManager.current
+    val hairlineColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
     Row(
-        modifier = Modifier
-            .fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         OutlinedTextField(
@@ -62,17 +75,23 @@ fun FiltersSearchBar(
             onValueChange = {
                 onValueChange(it)
             },
-            placeholder = { Text(placeholder) },
+            placeholder = {
+                Text(
+                    text = placeholder,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            },
             leadingIcon = {
                 WrapIcon(
                     iconData = AppIcons.Search,
-                    customTint = MaterialTheme.colorScheme.onSurfaceVariant
+                    customTint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
             },
             trailingIcon = if (text.isNotEmpty()) {
                 {
                     WrapIconButton(
                         iconData = AppIcons.Close,
+                        customTint = MaterialTheme.colorScheme.onSurfaceVariant,
                         onClick = {
                             onClearClick()
                             focusManager.clearFocus()
@@ -80,31 +99,71 @@ fun FiltersSearchBar(
                     )
                 }
             } else null,
-            shape = MaterialTheme.shapes.extraLarge,
+            shape = RoundedCornerShape(18.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                unfocusedBorderColor = MaterialTheme.colorScheme.surfaceContainer,
-                focusedBorderColor = MaterialTheme.colorScheme.surfaceContainer,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest
+                unfocusedBorderColor = hairlineColor,
+                focusedBorderColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f),
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh
             )
         )
 
-        Box {
-            WrapIconButton(
+        FilterButton(
+            isFilteringActive = isFilteringActive,
+            onClick = onFilterClick,
+            modifier = Modifier.padding(start = SPACING_SMALL.dp)
+        )
+    }
+}
+
+@Composable
+private fun FilterButton(
+    isFilteringActive: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val view = LocalView.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1f,
+        animationSpec = tween(durationMillis = 100),
+        label = "filter_button_scale"
+    )
+    Box(modifier = modifier) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .scale(scale)
+                .clip(RoundedCornerShape(18.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(18.dp)
+                )
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = ripple()
+                ) {
+                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    onClick()
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            WrapIcon(
                 iconData = AppIcons.Filters,
                 customTint = MaterialTheme.colorScheme.onSurfaceVariant
-            ) {
-                onFilterClick()
-            }
-            if (isFilteringActive) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = SPACING_SMALL.dp, end = SPACING_SMALL.dp)
-                        .size((SIZE_SMALL * 1.5).dp)
-                        .background(MaterialTheme.colorScheme.primary, CircleShape)
-                )
-            }
+            )
+        }
+        if (isFilteringActive) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 4.dp, end = 4.dp)
+                    .size(7.dp)
+                    .background(MaterialTheme.colorScheme.tertiary, CircleShape)
+            )
         }
     }
 }

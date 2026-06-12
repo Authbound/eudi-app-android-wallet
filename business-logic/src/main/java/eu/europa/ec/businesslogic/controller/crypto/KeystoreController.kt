@@ -164,7 +164,11 @@ class KeystoreControllerImpl(
             keyPairGenerator.initialize(parameterSpec)
             keyPairGenerator.generateKeyPair()
 
-            keyStore.getCertificateChain(WUA_KEY_ALIAS)
+            val certificateChain: Array<Certificate>? = keyStore.getCertificateChain(WUA_KEY_ALIAS)
+            if (certificateChain == null) {
+                logController.w(javaClass.simpleName) { "Generated WUA key but AndroidKeyStore returned null certificate chain" }
+            }
+            certificateChain
         }
     }
 

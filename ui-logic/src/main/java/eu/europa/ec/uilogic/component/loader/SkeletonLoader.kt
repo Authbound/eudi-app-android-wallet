@@ -128,8 +128,8 @@ fun SkeletonCircle(
 }
 
 /**
- * A skeleton card that mimics the DocumentCard loading state.
- * Shows a placeholder with icon, title, subtitle, and status badge areas.
+ * A skeleton card that mimics the VisualCredentialCard loading state:
+ * a tall card with issuer row up top and title/expiry lines at the bottom.
  */
 @Composable
 fun SkeletonDocumentCard(
@@ -137,51 +137,44 @@ fun SkeletonDocumentCard(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(24.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
         shadowElevation = 2.dp
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .height(200.dp)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Icon placeholder
-            SkeletonCircle(size = 48.dp)
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            // Text content
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Issuer name (overline)
-                SkeletonBox(
-                    modifier = Modifier.fillMaxWidth(0.4f),
-                    height = 12.dp
-                )
-                // Document title
-                SkeletonBox(
-                    modifier = Modifier.fillMaxWidth(0.7f),
-                    height = 18.dp
-                )
-                // Validity info
-                SkeletonBox(
-                    modifier = Modifier.fillMaxWidth(0.5f),
-                    height = 14.dp
-                )
+            // Top row: issuer logo + issuer name / credential type lines
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SkeletonCircle(size = 40.dp)
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    SkeletonBox(
+                        modifier = Modifier.width(140.dp),
+                        height = 14.dp
+                    )
+                    SkeletonBox(
+                        modifier = Modifier.width(90.dp),
+                        height = 10.dp
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // Status badge placeholder
-            SkeletonBox(
-                modifier = Modifier.width(60.dp),
-                height = 24.dp,
-                cornerRadius = 12.dp
-            )
+            // Bottom block: document title + validity line
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SkeletonBox(
+                    modifier = Modifier.fillMaxWidth(0.55f),
+                    height = 18.dp
+                )
+                SkeletonBox(
+                    modifier = Modifier.fillMaxWidth(0.35f),
+                    height = 12.dp
+                )
+            }
         }
     }
 }
@@ -265,6 +258,11 @@ fun SkeletonDocumentList(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Category header line above the first card
+        SkeletonBox(
+            modifier = Modifier.width(120.dp),
+            height = 14.dp
+        )
         repeat(count) {
             SkeletonDocumentCard()
         }

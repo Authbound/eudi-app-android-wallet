@@ -176,10 +176,9 @@ class WalletAttestationRepositoryImpl(
 
     private suspend fun HttpResponse.requireSuccess(endpoint: String) {
         if (!status.isSuccess()) {
-            val body = runCatching { bodyAsText() }.getOrDefault("<unreadable>")
-            Log.e(TAG, "HTTP ${status.value} from $endpoint — response: $body")
+            Log.e(TAG, "HTTP ${status.value} from $endpoint")
             throw IllegalStateException(
-                "Wallet attestation request failed: HTTP ${status.value} from $endpoint — $body"
+                "Wallet attestation request failed: HTTP ${status.value} from $endpoint"
             )
         }
     }

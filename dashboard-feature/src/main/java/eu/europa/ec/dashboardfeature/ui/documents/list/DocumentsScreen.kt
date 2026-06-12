@@ -17,7 +17,17 @@
 package eu.europa.ec.dashboardfeature.ui.documents.list
 
 import android.content.Context
+import android.view.HapticFeedbackConstants
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +35,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -37,8 +51,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,15 +65,24 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -73,6 +98,8 @@ import eu.europa.ec.dashboardfeature.ui.common.resolveCredentialVisualType
 import eu.europa.ec.dashboardfeature.ui.component.NotificationIconButton
 import eu.europa.ec.dashboardfeature.util.TestTag
 import eu.europa.ec.resourceslogic.R
+import eu.europa.ec.resourceslogic.theme.values.brandNavyDeep
+import eu.europa.ec.resourceslogic.theme.values.brandNavyMedium
 import eu.europa.ec.resourceslogic.theme.values.warning
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.DualSelectorButton
@@ -111,8 +138,8 @@ import eu.europa.ec.uilogic.component.wrap.DocumentCategoryHeader
 import eu.europa.ec.uilogic.component.wrap.VisualCredentialCard
 import eu.europa.ec.uilogic.component.wrap.VisualCredentialConfig
 import eu.europa.ec.uilogic.component.wrap.WrapExpandableListItem
+import eu.europa.ec.uilogic.component.wrap.WrapIcon
 import eu.europa.ec.uilogic.component.wrap.WrapIconButton
-import eu.europa.ec.uilogic.component.wrap.WrapListItem
 import eu.europa.ec.uilogic.component.wrap.WrapModalBottomSheet
 import eu.europa.ec.uilogic.component.loader.SkeletonDocumentList
 import eu.europa.ec.uilogic.extension.applyTestTag
@@ -123,6 +150,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
@@ -130,6 +158,10 @@ import kotlinx.coroutines.launch
 typealias DashboardEvent = eu.europa.ec.dashboardfeature.ui.dashboard.Event
 typealias OpenSideMenuEvent = eu.europa.ec.dashboardfeature.ui.dashboard.Event.SideMenu.Open
 
+/**
+ * Unused upstream container: WalletScreen is the live host for the Documents tab
+ * (it renders [DocumentsTabContent] directly and owns the top bar).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DocumentsScreen(
@@ -306,18 +338,21 @@ internal fun DocumentsContent(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 90.dp),
         ) {
-            item {
-                val searchItemUi =
-                    SearchItemUi(searchLabel = stringResource(R.string.documents_screen_search_label))
-                FiltersSearchBar(
-                    placeholder = searchItemUi.searchLabel,
-                    onValueChange = { onEventSend(Event.OnSearchQueryChanged(it)) },
-                    onFilterClick = { onEventSend(Event.FiltersPressed) },
-                    onClearClick = { onEventSend(Event.OnSearchQueryChanged("")) },
-                    isFilteringActive = state.isFilteringActive,
-                    text = state.searchText
-                )
-                VSpacer.Large()
+            // Searching an empty wallet is meaningless — the hero replaces the search row.
+            if (!state.isWalletEmpty) {
+                item {
+                    val searchItemUi =
+                        SearchItemUi(searchLabel = stringResource(R.string.documents_screen_search_label))
+                    FiltersSearchBar(
+                        placeholder = searchItemUi.searchLabel,
+                        onValueChange = { onEventSend(Event.OnSearchQueryChanged(it)) },
+                        onFilterClick = { onEventSend(Event.FiltersPressed) },
+                        onClearClick = { onEventSend(Event.OnSearchQueryChanged("")) },
+                        isFilteringActive = state.isFilteringActive,
+                        text = state.searchText
+                    )
+                    VSpacer.Large()
+                }
             }
 
             if (state.isLoading && state.documentsUi.isEmpty()) {
@@ -330,9 +365,28 @@ internal fun DocumentsContent(
                             .padding(horizontal = SPACING_MEDIUM.dp)
                     )
                 }
-            } else if (state.showNoResultsFound) {
+            } else if (state.isWalletEmpty) {
                 item {
-                    NoResults(modifier = Modifier.fillMaxWidth())
+                    EmptyWalletHero(
+                        onAddDocument = { onEventSend(Event.AddDocumentPressed) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = SPACING_SMALL.dp)
+                    )
+                }
+            } else if (state.showNoMatches) {
+                item {
+                    NoMatchesState(
+                        isFilteringActive = state.isFilteringActive,
+                        hasSearchText = state.searchText.isNotBlank(),
+                        onClearAll = {
+                            onEventSend(Event.OnSearchQueryChanged(""))
+                            if (state.isFilteringActive) {
+                                onEventSend(Event.OnFiltersReset)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             } else {
                 itemsIndexed(items = state.documentsUi) { index, (documentCategory, documents) ->
@@ -341,18 +395,19 @@ internal fun DocumentsContent(
                         category = documentCategory,
                         documents = documents,
                         categoryIndex = index,
+                        enableEntranceAnimations = !state.hasPlayedEntranceAnimation,
                         onEventSend = onEventSend
                     )
 
                     // Section divider between categories
                     if (index != state.documentsUi.lastIndex) {
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(20.dp))
                         HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 48.dp),
+                            modifier = Modifier.padding(horizontal = SPACING_LARGE.dp),
                             thickness = 0.5.dp,
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(20.dp))
                     }
                 }
             }
@@ -384,6 +439,16 @@ internal fun DocumentsContent(
 
     OneTimeLaunchedEffect {
         onEventSend(Event.Init)
+    }
+
+    // Let the staggered card entrance play exactly once per process; the flag lives in
+    // ViewModel state so tab switches (which dispose this composition) don't replay it.
+    val hasDocuments = state.documentsUi.isNotEmpty()
+    LaunchedEffect(hasDocuments) {
+        if (hasDocuments && !state.hasPlayedEntranceAnimation) {
+            delay(600)
+            onEventSend(Event.EntranceAnimationCompleted)
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -427,6 +492,7 @@ private fun DocumentCategorySection(
     category: DocumentCategory,
     documents: List<DocumentUi>,
     categoryIndex: Int,
+    enableEntranceAnimations: Boolean,
     onEventSend: (Event) -> Unit,
 ) {
     Column(
@@ -511,8 +577,8 @@ private fun DocumentCategorySection(
                     hasPhoto = hasPhoto,
                     portraitBase64 = documentItem.portraitBase64
                 ),
-                animationDelay = (categoryIndex * 100) + (docIndex * 50),
-                enableAnimations = false,
+                animationDelay = ((categoryIndex * 100) + (docIndex * 50)).coerceAtMost(300),
+                enableAnimations = enableEntranceAnimations,
                 onClick = {
                     val onItemClickEvent = if (
                         documentItem.documentIssuanceState == DocumentIssuanceStateUi.Pending
@@ -580,20 +646,265 @@ private fun getDisplayTitle(
     }
 }
 
+/**
+ * Premium onboarding empty state shown when the wallet holds no documents at all.
+ * Mirrors the Home screen's empty hero (navy gradient, security dot grid, concentric
+ * arcs) so a new user's first two screens speak the same visual language.
+ */
 @Composable
-private fun NoResults(
+private fun EmptyWalletHero(
+    onAddDocument: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier) {
-        WrapListItem(
-            item = ListItemDataUi(
-                itemId = stringResource(R.string.documents_screen_search_no_results_id),
-                mainContentData = ListItemMainContentDataUi.Text(text = stringResource(R.string.documents_screen_search_no_results)),
-            ),
-            onItemClick = null,
-            modifier = Modifier.fillMaxWidth(),
-            mainContentVerticalPadding = SPACING_MEDIUM.dp,
+    val view = LocalView.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.98f else 1f,
+        animationSpec = tween(durationMillis = 100),
+        label = "empty_wallet_hero_scale"
+    )
+    var isVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(100)
+        isVisible = true
+    }
+
+    val gradientStart = MaterialTheme.colorScheme.brandNavyDeep
+    val gradientEnd = MaterialTheme.colorScheme.brandNavyMedium
+    val accent = MaterialTheme.colorScheme.tertiary
+
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = fadeIn(tween(420)) + slideInVertically(
+            animationSpec = tween(380),
+            initialOffsetY = { it / 5 }
         )
+    ) {
+        Box(
+            modifier = modifier
+                .height(220.dp)
+                .scale(scale)
+                .clip(RoundedCornerShape(24.dp))
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = ripple(color = Color.White.copy(alpha = 0.10f))
+                ) {
+                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    onAddDocument()
+                }
+                .background(
+                    brush = Brush.linearGradient(
+                        colors = listOf(gradientStart, gradientEnd),
+                        start = Offset(0f, 0f),
+                        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+                    )
+                )
+        ) {
+            // Security dot-grid + concentric arc motif (same recipe as the Home empty hero)
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val spacing = 22.dp.toPx()
+                val dotRadius = 1.1.dp.toPx()
+                val dotColor = accent.copy(alpha = 0.09f)
+                var xi = 0f
+                while (xi <= size.width + spacing) {
+                    var yi = 0f
+                    while (yi <= size.height + spacing) {
+                        drawCircle(color = dotColor, radius = dotRadius, center = Offset(xi, yi))
+                        yi += spacing
+                    }
+                    xi += spacing
+                }
+                val arcColor = Color(0xFF60A5FA)
+                listOf(88.dp.toPx(), 130.dp.toPx(), 172.dp.toPx()).forEachIndexed { index, radius ->
+                    drawArc(
+                        color = arcColor.copy(alpha = 0.068f - index * 0.014f),
+                        startAngle = 128f,
+                        sweepAngle = 124f,
+                        useCenter = false,
+                        topLeft = Offset(size.width - radius, -radius * 0.52f),
+                        size = Size(radius * 2f, radius * 2f),
+                        style = Stroke(width = 1.dp.toPx())
+                    )
+                }
+            }
+
+            // Radial glow accent hugging the top-right corner (the parent clip crops
+            // the offset so it reads as corner light, not a mid-card haze)
+            Box(
+                modifier = Modifier
+                    .size(190.dp)
+                    .align(Alignment.TopEnd)
+                    .offset(x = 55.dp, y = (-55).dp)
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                accent.copy(alpha = 0.15f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = SPACING_LARGE.dp, vertical = 22.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Top row: icon circle + section pill badge
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(accent.copy(alpha = 0.22f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        WrapIcon(
+                            iconData = AppIcons.Id,
+                            customTint = Color(0xFF93C5FD),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(Color.White.copy(alpha = 0.09f))
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.documents_screen_empty_badge),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.2.sp
+                            ),
+                            color = Color(0xFF93C5FD)
+                        )
+                    }
+                }
+
+                // Bottom block: headline + supporting copy + primary CTA
+                Column {
+                    Text(
+                        text = stringResource(R.string.documents_screen_empty_title),
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = (-0.5).sp,
+                            lineHeight = 30.sp
+                        ),
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.height(5.dp))
+                    Text(
+                        text = stringResource(R.string.documents_screen_empty_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.6f),
+                        maxLines = 2
+                    )
+                    Spacer(modifier = Modifier.height(SPACING_MEDIUM.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(accent)
+                            .clickable {
+                                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                                onAddDocument()
+                            }
+                            .padding(horizontal = 20.dp, vertical = 12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp)
+                        ) {
+                            WrapIcon(
+                                iconData = AppIcons.Add,
+                                customTint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = stringResource(R.string.documents_screen_empty_cta),
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Quiet inline state for when search/filters match nothing — distinct from an empty
+ * wallet, which gets the onboarding hero instead.
+ */
+@Composable
+private fun NoMatchesState(
+    isFilteringActive: Boolean,
+    hasSearchText: Boolean,
+    onClearAll: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var isVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        isVisible = true
+    }
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = fadeIn(tween(300))
+    ) {
+        Column(
+            modifier = modifier.padding(
+                horizontal = SPACING_LARGE.dp,
+                vertical = 48.dp
+            ),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                contentAlignment = Alignment.Center
+            ) {
+                WrapIcon(
+                    iconData = AppIcons.Search,
+                    customTint = MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            VSpacer.Medium()
+            Text(
+                text = stringResource(R.string.documents_screen_no_results_title),
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.SemiBold
+                ),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            VSpacer.Small()
+            Text(
+                text = stringResource(R.string.documents_screen_no_results_description),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            if (isFilteringActive || hasSearchText) {
+                VSpacer.Small()
+                TextButton(onClick = onClearAll) {
+                    Text(
+                        text = stringResource(R.string.documents_screen_no_results_clear_action),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -756,10 +1067,13 @@ private fun buildAddDocumentOptions(
     shouldShowAuthboundPidEntry: Boolean,
 ): List<ModalOptionUi<Event>> {
     return buildList {
+        // Option cards tint their icons, so these must be single-path glyphs:
+        // the AddDocumentFrom* drawables are multi-color illustrations that
+        // flatten into unreadable silhouettes when tinted.
         add(
             ModalOptionUi(
                 title = stringResource(R.string.documents_screen_add_document_option_list),
-                leadingIcon = AppIcons.AddDocumentFromList,
+                leadingIcon = AppIcons.Documents,
                 accentColor = Color(0xFF3B82F6),
                 event = Event.BottomSheet.AddDocument.FromList,
             )
@@ -767,7 +1081,7 @@ private fun buildAddDocumentOptions(
         add(
             ModalOptionUi(
                 title = stringResource(R.string.documents_screen_add_document_option_qr),
-                leadingIcon = AppIcons.AddDocumentFromQr,
+                leadingIcon = AppIcons.QrScanner,
                 accentColor = Color(0xFF3B82F6),
                 event = Event.BottomSheet.AddDocument.ScanQr,
             )

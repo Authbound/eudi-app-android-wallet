@@ -23,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.wrap.WrapIconButton
@@ -32,6 +33,7 @@ fun NotificationIconButton(
     badgeCount: Int,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    tint: Color = MaterialTheme.colorScheme.onSurface,
 ) {
     val badgeText: String? = when {
         badgeCount > 99 -> "99+"
@@ -55,7 +57,7 @@ fun NotificationIconButton(
     ) {
         WrapIconButton(
             iconData = AppIcons.Notifications,
-            customTint = MaterialTheme.colorScheme.onSurface,
+            customTint = tint,
             onClick = onClick,
         )
     }

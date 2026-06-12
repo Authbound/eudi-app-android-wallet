@@ -275,9 +275,6 @@ class WalletSetupViewModel(
                     prepareWalletRecoveryUseCase(listOf("local_reset_completed")).getOrThrow()
                 }
 
-                logController.d("WalletSetupViewModel", "Push Token: $pushToken")
-                logController.d("WalletSetupViewModel", "Device Info: $deviceInfo")
-
                 // Step 2-4: Create wallet attestation (challenge → keys → activate)
                 setState { copy(currentStep = ActivationStep.GENERATING_KEYS) }
                 createWalletAttestationUseCase(deviceInfo, pushToken).getOrThrow()

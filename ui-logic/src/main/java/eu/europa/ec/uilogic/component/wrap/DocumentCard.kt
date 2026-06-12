@@ -57,6 +57,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import eu.europa.ec.resourceslogic.theme.values.pending
 import eu.europa.ec.resourceslogic.theme.values.success
 import eu.europa.ec.resourceslogic.theme.values.warning
@@ -300,8 +301,9 @@ fun StatusBadge(status: DocumentStatus, label: String, modifier: Modifier = Modi
 }
 
 /**
- * A modern category header for grouping documents. Features icon-forward design with sentence case
- * typography.
+ * A modern category header for grouping documents. Uses the brand section-header
+ * language (uppercase, letterspaced label) so document groups read as quiet
+ * structure beneath the gradient credential cards.
  */
 @Composable
 fun DocumentCategoryHeader(
@@ -318,17 +320,16 @@ fun DocumentCategoryHeader(
         if (icon != null) {
             WrapIcon(
                     iconData = icon,
-                    customTint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
+                    customTint = MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.size(18.dp)
             )
         }
 
-        // Title with sentence case (more modern, easier to read)
         Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
+                text = title.uppercase(),
+                style = MaterialTheme.typography.labelLarge.copy(letterSpacing = 1.2.sp),
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         // Optional document count badge

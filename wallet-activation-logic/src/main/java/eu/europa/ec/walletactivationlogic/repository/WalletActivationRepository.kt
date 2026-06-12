@@ -65,7 +65,7 @@ open class WalletActivationRepositoryImpl(
             val preparedChallenge: AttestationChallengeResponse? =
                 walletRecoveryChallengeController.consumePreparedChallenge()
             if (preparedChallenge != null) {
-                logController.d("WalletActivation", "Using prepared recovery challenge: ${preparedChallenge.challengeId}")
+                logController.d("WalletActivation", "Using prepared recovery challenge")
                 return Result.success(preparedChallenge)
             }
             val token = getAuthToken()
@@ -79,7 +79,7 @@ open class WalletActivationRepositoryImpl(
             if (response.isSuccessful) {
                 val responseBody = response.body()
                 if (responseBody != null) {
-                    logController.d("WalletActivation", "Challenge received: ${responseBody.challengeId}")
+                    logController.d("WalletActivation", "Challenge received")
                     Result.success(responseBody)
                 } else {
                     logController.e("WalletActivation", Exception("Challenge response body is null"))
@@ -132,13 +132,13 @@ open class WalletActivationRepositoryImpl(
                 pushNotificationProvider = "fcm"
             )
 
-            logController.d("WalletActivation", "Enhanced Device Security Assessment: $enhancedDeviceInfo")
+            logController.d("WalletActivation", "Device security assessment prepared")
             val response = api.activateWallet(request, token)
 
             if (response.isSuccessful) {
                 val responseBody = response.body()
                 if (responseBody != null) {
-                    logController.d("WalletActivation", "WUA Success: $responseBody")
+                    logController.d("WalletActivation", "WUA activation succeeded")
                     Result.success(responseBody)
                 } else {
                     logController.e("WalletActivation", Exception("WUA failed. Error body is null"))
@@ -150,10 +150,9 @@ open class WalletActivationRepositoryImpl(
                     )
                 }
             } else {
-                val errorBody = response.errorBody()
-                logController.e("WalletActivation") { "WUA HTTP ${response.code()}: $errorBody" }
+                logController.e("WalletActivation") { "WUA HTTP ${response.code()}" }
                 val error = parseHttpError(response, challengeId)
-                logController.e("WalletActivation", Exception("WUA failed: ${error.message}"))
+                logController.e("WalletActivation", Exception("WUA activation failed"))
                 Result.failure(error)
             }
         } catch (e: WalletActivationError) {

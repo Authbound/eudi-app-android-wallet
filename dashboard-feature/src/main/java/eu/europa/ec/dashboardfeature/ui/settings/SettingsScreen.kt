@@ -15,63 +15,81 @@
  */
 
 package eu.europa.ec.dashboardfeature.ui.settings
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.automirrored.filled.ExitToApp
+
 import android.content.Context
+import android.view.HapticFeedbackConstants
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.background
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.Image
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import eu.europa.ec.authenticationlogic.model.Profile
+import eu.europa.ec.dashboardfeature.ui.component.NotificationIconButton
 import eu.europa.ec.dashboardfeature.ui.settings.model.SettingsItemUi
 import eu.europa.ec.dashboardfeature.ui.settings.model.SettingsMenuItemType
-import eu.europa.ec.dashboardfeature.ui.component.NotificationIconButton
+import eu.europa.ec.dashboardfeature.ui.settings.model.SettingsSection
 import eu.europa.ec.resourceslogic.R
+import eu.europa.ec.resourceslogic.theme.values.brandNavyDeep
+import eu.europa.ec.resourceslogic.theme.values.brandNavyMedium
+import eu.europa.ec.resourceslogic.theme.values.glowAccent
 import eu.europa.ec.uilogic.component.AppIcons
-import eu.europa.ec.uilogic.component.ImageOrPlaceholder
 import eu.europa.ec.uilogic.component.ListItemDataUi
 import eu.europa.ec.uilogic.component.ListItemLeadingContentDataUi
 import eu.europa.ec.uilogic.component.ListItemMainContentDataUi
@@ -86,18 +104,18 @@ import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
 import eu.europa.ec.uilogic.component.utils.VSpacer
 import eu.europa.ec.uilogic.component.wrap.ButtonConfig
 import eu.europa.ec.uilogic.component.wrap.ButtonType
+import eu.europa.ec.uilogic.component.wrap.MenuSectionHeader
+import eu.europa.ec.uilogic.component.wrap.ProfileAvatar
+import eu.europa.ec.uilogic.component.wrap.SwitchDataUi
 import eu.europa.ec.uilogic.component.wrap.WrapButton
-import eu.europa.ec.uilogic.component.wrap.WrapListItem
-import eu.europa.ec.uilogic.component.wrap.WrapCard
-import eu.europa.ec.uilogic.component.wrap.WrapImage
-import eu.europa.ec.uilogic.component.wrap.WrapAsyncImage
+import eu.europa.ec.uilogic.component.wrap.WrapIcon
+import eu.europa.ec.uilogic.component.wrap.WrapSwitch
 import eu.europa.ec.uilogic.extension.openIntentChooser
 import eu.europa.ec.uilogic.extension.openUrl
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.onEach
-import eu.europa.ec.authenticationlogic.model.Profile
 
 @Composable
 fun SettingsScreen(
@@ -108,6 +126,20 @@ fun SettingsScreen(
 ) {
     val state: State by viewModel.viewState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val scrollState = rememberScrollState()
+
+    // The bell sits over the navy hero at the top of the scroll content and
+    // over the light surface once scrolled; animate between the two tints.
+    val heroThresholdPx = with(LocalDensity.current) { 160.dp.toPx() }
+    val bellTint by animateColorAsState(
+        targetValue = if (scrollState.value < heroThresholdPx) {
+            Color.White
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        },
+        animationSpec = tween(durationMillis = 200),
+        label = "settings_bell_tint"
+    )
 
     LaunchedEffect(Unit) {
         viewModel.setEvent(Event.RefreshPidPortrait)
@@ -120,7 +152,8 @@ fun SettingsScreen(
         topBar = {
             TopBar(
                 notificationCount = notificationCount,
-                onNotificationsClick = onNotificationsClick
+                onNotificationsClick = onNotificationsClick,
+                tint = bellTint,
             )
         }
     ) { paddingValues ->
@@ -133,6 +166,7 @@ fun SettingsScreen(
             },
             context = context,
             paddingValues = paddingValues,
+            scrollState = scrollState,
         )
     }
 }
@@ -161,6 +195,7 @@ private fun handleNavigationEffect(
 private fun TopBar(
     notificationCount: Int,
     onNotificationsClick: () -> Unit,
+    tint: Color,
 ) {
     Box(
         modifier = Modifier
@@ -174,6 +209,7 @@ private fun TopBar(
             modifier = Modifier.align(Alignment.CenterEnd),
             badgeCount = notificationCount,
             onClick = onNotificationsClick,
+            tint = tint,
         )
     }
 }
@@ -186,7 +222,15 @@ private fun Content(
     onNavigationRequested: (Effect.Navigation) -> Unit,
     context: Context,
     paddingValues: PaddingValues,
+    scrollState: ScrollState,
 ) {
+    val groupedItems = remember(state.settingsItems) {
+        state.settingsItems.groupBy { it.section }
+    }
+    val visibleSections = remember(groupedItems) {
+        SettingsSection.entries.filter { !groupedItems[it].isNullOrEmpty() }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -194,89 +238,47 @@ private fun Content(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 .padding(bottom = paddingValues.calculateBottomPadding())
         ) {
-            // Scrollable top band background - lighter blue and taller
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(232.dp)
-                    .background(Color(0xFFB3D4FF))
-            )
-
-            ProfileHeader(
-                email = state.userEmail,
-                phone = state.authInfo.userInfo?.phone,
-                profile = state.authInfo.profile,
-                pidPortraitBase64 = state.pidPortraitBase64
-            )
-
-            // Section separator (top, full width to minimize visual gap)
-            HorizontalDivider(
-                modifier = Modifier
-                    .fillMaxWidth(0.92f)
-                    .align(Alignment.CenterHorizontally),
-                thickness = 0.5.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-            )
-            SettingsItemsSection(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = SPACING_LARGE.dp),
-                context = context,
-                items = state.settingsItems,
-                onEventSent = onEventSend,
-            )
-            HorizontalDivider(
-                modifier = Modifier
-                    .fillMaxWidth(0.85f)
-                    .align(Alignment.CenterHorizontally),
-                thickness = 0.5.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-            )
-
-            VSpacer.Large()
-
-            WrapButton(
-                modifier = Modifier
-                    .wrapContentWidth()
-                    .padding(SPACING_MEDIUM.dp)
-                    .align(Alignment.CenterHorizontally),
-                buttonConfig = ButtonConfig(
-                    type = ButtonType.PRIMARY,
-                    onClick = { onEventSend(Event.Logout) },
-                    buttonColors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Logout",
-                    style = MaterialTheme.typography.labelLarge
+            EntranceAnimated(index = 0) {
+                SettingsHeroHeader(
+                    email = state.userEmail,
+                    phone = state.authInfo.userInfo?.phone,
+                    profile = state.authInfo.profile,
+                    pidPortraitBase64 = state.pidPortraitBase64,
                 )
             }
 
-            Text(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = SPACING_MEDIUM.dp),
-                text = state.appVersion,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center
-            )
+            VSpacer.Medium()
+
+            visibleSections.forEachIndexed { index, section ->
+                EntranceAnimated(index = index + 1) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = SPACING_LARGE.dp)
+                    ) {
+                        MenuSectionHeader(title = sectionTitle(section))
+                        SettingsSectionCard(
+                            items = groupedItems.getValue(section),
+                            context = context,
+                            onEventSent = onEventSend,
+                        )
+                    }
+                }
+                VSpacer.Small()
+            }
+
+            EntranceAnimated(index = visibleSections.size + 1) {
+                LogoutFooter(
+                    appVersion = state.appVersion,
+                    onEventSend = onEventSend,
+                )
+            }
 
             Spacer(modifier = Modifier.height(90.dp))
         }
-
     }
 
     LaunchedEffect(Unit) {
@@ -295,177 +297,334 @@ private fun Content(
             }
         }.collect()
     }
-
 }
 
+/**
+ * Navy gradient hero with decorative accents, the user's avatar
+ * (PID portrait or initials monogram), and identity details.
+ */
 @Composable
-private fun ProfileHeader(email: String?, phone: String?, profile: Profile?, pidPortraitBase64: String?) {
-    Column(
+private fun SettingsHeroHeader(
+    email: String?,
+    phone: String?,
+    profile: Profile?,
+    pidPortraitBase64: String?,
+) {
+    val resolvedName = remember(profile, email) {
+        profile?.displayName?.takeIf { it.isNotBlank() }
+            ?: email?.substringBefore("@")?.takeIf { it.isNotBlank() }
+            ?: "User"
+    }
+    val accentColor = MaterialTheme.colorScheme.tertiary
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .offset(y = (-84).dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
+            .background(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.brandNavyDeep,
+                        MaterialTheme.colorScheme.brandNavyMedium,
+                    ),
+                    start = Offset(0f, 0f),
+                    end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+                )
+            )
     ) {
-        // Outer white ring to appear outside the avatar circle (with shadow)
-        Box(
+        Canvas(modifier = Modifier.matchParentSize()) {
+            drawCircle(
+                color = accentColor.copy(alpha = 0.08f),
+                radius = 45.dp.toPx(),
+                center = Offset(size.width - 30.dp.toPx(), 50.dp.toPx()),
+                style = Stroke(width = 1.5.dp.toPx())
+            )
+            drawCircle(
+                color = accentColor.copy(alpha = 0.12f),
+                radius = 20.dp.toPx(),
+                center = Offset(size.width - 70.dp.toPx(), 110.dp.toPx())
+            )
+            drawCircle(
+                color = accentColor.copy(alpha = 0.10f),
+                radius = 8.dp.toPx(),
+                center = Offset(size.width - 24.dp.toPx(), 140.dp.toPx())
+            )
+        }
+
+        Column(
             modifier = Modifier
-                .size(148.dp)
-                .shadow(elevation = 12.dp, shape = CircleShape, clip = false)
-                .clip(CircleShape)
-                .background(Color.White),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(
+                    start = SPACING_LARGE.dp,
+                    end = SPACING_LARGE.dp,
+                    top = 48.dp,
+                    bottom = 32.dp,
+                ),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Surface(
-                modifier = Modifier
-                    .size(138.dp)
-                    .clip(CircleShape),
-                color = MaterialTheme.colorScheme.secondaryContainer,
-            ) {
-                // Using local avatar resource
-                if (!pidPortraitBase64.isNullOrBlank()) {
-                    ImageOrPlaceholder(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape),
-                        base64Image = pidPortraitBase64,
-                        contentScale = ContentScale.Crop,
-                        fallbackIcon = AppIcons.User,
-                    )
-                } else {
-                    Image(
-                        painter = painterResource(id = R.drawable.authbound_avatar_placeholder_mascot),
-                        contentDescription = "User Avatar",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                }
+            Box(contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .size(152.dp)
+                        .background(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.glowAccent,
+                                    Color.Transparent,
+                                )
+                            ),
+                            shape = CircleShape
+                        )
+                )
+                ProfileAvatar(
+                    displayName = resolvedName,
+                    avatarUrl = null,
+                    portraitBase64 = pidPortraitBase64,
+                    size = 120,
+                )
             }
-        }
-        VSpacer.Medium()
-        Text(
-            text = profile?.displayName?.takeIf { it.isNotBlank() } ?: "User Profile",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Black,
-        )
-        Text(
-            text = profile?.handle?.let { "@$it" } ?: email ?: "Email not available",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        // Small top padding before contact info rows
-        VSpacer.Small()
-        // Contact info rows below name
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = SPACING_LARGE.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+
+            VSpacer.Medium()
+
             Text(
-                text = "Phone",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f)
+                text = resolvedName,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                textAlign = TextAlign.Center,
             )
-            Text(
-                text = phone?.takeIf { it.isNotBlank() } ?: "Phone not set",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-        VSpacer.Small()
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = SPACING_LARGE.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Mail",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                text = email ?: "N/A",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+
+            profile?.handle?.takeIf { it.isNotBlank() }?.let { handle ->
+                Text(
+                    text = "@$handle",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.75f),
+                )
+            }
+
+            VSpacer.Small()
+
+            email?.takeIf { it.isNotBlank() }?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.7f),
+                )
+            }
+            phone?.takeIf { it.isNotBlank() }?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.7f),
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun SettingsItemsSection(
-    modifier: Modifier = Modifier,
-    context: Context,
+private fun sectionTitle(section: SettingsSection): String = stringResource(
+    id = when (section) {
+        SettingsSection.ACCOUNT -> R.string.settings_section_account
+        SettingsSection.SECURITY -> R.string.settings_section_security
+        SettingsSection.SUPPORT -> R.string.settings_section_support
+    }
+)
+
+@Composable
+private fun SettingsSectionCard(
     items: List<SettingsItemUi>,
+    context: Context,
     onEventSent: (Event) -> Unit,
 ) {
-    SettingsItems(
-        context = context,
-        items = items,
-        onEventSent = onEventSent
-    )
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
+        ),
+    ) {
+        Column {
+            items.forEachIndexed { index, settingsItemUi ->
+                SettingsRow(
+                    item = settingsItemUi,
+                    context = context,
+                    onEventSent = onEventSent,
+                )
+                if (index != items.lastIndex) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(start = 72.dp),
+                        thickness = 0.5.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
-private fun SettingsItems(
+private fun SettingsRow(
+    item: SettingsItemUi,
     context: Context,
-    items: List<SettingsItemUi>,
     onEventSent: (Event) -> Unit,
 ) {
-    Column {
-        items.forEachIndexed { index, settingsItemUi ->
-            // Enlarge leading icons and main text
-            val iconSize: Int = if (
-                settingsItemUi.type == SettingsMenuItemType.BIOMETRIC_AUTHENTICATION
-            ) {
-                30
-            } else {
-                36
-            }
-            val adjustedData: ListItemDataUi = when (val lead = settingsItemUi.data.leadingContentData) {
-                is ListItemLeadingContentDataUi.Icon ->
-                    settingsItemUi.data.copy(leadingContentData = lead.copy(size = iconSize))
-                else -> settingsItemUi.data
-            }
-            WrapListItem(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = SPACING_MEDIUM.dp, end = SPACING_SMALL.dp),
-                item = adjustedData,
-                onItemClick = {
-                    if (settingsItemUi.type == SettingsMenuItemType.BIOMETRIC_AUTHENTICATION) {
-                        onEventSent(
-                            Event.ToggleBiometricAuthentication(context = context)
-                        )
-                    } else {
-                        onEventSent(
-                            Event.ItemClicked(itemType = settingsItemUi.type)
-                        )
-                    }
-                },
-                throttleClicks = false,
-                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                mainContentVerticalPadding = SPACING_LARGE.dp,
-                mainContentTextStyle = MaterialTheme.typography.titleMedium,
-            )
+    val view = LocalView.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.99f else 1f,
+        animationSpec = tween(durationMillis = 100),
+        label = "settings_row_scale"
+    )
 
-            if (index != items.lastIndex) {
-                HorizontalDivider(
-                    modifier = Modifier
-                        .fillMaxWidth(0.85f)
-                        .align(Alignment.CenterHorizontally),
-                    thickness = 0.5.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+    val title = (item.data.mainContentData as? ListItemMainContentDataUi.Text)?.text.orEmpty()
+    val leadingIcon = (item.data.leadingContentData as? ListItemLeadingContentDataUi.Icon)?.iconData
+    val trailingContent = item.data.trailingContentData
+
+    fun sendClickEvent() {
+        if (item.type == SettingsMenuItemType.BIOMETRIC_AUTHENTICATION) {
+            onEventSent(Event.ToggleBiometricAuthentication(context = context))
+        } else {
+            onEventSent(Event.ItemClicked(itemType = item.type))
+        }
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .scale(scale)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(bounded = true),
+                onClick = {
+                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    sendClickEvent()
+                }
+            )
+            .padding(horizontal = SPACING_MEDIUM.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Muted solid navy keeps the white icon legible in both modes while
+        // letting the row label, not the chip, lead the visual hierarchy.
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.brandNavyMedium)
+                .border(
+                    width = 1.dp,
+                    color = Color.White.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(12.dp)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            leadingIcon?.let {
+                WrapIcon(
+                    iconData = it,
+                    customTint = Color.White,
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
+
+        Spacer(modifier = Modifier.width(SPACING_MEDIUM.dp))
+
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
+        )
+
+        when (trailingContent) {
+            is ListItemTrailingContentDataUi.Switch -> {
+                WrapSwitch(
+                    switchData = trailingContent.switchData,
+                    onCheckedChange = {
+                        view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                        onEventSent(Event.ToggleBiometricAuthentication(context = context))
+                    },
+                )
+            }
+
+            else -> {
+                WrapIcon(
+                    iconData = AppIcons.KeyboardArrowRight,
+                    customTint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LogoutFooter(
+    appVersion: String,
+    onEventSend: (Event) -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        VSpacer.Large()
+
+        WrapButton(
+            modifier = Modifier
+                .wrapContentWidth()
+                .padding(SPACING_MEDIUM.dp),
+            buttonConfig = ButtonConfig(
+                type = ButtonType.SECONDARY,
+                isWarning = true,
+                onClick = { onEventSend(Event.Logout) },
+            )
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Logout",
+                style = MaterialTheme.typography.labelLarge
+            )
+        }
+
+        Text(
+            modifier = Modifier.fillMaxWidth(),
+            text = appVersion,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+/**
+ * Staggered fade + slide entrance, 300ms with 50ms delay per index.
+ */
+@Composable
+private fun EntranceAnimated(
+    index: Int,
+    content: @Composable () -> Unit,
+) {
+    val visibleState = remember {
+        MutableTransitionState(initialState = false).apply { targetState = true }
+    }
+    AnimatedVisibility(
+        visibleState = visibleState,
+        enter = fadeIn(
+            animationSpec = tween(durationMillis = 300, delayMillis = index * 50)
+        ) + slideInVertically(
+            animationSpec = tween(durationMillis = 300, delayMillis = index * 50)
+        ) { fullHeight -> fullHeight / 8 },
+    ) {
+        content()
     }
 }
 
@@ -476,9 +635,51 @@ private fun SettingsScreenPreview() {
         val context = LocalContext.current
 
         val settingsItems = listOf(
-
+            SettingsItemUi(
+                type = SettingsMenuItemType.ACCOUNT_DETAILS,
+                section = SettingsSection.ACCOUNT,
+                data = ListItemDataUi(
+                    itemId = "account_details",
+                    mainContentData = ListItemMainContentDataUi.Text(text = "Account details"),
+                    leadingContentData = ListItemLeadingContentDataUi.Icon(
+                        iconData = AppIcons.UserIcon
+                    ),
+                    trailingContentData = ListItemTrailingContentDataUi.Icon(
+                        iconData = AppIcons.KeyboardArrowRight
+                    )
+                )
+            ),
+            SettingsItemUi(
+                type = SettingsMenuItemType.CHANGE_PIN,
+                section = SettingsSection.SECURITY,
+                data = ListItemDataUi(
+                    itemId = "change_pin",
+                    mainContentData = ListItemMainContentDataUi.Text(text = "Change PIN"),
+                    leadingContentData = ListItemLeadingContentDataUi.Icon(
+                        iconData = AppIcons.ChangePin
+                    ),
+                    trailingContentData = ListItemTrailingContentDataUi.Icon(
+                        iconData = AppIcons.KeyboardArrowRight
+                    )
+                )
+            ),
+            SettingsItemUi(
+                type = SettingsMenuItemType.BIOMETRIC_AUTHENTICATION,
+                section = SettingsSection.SECURITY,
+                data = ListItemDataUi(
+                    itemId = "biometric_authentication",
+                    mainContentData = ListItemMainContentDataUi.Text(text = "Biometric authentication"),
+                    leadingContentData = ListItemLeadingContentDataUi.Icon(
+                        iconData = AppIcons.TouchId
+                    ),
+                    trailingContentData = ListItemTrailingContentDataUi.Switch(
+                        switchData = SwitchDataUi(isChecked = true)
+                    )
+                )
+            ),
             SettingsItemUi(
                 type = SettingsMenuItemType.RETRIEVE_LOGS,
+                section = SettingsSection.SUPPORT,
                 data = ListItemDataUi(
                     itemId = "retrieve_logs",
                     mainContentData = ListItemMainContentDataUi.Text(
@@ -505,7 +706,8 @@ private fun SettingsScreenPreview() {
             onEventSend = {},
             onNavigationRequested = {},
             context = context,
-            paddingValues = PaddingValues(SPACING_MEDIUM.dp)
+            paddingValues = PaddingValues(SPACING_MEDIUM.dp),
+            scrollState = rememberScrollState(),
         )
     }
 }

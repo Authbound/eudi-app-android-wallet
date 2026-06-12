@@ -31,6 +31,7 @@ import eu.europa.ec.businesslogic.controller.storage.PrefKeys
 import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
 import eu.europa.ec.dashboardfeature.ui.settings.model.SettingsMenuItemType
+import eu.europa.ec.dashboardfeature.ui.settings.model.SettingsSection
 import eu.europa.ec.dashboardfeature.ui.verification.VerificationRecipientRoutePayload
 import eu.europa.ec.dashboardfeature.ui.verification.VerificationRecipientRoutePayloadStore
 import eu.europa.ec.dashboardfeature.util.mockedChangeLogUrl
@@ -45,6 +46,7 @@ import eu.europa.ec.uilogic.component.ListItemMainContentDataUi
 import eu.europa.ec.uilogic.component.ListItemTrailingContentDataUi
 import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertNull
+import junit.framework.TestCase.assertTrue
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
@@ -223,6 +225,7 @@ class TestSettingsInteractor {
 
         val accountDetailsItem = settingsItems[0]
         assertEquals(SettingsMenuItemType.ACCOUNT_DETAILS, accountDetailsItem.type)
+        assertEquals(SettingsSection.ACCOUNT, accountDetailsItem.section)
         assertEquals(accountDetailsIdString, accountDetailsItem.data.itemId)
         val accountDetailsMain =
             accountDetailsItem.data.mainContentData as ListItemMainContentDataUi.Text
@@ -236,6 +239,7 @@ class TestSettingsInteractor {
 
         val changePinItem = settingsItems[1]
         assertEquals(SettingsMenuItemType.CHANGE_PIN, changePinItem.type)
+        assertEquals(SettingsSection.SECURITY, changePinItem.section)
         assertEquals(changePinIdString, changePinItem.data.itemId)
         val changePinMain = changePinItem.data.mainContentData as ListItemMainContentDataUi.Text
         assertEquals(changePinText, changePinMain.text)
@@ -248,6 +252,7 @@ class TestSettingsInteractor {
 
         val biometricItem = settingsItems[2]
         assertEquals(SettingsMenuItemType.BIOMETRIC_AUTHENTICATION, biometricItem.type)
+        assertEquals(SettingsSection.SECURITY, biometricItem.section)
         assertEquals(biometricAuthenticationIdString, biometricItem.data.itemId)
         val biometricMain = biometricItem.data.mainContentData as ListItemMainContentDataUi.Text
         assertEquals(biometricAuthenticationText, biometricMain.text)
@@ -261,6 +266,7 @@ class TestSettingsInteractor {
 
         val privacyDataItem = settingsItems[3]
         assertEquals(SettingsMenuItemType.PRIVACY_AND_DATA, privacyDataItem.type)
+        assertEquals(SettingsSection.SUPPORT, privacyDataItem.section)
         assertEquals(privacyDataIdString, privacyDataItem.data.itemId)
         val privacyDataMain =
             privacyDataItem.data.mainContentData as ListItemMainContentDataUi.Text
@@ -274,6 +280,7 @@ class TestSettingsInteractor {
 
         val retrieveLogsItem = settingsItems[4]
         assertEquals(SettingsMenuItemType.RETRIEVE_LOGS, retrieveLogsItem.type)
+        assertEquals(SettingsSection.SUPPORT, retrieveLogsItem.section)
         assertEquals(retrieveLogsIdString, retrieveLogsItem.data.itemId)
         val retrieveLogsMain =
             retrieveLogsItem.data.mainContentData as ListItemMainContentDataUi.Text
@@ -302,6 +309,24 @@ class TestSettingsInteractor {
         val privacyDataItem = settingsItems[3]
         assertEquals(SettingsMenuItemType.PRIVACY_AND_DATA, privacyDataItem.type)
         assertEquals(privacyDataIdString, privacyDataItem.data.itemId)
+    }
+
+    @Test
+    fun `Given any build, When getSettingsItemsUi is called, Then sections appear in ACCOUNT, SECURITY, SUPPORT order`() {
+        whenever(configLogic.appBuildType).thenReturn(AppBuildType.RELEASE)
+        mockStringsNeededForGetSettingsItemsUi(resourcesProvider = resourceProvider)
+        val settingsItems = interactor.getSettingsItemsUi(
+            changelogUrl = mockedChangeLogUrl,
+            isBiometricsEnabled = false
+        )
+
+        // The screen groups items by section in enum order; items must already
+        // be sorted so each section forms one contiguous block.
+        val sectionOrdinals = settingsItems.map { it.section.ordinal }
+        assertEquals(sectionOrdinals.sorted(), sectionOrdinals)
+        assertTrue(settingsItems.any { it.section == SettingsSection.ACCOUNT })
+        assertTrue(settingsItems.any { it.section == SettingsSection.SECURITY })
+        assertTrue(settingsItems.any { it.section == SettingsSection.SUPPORT })
     }
     //endregion
 

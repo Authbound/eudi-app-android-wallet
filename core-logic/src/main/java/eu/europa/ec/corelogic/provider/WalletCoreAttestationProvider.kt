@@ -159,7 +159,7 @@ private class AuthboundWalletAttestationProvider(
         )
         Log.d(
             TAG,
-            "Submitting Authbound attestation purpose=$WALLET_INSTANCE_ATTESTATION_PURPOSE path=$WALLET_INSTANCE_ATTESTATION_PATH challengeId=${authboundContext.proofChallenge.challengeId} requestHash=${authboundContext.requestHash.shortForLog()}"
+            "Submitting Authbound attestation purpose=$WALLET_INSTANCE_ATTESTATION_PURPOSE path=$WALLET_INSTANCE_ATTESTATION_PATH"
         )
 
         walletAttestationRepository.getWalletAttestation(
@@ -203,7 +203,7 @@ private class AuthboundWalletAttestationProvider(
         )
         Log.d(
             TAG,
-            "Submitting Authbound attestation purpose=$WALLET_UNIT_ATTESTATION_PURPOSE path=$WALLET_UNIT_ATTESTATION_PATH challengeId=${authboundContext.proofChallenge.challengeId} requestHash=${authboundContext.requestHash.shortForLog()}"
+            "Submitting Authbound attestation purpose=$WALLET_UNIT_ATTESTATION_PURPOSE path=$WALLET_UNIT_ATTESTATION_PATH"
         )
 
         walletAttestationRepository.getKeyAttestation(
@@ -226,7 +226,7 @@ private class AuthboundWalletAttestationProvider(
         val requestHash = requestBody.toCanonicalHash()
         Log.d(
             TAG,
-            "Creating Authbound proof challenge purpose=$purpose path=$requestPath requestHash=${requestHash.shortForLog()}"
+            "Creating Authbound proof challenge purpose=$purpose path=$requestPath"
         )
         val proofChallenge = walletAttestationRepository.createProofChallenge(
             baseUrl = walletProviderConfig.baseUrl,
@@ -238,7 +238,7 @@ private class AuthboundWalletAttestationProvider(
         ).getOrThrow()
         Log.d(
             TAG,
-            "Created Authbound proof challenge purpose=$purpose path=$requestPath challengeId=${proofChallenge.challengeId} requestHash=${requestHash.shortForLog()}"
+            "Created Authbound proof challenge purpose=$purpose path=$requestPath"
         )
 
         return AuthboundRequestContext(
@@ -279,9 +279,6 @@ private class AuthboundWalletAttestationProvider(
             put("exp", JsonPrimitive(issuedAt + 300))
         }
 
-        android.util.Log.d("WuaProof", "header=$header")
-        android.util.Log.d("WuaProof", "payload=$payload")
-
         val signingInput = "${header.toBase64Url()}.${payload.toBase64Url()}"
         val signature = when (val result = cryptoController.signWuaPayload(signingInput.toByteArray(StandardCharsets.UTF_8))) {
             is WuaSigningResult.Signed -> result.signature
@@ -290,9 +287,7 @@ private class AuthboundWalletAttestationProvider(
             is WuaSigningResult.Failure -> throw result.cause
         }
 
-        val jwt = signingInput + "." + signature.toJoseBase64Url()
-        android.util.Log.d("WuaProof", "jwt=$jwt")
-        return jwt
+        return signingInput + "." + signature.toJoseBase64Url()
     }
 
     private fun createAttestedKeyProof(
@@ -451,6 +446,3 @@ private fun ByteArray.toJoseBase64Url(): String {
     )
     return joseBytes.toBase64Url()
 }
-
-private fun String.shortForLog(): String =
-    if (length <= 12) this else "${take(12)}..."

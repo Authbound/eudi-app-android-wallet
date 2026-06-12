@@ -281,6 +281,9 @@
     <string name="settings_screen_option_changelog">Changelog</string>
     <string name="settings_screen_option_changelog_id">changelogId</string>
     <string name="settings_intent_chooser_logs_share_title">Share logs</string>
+    <string name="settings_section_account">Account</string>
+    <string name="settings_section_security">Security</string>
+    <string name="settings_section_support">Support</string>
 
     <!-- Home Screen -->
     <string name="home_screen_title">Home</string>
@@ -330,8 +333,13 @@
     <!-- Documents Screen -->
     <string name="documents_screen_title">Documents</string>
     <string name="documents_screen_search_label">Search Documents</string>
-    <string name="documents_screen_search_no_results">No documents match your search. Try changing your search query or filters.</string>
-    <string name="documents_screen_search_no_results_id">noResultsId</string>
+    <string name="documents_screen_empty_badge">YOUR DOCUMENTS</string>
+    <string name="documents_screen_empty_title">Your wallet is empty</string>
+    <string name="documents_screen_empty_description">Add your first document to get started</string>
+    <string name="documents_screen_empty_cta">Add document</string>
+    <string name="documents_screen_no_results_title">No documents found</string>
+    <string name="documents_screen_no_results_description">Try a different search term or adjust your filters.</string>
+    <string name="documents_screen_no_results_clear_action">Clear search &amp; filters</string>
     <string name="documents_screen_add_document_title">Add document</string>
     <string name="documents_screen_add_document_description">Add documents to your wallet by choosing from a list or by scanning a provided QR code.</string>
     <string name="documents_screen_add_document_option_list">From list</string>

@@ -136,17 +136,17 @@ fun WalletSetupScreen(
             }
         )
         else -> Triple(
-            ScreenNavigateAction.CANCELABLE,
-            ToolbarConfig(title = "Setting up Wallet"),
+            ScreenNavigateAction.NONE,
+            null,
             {
-                logController.d("WalletSetupScreen", "Toolbar back button pressed (loading state)")
+                logController.d("WalletSetupScreen", "Hardware back pressed (loading state)")
                 viewModel.setEvent(WalletSetupEvent.CancelSetup)
             }
         )
     }
 
     ContentScreen(
-        isLoading = state.isActivating,
+        isLoading = false,
         navigatableAction = navigatableAction,
         toolBarConfig = toolbarConfig,
         onBack = onBack
@@ -290,14 +290,14 @@ fun WalletSetupScreen(
                         )
                         Spacer(modifier = Modifier.height(24.dp))
                         Text(
-                            text = "Setting up your secure wallet...",
+                            text = "Setting up your wallet",
                             style = MaterialTheme.typography.headlineLarge,
                             textAlign = TextAlign.Center,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "This may take a few moments. Please don't close the app.",
+                            text = "Creating secure storage and preparing your wallet. This usually takes a few moments.",
                             style = MaterialTheme.typography.bodyLarge,
                             textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurfaceVariant

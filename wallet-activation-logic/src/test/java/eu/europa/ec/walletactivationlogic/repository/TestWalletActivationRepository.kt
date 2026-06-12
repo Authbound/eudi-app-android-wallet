@@ -23,6 +23,7 @@ import eu.europa.ec.businesslogic.model.error.WalletActivationError
 import eu.europa.ec.networklogic.api.ApiClient
 import eu.europa.ec.networklogic.model.ApiResponse
 import eu.europa.ec.networklogic.model.response.AttestationChallengeResponse
+import eu.europa.ec.networklogic.model.response.WalletActivationResponse
 import eu.europa.ec.testlogic.extension.runTest
 import eu.europa.ec.testlogic.rule.CoroutineTestRule
 import io.github.jan.supabase.SupabaseClient
@@ -33,6 +34,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.ArgumentMatchers.contains
 import org.mockito.Mock
 import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.any
@@ -100,6 +102,28 @@ class TestWalletActivationRepository {
     // region activateWallet error mapping
 
     @Test
+    fun `Given activation succeeds, When activateWallet is called, Then WUA and device details are not logged`() =
+        coroutineRule.runTest {
+            whenever(apiClient.activateWallet(any(), eq(MOCK_AUTH_TOKEN)))
+                .thenReturn(
+                    ApiResponse.Success(
+                        body = WalletActivationResponse(wua = REDACTION_TEST_VALUE)
+                    )
+                )
+
+            val result = repository.activateWallet(
+                attestationChain = arrayOf(mockCertificate),
+                challengeId = "test-challenge-id",
+                deviceInfo = MOCK_DEVICE_INFO,
+                pushToken = "fcm-redaction-test-value"
+            )
+
+            assertTrue("Result should be success", result.isSuccess)
+            verify(logController, never()).d(eq("WalletActivation"), contains(REDACTION_TEST_VALUE))
+            verify(logController, never()).d(eq("WalletActivation"), contains("device-123"))
+        }
+
+    @Test
     fun `Given prepared recovery challenge exists, When getAttestationChallenge is called, Then cached challenge is returned without API call`() =
         coroutineRule.runTest {
             val cachedChallenge = AttestationChallengeResponse(
@@ -131,7 +155,7 @@ class TestWalletActivationRepository {
                 attestationChain = arrayOf(mockCertificate),
                 challengeId = "test-challenge-id",
                 deviceInfo = MOCK_DEVICE_INFO,
-                pushToken = "fcm-token-123"
+                pushToken = "fcm-redaction-test-value"
             )
 
             // Then
@@ -171,6 +195,7 @@ class TestWalletActivationRepository {
 
     companion object {
         private const val MOCK_AUTH_TOKEN = "test-bearer-token"
+        private const val REDACTION_TEST_VALUE = "wua-redaction-test-value"
 
         private val MOCK_DEVICE_INFO = DeviceInfo(
             deviceId = "device-123",

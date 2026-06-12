@@ -34,9 +34,11 @@ import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
 import eu.europa.ec.authenticationlogic.usecase.CheckHandleAvailabilityUseCase
 import eu.europa.ec.authenticationlogic.usecase.CompleteProfileUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
+import eu.europa.ec.authenticationlogic.usecase.GetLegalAcceptanceStateUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsProfileCompletedUseCase
 import eu.europa.ec.authenticationlogic.usecase.IsWalletActivatedUseCase
 import eu.europa.ec.authenticationlogic.usecase.ObserveAuthStateUseCase
+import eu.europa.ec.authenticationlogic.usecase.RecordLegalAcceptanceUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignInWithEmailPasswordUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignInWithOAuthUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignOutMode
@@ -129,6 +131,8 @@ val authTestModule = module {
     single<GetCurrentUserUseCase> { FakeGetCurrentUserUseCase() }
     single<CheckHandleAvailabilityUseCase> { FakeCheckHandleAvailabilityUseCase() }
     single<CompleteProfileUseCase> { FakeCompleteProfileUseCase() }
+    single<GetLegalAcceptanceStateUseCase> { FakeGetLegalAcceptanceStateUseCase() }
+    single<RecordLegalAcceptanceUseCase> { FakeRecordLegalAcceptanceUseCase() }
 
     single<CreateWalletAttestationUseCase> { FakeCreateWalletAttestationUseCase() }
     single<DeleteWalletActivationUseCase> { FakeDeleteWalletActivationUseCase() }
@@ -323,6 +327,21 @@ private class FakeCompleteProfileUseCase : CompleteProfileUseCase {
             current.copy(profileCompleted = true)
         }
         return Result.success(Unit)
+    }
+}
+
+private class FakeGetLegalAcceptanceStateUseCase : GetLegalAcceptanceStateUseCase {
+    override suspend fun invoke(): Result<LegalAcceptanceSnapshot> {
+        return Result.success(AuthScenarioStore.snapshot().legalAcceptanceSnapshot)
+    }
+}
+
+private class FakeRecordLegalAcceptanceUseCase : RecordLegalAcceptanceUseCase {
+    override suspend fun invoke(snapshot: LegalAcceptanceSnapshot): Result<LegalAcceptanceSnapshot> {
+        AuthScenarioStore.update { current ->
+            current.copy(legalAcceptanceSnapshot = snapshot)
+        }
+        return Result.success(snapshot)
     }
 }
 
@@ -526,73 +545,82 @@ private class FakePrefKeysV2 : PrefKeysV2 {
 }
 
 private class FakePrefsControllerV2 : PrefsControllerV2 {
-    private val values: MutableMap<String, Any> = mutableMapOf()
+    private val valuesByUser: MutableMap<String, MutableMap<String, Any>> = mutableMapOf()
 
     override fun hasAuthenticatedUser(): Boolean = AuthScenarioStore.snapshot().authenticated
 
     override suspend fun clearCurrentUserData() {
-        values.clear()
+        valuesForCurrentUser().clear()
     }
 
     override suspend fun clearUserData(userId: String) {
-        values.clear()
+        valuesByUser.remove(userId)
+    }
+
+    override suspend fun clearForUser(userId: String, key: String) {
+        valuesByUser[userId]?.remove(key)
     }
 
     override suspend fun getString(key: String, defaultValue: String): String {
-        return values[key] as? String ?: defaultValue
+        return valuesForCurrentUser()[key] as? String ?: defaultValue
     }
 
     override suspend fun setString(key: String, value: String) {
-        values[key] = value
+        valuesForCurrentUser()[key] = value
     }
 
     override suspend fun getBool(key: String, defaultValue: Boolean): Boolean {
-        return values[key] as? Boolean ?: defaultValue
+        return valuesForCurrentUser()[key] as? Boolean ?: defaultValue
     }
 
     override suspend fun setBool(key: String, value: Boolean) {
-        values[key] = value
+        valuesForCurrentUser()[key] = value
     }
 
     override suspend fun getLong(key: String, defaultValue: Long): Long {
-        return values[key] as? Long ?: defaultValue
+        return valuesForCurrentUser()[key] as? Long ?: defaultValue
     }
 
     override suspend fun setLong(key: String, value: Long) {
-        values[key] = value
+        valuesForCurrentUser()[key] = value
     }
 
     override suspend fun getInt(key: String, defaultValue: Int): Int {
-        return values[key] as? Int ?: defaultValue
+        return valuesForCurrentUser()[key] as? Int ?: defaultValue
     }
 
     override suspend fun setInt(key: String, value: Int) {
-        values[key] = value
+        valuesForCurrentUser()[key] = value
     }
 
-    override suspend fun contains(key: String): Boolean = values.containsKey(key)
+    override suspend fun contains(key: String): Boolean = valuesForCurrentUser().containsKey(key)
 
     override suspend fun clear(key: String) {
-        values.remove(key)
+        valuesForCurrentUser().remove(key)
     }
 
     override suspend fun clearAll() {
-        values.clear()
+        valuesForCurrentUser().clear()
     }
 
     override fun safeBool(key: String, defaultValue: Boolean): Boolean {
-        return values[key] as? Boolean ?: defaultValue
+        return valuesForCurrentUser()[key] as? Boolean ?: defaultValue
     }
 
     override fun safeString(key: String, defaultValue: String): String {
-        return values[key] as? String ?: defaultValue
+        return valuesForCurrentUser()[key] as? String ?: defaultValue
     }
 
     override fun safeLong(key: String, defaultValue: Long): Long {
-        return values[key] as? Long ?: defaultValue
+        return valuesForCurrentUser()[key] as? Long ?: defaultValue
     }
 
     override suspend fun invalidateCache() = Unit
+
+    private fun valuesForCurrentUser(): MutableMap<String, Any> {
+        val userId: String = AuthScenarioStore.snapshot().userId
+        return valuesByUser.getOrPut(userId) { mutableMapOf() }
+    }
 }
 
 private class FakePinStorageController : PinStorageController {
@@ -786,7 +814,7 @@ private class FakeBiometricAuthenticationController : BiometricAuthenticationCon
 }
 
 private class FakeDashboardInteractor : DashboardInteractor {
-    override fun getSideMenuOptions(): List<SideMenuItemUi> = emptyList()
+    override fun getSideMenuOptions(shouldShowAuthboundPidEntry: Boolean): List<SideMenuItemUi> = emptyList()
 
     override fun getAppVersion(): String = "test"
 

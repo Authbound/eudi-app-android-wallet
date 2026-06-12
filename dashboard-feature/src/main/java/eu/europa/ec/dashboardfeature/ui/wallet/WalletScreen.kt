@@ -16,9 +16,12 @@
 
 package eu.europa.ec.dashboardfeature.ui.wallet
 
+import android.view.HapticFeedbackConstants
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,12 +36,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import eu.europa.ec.dashboardfeature.ui.actions.ActionsTabContent
@@ -48,7 +54,9 @@ import eu.europa.ec.dashboardfeature.ui.actions.model.DeviceLinkStatus
 import eu.europa.ec.dashboardfeature.ui.component.NotificationIconButton
 import eu.europa.ec.dashboardfeature.ui.documents.list.DocumentsTabContent
 import eu.europa.ec.dashboardfeature.ui.documents.list.DocumentsViewModel
+import eu.europa.ec.dashboardfeature.ui.documents.list.Event as DocumentsEvent
 import eu.europa.ec.dashboardfeature.ui.documents.list.State as DocumentsState
+import eu.europa.ec.dashboardfeature.util.TestTag
 import eu.europa.ec.dashboardfeature.ui.health.HealthTabContent
 import eu.europa.ec.dashboardfeature.ui.health.HealthViewModel
 import eu.europa.ec.dashboardfeature.ui.health.State as HealthState
@@ -59,6 +67,7 @@ import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.content.ContentErrorConfig
 import eu.europa.ec.uilogic.component.content.ContentScreen
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
+import eu.europa.ec.uilogic.component.utils.SPACING_EXTRA_SMALL
 import eu.europa.ec.uilogic.component.utils.SPACING_MEDIUM
 import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
 import eu.europa.ec.uilogic.component.wrap.PremiumTab
@@ -113,6 +122,12 @@ fun WalletScreen(
         topBar = {
             WalletTopBar(
                 notificationCount = notificationCount,
+                documentCount = documentsState.totalDocumentsCount
+                    .takeIf { currentTab == WalletTab.Documents && it > 0 },
+                showAddDocument = currentTab == WalletTab.Documents,
+                onAddDocumentClick = {
+                    documentsViewModel.setEvent(DocumentsEvent.AddDocumentPressed)
+                },
                 onNotificationsClick = onNotificationsClick,
                 onDashboardEventSent = onDashboardEventSent,
             )
@@ -139,7 +154,9 @@ fun WalletScreen(
                 tabs = listOf(
                     PremiumTab(
                         label = stringResource(WalletTab.Documents.titleRes),
-                        icon = AppIcons.IdCards
+                        // Single-path glyph: AppIcons.IdCards is a multi-color
+                        // illustration that collapses into a blob when tinted.
+                        icon = AppIcons.Id
                     ),
                     PremiumTab(
                         label = stringResource(WalletTab.Actions.titleRes),
@@ -189,33 +206,62 @@ fun WalletScreen(
 @Composable
 private fun WalletTopBar(
     notificationCount: Int,
+    documentCount: Int?,
+    showAddDocument: Boolean,
+    onAddDocumentClick: () -> Unit,
     onNotificationsClick: () -> Unit,
     onDashboardEventSent: (DashboardEvent) -> Unit,
 ) {
-    Box(
+    val view = LocalView.current
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(
                 horizontal = SPACING_SMALL.dp,
                 vertical = 4.dp
-            )
+            ),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         WrapIconButton(
-            modifier = Modifier.align(Alignment.CenterStart),
             iconData = AppIcons.Menu,
             customTint = MaterialTheme.colorScheme.onSurface,
         ) {
             onDashboardEventSent(OpenSideMenuEvent)
         }
-        Text(
-            modifier = Modifier.align(Alignment.Center),
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.titleLarge,
-            text = stringResource(R.string.wallet_screen_title)
-        )
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = SPACING_EXTRA_SMALL.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp),
+        ) {
+            Text(
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.3).sp
+                ),
+                text = stringResource(R.string.wallet_screen_title)
+            )
+            documentCount?.let { count ->
+                Text(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    style = MaterialTheme.typography.titleMedium,
+                    text = "· $count"
+                )
+            }
+        }
+        if (showAddDocument) {
+            WrapIconButton(
+                modifier = Modifier.testTag(TestTag.DocumentsScreen.PLUS_BUTTON),
+                iconData = AppIcons.Add,
+                customTint = MaterialTheme.colorScheme.onSurface,
+            ) {
+                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                onAddDocumentClick()
+            }
+        }
         NotificationIconButton(
-            modifier = Modifier.align(Alignment.CenterEnd),
             badgeCount = notificationCount,
             onClick = onNotificationsClick,
         )

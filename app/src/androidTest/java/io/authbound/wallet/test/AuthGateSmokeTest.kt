@@ -25,6 +25,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.isRoot
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
@@ -154,6 +155,18 @@ class AuthGateSmokeTest {
         composeRule.onAllNodesWithTag(resolvedTag(AuthTestTags.QuickPin.ROOT), useUnmergedTree = true)
             .assertCountEquals(0)
         composeRule.onAllNodesWithTag(resolvedTag(DashboardTestTags.Screen.ROOT), useUnmergedTree = true)
+            .assertCountEquals(0)
+    }
+
+    @Test
+    fun coldStart_walletSetupPending_hidesLoadingToolbarChrome() {
+        launchApp(state = walletSetupState())
+
+        waitForTag(AuthTestTags.WalletSetup.ROOT)
+        waitForTag(AuthTestTags.WalletSetup.LOADING_STATE)
+        composeRule.onAllNodesWithText("Setting up Wallet", useUnmergedTree = true)
+            .assertCountEquals(0)
+        composeRule.onAllNodesWithContentDescription("Close", useUnmergedTree = true)
             .assertCountEquals(0)
     }
 

@@ -114,6 +114,7 @@ class DashboardInteractorImpl(
             add(
                 SideMenuItemUi.ActionItem(
                     type = SideMenuTypeUi.VERIFY,
+                    isEnabled = false,
                     data = ListItemDataUi(
                         itemId = "verify",
                         mainContentData = ListItemMainContentDataUi.Text(

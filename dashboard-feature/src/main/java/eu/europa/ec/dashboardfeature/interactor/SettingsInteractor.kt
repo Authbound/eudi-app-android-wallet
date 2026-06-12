@@ -28,6 +28,7 @@ import eu.europa.ec.businesslogic.extension.encodeToBase64String
 import eu.europa.ec.commonfeature.util.DocumentJsonKeys
 import eu.europa.ec.dashboardfeature.ui.settings.model.SettingsItemUi
 import eu.europa.ec.dashboardfeature.ui.settings.model.SettingsMenuItemType
+import eu.europa.ec.dashboardfeature.ui.settings.model.SettingsSection
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.uilogic.component.AppIcons
@@ -123,6 +124,7 @@ class SettingsInteractorImpl(
             add(
                 SettingsItemUi(
                     type = SettingsMenuItemType.ACCOUNT_DETAILS,
+                    section = SettingsSection.ACCOUNT,
                     data = ListItemDataUi(
                         itemId = "account_details",
                         mainContentData = ListItemMainContentDataUi.Text(
@@ -141,6 +143,7 @@ class SettingsInteractorImpl(
             add(
                 SettingsItemUi(
                     type = SettingsMenuItemType.CHANGE_PIN,
+                    section = SettingsSection.SECURITY,
                     data = ListItemDataUi(
                         itemId = resourceProvider.getString(R.string.dashboard_side_menu_option_change_pin_id),
                         mainContentData = ListItemMainContentDataUi.Text(
@@ -159,6 +162,7 @@ class SettingsInteractorImpl(
             add(
                 SettingsItemUi(
                     type = SettingsMenuItemType.BIOMETRIC_AUTHENTICATION,
+                    section = SettingsSection.SECURITY,
                     data = ListItemDataUi(
                         itemId = "biometric_authentication",
                         mainContentData = ListItemMainContentDataUi.Text(
@@ -179,6 +183,7 @@ class SettingsInteractorImpl(
             add(
                 SettingsItemUi(
                     type = SettingsMenuItemType.PRIVACY_AND_DATA,
+                    section = SettingsSection.SUPPORT,
                     data = ListItemDataUi(
                         itemId = "privacy_and_data",
                         mainContentData = ListItemMainContentDataUi.Text(
@@ -197,6 +202,7 @@ class SettingsInteractorImpl(
             add(
                 SettingsItemUi(
                     type = SettingsMenuItemType.RETRIEVE_LOGS,
+                    section = SettingsSection.SUPPORT,
                     data = ListItemDataUi(
                         itemId = resourceProvider.getString(R.string.settings_screen_option_retrieve_logs_id),
                         mainContentData = ListItemMainContentDataUi.Text(
@@ -216,6 +222,7 @@ class SettingsInteractorImpl(
             // add(
             //     SettingsItemUi(
             //         type = SettingsMenuItemType.RESET_HEALTH_DATA,
+            //         section = SettingsSection.SUPPORT,
             //         data = ListItemDataUi(
             //             itemId = resourceProvider.getString(R.string.settings_reset_health_data_id),
             //             mainContentData = ListItemMainContentDataUi.Text(
@@ -236,6 +243,7 @@ class SettingsInteractorImpl(
                 add(
                     SettingsItemUi(
                         type = SettingsMenuItemType.CHANGELOG,
+                        section = SettingsSection.SUPPORT,
                         data = ListItemDataUi(
                             itemId = resourceProvider.getString(R.string.settings_screen_option_changelog_id),
                             mainContentData = ListItemMainContentDataUi.Text(

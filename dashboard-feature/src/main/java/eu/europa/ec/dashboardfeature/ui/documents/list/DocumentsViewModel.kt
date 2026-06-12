@@ -74,6 +74,8 @@ data class State(
 
     val documentsUi: List<Pair<DocumentCategory, List<DocumentUi>>> = emptyList(),
     val showNoResultsFound: Boolean = false,
+    val totalDocumentsCount: Int = 0,
+    val hasPlayedEntranceAnimation: Boolean = false,
     val deferredFailedDocIds: List<DocumentId> = emptyList(),
     val searchText: String = "",
     val allowUserInteraction: Boolean = true,
@@ -84,7 +86,12 @@ data class State(
     val sortOrder: DualSelectorButtonDataUi,
     val isFilteringActive: Boolean,
     val shouldShowAuthboundPidEntry: Boolean = false,
-) : ViewState
+) : ViewState {
+    // An empty result set means an empty wallet only when no documents exist at all;
+    // otherwise the active search/filters simply matched nothing.
+    val isWalletEmpty: Boolean get() = showNoResultsFound && totalDocumentsCount == 0
+    val showNoMatches: Boolean get() = showNoResultsFound && totalDocumentsCount > 0
+}
 
 sealed class Event : ViewEvent {
     data object Init : Event()
@@ -102,6 +109,7 @@ sealed class Event : ViewEvent {
 
     data object AddDocumentPressed : Event()
     data object FiltersPressed : Event()
+    data object EntranceAnimationCompleted : Event()
 
     sealed class BottomSheet : Event() {
         data class UpdateBottomSheetState(val isOpen: Boolean) : BottomSheet()
@@ -231,6 +239,10 @@ class DocumentsViewModel(
                 showBottomSheet(sheetContent = Filters(filters = emptyList()))
             }
 
+            is Event.EntranceAnimationCompleted -> {
+                setState { copy(hasPlayedEntranceAnimation = true) }
+            }
+
             is Event.OnSearchQueryChanged -> {
                 applySearch(event.query)
             }
@@ -343,6 +355,9 @@ class DocumentsViewModel(
                         val documentsWithFailed =
                             response.allDocuments
                                 .generateFailedDeferredDocs(viewState.value.deferredFailedDocIds)
+                        // Count must land before applyFilters() so the filter emission
+                        // never resolves the empty-wallet vs no-matches split stale.
+                        setState { copy(totalDocumentsCount = response.allDocuments.items.size) }
                         interactor.initializeFilters(filterableList = documentsWithFailed)
                         interactor.applyFilters()
                         setState {
@@ -405,6 +420,10 @@ class DocumentsViewModel(
                             val documentsWithFailed =
                                 response.allDocuments
                                     .generateFailedDeferredDocs(deferredFailedDocIds)
+
+                            // Count must land before applyFilters() so the filter emission
+                            // never resolves the empty-wallet vs no-matches split stale.
+                            setState { copy(totalDocumentsCount = response.allDocuments.items.size) }
 
                             if (viewState.value.isFromOnPause) {
                                 interactor.initializeFilters(
