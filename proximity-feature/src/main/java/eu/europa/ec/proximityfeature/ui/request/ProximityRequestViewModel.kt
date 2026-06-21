@@ -32,7 +32,7 @@ import eu.europa.ec.uilogic.component.content.ContentHeaderConfig
 import eu.europa.ec.uilogic.navigation.ProximityScreens
 import eu.europa.ec.uilogic.serializer.UiSerializer
 import kotlinx.coroutines.launch
-import org.koin.android.annotation.KoinViewModel
+import org.koin.core.annotation.KoinViewModel
 import org.koin.core.annotation.InjectedParam
 
 @KoinViewModel

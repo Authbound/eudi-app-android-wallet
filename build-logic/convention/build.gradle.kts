@@ -39,6 +39,7 @@ dependencies {
     compileOnly(libs.android.gradlePlugin)
     compileOnly(libs.kotlin.gradlePlugin)
     compileOnly(libs.ksp.gradlePlugin)
+    compileOnly(libs.koin.compiler.gradlePlugin)
     compileOnly(libs.secrets.gradlePlugin)
     compileOnly(libs.owasp.dependencycheck.gradlePlugin)
     compileOnly(libs.kotlinx.kover.gradlePlugin)

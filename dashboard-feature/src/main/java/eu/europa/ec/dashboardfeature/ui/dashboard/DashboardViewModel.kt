@@ -56,7 +56,7 @@ import eu.europa.ec.uilogic.navigation.helper.generateComposableNavigationLink
 import eu.europa.ec.uilogic.navigation.helper.hasDeepLink
 import eu.europa.ec.uilogic.navigation.helper.parseVerificationSessionDeepLink
 import eu.europa.ec.uilogic.serializer.UiSerializer
-import org.koin.android.annotation.KoinViewModel
+import org.koin.core.annotation.KoinViewModel
 
 data class State(
 

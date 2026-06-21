@@ -33,7 +33,7 @@ import eu.europa.ec.uilogic.mvi.ViewState
 import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
-import org.koin.android.annotation.KoinViewModel
+import org.koin.core.annotation.KoinViewModel
 import kotlin.time.ExperimentalTime
 
 data class State(

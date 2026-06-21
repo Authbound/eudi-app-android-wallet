@@ -35,7 +35,7 @@ import eu.europa.ec.uilogic.navigation.PresentationScreens
 import eu.europa.ec.uilogic.navigation.Screen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import org.koin.android.annotation.KoinViewModel
+import org.koin.core.annotation.KoinViewModel
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration

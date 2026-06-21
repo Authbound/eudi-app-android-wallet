@@ -32,7 +32,6 @@ import eu.europa.ec.networklogic.di.LogicNetworkModule
 import eu.europa.ec.notificationlogic.di.LogicNotificationModule
 import eu.europa.ec.presentationfeature.di.FeaturePresentationModule
 import eu.europa.ec.proximityfeature.di.FeatureProximityModule
-
 import eu.europa.ec.resourceslogic.di.LogicResourceModule
 import eu.europa.ec.startupfeature.di.FeatureStartupModule
 import eu.europa.ec.storagelogic.di.LogicStorageModule
@@ -40,48 +39,46 @@ import eu.europa.ec.uilogic.di.LogicUiModule
 import eu.europa.ec.walletactivationlogic.di.FeatureWalletActivationModule
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
+import org.koin.androidx.workmanager.koin.workManagerFactory
 import org.koin.core.KoinApplication
-import org.koin.core.context.GlobalContext.startKoin
+import org.koin.core.annotation.KoinApplication as KoinApplicationAnnotation
 import org.koin.core.module.Module
-import org.koin.ksp.generated.module
+import org.koin.plugin.module.dsl.startKoin
 
-private val assembledModules = listOf(
-
-    supabaseModule,
-
-    // Logic Modules
-    LogicNetworkModule().module,
-    LogicUiModule().module,
-    LogicResourceModule().module,
-    LogicBusinessModule().module,
-    LogicAnalyticsModule().module,
-    LogicAuthenticationModule().module,
-    LogicCoreModule().module,
-    LogicStorageModule().module,
-    LogicNotificationModule().module,
-    LogicAuthboundPidModule().module,
-
-    // Feature Modules
-    FeatureCommonModule().module,
-    FeatureDashboardModule().module,
-    FeatureStartupModule().module,
-    FeaturePresentationModule().module,
-    FeatureProximityModule().module,
-    FeatureIssuanceModule().module,
-    FeatureAuthenticationModule().module,
-    FeatureWalletActivationModule().module,
-    FeatureAuthboundPidModule().module
-
+@KoinApplicationAnnotation(
+    modules = [
+        LogicNetworkModule::class,
+        LogicUiModule::class,
+        LogicResourceModule::class,
+        LogicBusinessModule::class,
+        LogicAnalyticsModule::class,
+        LogicAuthenticationModule::class,
+        LogicCoreModule::class,
+        LogicStorageModule::class,
+        LogicNotificationModule::class,
+        LogicAuthboundPidModule::class,
+        FeatureCommonModule::class,
+        FeatureDashboardModule::class,
+        FeatureStartupModule::class,
+        FeaturePresentationModule::class,
+        FeatureProximityModule::class,
+        FeatureIssuanceModule::class,
+        FeatureAuthenticationModule::class,
+        FeatureWalletActivationModule::class,
+        FeatureAuthboundPidModule::class,
+    ]
 )
+private class AuthboundWalletKoin
 
 internal fun Application.setupKoin(
     additionalModules: List<Module> = emptyList(),
     allowOverride: Boolean? = null,
 ): KoinApplication {
-    return startKoin {
+    return startKoin<AuthboundWalletKoin> {
         androidContext(this@setupKoin)
         androidLogger()
+        workManagerFactory()
         allowOverride?.let(::allowOverride)
-        modules(assembledModules + additionalModules)
+        modules(listOf(supabaseModule) + additionalModules)
     }
 }

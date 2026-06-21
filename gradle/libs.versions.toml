@@ -1,7 +1,7 @@
 [versions]
 accompanist = "0.37.3"
 androidDesugarJdkLibs = "2.1.5"
-androidGradlePlugin = "9.1.0"
+androidGradlePlugin = "9.2.1"
 androidxActivity = "1.12.4"
 androidxAppCompat = "1.7.1"
 androidxBrowser = "1.9.0"
@@ -46,8 +46,9 @@ protobufPlugin = "0.9.6"
 robolectric = "4.16.1"
 secrets = "2.0.1"
 turbine = "1.2.1"
-koin = "4.1.1"
-koinAnnotations = "2.3.1"
+koin = "4.2.1"
+koinAnnotations = "4.2.1"
+koinPlugin = "1.0.0"
 material = "1.13.0"
 mockito = "5.22.0"
 mockitoKotlin = "6.2.3"
@@ -58,7 +59,7 @@ slf4j = "2.0.17"
 gson = "2.13.2"
 googlePhoneNumber = "9.0.25"
 zxing = "3.5.4"
-eudiWalletCore = "0.25.0"
+eudiWalletCore = "0.28.1"
 cameraCore = "1.5.3"
 mlkitTextRecognition = "16.0.1"
 owaspDependencyCheck = "12.2.0"
@@ -69,11 +70,12 @@ sonar = "7.2.3.7755"
 baselineprofile = "1.5.0-alpha03"
 timber = "5.0.1"
 treessence = "1.1.2"
-rqesUiSDK = "0.3.6"
+rqesUiSDK = "0.3.9"
 androidxRoom = "2.8.4"
 candourSdk = "0.2.0"
 cloudy = "0.5.0"
 
+androidxCredentialsRegistry = "1.0.0-alpha04"
 credentials="1.5.0"
 googleid="1.1.1"
 
@@ -162,14 +164,15 @@ supabase-realtime-kt = { module = "io.github.jan-tennert.supabase:realtime-kt" }
 # Google
 androidx-credentials = {module="androidx.credentials:credentials", version.ref="credentials"}
 androidx-credentials-play-services-auth = {module="androidx.credentials:credentials-play-services-auth", version.ref="credentials"}
+androidx-credentials-registry = { group = "androidx.credentials.registry", name = "registry-provider-play-services", version.ref = "androidxCredentialsRegistry" }
 googleid = {module = "com.google.android.libraries.identity.googleid:googleid", version.ref="googleid"}
 
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 koin-android = { group = "io.insert-koin", name = "koin-android", version.ref = "koin" }
 koin-compose = { group = "io.insert-koin", name = "koin-androidx-compose", version.ref = "koin" }
 koin-test = { group = "io.insert-koin", name = "koin-android-test", version.ref = "koin" }
+koin-workmanager = { group = "io.insert-koin", name = "koin-androidx-workmanager", version.ref = "koin" }
 koin-annotations = { group = "io.insert-koin", name = "koin-annotations", version.ref = "koinAnnotations" }
-koin-ksp = { group = "io.insert-koin", name = "koin-ksp-compiler", version.ref = "koinAnnotations" }
 mockito-core = { group = "org.mockito", name = "mockito-core", version.ref = "mockito" }
 mockito-kotlin = { group = "org.mockito.kotlin", name = "mockito-kotlin", version.ref = "mockitoKotlin" }
 mockk-android = { group = "io.mockk", name = "mockk-android", version.ref = "mockk" }
@@ -195,6 +198,7 @@ compose-cloudy = { module = "com.github.skydoves:cloudy", version.ref = "cloudy"
 android-gradlePlugin = { group = "com.android.tools.build", name = "gradle", version.ref = "androidGradlePlugin" }
 kotlin-gradlePlugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
 ksp-gradlePlugin = { group = "com.google.devtools.ksp", name = "com.google.devtools.ksp.gradle.plugin", version.ref = "ksp" }
+koin-compiler-gradlePlugin = { group = "io.insert-koin", name = "koin-compiler-gradle-plugin", version.ref = "koinPlugin" }
 secrets-gradlePlugin = { group = "com.google.android.libraries.mapsplatform.secrets-gradle-plugin", name = "secrets-gradle-plugin", version.ref = "secrets" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 androidx-camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "cameraCore" }
@@ -218,6 +222,7 @@ ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 protobuf = { id = "com.google.protobuf", version.ref = "protobufPlugin" }
 secrets = { id = "com.google.android.libraries.mapsplatform.secrets-gradle-plugin", version.ref = "secrets" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+koin-compiler = { id = "io.insert-koin.compiler.plugin", version.ref = "koinPlugin" }
 owasp-dependencycheck = { id = "org.owasp.dependencycheck", version.ref = "owaspDependencyCheck" }
 kotlinx-kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
 sonar = { id = "org.sonarqube", version.ref = "sonar" }

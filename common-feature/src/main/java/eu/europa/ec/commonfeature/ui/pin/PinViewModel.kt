@@ -52,7 +52,7 @@ import eu.europa.ec.uilogic.serializer.UiSerializer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import org.koin.android.annotation.KoinViewModel
+import org.koin.core.annotation.KoinViewModel
 import org.koin.core.annotation.InjectedParam
 
 enum class PinValidationState {

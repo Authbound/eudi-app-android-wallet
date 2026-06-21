@@ -20,7 +20,6 @@ import project.convention.logic.kover.excludeFromKoverReport
 
 plugins {
     id("project.android.library")
-    alias(libs.plugins.ksp)
 }
 
 android {
@@ -56,7 +55,6 @@ dependencies {
 
     // Koin annotations support
     implementation(libs.koin.annotations)
-    ksp(libs.koin.ksp)
 
     implementation(libs.kotlinx.datetime)
 

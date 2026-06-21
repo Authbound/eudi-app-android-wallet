@@ -38,7 +38,6 @@ import eu.europa.ec.uilogic.navigation.helper.hasDeepLink
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
-import org.koin.core.annotation.KoinExperimentalAPI
 
 open class EudiComponentActivity : FragmentActivity() {
 
@@ -62,7 +61,6 @@ open class EudiComponentActivity : FragmentActivity() {
      */
     protected fun getPendingDeepLinkUri(): Uri? = pendingDeepLink
 
-    @OptIn(KoinExperimentalAPI::class)
     @Composable
     protected fun Content(
         intent: Intent?,
