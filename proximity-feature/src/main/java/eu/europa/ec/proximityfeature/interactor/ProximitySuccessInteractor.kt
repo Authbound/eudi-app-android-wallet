@@ -20,6 +20,8 @@ import eu.europa.ec.businesslogic.extension.ifEmptyOrNull
 import eu.europa.ec.businesslogic.extension.safeAsync
 import eu.europa.ec.businesslogic.provider.UuidProvider
 import eu.europa.ec.commonfeature.extension.toExpandableListItems
+import eu.europa.ec.commonfeature.interactor.ScopedPresentationInteractor
+import eu.europa.ec.commonfeature.interactor.ScopedPresentationInteractorDelegate
 import eu.europa.ec.commonfeature.util.transformPathsToDomainClaims
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
 import eu.europa.ec.corelogic.controller.WalletCorePresentationController
@@ -48,17 +50,18 @@ sealed class ProximitySuccessInteractorGetUiItemsPartialState {
     ) : ProximitySuccessInteractorGetUiItemsPartialState()
 }
 
-interface ProximitySuccessInteractor {
+interface ProximitySuccessInteractor : ScopedPresentationInteractor {
     fun getUiItems(): Flow<ProximitySuccessInteractorGetUiItemsPartialState>
     fun stopPresentation()
 }
 
 class ProximitySuccessInteractorImpl(
-    private val walletCorePresentationController: WalletCorePresentationController,
     private val walletCoreDocumentsController: WalletCoreDocumentsController,
     private val resourceProvider: ResourceProvider,
     private val uuidProvider: UuidProvider,
-) : ProximitySuccessInteractor {
+    walletCorePresentationController: WalletCorePresentationController? = null,
+) : ProximitySuccessInteractor,
+    ScopedPresentationInteractorDelegate(walletCorePresentationController) {
 
     private val genericErrorMsg
         get() = resourceProvider.genericErrorMessage()

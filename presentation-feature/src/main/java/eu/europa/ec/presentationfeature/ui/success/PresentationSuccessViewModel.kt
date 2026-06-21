@@ -16,20 +16,23 @@
 
 package eu.europa.ec.presentationfeature.ui.success
 
+import android.content.Intent
 import androidx.lifecycle.viewModelScope
 import eu.europa.ec.commonfeature.ui.document_success.DocumentSuccessViewModel
-import eu.europa.ec.corelogic.di.getOrCreatePresentationScope
+import eu.europa.ec.corelogic.di.getOrNullKoinScope
 import eu.europa.ec.presentationfeature.interactor.PresentationSuccessInteractor
 import eu.europa.ec.presentationfeature.interactor.PresentationSuccessInteractorGetUiItemsPartialState
 import eu.europa.ec.uilogic.config.ConfigNavigation
 import eu.europa.ec.uilogic.config.NavigationType
 import eu.europa.ec.uilogic.navigation.DashboardScreens
 import kotlinx.coroutines.launch
+import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
 
 @KoinViewModel
 class PresentationSuccessViewModel(
     private val interactor: PresentationSuccessInteractor,
+    @InjectedParam private val presentationScopeId: String,
 ) : DocumentSuccessViewModel() {
 
     override fun getNextScreenConfigNavigation(): ConfigNavigation {
@@ -49,6 +52,7 @@ class PresentationSuccessViewModel(
         }
 
         viewModelScope.launch {
+            interactor.setScopeId(presentationScopeId)
             interactor.getUiItems().collect { response ->
                 when (response) {
                     is PresentationSuccessInteractorGetUiItemsPartialState.Failed -> {
@@ -73,9 +77,13 @@ class PresentationSuccessViewModel(
         }
     }
 
+    override fun getPendingIntent(): Intent? {
+        return interactor.getPendingIntent()
+    }
+
     override fun onCleared() {
         super.onCleared()
         interactor.stopPresentation()
-        getOrCreatePresentationScope().close()
+        getOrNullKoinScope(presentationScopeId)?.close()
     }
 }

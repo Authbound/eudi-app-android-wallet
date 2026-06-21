@@ -16,6 +16,7 @@
 
 package eu.europa.ec.corelogic.util
 
+import android.content.Intent
 import android.util.Log
 import eu.europa.ec.eudi.iso18013.transfer.TransferEvent
 import eu.europa.ec.eudi.iso18013.transfer.response.RequestProcessor
@@ -30,7 +31,7 @@ class EudiWalletListenerWrapper(
     private val onRequestReceived: (RequestProcessor.ProcessedRequest) -> Unit,
     private val onResponseSent: () -> Unit,
     private val onRedirect: (URI) -> Unit,
-    private val intentToSend: () -> Unit
+    private val intentToSend: (Intent) -> Unit
 ) : TransferEvent.Listener {
 
     companion object {
@@ -54,7 +55,7 @@ class EudiWalletListenerWrapper(
                 onDisconnected()
             }
             is TransferEvent.Error -> {
-                logDetailedError(event.error)
+                logTransferError(event.error)
                 onError(event.error.message ?: "Unknown error")
             }
             is TransferEvent.QrEngagementReady -> {
@@ -70,78 +71,29 @@ class EudiWalletListenerWrapper(
                 onResponseSent()
             }
             is TransferEvent.Redirect -> {
-                Log.d(TAG, "Redirect to: ${event.redirectUri}")
+                Log.d(TAG, "Redirect received")
                 onRedirect(event.redirectUri)
             }
             is TransferEvent.IntentToSend -> {
                 Log.d(TAG, "Intent to send")
-                intentToSend()
+                intentToSend(event.intent)
             }
         }
     }
 
-    /**
-     * Log detailed error information including the full cause chain.
-     * Helps debug issues like DCQL parsing errors, serialization failures, etc.
-     */
-    private fun logDetailedError(error: Throwable) {
-        Log.e(TAG, "═══════════════════════════════════════════════════════════")
-        Log.e(TAG, "TRANSFER ERROR DETAILS")
-        Log.e(TAG, "═══════════════════════════════════════════════════════════")
+    private fun logTransferError(error: Throwable) {
         Log.e(TAG, "Error class: ${error::class.qualifiedName}")
-        Log.e(TAG, "Error message: ${error.message}")
-
-        // Log the full cause chain
-        var cause: Throwable? = error.cause
-        var depth = 1
-        while (cause != null) {
-            Log.e(TAG, "───────────────────────────────────────────────────────────")
-            Log.e(TAG, "Cause [$depth]: ${cause::class.qualifiedName}")
-            Log.e(TAG, "Cause message: ${cause.message}")
-            cause = cause.cause
-            depth++
-        }
-
-        // Log the full stack trace
-        Log.e(TAG, "───────────────────────────────────────────────────────────")
-        Log.e(TAG, "Full stack trace:")
-        Log.e(TAG, error.stackTraceToString())
-        Log.e(TAG, "═══════════════════════════════════════════════════════════")
     }
 
-    /**
-     * Log details about the received request for debugging.
-     */
     private fun logRequestReceived(processedRequest: RequestProcessor.ProcessedRequest) {
         when (processedRequest) {
             is RequestProcessor.ProcessedRequest.Success -> {
                 Log.d(TAG, "Request processed successfully")
                 Log.d(TAG, "Number of requested documents: ${processedRequest.requestedDocuments.size}")
-                processedRequest.requestedDocuments.forEachIndexed { index, doc ->
-                    Log.d(TAG, "  Document [$index]: $doc")
-                }
             }
             is RequestProcessor.ProcessedRequest.Failure -> {
-                Log.e(TAG, "═══════════════════════════════════════════════════════════")
                 Log.e(TAG, "REQUEST PROCESSING FAILED")
-                Log.e(TAG, "═══════════════════════════════════════════════════════════")
                 Log.e(TAG, "Failure class: ${processedRequest::class.qualifiedName}")
-                Log.e(TAG, "Failure toString: $processedRequest")
-
-                // Try to extract the underlying throwable if available via reflection
-                try {
-                    val throwableField = processedRequest::class.java.declaredFields.find {
-                        Throwable::class.java.isAssignableFrom(it.type)
-                    }
-                    throwableField?.isAccessible = true
-                    val throwable = throwableField?.get(processedRequest) as? Throwable
-                    if (throwable != null) {
-                        logDetailedError(throwable)
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Could not extract throwable from failure: ${e.message}")
-                }
-                Log.e(TAG, "═══════════════════════════════════════════════════════════")
             }
         }
     }

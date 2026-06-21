@@ -48,11 +48,14 @@ import eu.europa.ec.storagelogic.dao.TransactionLogDao
 import eu.europa.ec.storagelogic.dao.UserDocumentMappingDao
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Module
+import org.koin.core.annotation.Named
 import org.koin.core.annotation.Scope
+import org.koin.core.annotation.Scoped
 import org.koin.core.annotation.Single
 import org.koin.mp.KoinPlatform
 
 const val PRESENTATION_SCOPE_ID = "presentation_scope_id"
+const val PRESENTATION_WALLET_QUALIFIER = "presentation_wallet"
 
 @Module
 @ComponentScan("eu.europa.ec.corelogic")
@@ -60,6 +63,33 @@ class LogicCoreModule
 
 @Single
 fun provideEudiWallet(
+    context: Context,
+    walletCoreConfig: WalletCoreConfig,
+    walletCoreLogController: WalletCoreLogController,
+    walletCoreTransactionLogController: WalletCoreTransactionLogController,
+): EudiWallet = createEudiWallet(
+    context = context,
+    walletCoreConfig = walletCoreConfig,
+    walletCoreLogController = walletCoreLogController,
+    walletCoreTransactionLogController = walletCoreTransactionLogController,
+)
+
+@Named(PRESENTATION_WALLET_QUALIFIER)
+@Scope(WalletCoreScope::class)
+@Scoped
+fun providePresentationEudiWallet(
+    context: Context,
+    walletCoreConfig: WalletCoreConfig,
+    walletCoreLogController: WalletCoreLogController,
+    walletCoreTransactionLogController: WalletCoreTransactionLogController,
+): EudiWallet = createEudiWallet(
+    context = context,
+    walletCoreConfig = walletCoreConfig,
+    walletCoreLogController = walletCoreLogController,
+    walletCoreTransactionLogController = walletCoreTransactionLogController,
+)
+
+private fun createEudiWallet(
     context: Context,
     walletCoreConfig: WalletCoreConfig,
     walletCoreLogController: WalletCoreLogController,
@@ -188,7 +218,21 @@ fun provideWalletCoreDocumentsController(
 class WalletPresentationScope
 
 /**
+ * Koin scope that lives for the current activity-level wallet session.
+ */
+@Scope
+class WalletCoreScope
+
+/**
  * Get Koin scope that lives during document presentation flow
  * */
-fun getOrCreatePresentationScope(): org.koin.core.scope.Scope =
-    KoinPlatform.getKoin().getOrCreateScope<WalletPresentationScope>(PRESENTATION_SCOPE_ID)
+fun getOrCreatePresentationScope(
+    scopeId: String = PRESENTATION_SCOPE_ID
+): org.koin.core.scope.Scope =
+    KoinPlatform.getKoin().getOrCreateScope<WalletPresentationScope>(scopeId)
+
+inline fun <reified T : Any> getOrCreateKoinScope(scopeId: String): org.koin.core.scope.Scope =
+    KoinPlatform.getKoin().getOrCreateScope<T>(scopeId)
+
+fun getOrNullKoinScope(scopeId: String): org.koin.core.scope.Scope? =
+    KoinPlatform.getKoin().getScopeOrNull(scopeId)

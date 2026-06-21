@@ -18,7 +18,6 @@ package eu.europa.ec.proximityfeature.ui.request
 
 import androidx.lifecycle.viewModelScope
 import eu.europa.ec.businesslogic.extension.ifEmptyOrNull
-import eu.europa.ec.commonfeature.config.RequestUriConfig
 import eu.europa.ec.commonfeature.ui.request.Event
 import eu.europa.ec.commonfeature.ui.request.RequestViewModel
 import eu.europa.ec.commonfeature.ui.request.model.RequestDocumentItemUi
@@ -30,7 +29,8 @@ import eu.europa.ec.uilogic.component.RelyingPartyDataUi
 import eu.europa.ec.uilogic.component.content.ContentErrorConfig
 import eu.europa.ec.uilogic.component.content.ContentHeaderConfig
 import eu.europa.ec.uilogic.navigation.ProximityScreens
-import eu.europa.ec.uilogic.serializer.UiSerializer
+import eu.europa.ec.uilogic.navigation.helper.generateComposableArguments
+import eu.europa.ec.uilogic.navigation.helper.generateComposableNavigationLink
 import kotlinx.coroutines.launch
 import org.koin.core.annotation.KoinViewModel
 import org.koin.core.annotation.InjectedParam
@@ -39,8 +39,7 @@ import org.koin.core.annotation.InjectedParam
 class ProximityRequestViewModel(
     private val interactor: ProximityRequestInteractor,
     private val resourceProvider: ResourceProvider,
-    private val uiSerializer: UiSerializer,
-    @InjectedParam private val requestUriConfigRaw: String
+    @InjectedParam private val presentationScopeId: String
 ) : RequestViewModel() {
 
     override fun getHeaderConfig(): ContentHeaderConfig {
@@ -55,7 +54,12 @@ class ProximityRequestViewModel(
     }
 
     override fun getNextScreen(): String {
-        return ProximityScreens.Loading.screenRoute
+        return generateComposableNavigationLink(
+            screen = ProximityScreens.Loading,
+            arguments = generateComposableArguments(
+                mapOf("scopeId" to presentationScopeId)
+            )
+        )
     }
 
     override fun doWork() {
@@ -66,13 +70,11 @@ class ProximityRequestViewModel(
             )
         }
 
-        val requestUriConfig = uiSerializer.fromBase64(
-            requestUriConfigRaw,
-            RequestUriConfig::class.java,
-            RequestUriConfig.Parser
-        ) ?: throw RuntimeException("RequestUriConfig:: is Missing or invalid")
+        setState {
+            copy(presentationScopeId = presentationScopeId)
+        }
 
-        interactor.setConfig(requestUriConfig)
+        interactor.setScopeId(presentationScopeId)
 
         viewModelJob = viewModelScope.launch {
             interactor.getRequestDocuments().collect { response ->
@@ -145,8 +147,8 @@ class ProximityRequestViewModel(
     }
 
     override fun cleanUp() {
-        super.cleanUp()
         interactor.stopPresentation()
+        super.cleanUp()
     }
 
     private fun getRelyingPartyData(

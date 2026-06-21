@@ -30,6 +30,9 @@ import eu.europa.ec.uilogic.component.RelyingPartyDataUi
 import eu.europa.ec.uilogic.component.content.ContentErrorConfig
 import eu.europa.ec.uilogic.component.content.ContentHeaderConfig
 import eu.europa.ec.uilogic.navigation.PresentationScreens
+import eu.europa.ec.uilogic.navigation.helper.IntentAction
+import eu.europa.ec.uilogic.navigation.helper.generateComposableArguments
+import eu.europa.ec.uilogic.navigation.helper.generateComposableNavigationLink
 import eu.europa.ec.uilogic.serializer.UiSerializer
 import kotlinx.coroutines.launch
 import org.koin.core.annotation.KoinViewModel
@@ -55,7 +58,12 @@ class PresentationRequestViewModel(
     }
 
     override fun getNextScreen(): String {
-        return PresentationScreens.PresentationLoading.screenRoute
+        return generateComposableNavigationLink(
+            screen = PresentationScreens.PresentationLoading,
+            arguments = generateComposableArguments(
+                mapOf("scopeId" to viewState.value.presentationScopeId)
+            )
+        )
     }
 
     override fun doWork() {
@@ -72,7 +80,11 @@ class PresentationRequestViewModel(
             RequestUriConfig.Parser
         ) ?: throw RuntimeException("RequestUriConfig:: is Missing or invalid")
 
-        interactor.setConfig(requestUriConfig)
+        setState {
+            copy(presentationScopeId = requestUriConfig.presentationScopeId)
+        }
+
+        interactor.setConfig(requestUriConfig, viewState.value.intentAction)
 
         viewModelJob = viewModelScope.launch {
             interactor.getRequestDocuments().collect { response ->
@@ -136,6 +148,12 @@ class PresentationRequestViewModel(
         }
     }
 
+    override fun init(intentAction: IntentAction?) {
+        setState {
+            copy(intentAction = intentAction)
+        }
+    }
+
     override fun updateData(
         updatedItems: List<RequestDocumentItemUi>,
         allowShare: Boolean?
@@ -145,8 +163,8 @@ class PresentationRequestViewModel(
     }
 
     override fun cleanUp() {
-        super.cleanUp()
         interactor.stopPresentation()
+        super.cleanUp()
     }
 
     private fun getRelyingPartyData(

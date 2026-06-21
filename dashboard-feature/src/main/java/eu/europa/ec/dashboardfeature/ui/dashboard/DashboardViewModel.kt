@@ -51,9 +51,12 @@ import eu.europa.ec.uilogic.mvi.ViewState
 import eu.europa.ec.uilogic.navigation.CommonScreens
 import eu.europa.ec.uilogic.navigation.DashboardScreens
 import eu.europa.ec.uilogic.navigation.helper.DeepLinkType
+import eu.europa.ec.uilogic.navigation.helper.IntentAction
+import eu.europa.ec.uilogic.navigation.helper.IntentType
 import eu.europa.ec.uilogic.navigation.helper.generateComposableArguments
 import eu.europa.ec.uilogic.navigation.helper.generateComposableNavigationLink
 import eu.europa.ec.uilogic.navigation.helper.hasDeepLink
+import eu.europa.ec.uilogic.navigation.helper.hasIntentAction
 import eu.europa.ec.uilogic.navigation.helper.parseVerificationSessionDeepLink
 import eu.europa.ec.uilogic.serializer.UiSerializer
 import org.koin.core.annotation.KoinViewModel
@@ -79,7 +82,7 @@ data class State(
 ) : ViewState
 
 sealed class Event : ViewEvent {
-    data class Init(val deepLinkUri: Uri?) : Event()
+    data class Init(val intent: Intent?, val deepLinkUri: Uri?) : Event()
     data object Pop : Event()
     data object QrScanPressed : Event()
 
@@ -116,6 +119,11 @@ sealed class Effect : ViewSideEffect {
 
         data class OpenDeepLinkAction(val deepLinkUri: Uri, val arguments: String?) :
             Navigation()
+
+        data class OpenIntentAction(
+            val intentAction: IntentAction,
+            val arguments: String?
+        ) : Navigation()
 
         data object OnAppSettings : Navigation()
         data object OnSystemSettings : Navigation()
@@ -165,7 +173,10 @@ class DashboardViewModel(
 
     override fun handleEvents(event: Event) {
         when (event) {
-            is Event.Init -> handleDeepLink(event.deepLinkUri)
+            is Event.Init -> {
+                handleIntent(event.intent)
+                handleDeepLink(event.deepLinkUri)
+            }
 
             is Event.Pop -> setEffect { Effect.Navigation.Pop }
 
@@ -465,6 +476,34 @@ class DashboardViewModel(
                         deepLinkUri = uri,
                         arguments = arguments
                     )
+                }
+            }
+        }
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        hasIntentAction(intent)?.let { action ->
+            when (action.type) {
+                IntentType.DC_API -> {
+                    val arguments = generateComposableArguments(
+                        mapOf(
+                            RequestUriConfig.serializedKeyName to uiSerializer.toBase64(
+                                RequestUriConfig(
+                                    PresentationMode.DcApi(
+                                        DashboardScreens.Dashboard.screenRoute
+                                    )
+                                ),
+                                RequestUriConfig.Parser
+                            )
+                        )
+                    )
+
+                    setEffect {
+                        Effect.Navigation.OpenIntentAction(
+                            intentAction = action,
+                            arguments = arguments
+                        )
+                    }
                 }
             }
         }

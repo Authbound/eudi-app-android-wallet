@@ -16,7 +16,6 @@
 
 package eu.europa.ec.proximityfeature.router
 
-import ProximityRequestScreen
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
@@ -24,10 +23,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
-import eu.europa.ec.commonfeature.config.RequestUriConfig
 import eu.europa.ec.proximityfeature.BuildConfig
 import eu.europa.ec.proximityfeature.ui.loading.ProximityLoadingScreen
 import eu.europa.ec.proximityfeature.ui.qr.ProximityQRScreen
+import eu.europa.ec.proximityfeature.ui.request.ProximityRequestScreen
 import eu.europa.ec.proximityfeature.ui.success.ProximitySuccessScreen
 import eu.europa.ec.uilogic.navigation.ModuleRoute
 import eu.europa.ec.uilogic.navigation.ProximityScreens
@@ -49,7 +48,7 @@ fun NavGraphBuilder.featureProximityGraph(navController: NavController) {
                 }
             ),
             arguments = listOf(
-                navArgument(RequestUriConfig.serializedKeyName) {
+                navArgument("scopeId") {
                     type = NavType.StringType
                 },
             )
@@ -59,7 +58,7 @@ fun NavGraphBuilder.featureProximityGraph(navController: NavController) {
                 koinViewModel(
                     parameters = {
                         parametersOf(
-                            it.arguments?.getString(RequestUriConfig.serializedKeyName).orEmpty()
+                            it.arguments?.getString("scopeId").orEmpty()
                         )
                     }
                 )
@@ -76,7 +75,7 @@ fun NavGraphBuilder.featureProximityGraph(navController: NavController) {
                 }
             ),
             arguments = listOf(
-                navArgument(RequestUriConfig.serializedKeyName) {
+                navArgument("scopeId") {
                     type = NavType.StringType
                 },
             )
@@ -86,7 +85,7 @@ fun NavGraphBuilder.featureProximityGraph(navController: NavController) {
                 koinViewModel(
                     parameters = {
                         parametersOf(
-                            it.arguments?.getString(RequestUriConfig.serializedKeyName).orEmpty()
+                            it.arguments?.getString("scopeId").orEmpty()
                         )
                     }
                 )
@@ -96,10 +95,21 @@ fun NavGraphBuilder.featureProximityGraph(navController: NavController) {
         // Loading
         composable(
             route = ProximityScreens.Loading.screenRoute,
+            arguments = listOf(
+                navArgument("scopeId") {
+                    type = NavType.StringType
+                }
+            )
         ) {
             ProximityLoadingScreen(
                 navController,
-                koinViewModel()
+                koinViewModel(
+                    parameters = {
+                        parametersOf(
+                            it.arguments?.getString("scopeId").orEmpty()
+                        )
+                    }
+                )
             )
         }
 
@@ -112,10 +122,21 @@ fun NavGraphBuilder.featureProximityGraph(navController: NavController) {
                         BuildConfig.DEEPLINK + ProximityScreens.Request.screenRoute
                 }
             ),
+            arguments = listOf(
+                navArgument("scopeId") {
+                    type = NavType.StringType
+                }
+            )
         ) {
             ProximitySuccessScreen(
                 navController,
-                koinViewModel()
+                koinViewModel(
+                    parameters = {
+                        parametersOf(
+                            it.arguments?.getString("scopeId").orEmpty()
+                        )
+                    }
+                )
             )
         }
     }

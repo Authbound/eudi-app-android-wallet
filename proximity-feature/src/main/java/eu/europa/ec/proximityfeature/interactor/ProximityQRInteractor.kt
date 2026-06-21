@@ -20,6 +20,8 @@ import androidx.activity.ComponentActivity
 import eu.europa.ec.businesslogic.extension.safeAsync
 import eu.europa.ec.commonfeature.config.RequestUriConfig
 import eu.europa.ec.commonfeature.config.toDomainConfig
+import eu.europa.ec.commonfeature.interactor.ScopedPresentationInteractor
+import eu.europa.ec.commonfeature.interactor.ScopedPresentationInteractorDelegate
 import eu.europa.ec.corelogic.controller.TransferEventPartialState
 import eu.europa.ec.corelogic.controller.WalletCorePresentationController
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
@@ -35,7 +37,7 @@ sealed class ProximityQRPartialState {
     data object Disconnected : ProximityQRPartialState()
 }
 
-interface ProximityQRInteractor {
+interface ProximityQRInteractor : ScopedPresentationInteractor {
     fun startQrEngagement(): Flow<ProximityQRPartialState>
     fun toggleNfcEngagement(
         componentActivity: ComponentActivity,
@@ -48,13 +50,15 @@ interface ProximityQRInteractor {
 
 class ProximityQRInteractorImpl(
     private val resourceProvider: ResourceProvider,
-    private val walletCorePresentationController: WalletCorePresentationController
-) : ProximityQRInteractor {
+    walletCorePresentationController: WalletCorePresentationController? = null
+) : ProximityQRInteractor,
+    ScopedPresentationInteractorDelegate(walletCorePresentationController) {
 
     private val genericErrorMsg
         get() = resourceProvider.genericErrorMessage()
 
     override fun setConfig(config: RequestUriConfig) {
+        setScopeId(config.presentationScopeId)
         walletCorePresentationController.setConfig(config.toDomainConfig())
     }
 

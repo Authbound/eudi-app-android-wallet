@@ -25,6 +25,8 @@ import eu.europa.ec.businesslogic.controller.crypto.KeystoreController
 import eu.europa.ec.businesslogic.controller.crypto.KeystoreControllerImpl
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.log.LogControllerImpl
+import eu.europa.ec.businesslogic.controller.session.PresentationSessionController
+import eu.europa.ec.businesslogic.controller.session.PresentationSessionControllerImpl
 import eu.europa.ec.businesslogic.controller.storage.PrefKeys
 import eu.europa.ec.businesslogic.controller.storage.PrefKeysImpl
 import eu.europa.ec.businesslogic.controller.storage.PrefsController
@@ -59,6 +61,10 @@ fun provideConfigLogic(context: Context): ConfigLogic = ConfigLogicImpl(context)
 @Single
 fun provideLogController(context: Context, configLogic: ConfigLogic): LogController =
     LogControllerImpl(context, configLogic)
+
+@Single
+fun providePresentationSessionController(): PresentationSessionController =
+    PresentationSessionControllerImpl()
 
 // ============================================================
 // V1 Controllers (Keep for backwards compatibility during migration)

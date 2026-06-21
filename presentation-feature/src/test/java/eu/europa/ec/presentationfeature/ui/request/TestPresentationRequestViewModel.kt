@@ -22,8 +22,8 @@ import eu.europa.ec.testlogic.rule.CoroutineTestRule
 import eu.europa.ec.uilogic.navigation.CommonScreens
 import eu.europa.ec.uilogic.navigation.PresentationScreens
 import eu.europa.ec.uilogic.serializer.UiSerializer
-import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertFalse
+import junit.framework.TestCase.assertTrue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -79,7 +79,7 @@ class TestPresentationRequestViewModel {
 
         val nextScreen: String = viewModel.getNextScreen()
 
-        assertEquals(PresentationScreens.PresentationLoading.screenRoute, nextScreen)
+        assertTrue(nextScreen.startsWith(PresentationScreens.PresentationLoading.screenName))
         assertFalse(nextScreen.contains(CommonScreens.Biometric.screenName))
     }
 

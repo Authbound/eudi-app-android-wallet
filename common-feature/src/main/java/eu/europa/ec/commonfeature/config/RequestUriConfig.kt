@@ -19,18 +19,40 @@ package eu.europa.ec.commonfeature.config
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import eu.europa.ec.corelogic.controller.PresentationControllerConfig
+import eu.europa.ec.uilogic.navigation.helper.IntentAction
+import eu.europa.ec.uilogic.navigation.helper.IntentType
 import eu.europa.ec.uilogic.serializer.UiSerializable
 import eu.europa.ec.uilogic.serializer.UiSerializableParser
 import eu.europa.ec.uilogic.serializer.adapter.SerializableTypeAdapter
 
+private const val OPENID4VP_PRESENTATION_SCOPE_ID = "vp_presentation_scope_id"
+private const val BLE_PRESENTATION_SCOPE_ID = "ble_presentation_scope_id"
+private const val DC_API_PRESENTATION_SCOPE_ID = "dc_api_presentation_scope_id"
+
 sealed interface PresentationMode {
-    data class OpenId4Vp(val uri: String, val initiatorRoute: String) : PresentationMode
-    data class Ble(val initiatorRoute: String) : PresentationMode
+    val scopeId: String
+
+    data class OpenId4Vp(val uri: String, val initiatorRoute: String) : PresentationMode {
+        override val scopeId: String
+            get() = OPENID4VP_PRESENTATION_SCOPE_ID
+    }
+
+    data class Ble(val initiatorRoute: String) : PresentationMode {
+        override val scopeId: String
+            get() = BLE_PRESENTATION_SCOPE_ID
+    }
+
+    data class DcApi(val initiatorRoute: String) : PresentationMode {
+        override val scopeId: String
+            get() = DC_API_PRESENTATION_SCOPE_ID
+    }
 }
 
 data class RequestUriConfig(
     val mode: PresentationMode
 ) : UiSerializable {
+
+    val presentationScopeId: String = mode.scopeId
 
     companion object Parser : UiSerializableParser {
         override val serializedKeyName = "requestUriConfig"
@@ -44,12 +66,23 @@ data class RequestUriConfig(
     }
 }
 
-fun RequestUriConfig.toDomainConfig(): PresentationControllerConfig {
+fun RequestUriConfig.toDomainConfig(intentAction: IntentAction? = null): PresentationControllerConfig {
     return when (mode) {
         is PresentationMode.Ble -> PresentationControllerConfig.Ble(mode.initiatorRoute)
         is PresentationMode.OpenId4Vp -> PresentationControllerConfig.OpenId4VP(
             mode.uri,
             mode.initiatorRoute
         )
+
+        is PresentationMode.DcApi -> {
+            intentAction?.let { safeIntentAction ->
+                when (safeIntentAction.type) {
+                    IntentType.DC_API -> PresentationControllerConfig.DcApi(
+                        initiator = mode.initiatorRoute,
+                        startIntent = safeIntentAction.intent
+                    )
+                }
+            } ?: throw IllegalStateException("Cannot create DcApi config without intentAction")
+        }
     }
 }

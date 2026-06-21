@@ -18,37 +18,62 @@ package eu.europa.ec.uilogic.container
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Bundle
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
+import eu.europa.ec.businesslogic.controller.session.PresentationSessionController
+import eu.europa.ec.businesslogic.provider.UuidProvider
+import eu.europa.ec.corelogic.di.getOrNullKoinScope
 import eu.europa.ec.resourceslogic.theme.ThemeManager
 import eu.europa.ec.uilogic.extension.exposeTestTagsAsResourceId
 import eu.europa.ec.uilogic.navigation.IssuanceScreens
 import eu.europa.ec.uilogic.navigation.RouterHost
 import eu.europa.ec.uilogic.navigation.helper.DeepLinkAction
 import eu.europa.ec.uilogic.navigation.helper.DeepLinkType
+import eu.europa.ec.uilogic.navigation.helper.IntentType
 import eu.europa.ec.uilogic.navigation.helper.handleDeepLinkAction
 import eu.europa.ec.uilogic.navigation.helper.hasDeepLink
+import eu.europa.ec.uilogic.navigation.helper.hasIntentAction
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
+import org.koin.androidx.viewmodel.ext.android.viewModel
+import org.koin.core.annotation.KoinViewModel
 
 open class EudiComponentActivity : FragmentActivity() {
 
     private val routerHost: RouterHost by inject()
+    private val viewModel: EudiComponentActivityViewModel by viewModel()
 
     private var flowStarted: Boolean = false
 
     internal var pendingDeepLink: Uri? = null
+    internal var pendingIntent: Intent? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        viewModel.onCreate()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.onResume()
+    }
 
     internal fun cacheDeepLink(intent: Intent?) {
         pendingDeepLink = intent?.data
+    }
+
+    internal fun cacheIntent(intent: Intent?) {
+        pendingIntent = intent
     }
 
     protected fun cacheDeepLink(uri: Uri?) {
@@ -134,6 +159,43 @@ open class EudiComponentActivity : FragmentActivity() {
                 }
             }
             setIntent(Intent())
+        } ?: hasIntentAction(intent)?.let {
+            when (it.type) {
+                IntentType.DC_API -> {
+                    cacheIntent(it.intent)
+                    if (routerHost.userIsLoggedInWithDocuments()) {
+                        routerHost.popToDashboardScreen()
+                    }
+                }
+            }
+            setIntent(Intent())
         }
+    }
+}
+
+@KoinViewModel
+internal class EudiComponentActivityViewModel(
+    private val presentationSessionController: PresentationSessionController,
+    uuidProvider: UuidProvider
+) : ViewModel() {
+
+    private val sessionId: String = uuidProvider.provideUuid()
+
+    fun onCreate() {
+        setSessionId()
+    }
+
+    fun onResume() {
+        setSessionId()
+    }
+
+    override fun onCleared() {
+        getOrNullKoinScope(sessionId)?.close()
+        presentationSessionController.clearSessionId(sessionId)
+        super.onCleared()
+    }
+
+    private fun setSessionId() {
+        presentationSessionController.setSessionId(sessionId)
     }
 }

@@ -47,7 +47,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(application = TestApplication::class)
+@Config(sdk = [36], application = TestApplication::class)
 class TestBiometricInteractor {
 
     @get:Rule
