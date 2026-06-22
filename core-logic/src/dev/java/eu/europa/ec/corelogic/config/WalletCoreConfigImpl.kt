@@ -153,7 +153,8 @@ internal class WalletCoreConfigImpl(
                         R.raw.pidissuerca02_pt,
                         R.raw.pidissuerca02_ut,
                         R.raw.dc4eu,
-                        R.raw.r45_staging
+                        R.raw.r45_staging,
+                        R.raw.multipaz
                     )
 
                     if (dynamicCerts.isNotEmpty()) {
