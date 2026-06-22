@@ -37,6 +37,8 @@ dependencies {
     implementation(libs.gson)
     implementation(libs.androidx.appAuth)
     implementation(libs.androidx.biometric)
+    implementation(libs.androidx.datastore.prefs)
+    implementation(libs.androidx.datastore.tink)
     implementation(libs.google.phonenumber)
     implementation(libs.timber)
     implementation(libs.treessence)

@@ -30,7 +30,10 @@ import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import kotlinx.coroutines.launch
 
 interface DeviceAuthenticationController {
-    fun deviceSupportsBiometrics(listener: (BiometricsAvailability) -> Unit)
+    fun deviceSupportsBiometrics(): BiometricsAvailability
+    fun deviceSupportsBiometrics(listener: (BiometricsAvailability) -> Unit) {
+        listener(deviceSupportsBiometrics())
+    }
     fun authenticate(
         context: Context,
         biometryCrypto: BiometricCrypto,
@@ -50,17 +53,12 @@ class DeviceAuthenticationControllerImpl(
     private val localUnlockTracker: LocalUnlockTracker
 ) : DeviceAuthenticationController {
 
-    override fun deviceSupportsBiometrics(listener: (BiometricsAvailability) -> Unit) {
-        biometricAuthenticationController.deviceSupportsBiometrics(listener)
+    override fun deviceSupportsBiometrics(): BiometricsAvailability {
+        return biometricAuthenticationController.getBiometricsAvailability()
     }
 
     override suspend fun canAuthenticateNow(): Boolean =
-        kotlinx.coroutines.suspendCancellableCoroutine { cont ->
-            deviceSupportsBiometrics { availability ->
-                val can = availability is BiometricsAvailability.CanAuthenticate
-                if (cont.isActive) cont.resume(can) { cause, _, _ -> }
-            }
-        }
+        deviceSupportsBiometrics() is BiometricsAvailability.CanAuthenticate
 
     override fun authenticate(
         context: Context,

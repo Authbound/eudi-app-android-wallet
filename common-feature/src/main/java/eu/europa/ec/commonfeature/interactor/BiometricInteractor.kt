@@ -28,7 +28,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
 interface BiometricInteractor {
-    fun getBiometricsAvailability(listener: (BiometricsAvailability) -> Unit)
+    fun getBiometricsAvailability(): BiometricsAvailability
+    fun getBiometricsAvailability(listener: (BiometricsAvailability) -> Unit) {
+        listener(getBiometricsAvailability())
+    }
     suspend fun getBiometricUserSelection(): Boolean
     suspend fun storeBiometricsUsageDecision(shouldUseBiometrics: Boolean)
     suspend fun getBiometricsPreferenceDecided(): Boolean
@@ -70,8 +73,8 @@ class BiometricInteractorImpl(
         biometryStorageController.setBiometricsPreferenceDecided(value)
     }
 
-    override fun getBiometricsAvailability(listener: (BiometricsAvailability) -> Unit) {
-        biometricAuthenticationController.deviceSupportsBiometrics(listener)
+    override fun getBiometricsAvailability(): BiometricsAvailability {
+        return biometricAuthenticationController.getBiometricsAvailability()
     }
 
     override fun authenticateWithBiometrics(

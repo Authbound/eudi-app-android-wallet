@@ -163,15 +163,17 @@ class TestBiometricInteractor {
 
     // Case: getBiometricsAvailability behaviour
     @Test
-    fun `When getBiometricsAvailability is called, Then verify deviceSupportsBiometrics is executed`() {
+    fun `When getBiometricsAvailability is called, Then synchronous availability is returned`() {
         // Given
-        val mockListener: (BiometricsAvailability) -> Unit = mock()
+        whenever(biometricAuthenticationController.getBiometricsAvailability())
+            .thenReturn(BiometricsAvailability.CanAuthenticate)
 
         // When
-        interactor.getBiometricsAvailability(mockListener)
+        val result: BiometricsAvailability = interactor.getBiometricsAvailability()
 
         // Then
-        verify(biometricAuthenticationController).deviceSupportsBiometrics(mockListener)
+        assertEquals(BiometricsAvailability.CanAuthenticate, result)
+        verify(biometricAuthenticationController).getBiometricsAvailability()
     }
     //endregion
 
