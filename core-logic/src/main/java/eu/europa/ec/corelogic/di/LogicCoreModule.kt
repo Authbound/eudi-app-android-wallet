@@ -43,6 +43,7 @@ import eu.europa.ec.eudi.wallet.EudiWallet
 import eu.europa.ec.networklogic.repository.WalletAttestationRepository
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.storagelogic.dao.BookmarkDao
+import eu.europa.ec.storagelogic.dao.FailedReIssuedDocumentDao
 import eu.europa.ec.storagelogic.dao.RevokedDocumentDao
 import eu.europa.ec.storagelogic.dao.TransactionLogDao
 import eu.europa.ec.storagelogic.dao.UserDocumentMappingDao
@@ -175,6 +176,7 @@ fun provideLocalWalletCleanupController(
     bookmarkDao: BookmarkDao,
     transactionLogDao: TransactionLogDao,
     revokedDocumentDao: RevokedDocumentDao,
+    failedReIssuedDocumentDao: FailedReIssuedDocumentDao,
     ownershipController: UserDocumentOwnershipController,
     logController: LogController
 ): LocalWalletCleanupController = LocalWalletCleanupControllerImpl(
@@ -182,6 +184,7 @@ fun provideLocalWalletCleanupController(
     bookmarkDao,
     transactionLogDao,
     revokedDocumentDao,
+    failedReIssuedDocumentDao,
     ownershipController,
     logController
 )
@@ -195,6 +198,7 @@ fun provideWalletCoreDocumentsController(
     bookmarkDao: BookmarkDao,
     transactionLogDao: TransactionLogDao,
     revokedDocumentDao: RevokedDocumentDao,
+    failedReIssuedDocumentDao: FailedReIssuedDocumentDao,
     ownershipController: UserDocumentOwnershipController,
     logController: LogController
 ): WalletCoreDocumentsController =
@@ -206,6 +210,7 @@ fun provideWalletCoreDocumentsController(
         bookmarkDao,
         transactionLogDao,
         revokedDocumentDao,
+        failedReIssuedDocumentDao,
         ownershipController,
         logController
     )

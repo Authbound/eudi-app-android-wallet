@@ -14,23 +14,22 @@
  * governing permissions and limitations under the Licence.
  */
 
-package io.authbound.wallet.test
+package eu.europa.ec.storagelogic.dao
 
-import org.koin.core.module.Module
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import eu.europa.ec.storagelogic.model.FailedReIssuedDocument
 
-class AuthTestApplication : eu.europa.ec.assemblylogic.Application() {
+@Dao
+interface FailedReIssuedDocumentDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun storeAll(values: List<FailedReIssuedDocument>)
 
-    override fun additionalKoinModules(): List<Module> = listOf(authTestModule)
+    @Query("DELETE FROM failedReIssuedDocuments WHERE userId = :userId")
+    suspend fun deleteAllForUser(userId: String)
 
-    override fun allowKoinOverride(): Boolean = true
-
-    override fun shouldInitializeRqes(): Boolean = false
-
-    override fun shouldInitializeReporting(): Boolean = false
-
-    override fun shouldInitializeRevocationWorkManager(): Boolean = false
-
-    override fun shouldInitializeReIssuanceWorkManager(): Boolean = false
-
-    override fun shouldInitializeAppLockLifecycleObserver(): Boolean = false
+    @Query("DELETE FROM failedReIssuedDocuments")
+    suspend fun deleteAll()
 }

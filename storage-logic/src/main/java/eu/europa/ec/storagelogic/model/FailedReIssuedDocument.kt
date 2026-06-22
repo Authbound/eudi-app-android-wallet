@@ -14,23 +14,15 @@
  * governing permissions and limitations under the Licence.
  */
 
-package io.authbound.wallet.test
+package eu.europa.ec.storagelogic.model
 
-import org.koin.core.module.Module
+import androidx.room.Entity
 
-class AuthTestApplication : eu.europa.ec.assemblylogic.Application() {
-
-    override fun additionalKoinModules(): List<Module> = listOf(authTestModule)
-
-    override fun allowKoinOverride(): Boolean = true
-
-    override fun shouldInitializeRqes(): Boolean = false
-
-    override fun shouldInitializeReporting(): Boolean = false
-
-    override fun shouldInitializeRevocationWorkManager(): Boolean = false
-
-    override fun shouldInitializeReIssuanceWorkManager(): Boolean = false
-
-    override fun shouldInitializeAppLockLifecycleObserver(): Boolean = false
-}
+@Entity(
+    tableName = "failedReIssuedDocuments",
+    primaryKeys = ["identifier", "userId"]
+)
+data class FailedReIssuedDocument(
+    val identifier: String,
+    val userId: String
+)

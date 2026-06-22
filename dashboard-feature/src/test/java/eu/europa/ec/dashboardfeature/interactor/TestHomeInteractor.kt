@@ -42,7 +42,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowBluetoothAdapter
 
 @RunWith(RobolectricTestRunner::class)
-@Config(application = TestApplication::class)
+@Config(application = TestApplication::class, sdk = [36])
 class TestHomeInteractor {
 
     @get:Rule

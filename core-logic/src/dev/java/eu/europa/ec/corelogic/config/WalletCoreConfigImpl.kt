@@ -34,6 +34,7 @@ import eu.europa.ec.resourceslogic.R
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.runBlocking
 import java.io.ByteArrayInputStream
+import java.time.Duration
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
 import kotlin.time.Duration.Companion.seconds
@@ -234,6 +235,11 @@ internal class WalletCoreConfigImpl(
                     policy = CredentialPolicy.OneTimeUse,
                     numberOfCredentials = 60
                 ),
+            ),
+            reissuanceRule = ReIssuanceRule(
+                minNumberOfCredentials = 2,
+                minExpirationHours = 24,
+                backgroundInterval = Duration.ofMinutes(15)
             )
         )
 }

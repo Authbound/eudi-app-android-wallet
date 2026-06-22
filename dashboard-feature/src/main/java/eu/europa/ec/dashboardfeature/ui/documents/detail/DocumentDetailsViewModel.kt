@@ -92,6 +92,7 @@ sealed class Event : ViewEvent {
     data object OnBookmarkRemoved : Event()
     data object IssuerCardPressed : Event()
     data class OnRevocationStatusChanged(val revokedIds: List<String>) : Event()
+    data class OnReIssuanceStatusChanged(val reIssuedIds: List<String>) : Event()
     data object ToggleExpansionStateOfDocumentCredentialsSection : Event()
     data object DocumentCredentialsSectionPrimaryButtonPressed : Event()
 }
@@ -217,6 +218,12 @@ class DocumentDetailsViewModel(
                     copy(
                         isRevoked = event.revokedIds.contains(documentId)
                     )
+                }
+            }
+
+            is Event.OnReIssuanceStatusChanged -> {
+                if (event.reIssuedIds.contains(documentId)) {
+                    setEvent(Event.Pop)
                 }
             }
 

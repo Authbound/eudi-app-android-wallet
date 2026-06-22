@@ -65,9 +65,11 @@ import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.businesslogic.controller.wallet.UserDocumentOwnershipController
 import eu.europa.ec.storagelogic.dao.BookmarkDao
+import eu.europa.ec.storagelogic.dao.FailedReIssuedDocumentDao
 import eu.europa.ec.storagelogic.dao.RevokedDocumentDao
 import eu.europa.ec.storagelogic.dao.TransactionLogDao
 import eu.europa.ec.storagelogic.model.Bookmark
+import eu.europa.ec.storagelogic.model.FailedReIssuedDocument
 import eu.europa.ec.storagelogic.model.RevokedDocument
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -181,6 +183,13 @@ interface WalletCoreDocumentsController {
         prioritizeDeferred: Boolean = true
     ): Flow<IssueDocumentsPartialState>
 
+    fun reIssueDocument(
+        documentId: DocumentId,
+        issuerId: String,
+        allowAuthorizationFallback: Boolean,
+        prioritizeDeferred: Boolean = false
+    ): Flow<IssueDocumentsPartialState>
+
     fun deleteDocument(
         documentId: String,
     ): Flow<DeleteDocumentPartialState>
@@ -218,6 +227,8 @@ interface WalletCoreDocumentsController {
     suspend fun storeRevokedDocuments(revokedDocuments: List<IssuedDocument>)
 
     suspend fun removeRevokedDocumentsFromStorage(ids: List<String>)
+
+    suspend fun replaceFailedReIssuedDocumentIds(ids: List<String>)
 }
 
 class WalletCoreDocumentsControllerImpl(
@@ -228,6 +239,7 @@ class WalletCoreDocumentsControllerImpl(
     private val bookmarkDao: BookmarkDao,
     private val transactionLogDao: TransactionLogDao,
     private val revokedDocumentDao: RevokedDocumentDao,
+    private val failedReIssuedDocumentDao: FailedReIssuedDocumentDao,
     private val ownershipController: UserDocumentOwnershipController,
     private val logController: LogController,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO
@@ -459,6 +471,44 @@ class WalletCoreDocumentsControllerImpl(
             IssueDocumentsPartialState.Failure(
                 errorMessage = documentErrorMessage
             )
+        }
+
+    override fun reIssueDocument(
+        documentId: DocumentId,
+        issuerId: String,
+        allowAuthorizationFallback: Boolean,
+        prioritizeDeferred: Boolean
+    ): Flow<IssueDocumentsPartialState> =
+        callbackFlow {
+            val managerEntry: Map.Entry<VciConfig, OpenId4VciManager>? =
+                getVciManagerEntry(issuerId = issuerId, useDefault = true)
+            if (managerEntry == null) {
+                logController.e(TAG) { "reIssueDocument: no VCI managers configured" }
+                trySendBlocking(IssueDocumentsPartialState.Failure(errorMessage = documentErrorMessage))
+                close()
+                return@callbackFlow
+            }
+            val manager: OpenId4VciManager = managerEntry.value
+            val allowWuaProofAuthenticationRetry: Boolean =
+                canRetryAfterWuaProofAuthentication(managerEntry.key)
+            manager.reissueDocument(
+                documentId = documentId,
+                allowAuthorizationFallback = allowAuthorizationFallback,
+                onIssueEvent = issuanceCallback(
+                    prioritizeDeferred = prioritizeDeferred,
+                    allowWuaProofAuthenticationRetry = allowWuaProofAuthenticationRetry,
+                    retryIssuance = { onIssueEvent ->
+                        manager.reissueDocument(
+                            documentId = documentId,
+                            allowAuthorizationFallback = allowAuthorizationFallback,
+                            onIssueEvent = onIssueEvent
+                        )
+                    }
+                )
+            )
+            awaitClose()
+        }.safeAsync {
+            IssueDocumentsPartialState.Failure(errorMessage = documentErrorMessage)
         }
 
     override fun deleteDocument(documentId: String): Flow<DeleteDocumentPartialState> = flow {
@@ -758,6 +808,16 @@ class WalletCoreDocumentsControllerImpl(
     override suspend fun removeRevokedDocumentsFromStorage(ids: List<String>) {
         val userId = ownershipController.requireCurrentUserId()
         ids.forEach { revokedDocumentDao.delete(it, userId) }
+    }
+
+    override suspend fun replaceFailedReIssuedDocumentIds(ids: List<String>) {
+        val userId = ownershipController.requireCurrentUserId()
+        failedReIssuedDocumentDao.deleteAllForUser(userId)
+        if (ids.isNotEmpty()) {
+            failedReIssuedDocumentDao.storeAll(
+                ids.distinct().map { FailedReIssuedDocument(identifier = it, userId = userId) }
+            )
+        }
     }
 
     override suspend fun resolveDocumentStatus(document: IssuedDocument): Result<Status> =

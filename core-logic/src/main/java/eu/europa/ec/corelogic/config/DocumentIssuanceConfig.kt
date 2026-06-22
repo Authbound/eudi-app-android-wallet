@@ -18,6 +18,7 @@ package eu.europa.ec.corelogic.config
 
 import eu.europa.ec.corelogic.model.DocumentIdentifier
 import eu.europa.ec.eudi.wallet.document.CreateDocumentSettings.CredentialPolicy
+import java.time.Duration
 
 /**
  * Represents the configuration for document issuance.
@@ -33,7 +34,8 @@ import eu.europa.ec.eudi.wallet.document.CreateDocumentSettings.CredentialPolicy
  */
 data class DocumentIssuanceConfig(
     val defaultRule: DocumentIssuanceRule,
-    val documentSpecificRules: Map<DocumentIdentifier, DocumentIssuanceRule>
+    val documentSpecificRules: Map<DocumentIdentifier, DocumentIssuanceRule>,
+    val reissuanceRule: ReIssuanceRule
 ) {
 
     /**
@@ -63,4 +65,10 @@ data class DocumentIssuanceConfig(
 data class DocumentIssuanceRule(
     val policy: CredentialPolicy,
     val numberOfCredentials: Int,
+)
+
+data class ReIssuanceRule(
+    val minNumberOfCredentials: Int,
+    val minExpirationHours: Int,
+    val backgroundInterval: Duration
 )

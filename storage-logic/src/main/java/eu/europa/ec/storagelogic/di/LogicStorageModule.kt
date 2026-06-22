@@ -19,6 +19,7 @@ package eu.europa.ec.storagelogic.di
 import android.content.Context
 import androidx.room.Room
 import eu.europa.ec.storagelogic.dao.BookmarkDao
+import eu.europa.ec.storagelogic.dao.FailedReIssuedDocumentDao
 import eu.europa.ec.storagelogic.dao.RevokedDocumentDao
 import eu.europa.ec.storagelogic.dao.TransactionLogDao
 import eu.europa.ec.storagelogic.dao.UserDocumentMappingDao
@@ -38,7 +39,7 @@ fun provideAppDatabase(context: Context): DatabaseService =
         context,
         DatabaseService::class.java,
         "eudi.app.wallet.storage"
-    ).addMigrations(DatabaseMigrations.MIGRATION_1_2).build()
+    ).addMigrations(DatabaseMigrations.MIGRATION_1_2, DatabaseMigrations.MIGRATION_2_3).build()
 
 @Single
 fun provideBookmarkDao(service: DatabaseService): BookmarkDao = service.bookmarkDao()
@@ -54,3 +55,7 @@ fun provideTransactionLogDao(service: DatabaseService): TransactionLogDao =
 @Single
 fun provideUserDocumentMappingDao(service: DatabaseService): UserDocumentMappingDao =
     service.userDocumentMappingDao()
+
+@Single
+fun provideFailedReIssuedDocumentDao(service: DatabaseService): FailedReIssuedDocumentDao =
+    service.failedReIssuedDocumentDao()

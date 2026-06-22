@@ -23,6 +23,7 @@ import eu.europa.ec.corelogic.config.AuthboundWalletProviderConfig
 import eu.europa.ec.corelogic.config.DocumentIssuanceConfig
 import eu.europa.ec.corelogic.config.DocumentIssuanceRule
 import eu.europa.ec.corelogic.config.EuReferenceWalletProviderConfig
+import eu.europa.ec.corelogic.config.ReIssuanceRule
 import eu.europa.ec.corelogic.config.VciConfig
 import eu.europa.ec.corelogic.config.WalletCoreConfig
 import eu.europa.ec.corelogic.provider.IssuerOpenId4VciManagerFactory
@@ -48,6 +49,7 @@ import eu.europa.ec.eudi.wallet.issue.openid4vci.OfferResult
 import eu.europa.ec.eudi.wallet.issue.openid4vci.OpenId4VciManager
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.storagelogic.dao.BookmarkDao
+import eu.europa.ec.storagelogic.dao.FailedReIssuedDocumentDao
 import eu.europa.ec.storagelogic.dao.RevokedDocumentDao
 import eu.europa.ec.storagelogic.dao.TransactionLogDao
 import eu.europa.ec.testlogic.extension.runFlowTest
@@ -71,6 +73,7 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.net.URI
 import java.net.URLEncoder
+import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
 
@@ -99,6 +102,9 @@ class TestWalletCoreDocumentsControllerAuthboundIssuanceAuth {
 
     @Mock
     private lateinit var revokedDocumentDao: RevokedDocumentDao
+
+    @Mock
+    private lateinit var failedReIssuedDocumentDao: FailedReIssuedDocumentDao
 
     @Mock
     private lateinit var ownershipController: UserDocumentOwnershipController
@@ -139,7 +145,12 @@ class TestWalletCoreDocumentsControllerAuthboundIssuanceAuth {
                     policy = CredentialPolicy.RotateUse,
                     numberOfCredentials = 1
                 ),
-                documentSpecificRules = emptyMap()
+                documentSpecificRules = emptyMap(),
+                reissuanceRule = ReIssuanceRule(
+                    minNumberOfCredentials = 2,
+                    minExpirationHours = 24,
+                    backgroundInterval = Duration.ofMinutes(15)
+                )
             )
         )
         whenever(issuerOpenId4VciManagerFactory.create(eudiWallet, authboundVciConfig))
@@ -152,6 +163,7 @@ class TestWalletCoreDocumentsControllerAuthboundIssuanceAuth {
             bookmarkDao = bookmarkDao,
             transactionLogDao = transactionLogDao,
             revokedDocumentDao = revokedDocumentDao,
+            failedReIssuedDocumentDao = failedReIssuedDocumentDao,
             ownershipController = ownershipController,
             logController = logController
         )
@@ -217,6 +229,38 @@ class TestWalletCoreDocumentsControllerAuthboundIssuanceAuth {
                 val result: ResolveDocumentOfferPartialState = awaitItem()
                 assertTrue(result is ResolveDocumentOfferPartialState.Success)
                 verify(manager).resolveDocumentOffer(eq(offerUri), anyOrNull(), any())
+            }
+        }
+
+    @Test
+    fun `Given document is reissued, When issuer is configured, Then manager reissues without authorization fallback`() =
+        coroutineRule.runTest {
+            doAnswer { invocation ->
+                val listener: OpenId4VciManager.OnIssueEvent =
+                    invocation.getArgument<OpenId4VciManager.OnIssueEvent>(3)
+                listener.onResult(IssueEvent.Failure(RuntimeException("stop")))
+                Unit
+            }.whenever(manager).reissueDocument(
+                documentId = eq(DOCUMENT_ID),
+                allowAuthorizationFallback = eq(false),
+                executor = anyOrNull(),
+                onIssueEvent = any()
+            )
+
+            controller.reIssueDocument(
+                documentId = DOCUMENT_ID,
+                issuerId = ISSUER_URL,
+                allowAuthorizationFallback = false
+            ).runFlowTest {
+                val result: IssueDocumentsPartialState = awaitItem()
+
+                assertTrue(result is IssueDocumentsPartialState.Failure)
+                verify(manager).reissueDocument(
+                    documentId = eq(DOCUMENT_ID),
+                    allowAuthorizationFallback = eq(false),
+                    executor = anyOrNull(),
+                    onIssueEvent = any()
+                )
             }
         }
 
@@ -356,5 +400,6 @@ class TestWalletCoreDocumentsControllerAuthboundIssuanceAuth {
     private companion object {
         const val ISSUER_URL: String = "https://issuer.authbound.io/api/v1/openid4vci"
         const val UNCONFIGURED_ISSUER_URL: String = "https://issuer.example/openid4vci"
+        const val DOCUMENT_ID: String = "document-id"
     }
 }

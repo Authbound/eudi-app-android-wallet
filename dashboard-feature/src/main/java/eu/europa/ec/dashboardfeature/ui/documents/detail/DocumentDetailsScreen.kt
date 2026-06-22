@@ -152,15 +152,25 @@ fun DocumentDetailsScreen(
         toolBarConfig = toolbarConfig,
         broadcastAction = BroadcastAction(
             intentFilters = listOf(
-                CoreActions.REVOCATION_WORK_REFRESH_DETAILS_ACTION
+                CoreActions.REVOCATION_WORK_REFRESH_DETAILS_ACTION,
+                CoreActions.RE_ISSUANCE_WORK_REFRESH_DETAILS_ACTION
             ),
             callback = {
-                val ids = it
-                    ?.getStringArrayListExtra(CoreActions.REVOCATION_IDS_DETAILS_EXTRA)
-                    ?.toList()
-                    ?: emptyList()
+                when (it?.action) {
+                    CoreActions.RE_ISSUANCE_WORK_REFRESH_DETAILS_ACTION -> {
+                        val ids = it.getStringArrayListExtra(CoreActions.RE_ISSUANCE_IDS_DETAILS_EXTRA)
+                            ?.toList()
+                            ?: emptyList()
+                        viewModel.setEvent(Event.OnReIssuanceStatusChanged(ids))
+                    }
 
-                viewModel.setEvent(Event.OnRevocationStatusChanged(ids))
+                    else -> {
+                        val ids = it?.getStringArrayListExtra(CoreActions.REVOCATION_IDS_DETAILS_EXTRA)
+                            ?.toList()
+                            ?: emptyList()
+                        viewModel.setEvent(Event.OnRevocationStatusChanged(ids))
+                    }
+                }
             }
         )
     ) { paddingValues ->
