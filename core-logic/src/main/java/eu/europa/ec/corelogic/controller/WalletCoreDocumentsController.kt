@@ -418,11 +418,10 @@ class WalletCoreDocumentsControllerImpl(
                 .credentialIssuerIdentifier
                 .toString()
 
-            val managerEntry: Map.Entry<VciConfig, OpenId4VciManager>? = openId4VciManagers.entries
-                .find { (vciConfig, _) -> vciConfig.config.issuerUrl == issuerId }
-
+            val managerEntry: Map.Entry<VciConfig, OpenId4VciManager>? =
+                getVciManagerEntry(issuerId = issuerId, useDefault = true)
             if (managerEntry == null) {
-                logController.e(TAG) { "issueDocumentsByOffer: no configured manager for issuerId=$issuerId" }
+                logController.e(TAG) { "issueDocumentsByOffer: no VCI managers configured" }
                 trySendBlocking(
                     IssueDocumentsPartialState.Failure(errorMessage = documentErrorMessage)
                 )
@@ -556,23 +555,7 @@ class WalletCoreDocumentsControllerImpl(
         callbackFlow {
             val issuerId = extractCredentialIssuerFromOfferUri(offerUri).getOrNull()
 
-            logController.d(TAG, "resolveDocumentOffer issuerId=$issuerId")
-
-            val manager = if (issuerId != null) {
-                openId4VciManagers.entries
-                    .find { (vciConfig, _) -> vciConfig.config.issuerUrl == issuerId }
-                    ?.value
-                    ?: run {
-                        logController.e(TAG) { "resolveDocumentOffer: no configured manager for issuerId=$issuerId" }
-                        trySendBlocking(
-                            ResolveDocumentOfferPartialState.Failure(genericErrorMessage)
-                        )
-                        close()
-                        return@callbackFlow
-                    }
-            } else {
-                openId4VciManagers.values.firstOrNull()
-            }
+            val manager = getVciManagerEntry(issuerId = issuerId, useDefault = true)?.value
 
             if (manager == null) {
                 logController.e(TAG) { "resolveDocumentOffer: no VCI managers configured" }
@@ -583,7 +566,6 @@ class WalletCoreDocumentsControllerImpl(
                 return@callbackFlow
             }
 
-            logController.d(TAG, "resolveDocumentOffer issuerId=$issuerId managerFound=true")
             manager.resolveDocumentOffer(offerUri) { result ->
                 when (result) {
                     is OfferResult.Failure -> {
@@ -598,13 +580,6 @@ class WalletCoreDocumentsControllerImpl(
                         close()
                     }
                     is OfferResult.Success -> {
-                        logController.d(TAG, "resolveDocumentOffer success, offered documents: ${result.offer.offeredDocuments.size}")
-                        result.offer.offeredDocuments.forEachIndexed { i, doc ->
-                            logController.d(TAG, "  [$i] configId=${doc.configurationIdentifier} format=${doc.documentFormat}")
-                        }
-                        result.offer.txCodeSpec?.let { txCode ->
-                            logController.d(TAG, "  TxCode: inputMode=${txCode.inputMode} length=${txCode.length}")
-                        }
                         trySendBlocking(
                             ResolveDocumentOfferPartialState.Success(
                                 offer = result.offer
@@ -628,9 +603,7 @@ class WalletCoreDocumentsControllerImpl(
 
                 val manager = deferredDoc.issuerMetadata?.credentialIssuerIdentifier
                     ?.let { id ->
-                        openId4VciManagers.entries
-                            .find { (vciConfig, _) -> vciConfig.config.issuerUrl == id }
-                            ?.value
+                        getVciManagerEntry(issuerId = id, useDefault = true)?.value
                     }
                     ?: openId4VciManagers.values.firstOrNull()
 
@@ -797,8 +770,8 @@ class WalletCoreDocumentsControllerImpl(
     ): Flow<IssueDocumentsPartialState> =
         callbackFlow {
 
-            val managerEntry: Map.Entry<VciConfig, OpenId4VciManager>? = openId4VciManagers.entries
-                .find { (vciConfig, _) -> vciConfig.config.issuerUrl == issuerId }
+            val managerEntry: Map.Entry<VciConfig, OpenId4VciManager>? =
+                getVciManagerEntry(issuerId = issuerId, useDefault = false)
             require(managerEntry != null) { documentErrorMessage }
             val manager: OpenId4VciManager = managerEntry.value
             val allowWuaProofAuthenticationRetry: Boolean =
@@ -1077,6 +1050,17 @@ class WalletCoreDocumentsControllerImpl(
         return listener
     }
 
+    private fun getVciManagerEntry(
+        issuerId: String?,
+        useDefault: Boolean
+    ): Map.Entry<VciConfig, OpenId4VciManager>? {
+        val configuredEntry: Map.Entry<VciConfig, OpenId4VciManager>? = issuerId?.let { id ->
+            openId4VciManagers.entries.firstOrNull { (vciConfig, _) ->
+                vciConfig.config.issuerUrl == id
+            }
+        }
+        return configuredEntry ?: if (useDefault) openId4VciManagers.entries.firstOrNull() else null
+    }
 
     /**
      * Logs metadata about an issued document and claim identifiers (without values)

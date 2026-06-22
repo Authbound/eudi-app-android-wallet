@@ -44,6 +44,7 @@ import eu.europa.ec.eudi.wallet.EudiWalletConfig
 import eu.europa.ec.eudi.wallet.document.CreateDocumentSettings.CredentialPolicy
 import eu.europa.ec.eudi.wallet.issue.openid4vci.IssueEvent
 import eu.europa.ec.eudi.wallet.issue.openid4vci.Offer
+import eu.europa.ec.eudi.wallet.issue.openid4vci.OfferResult
 import eu.europa.ec.eudi.wallet.issue.openid4vci.OpenId4VciManager
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.storagelogic.dao.BookmarkDao
@@ -69,6 +70,7 @@ import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.net.URI
+import java.net.URLEncoder
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
 
@@ -184,6 +186,41 @@ class TestWalletCoreDocumentsControllerAuthboundIssuanceAuth {
         }
 
     @Test
+    fun `Given offer issuer is not configured, When issuance starts, Then default manager is used`() =
+        coroutineRule.runTest {
+            val offer: Offer = authboundOffer(issuerUrl = UNCONFIGURED_ISSUER_URL)
+            controller.issueDocumentsByOffer(offer).runFlowTest {
+                val result: IssueDocumentsPartialState = awaitItem()
+                assertTrue(result is IssueDocumentsPartialState.UserAuthRequired)
+                (result as IssueDocumentsPartialState.UserAuthRequired).resultHandler.onAuthenticationSuccess()
+                verify(manager).issueDocumentByOffer(
+                    offer = eq(offer),
+                    txCode = anyOrNull(),
+                    executor = anyOrNull(),
+                    onIssueEvent = any()
+                )
+            }
+        }
+
+    @Test
+    fun `Given offer URI issuer is not configured, When offer is resolved, Then default manager is used`() =
+        coroutineRule.runTest {
+            val offer: Offer = authboundOffer(issuerUrl = UNCONFIGURED_ISSUER_URL)
+            val offerUri: String = offerUriForIssuer(UNCONFIGURED_ISSUER_URL)
+            doAnswer { invocation ->
+                val listener: OpenId4VciManager.OnResolvedOffer =
+                    invocation.getArgument<OpenId4VciManager.OnResolvedOffer>(2)
+                listener.onResult(OfferResult.Success(offer))
+                Unit
+            }.whenever(manager).resolveDocumentOffer(eq(offerUri), anyOrNull(), any())
+            controller.resolveDocumentOffer(offerUri).runFlowTest {
+                val result: ResolveDocumentOfferPartialState = awaitItem()
+                assertTrue(result is ResolveDocumentOfferPartialState.Success)
+                verify(manager).resolveDocumentOffer(eq(offerUri), anyOrNull(), any())
+            }
+        }
+
+    @Test
     fun `Given Authbound issuance started, When WUA auth is requested, Then issuance is not restarted`() =
         coroutineRule.runTest {
             val offer: Offer = authboundOffer()
@@ -277,13 +314,13 @@ class TestWalletCoreDocumentsControllerAuthboundIssuanceAuth {
         )
     }
 
-    private fun authboundOffer(): Offer {
-        val issuerId: CredentialIssuerId = CredentialIssuerId(ISSUER_URL).getOrThrow()
+    private fun authboundOffer(issuerUrl: String = ISSUER_URL): Offer {
+        val issuerId: CredentialIssuerId = CredentialIssuerId(issuerUrl).getOrThrow()
         val configurationId: CredentialConfigurationIdentifier =
             CredentialConfigurationIdentifier("authbound-pid")
         val metadata: CredentialIssuerMetadata = CredentialIssuerMetadata(
             credentialIssuerIdentifier = issuerId,
-            credentialEndpoint = CredentialIssuerEndpoint("$ISSUER_URL/credential").getOrThrow(),
+            credentialEndpoint = CredentialIssuerEndpoint("$issuerUrl/credential").getOrThrow(),
             credentialConfigurationsSupported = mapOf(
                 configurationId to SdJwtVcCredential(
                     credentialMetadata = CredentialMetadata(),
@@ -310,7 +347,14 @@ class TestWalletCoreDocumentsControllerAuthboundIssuanceAuth {
         return Offer(credentialOffer)
     }
 
+    private fun offerUriForIssuer(issuerUrl: String): String {
+        val offerJson: String = """{"credential_issuer":"$issuerUrl"}"""
+        val encodedOffer: String = URLEncoder.encode(offerJson, "UTF-8")
+        return "openid-credential-offer://credential_offer?credential_offer=$encodedOffer"
+    }
+
     private companion object {
         const val ISSUER_URL: String = "https://issuer.authbound.io/api/v1/openid4vci"
+        const val UNCONFIGURED_ISSUER_URL: String = "https://issuer.example/openid4vci"
     }
 }
