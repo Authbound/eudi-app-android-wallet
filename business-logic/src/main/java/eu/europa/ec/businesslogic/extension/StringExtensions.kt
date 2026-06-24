@@ -183,6 +183,33 @@ fun String?.ifEmptyOrNull(default: String): String {
     return if (this.isNullOrBlank()) default else this
 }
 
+fun String.decodeBase64ToByteArrays(
+    flags: List<Int> = listOf(
+        Base64.DEFAULT,
+        Base64.NO_WRAP,
+        Base64.URL_SAFE,
+        Base64.URL_SAFE or Base64.NO_WRAP
+    )
+): List<ByteArray> {
+    val sanitizedBase64: String = substringAfter(delimiter = "base64,", missingDelimiterValue = this)
+        .filterNot { character -> character.isWhitespace() }
+    if (sanitizedBase64.isBlank()) return emptyList()
+    val candidates: List<String> = listOf(
+        sanitizedBase64,
+        sanitizedBase64.withBase64Padding()
+    ).distinct()
+    return candidates.flatMap { candidate ->
+        flags.mapNotNull { flag ->
+            runCatching { Base64.decode(candidate, flag) }.getOrNull()
+        }
+    }
+}
+
+private fun String.withBase64Padding(): String {
+    val missingPadding: Int = (4 - length % 4) % 4
+    return if (missingPadding == 0) this else this + "=".repeat(missingPadding)
+}
+
 /**
  * Converts a hexadecimal string to a ByteArray.
  *
