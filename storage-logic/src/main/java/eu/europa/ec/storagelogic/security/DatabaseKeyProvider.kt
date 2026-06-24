@@ -27,6 +27,8 @@ import java.io.FileInputStream
 import java.security.SecureRandom
 import java.util.Base64
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import net.zetetic.database.sqlcipher.SQLiteDatabase as SqlCipherDatabase
 
 class DatabaseKeyProvider(
@@ -41,16 +43,18 @@ class DatabaseKeyProvider(
     )
 
     suspend fun getOrCreateKey(): ByteArray {
-        val storedKey: ByteArray? = dataStore.data.first()[DATABASE_KEY]?.let(::decodeKey)
-        if (storedKey != null) {
-            return storedKey
+        return KEY_MUTEX.withLock {
+            val storedKey: ByteArray? = dataStore.data.first()[DATABASE_KEY]?.let(::decodeKey)
+            if (storedKey != null) {
+                return@withLock storedKey
+            }
+            val generatedKey: ByteArray = keyGenerator()
+            require(generatedKey.size >= MIN_KEY_SIZE_BYTES) { "Database key is too short" }
+            dataStore.edit { preferences ->
+                preferences[DATABASE_KEY] = encodeKey(generatedKey)
+            }
+            generatedKey
         }
-        val generatedKey: ByteArray = keyGenerator()
-        require(generatedKey.size >= MIN_KEY_SIZE_BYTES) { "Database key is too short" }
-        dataStore.edit { preferences ->
-            preferences[DATABASE_KEY] = encodeKey(generatedKey)
-        }
-        return generatedKey
     }
 
     private fun encodeKey(value: ByteArray): String {
@@ -66,6 +70,7 @@ class DatabaseKeyProvider(
         const val DATABASE_KEY_NAME = "database_key"
         const val MIN_KEY_SIZE_BYTES = 32
         val DATABASE_KEY: Preferences.Key<String> = stringPreferencesKey(DATABASE_KEY_NAME)
+        val KEY_MUTEX: Mutex = Mutex()
     }
 }
 
