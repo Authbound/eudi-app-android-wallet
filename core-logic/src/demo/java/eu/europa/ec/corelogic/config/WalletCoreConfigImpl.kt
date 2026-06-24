@@ -130,6 +130,10 @@ internal class WalletCoreConfigImpl(
                         )
                     }
 
+                    configureDCAPI {
+                        withEnabled(true)
+                    }
+
                     configureReaderTrustStore(
                         context,
                         R.raw.authbound_verifier_root_ca,
