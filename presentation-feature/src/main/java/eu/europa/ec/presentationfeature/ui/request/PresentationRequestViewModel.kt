@@ -18,6 +18,7 @@ package eu.europa.ec.presentationfeature.ui.request
 
 import androidx.lifecycle.viewModelScope
 import eu.europa.ec.businesslogic.extension.ifEmptyOrNull
+import eu.europa.ec.commonfeature.config.PresentationMode
 import eu.europa.ec.commonfeature.config.RequestUriConfig
 import eu.europa.ec.commonfeature.ui.request.Event
 import eu.europa.ec.commonfeature.ui.request.RequestViewModel
@@ -74,7 +75,7 @@ class PresentationRequestViewModel(
             )
         }
 
-        val requestUriConfig = uiSerializer.fromBase64(
+        val requestUriConfig: RequestUriConfig = uiSerializer.fromBase64(
             requestUriConfigRaw,
             RequestUriConfig::class.java,
             RequestUriConfig.Parser
@@ -82,6 +83,20 @@ class PresentationRequestViewModel(
 
         setState {
             copy(presentationScopeId = requestUriConfig.presentationScopeId)
+        }
+
+        if (requestUriConfig.mode is PresentationMode.DcApi && viewState.value.intentAction == null) {
+            setState {
+                copy(
+                    isLoading = false,
+                    error = ContentErrorConfig(
+                        onRetry = { setEvent(Event.DoWork) },
+                        errorSubTitle = resourceProvider.genericErrorMessage(),
+                        onCancel = { setEvent(Event.Pop) }
+                    )
+                )
+            }
+            return
         }
 
         interactor.setConfig(requestUriConfig, viewState.value.intentAction)

@@ -124,7 +124,6 @@ class PrefsControllerV2Impl(
     companion object {
         private const val USER_PREFS_PREFIX = "authbound-wallet-user-"
         private const val USER_DATASTORE_PREFIX = "authbound-wallet-user-"
-        private const val USER_DATASTORE_SUFFIX = ".preferences_pb"
     }
 
     /**
@@ -415,7 +414,7 @@ class PrefsControllerV2Impl(
 
     private fun getUserDataStoreFileName(userId: String): String {
         val userHash: String = EncryptedPreferenceDataStores.hashValue(userId)
-        return USER_DATASTORE_PREFIX + userHash + USER_DATASTORE_SUFFIX
+        return USER_DATASTORE_PREFIX + userHash
     }
 
     private fun getSyntheticUserId(): String? {

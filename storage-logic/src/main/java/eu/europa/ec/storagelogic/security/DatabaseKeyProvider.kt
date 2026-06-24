@@ -66,7 +66,7 @@ class DatabaseKeyProvider(
     }
 
     private companion object {
-        const val DATABASE_KEY_FILE = "authbound-wallet-db-key.preferences_pb"
+        const val DATABASE_KEY_FILE = "authbound-wallet-db-key"
         const val DATABASE_KEY_NAME = "database_key"
         const val MIN_KEY_SIZE_BYTES = 32
         val DATABASE_KEY: Preferences.Key<String> = stringPreferencesKey(DATABASE_KEY_NAME)

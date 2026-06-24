@@ -55,9 +55,18 @@ fun NavGraphBuilder.presentationGraph(navController: NavController) {
                 },
             )
         ) {
-            val intentAction = navController.previousBackStackEntry
+            val currentIntentAction: IntentAction? = navController.currentBackStackEntry
+                ?.savedStateHandle
+                ?.get<IntentAction>(INTENT_ACTION_KEY)
+            val previousIntentAction: IntentAction? = navController.previousBackStackEntry
                 ?.savedStateHandle
                 ?.remove<IntentAction>(INTENT_ACTION_KEY)
+            val intentAction: IntentAction? = currentIntentAction ?: previousIntentAction
+            if (currentIntentAction == null && previousIntentAction != null) {
+                navController.currentBackStackEntry
+                    ?.savedStateHandle
+                    ?.set(INTENT_ACTION_KEY, previousIntentAction)
+            }
 
             PresentationRequestScreen(
                 navController = navController,

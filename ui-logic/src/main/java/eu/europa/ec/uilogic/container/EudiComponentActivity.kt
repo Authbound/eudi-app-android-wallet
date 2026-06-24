@@ -72,13 +72,15 @@ open class EudiComponentActivity : FragmentActivity() {
         pendingDeepLink = intent?.data
     }
 
-    internal fun cacheIntent(intent: Intent?) {
+    protected fun cacheIntent(intent: Intent?): Unit {
         pendingIntent = intent
     }
 
     protected fun cacheDeepLink(uri: Uri?) {
         pendingDeepLink = uri
     }
+
+    protected fun getPendingIntentForRestart(): Intent? = pendingIntent
 
     /**
      * Returns the current pending deeplink URI, if any.

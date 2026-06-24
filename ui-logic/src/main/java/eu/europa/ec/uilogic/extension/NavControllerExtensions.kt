@@ -17,6 +17,7 @@
 package eu.europa.ec.uilogic.extension
 
 import androidx.navigation.NavController
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavOptionsBuilder
 import eu.europa.ec.uilogic.config.FlowCompletion
 import eu.europa.ec.uilogic.navigation.helper.INTENT_ACTION_KEY
@@ -78,8 +79,12 @@ fun NavController.navigateWithIntentAction(
     intentAction: IntentAction,
     builder: NavOptionsBuilder.() -> Unit = {}
 ) {
-    currentBackStackEntry
+    val sourceBackStackEntry: NavBackStackEntry? = currentBackStackEntry
+    sourceBackStackEntry
         ?.savedStateHandle
         ?.set(INTENT_ACTION_KEY, intentAction)
     navigate(route, builder)
+    currentBackStackEntry
+        ?.savedStateHandle
+        ?.set(INTENT_ACTION_KEY, intentAction)
 }
