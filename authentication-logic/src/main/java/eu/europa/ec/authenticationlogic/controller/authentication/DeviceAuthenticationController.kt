@@ -57,8 +57,16 @@ class DeviceAuthenticationControllerImpl(
         return biometricAuthenticationController.getBiometricsAvailability()
     }
 
-    override suspend fun canAuthenticateNow(): Boolean =
-        deviceSupportsBiometrics() is BiometricsAvailability.CanAuthenticate
+    override suspend fun canAuthenticateNow(): Boolean {
+        val authenticators: Int = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                    BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        } else {
+            BiometricManager.Authenticators.BIOMETRIC_STRONG
+        }
+        return BiometricManager.from(resourceProvider.provideContext())
+            .canAuthenticate(authenticators) == BiometricManager.BIOMETRIC_SUCCESS
+    }
 
     override fun authenticate(
         context: Context,

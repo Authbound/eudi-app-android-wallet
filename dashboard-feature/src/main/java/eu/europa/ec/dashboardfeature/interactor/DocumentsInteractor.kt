@@ -297,12 +297,15 @@ class DocumentsInteractorImpl(
             val documentCategories = walletCoreDocumentsController.getAllDocumentCategories()
 
             val userLocale = resourceProvider.getLocale()
+            val failedReIssuedDocumentIds: Set<DocumentId> =
+                walletCoreDocumentsController.getFailedReIssuedDocumentIds().toSet()
 
             val allDocuments = FilterableList(
                 items = walletCoreDocumentsController.getAllDocuments().map { document ->
 
                     val documentIsRevoked =
                         walletCoreDocumentsController.isDocumentRevoked(document.id)
+                    val documentReIssuanceFailed: Boolean = document.id in failedReIssuedDocumentIds
 
                     when (document) {
                         is IssuedDocument -> {
@@ -336,12 +339,14 @@ class DocumentsInteractorImpl(
 
                             val documentIssuanceState = when {
                                 documentIsRevoked -> DocumentIssuanceStateUi.Revoked
+                                documentReIssuanceFailed -> DocumentIssuanceStateUi.Failed
                                 documentHasExpired -> DocumentIssuanceStateUi.Failed
                                 else -> DocumentIssuanceStateUi.Issued
                             }
 
                             val supportingText = when {
                                 documentIsRevoked -> resourceProvider.getString(R.string.dashboard_document_revoked)
+                                documentReIssuanceFailed -> resourceProvider.getString(R.string.dashboard_document_deferred_failed)
                                 documentHasExpired -> resourceProvider.getString(R.string.dashboard_document_has_expired)
                                 documentExpirationDate == null -> null
                                 else -> resourceProvider.getString(
@@ -350,7 +355,7 @@ class DocumentsInteractorImpl(
                                 )
                             }
 
-                            val trailingContentData = if (documentIsRevoked) {
+                            val trailingContentData = if (documentIsRevoked || documentReIssuanceFailed) {
                                 ListItemTrailingContentDataUi.Icon(
                                     iconData = AppIcons.ErrorFilled,
                                     tint = ThemeColors.error

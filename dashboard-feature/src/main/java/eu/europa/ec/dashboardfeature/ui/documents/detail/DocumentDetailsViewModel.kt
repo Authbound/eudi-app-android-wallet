@@ -26,6 +26,7 @@ import eu.europa.ec.dashboardfeature.interactor.DocumentDetailsInteractorDeleteD
 import eu.europa.ec.dashboardfeature.interactor.DocumentDetailsInteractorPartialState
 import eu.europa.ec.dashboardfeature.interactor.DocumentDetailsInteractorStoreBookmarkPartialState
 import eu.europa.ec.dashboardfeature.ui.documents.detail.model.DocumentDetailsUi
+import eu.europa.ec.dashboardfeature.ui.documents.detail.model.DocumentIssuanceStateUi
 import eu.europa.ec.dashboardfeature.ui.documents.detail.transformer.DocumentDetailsTransformer.transformToDocumentDetailsUi
 import eu.europa.ec.dashboardfeature.ui.documents.model.DocumentCredentialsInfoUi
 import eu.europa.ec.eudi.wallet.document.DocumentId
@@ -251,8 +252,17 @@ class DocumentDetailsViewModel(
             ).collect { response ->
                 when (response) {
                     is DocumentDetailsInteractorPartialState.Success -> {
-                        val documentDetailsUi = response.documentDetailsDomain
+                        val documentDetailsUi: DocumentDetailsUi = response.documentDetailsDomain
                             .transformToDocumentDetailsUi()
+                            .let { documentDetailsUi ->
+                                if (response.isReIssuanceFailed) {
+                                    documentDetailsUi.copy(
+                                        documentIssuanceStateUi = DocumentIssuanceStateUi.Failed
+                                    )
+                                } else {
+                                    documentDetailsUi
+                                }
+                            }
 
                         setState {
                             copy(

@@ -48,6 +48,7 @@ sealed class DocumentDetailsInteractorPartialState {
         val documentDetailsDomain: DocumentDetailsDomain,
         val documentIsBookmarked: Boolean,
         val isRevoked: Boolean,
+        val isReIssuanceFailed: Boolean = false,
         val documentCredentialsInfoUi: DocumentCredentialsInfoUi,
     ) : DocumentDetailsInteractorPartialState()
 
@@ -131,9 +132,12 @@ class DocumentDetailsInteractorImpl(
                         async { walletCoreDocumentsController.isDocumentBookmarked(documentId) }
                     val isRevokedAsync =
                         async { walletCoreDocumentsController.isDocumentRevoked(documentId) }
+                    val failedReIssuedDocumentIdsAsync =
+                        async { walletCoreDocumentsController.getFailedReIssuedDocumentIds() }
 
                     val availableCredentials = availableCredentialsAsync.await()
-                    val isLowOnCredentials = walletCoreDocumentsController.isDocumentLowOnCredentials(
+                    val isReIssuanceFailed = documentId in failedReIssuedDocumentIdsAsync.await()
+                    val isLowOnCredentials = isReIssuanceFailed || walletCoreDocumentsController.isDocumentLowOnCredentials(
                         document = safeIssuedDocument,
                         availableCredentials = availableCredentials,
                     )
@@ -152,6 +156,7 @@ class DocumentDetailsInteractorImpl(
                             documentIsBookmarked = isBookmarkedAsync.await(),
                             issuerLogo = issuerMetadata?.logo?.uri,
                             isRevoked = isRevokedAsync.await(),
+                            isReIssuanceFailed = isReIssuanceFailed,
                             documentCredentialsInfoUi = documentCredentialsInfo,
                         )
                     )

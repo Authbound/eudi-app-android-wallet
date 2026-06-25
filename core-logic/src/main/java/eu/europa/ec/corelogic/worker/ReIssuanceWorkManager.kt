@@ -20,6 +20,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.corelogic.config.ReIssuanceRule
 import eu.europa.ec.corelogic.config.WalletCoreConfig
 import eu.europa.ec.corelogic.controller.IssueDocumentsPartialState
@@ -41,8 +42,10 @@ class ReIssuanceWorkManager(
 
     private val walletCoreDocumentsController: WalletCoreDocumentsController by inject()
     private val walletCoreConfig: WalletCoreConfig by inject()
+    private val logController: LogController by inject()
 
     companion object {
+        private const val TAG = "ReIssuanceWorker"
         const val RE_ISSUANCE_WORK_NAME = "reIssuanceWorker"
 
         internal suspend fun shouldReIssueDocument(
@@ -95,7 +98,8 @@ class ReIssuanceWorkManager(
                 notifyDocumentDetails(replacedIds)
             }
             Result.success()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            logController.e(TAG) { "Reissuance worker failed: ${e::class.java.simpleName}: ${e.message}" }
             Result.failure()
         }
     }

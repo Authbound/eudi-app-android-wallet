@@ -27,6 +27,9 @@ interface FailedReIssuedDocumentDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun storeAll(values: List<FailedReIssuedDocument>)
 
+    @Query("SELECT * FROM failedReIssuedDocuments WHERE userId = :userId")
+    suspend fun retrieveAllForUser(userId: String): List<FailedReIssuedDocument>
+
     @Query("DELETE FROM failedReIssuedDocuments WHERE userId = :userId")
     suspend fun deleteAllForUser(userId: String)
 

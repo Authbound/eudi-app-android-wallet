@@ -109,6 +109,8 @@ class TestDocumentDetailsInteractor {
         runBlocking {
             whenever(walletCoreDocumentsController.getAllDocumentsByType(documentIdentifiers = any()))
                 .thenReturn(emptyList())
+            whenever(walletCoreDocumentsController.getFailedReIssuedDocumentIds())
+                .thenReturn(emptyList())
         }
     }
 
@@ -214,6 +216,40 @@ class TestDocumentDetailsInteractor {
                         issuerName = null,
                         issuerLogo = null,
                         isRevoked = false,
+                        documentCredentialsInfoUi = documentCredentialsInfoUi,
+                    ),
+                    awaitItem()
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Given reissuance failed, When getDocumentDetails is called, Then failed state is returned`() {
+        coroutineRule.runTest {
+            mockGetDocumentDetailsStrings(
+                resourceProvider = resourceProvider,
+                docIsLowOnCredentials = true,
+            )
+            mockGetDocumentByIdCall(response = getMockedPidWithBasicFields())
+            mockIsDocumentLowOnCredentialsCall(response = false)
+            mockRetrieveBookmarkCall(response = false)
+            mockIsDocumentRevoked(isRevoked = false)
+            mockFailedReIssuedDocumentIds(response = listOf(mockedPidId))
+            val documentCredentialsInfoUi = getMockedDocumentCredentialsInfoUi(
+                resourceProvider = resourceProvider,
+                docIsLowOnCredentials = true,
+            )
+
+            interactor.getDocumentDetails(documentId = mockedPidId).runFlowTest {
+                assertEquals(
+                    DocumentDetailsInteractorPartialState.Success(
+                        documentDetailsDomain = mockedBasicPidDomain,
+                        documentIsBookmarked = false,
+                        issuerName = null,
+                        issuerLogo = null,
+                        isRevoked = false,
+                        isReIssuanceFailed = true,
                         documentCredentialsInfoUi = documentCredentialsInfoUi,
                     ),
                     awaitItem()
@@ -900,6 +936,10 @@ class TestDocumentDetailsInteractor {
 
     private suspend fun mockIsDocumentRevoked(isRevoked: Boolean) {
         whenever(walletCoreDocumentsController.isDocumentRevoked(any())).thenReturn(isRevoked)
+    }
+
+    private suspend fun mockFailedReIssuedDocumentIds(response: List<String>) {
+        whenever(walletCoreDocumentsController.getFailedReIssuedDocumentIds()).thenReturn(response)
     }
 
     private suspend fun mockIsDocumentLowOnCredentialsCall(response: Boolean) {

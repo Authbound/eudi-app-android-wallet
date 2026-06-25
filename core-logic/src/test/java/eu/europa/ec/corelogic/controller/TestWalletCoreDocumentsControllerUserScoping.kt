@@ -293,6 +293,18 @@ class TestWalletCoreDocumentsControllerUserScoping {
             })
         }
 
+    @Test
+    fun `getFailedReIssuedDocumentIds returns only current users failed docs`() =
+        coroutineRule.runTest {
+            whenever(ownershipController.getCurrentUserId()).thenReturn(USER_A)
+            whenever(failedReIssuedDocumentDao.retrieveAllForUser(USER_A))
+                .thenReturn(listOf(FailedReIssuedDocument("doc-1", USER_A)))
+
+            val result = controller.getFailedReIssuedDocumentIds()
+
+            assertEquals(listOf("doc-1"), result)
+        }
+
     //endregion
 
     //region Transaction logs - user-scoped
