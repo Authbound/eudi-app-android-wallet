@@ -21,6 +21,7 @@ import eu.europa.ec.eudi.wallet.document.CreateDocumentSettings.CredentialPolicy
 import eu.europa.ec.eudi.wallet.document.IssuedDocument
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.mockito.kotlin.mock
@@ -67,6 +68,36 @@ class TestReIssuanceWorkManager {
         val result: Boolean = ReIssuanceWorkManager.shouldReIssueDocument(document, RULE, NOW)
 
         assertTrue(result)
+    }
+
+    @Test
+    fun `Given new failed ids, When changed failed reissuance ids are requested, Then new ids are returned`() {
+        val result: List<String> = ReIssuanceWorkManager.getChangedFailedReIssuanceIds(
+            previousFailedIds = setOf("doc-1"),
+            failedIds = listOf("doc-1", "doc-2")
+        )
+
+        assertEquals(listOf("doc-2"), result)
+    }
+
+    @Test
+    fun `Given failed ids are cleared, When changed failed reissuance ids are requested, Then cleared ids are returned`() {
+        val result: List<String> = ReIssuanceWorkManager.getChangedFailedReIssuanceIds(
+            previousFailedIds = setOf("doc-1", "doc-2"),
+            failedIds = listOf("doc-2")
+        )
+
+        assertEquals(listOf("doc-1"), result)
+    }
+
+    @Test
+    fun `Given failed ids are unchanged, When changed failed reissuance ids are requested, Then no ids are returned`() {
+        val result: List<String> = ReIssuanceWorkManager.getChangedFailedReIssuanceIds(
+            previousFailedIds = setOf("doc-1", "doc-2"),
+            failedIds = listOf("doc-2", "doc-1")
+        )
+
+        assertEquals(emptyList<String>(), result)
     }
 
     private fun document(

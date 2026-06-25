@@ -153,7 +153,8 @@ fun DocumentDetailsScreen(
         broadcastAction = BroadcastAction(
             intentFilters = listOf(
                 CoreActions.REVOCATION_WORK_REFRESH_DETAILS_ACTION,
-                CoreActions.RE_ISSUANCE_WORK_REFRESH_DETAILS_ACTION
+                CoreActions.RE_ISSUANCE_WORK_REFRESH_DETAILS_ACTION,
+                CoreActions.RE_ISSUANCE_WORK_REFRESH_FAILURE_STATUS_DETAILS_ACTION
             ),
             callback = {
                 when (it?.action) {
@@ -162,6 +163,16 @@ fun DocumentDetailsScreen(
                             ?.toList()
                             ?: emptyList()
                         viewModel.setEvent(Event.OnReIssuanceStatusChanged(ids))
+                    }
+
+                    CoreActions.RE_ISSUANCE_WORK_REFRESH_FAILURE_STATUS_DETAILS_ACTION -> {
+                        val ids = it
+                            .getStringArrayListExtra(
+                                CoreActions.RE_ISSUANCE_FAILURE_STATUS_IDS_DETAILS_EXTRA
+                            )
+                            ?.toList()
+                            ?: emptyList()
+                        viewModel.setEvent(Event.OnReIssuanceFailureStatusChanged(ids))
                     }
 
                     else -> {

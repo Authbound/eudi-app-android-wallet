@@ -23,9 +23,13 @@ object CoreActions {
     const val REVOCATION_WORK_REFRESH_ACTION = "revocation.refresh.action"
     const val RE_ISSUANCE_WORK_REFRESH_ACTION = "reissuance.refresh.action"
     const val RE_ISSUANCE_WORK_REFRESH_DETAILS_ACTION = "reissuance.refresh_details.action"
+    const val RE_ISSUANCE_WORK_REFRESH_FAILURE_STATUS_DETAILS_ACTION =
+        "reissuance.refresh_failure_status_details.action"
     const val REVOCATION_WORK_REFRESH_DETAILS_ACTION = "revocation.refresh_details.action"
     const val REVOCATION_WORK_MESSAGE_ACTION = "revocation.message.action"
     const val REVOCATION_IDS_EXTRA = "revocation.ids.extra"
     const val REVOCATION_IDS_DETAILS_EXTRA = "revocation.ids_details.extra"
     const val RE_ISSUANCE_IDS_DETAILS_EXTRA = "reissuance.ids_details.extra"
+    const val RE_ISSUANCE_FAILURE_STATUS_IDS_DETAILS_EXTRA =
+        "reissuance.failure_status.ids_details.extra"
 }

@@ -94,6 +94,7 @@ sealed class Event : ViewEvent {
     data object IssuerCardPressed : Event()
     data class OnRevocationStatusChanged(val revokedIds: List<String>) : Event()
     data class OnReIssuanceStatusChanged(val reIssuedIds: List<String>) : Event()
+    data class OnReIssuanceFailureStatusChanged(val failedStatusChangedIds: List<String>) : Event()
     data object ToggleExpansionStateOfDocumentCredentialsSection : Event()
     data object DocumentCredentialsSectionPrimaryButtonPressed : Event()
 }
@@ -225,6 +226,12 @@ class DocumentDetailsViewModel(
             is Event.OnReIssuanceStatusChanged -> {
                 if (event.reIssuedIds.contains(documentId)) {
                     setEvent(Event.Pop)
+                }
+            }
+
+            is Event.OnReIssuanceFailureStatusChanged -> {
+                if (event.failedStatusChangedIds.contains(documentId)) {
+                    getDocumentDetails(event)
                 }
             }
 
