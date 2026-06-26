@@ -18,6 +18,7 @@ package eu.europa.ec.dashboardfeature.ui.documents.detail
 
 import eu.europa.ec.dashboardfeature.interactor.DocumentDetailsInteractor
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
+import eu.europa.ec.testlogic.extension.runFlowTest
 import eu.europa.ec.testlogic.extension.runTest
 import eu.europa.ec.testlogic.rule.CoroutineTestRule
 import eu.europa.ec.uilogic.serializer.UiSerializer
@@ -30,6 +31,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -96,6 +98,18 @@ class TestDocumentDetailsViewModel {
             viewModel.handleEvents(Event.OnReIssuanceFailureStatusChanged(listOf("other-document-id")))
             testScope.advanceUntilIdle()
 
+            verify(interactor, never()).getDocumentDetails(DOCUMENT_ID)
+        }
+
+    @Test
+    fun `Given reissuance succeeded for current document, When event is handled, Then screen is popped`() =
+        coroutineRule.runTest {
+            viewModel.effect.runFlowTest {
+                viewModel.handleEvents(Event.OnReIssuanceStatusChanged(listOf(DOCUMENT_ID)))
+                testScope.advanceUntilIdle()
+
+                assertEquals(Effect.Navigation.Pop, awaitItem())
+            }
             verify(interactor, never()).getDocumentDetails(DOCUMENT_ID)
         }
 

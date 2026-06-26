@@ -81,6 +81,8 @@ class ReIssuanceWorkManager(
             }
             val failedStatusChangedIds: List<String> =
                 getChangedFailedReIssuanceIds(previousFailedIds, failedIds)
+            val failedStatusDetailIds: List<String> =
+                getFailedReIssuanceDetailRefreshIds(failedStatusChangedIds, replacedIds)
             walletCoreDocumentsController.replaceFailedReIssuedDocumentIds(failedIds)
             if (replacedIds.isNotEmpty() || failedStatusChangedIds.isNotEmpty()) {
                 notifyDocumentsList()
@@ -88,8 +90,8 @@ class ReIssuanceWorkManager(
             if (replacedIds.isNotEmpty()) {
                 notifyDocumentDetails(replacedIds)
             }
-            if (failedStatusChangedIds.isNotEmpty()) {
-                notifyFailedDocumentDetails(failedStatusChangedIds)
+            if (failedStatusDetailIds.isNotEmpty()) {
+                notifyFailedDocumentDetails(failedStatusDetailIds)
             }
             Result.success()
         } catch (e: Exception) {
@@ -156,6 +158,14 @@ class ReIssuanceWorkManager(
                 if (id !in previousFailedIds) changedIds.add(id)
             }
             return changedIds.toList()
+        }
+
+        internal fun getFailedReIssuanceDetailRefreshIds(
+            failedStatusChangedIds: List<String>,
+            replacedIds: List<String>
+        ): List<String> {
+            val replacedIdSet: Set<String> = replacedIds.toSet()
+            return failedStatusChangedIds.filterNot { id -> id in replacedIdSet }
         }
     }
 }

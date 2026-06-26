@@ -100,6 +100,16 @@ class TestReIssuanceWorkManager {
         assertEquals(emptyList<String>(), result)
     }
 
+    @Test
+    fun `Given changed failed ids include replaced ids, When detail refresh ids are requested, Then replaced ids are excluded`() {
+        val result: List<String> = ReIssuanceWorkManager.getFailedReIssuanceDetailRefreshIds(
+            failedStatusChangedIds = listOf("doc-1", "doc-2", "doc-3"),
+            replacedIds = listOf("doc-2")
+        )
+
+        assertEquals(listOf("doc-1", "doc-3"), result)
+    }
+
     private fun document(
         credentialsCount: Int,
         credentialPolicy: CredentialPolicy,
