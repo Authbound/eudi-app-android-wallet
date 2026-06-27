@@ -22,6 +22,7 @@ import eu.europa.ec.authenticationlogic.controller.authentication.BiometricsAuth
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricsAvailability
 import eu.europa.ec.authenticationlogic.controller.storage.BiometryStorageController
 import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
+import eu.europa.ec.authenticationlogic.secure.SecurePinImpl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -55,7 +56,7 @@ class BiometricInteractorImpl(
 ) : BiometricInteractor {
 
     override fun isPinValid(pin: String): Flow<QuickPinInteractorPinValidPartialState> =
-        quickPinInteractor.isCurrentPinValid(pin)
+        quickPinInteractor.isCurrentPinValid(SecurePinImpl(pin))
 
     override suspend fun storeBiometricsUsageDecision(shouldUseBiometrics: Boolean) {
         biometryStorageController.setUseBiometricsAuth(shouldUseBiometrics)

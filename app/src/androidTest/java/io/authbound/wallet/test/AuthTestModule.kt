@@ -31,6 +31,7 @@ import eu.europa.ec.authenticationlogic.model.LegalAcceptanceSnapshot
 import eu.europa.ec.authenticationlogic.model.OAuthProvider
 import eu.europa.ec.authenticationlogic.model.Profile
 import eu.europa.ec.authenticationlogic.repository.SupabaseAuthRepository
+import eu.europa.ec.authenticationlogic.secure.SecurePin
 import eu.europa.ec.authenticationlogic.usecase.CheckHandleAvailabilityUseCase
 import eu.europa.ec.authenticationlogic.usecase.CompleteProfileUseCase
 import eu.europa.ec.authenticationlogic.usecase.GetCurrentUserUseCase
@@ -115,6 +116,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import org.koin.dsl.module
 import java.time.Instant
@@ -626,13 +628,23 @@ private class FakePrefsControllerV2 : PrefsControllerV2 {
 private class FakePinStorageController : PinStorageController {
     override suspend fun retrievePin(): String = AuthScenarioStore.snapshot().storedPin
 
-    override suspend fun setPin(pin: String) {
+    override suspend fun setPin(pin: SecurePin) {
+        val pinValue: String = pin.consumeForTest()
         AuthScenarioStore.update { current ->
-            current.copy(storedPin = pin)
+            current.copy(storedPin = pinValue)
         }
     }
 
-    override suspend fun isPinValid(pin: String): Boolean = AuthScenarioStore.snapshot().storedPin == pin
+    override suspend fun isPinValid(pin: SecurePin): Boolean {
+        val pinValue: String = pin.consumeForTest()
+        return AuthScenarioStore.snapshot().storedPin == pinValue
+    }
+
+    override suspend fun clearPinData(userId: String?) {
+        AuthScenarioStore.update { current ->
+            current.copy(storedPin = "")
+        }
+    }
 }
 
 private class FakeUserDocumentOwnershipController : UserDocumentOwnershipController {
@@ -698,63 +710,104 @@ private class FakeQuickPinInteractor(
         )
     }
 
-    override fun setPin(newPin: String, initialPin: String): Flow<QuickPinInteractorSetPinPartialState> {
-        return flowOf(
-            if (newPin == initialPin) {
-                AuthScenarioStore.update { current ->
-                    current.copy(storedPin = newPin)
+    override fun setPin(
+        newPin: SecurePin,
+        initialPin: SecurePin,
+    ): Flow<QuickPinInteractorSetPinPartialState> {
+        return flow {
+            try {
+                if (newPin.contentEquals(initialPin)) {
+                    val pinValue: String = newPin.consumeForTest()
+                    AuthScenarioStore.update { current ->
+                        current.copy(storedPin = pinValue)
+                    }
+                    emit(QuickPinInteractorSetPinPartialState.Success)
+                } else {
+                    emit(QuickPinInteractorSetPinPartialState.Failed("PINs do not match"))
                 }
-                QuickPinInteractorSetPinPartialState.Success
-            } else {
-                QuickPinInteractorSetPinPartialState.Failed("PINs do not match")
+            } finally {
+                newPin.close()
+                initialPin.close()
             }
-        )
+        }
     }
 
-    override fun changePin(newPin: String): Flow<QuickPinInteractorSetPinPartialState> {
-        return flowOf(
-            QuickPinInteractorSetPinPartialState.Success.also {
+    override fun changePin(newPin: SecurePin): Flow<QuickPinInteractorSetPinPartialState> {
+        return flow {
+            try {
+                val pinValue: String = newPin.consumeForTest()
                 AuthScenarioStore.update { current ->
-                    current.copy(storedPin = newPin)
+                    current.copy(storedPin = pinValue)
                 }
+                emit(QuickPinInteractorSetPinPartialState.Success)
+            } finally {
+                newPin.close()
             }
-        )
+        }
     }
 
-    override fun isCurrentPinValid(pin: String): Flow<QuickPinInteractorPinValidPartialState> {
-        return flowOf(
-            if (AuthScenarioStore.snapshot().storedPin == pin) {
-                QuickPinInteractorPinValidPartialState.Success
-            } else {
-                QuickPinInteractorPinValidPartialState.Failed("Incorrect PIN")
+    override fun isCurrentPinValid(pin: SecurePin): Flow<QuickPinInteractorPinValidPartialState> {
+        return flow {
+            try {
+                val pinValue: String = pin.consumeForTest()
+                emit(
+                    if (AuthScenarioStore.snapshot().storedPin == pinValue) {
+                        QuickPinInteractorPinValidPartialState.Success
+                    } else {
+                        QuickPinInteractorPinValidPartialState.Failed("Incorrect PIN")
+                    }
+                )
+            } finally {
+                pin.close()
             }
-        )
+        }
     }
 
     override fun isPinMatched(
-        currentPin: String,
-        newPin: String,
+        currentPin: SecurePin,
+        newPin: SecurePin,
     ): Flow<QuickPinInteractorPinValidPartialState> {
-        return flowOf(
-            if (currentPin == newPin) {
-                QuickPinInteractorPinValidPartialState.Success
-            } else {
-                QuickPinInteractorPinValidPartialState.Failed("PINs do not match")
+        return flow {
+            try {
+                emit(
+                    if (currentPin.contentEquals(newPin)) {
+                        QuickPinInteractorPinValidPartialState.Success
+                    } else {
+                        QuickPinInteractorPinValidPartialState.Failed("PINs do not match")
+                    }
+                )
+            } finally {
+                currentPin.close()
+                newPin.close()
             }
-        )
+        }
     }
 
     override suspend fun hasPin(): Boolean = pinStorageController.retrievePin().isNotBlank()
 
     override suspend fun resetPin() {
-        pinStorageController.setPin("")
+        pinStorageController.clearPinData()
         localUnlockTracker.lockNow()
     }
 }
 
+private fun SecurePin.consumeForTest(): String {
+    val pinData = getAndClear()
+    return try {
+        pinData.useChars { chars -> String(chars) }
+    } finally {
+        pinData.close()
+        close()
+    }
+}
+
 private class FakeBiometricInteractor : BiometricInteractor {
+    override fun getBiometricsAvailability(): BiometricsAvailability {
+        return BiometricsAvailability.Failure("Biometrics unavailable in auth smoke tests")
+    }
+
     override fun getBiometricsAvailability(listener: (BiometricsAvailability) -> Unit) {
-        listener(BiometricsAvailability.Failure("Biometrics unavailable in auth smoke tests"))
+        listener(getBiometricsAvailability())
     }
 
     override suspend fun getBiometricUserSelection(): Boolean = AuthScenarioStore.snapshot().biometricsEnabled
@@ -789,8 +842,12 @@ private class FakeBiometricInteractor : BiometricInteractor {
 }
 
 private class FakeBiometricAuthenticationController : BiometricAuthenticationController {
+    override fun getBiometricsAvailability(): BiometricsAvailability {
+        return BiometricsAvailability.Failure("Biometrics unavailable in auth smoke tests")
+    }
+
     override fun deviceSupportsBiometrics(listener: (BiometricsAvailability) -> Unit) {
-        listener(BiometricsAvailability.Failure("Biometrics unavailable in auth smoke tests"))
+        listener(getBiometricsAvailability())
     }
 
     override fun authenticate(

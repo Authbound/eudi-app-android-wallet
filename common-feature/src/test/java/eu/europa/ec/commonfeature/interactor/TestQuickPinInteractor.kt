@@ -22,6 +22,8 @@ import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import eu.europa.ec.authenticationlogic.model.LocalUnlockStatus
 import eu.europa.ec.authenticationlogic.model.PinValidationResult
 import eu.europa.ec.authenticationlogic.model.LocalRecoveryResetResult
+import eu.europa.ec.authenticationlogic.secure.SecurePin
+import eu.europa.ec.authenticationlogic.secure.SecurePinImpl
 import eu.europa.ec.authenticationlogic.usecase.ResetLocalWalletForRecoveryUseCase
 import eu.europa.ec.authenticationlogic.usecase.ReportWalletSecurityIncidentUseCase
 import eu.europa.ec.authenticationlogic.usecase.SignOutUseCase
@@ -40,13 +42,15 @@ import eu.europa.ec.testlogic.extension.runFlowTest
 import eu.europa.ec.testlogic.extension.runTest
 import eu.europa.ec.testlogic.rule.CoroutineTestRule
 import junit.framework.TestCase.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.Mock
-import org.mockito.Mockito.anyString
 import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.any
+import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.verifyNoInteractions
@@ -203,8 +207,8 @@ class TestQuickPinInteractor {
 
             // When
             interactor.setPin(
-                newPin = mockedNewPin,
-                initialPin = mockedInitialPin,
+                newPin = securePin(mockedNewPin),
+                initialPin = securePin(mockedInitialPin),
             ).runFlowTest {
                 // Then
                 assertEquals(
@@ -214,7 +218,7 @@ class TestQuickPinInteractor {
             }
 
             verify(pinStorageController, times(1))
-                .setPin(pin = mockedPin)
+                .setPin(pin = any())
         }
     }
 
@@ -232,8 +236,8 @@ class TestQuickPinInteractor {
 
             // When
             interactor.setPin(
-                newPin = mockedNewPin,
-                initialPin = mockedInitialPin,
+                newPin = securePin(mockedNewPin),
+                initialPin = securePin(mockedInitialPin),
             ).runFlowTest {
                 // Then
                 assertEquals(
@@ -249,6 +253,32 @@ class TestQuickPinInteractor {
         }
     }
 
+    @Test
+    fun `Given different secure pins, When setPin is called, Then pins are cleared and storage is not updated`() {
+        coroutineRule.runTest {
+            whenever(resourceProvider.getString(R.string.quick_pin_non_match))
+                .thenReturn(mockedPinsDontMatchMessage)
+            val newPin = SecurePinImpl(mockedNewPin)
+            val initialPin = SecurePinImpl(mockedInitialPin)
+
+            interactor.setPin(
+                newPin = newPin,
+                initialPin = initialPin
+            ).runFlowTest {
+                assertEquals(
+                    QuickPinInteractorSetPinPartialState.Failed(
+                        errorMessage = mockedPinsDontMatchMessage
+                    ),
+                    awaitItem()
+                )
+            }
+
+            assertTrue(newPin.isCleared)
+            assertTrue(initialPin.isCleared)
+            verify(pinStorageController, never()).setPin(any())
+        }
+    }
+
     // Case 3:
     // isPinMatched returns Success.
     // pinStorageController.setPin() throws an exception with a message.
@@ -258,13 +288,13 @@ class TestQuickPinInteractor {
             // Given
             val mockedNewPin = mockedPin
             val mockedInitialPin = mockedPin
-            whenever(pinStorageController.setPin(anyString()))
+            whenever(pinStorageController.setPin(any()))
                 .thenThrow(mockedExceptionWithMessage)
 
             // When
             interactor.setPin(
-                newPin = mockedNewPin,
-                initialPin = mockedInitialPin,
+                newPin = securePin(mockedNewPin),
+                initialPin = securePin(mockedInitialPin),
             ).runFlowTest {
                 // Then
                 assertEquals(
@@ -286,13 +316,13 @@ class TestQuickPinInteractor {
             // Given
             val mockedNewPin = mockedPin
             val mockedInitialPin = mockedPin
-            whenever(pinStorageController.setPin(anyString()))
+            whenever(pinStorageController.setPin(any()))
                 .thenThrow(mockedExceptionWithNoMessage)
 
             // When
             interactor.setPin(
-                newPin = mockedNewPin,
-                initialPin = mockedInitialPin,
+                newPin = securePin(mockedNewPin),
+                initialPin = securePin(mockedInitialPin),
             ).runFlowTest {
                 // Then
                 assertEquals(
@@ -316,7 +346,7 @@ class TestQuickPinInteractor {
 
             // When
             interactor.changePin(
-                newPin = mockedNewPin
+                newPin = securePin(mockedNewPin)
             ).runFlowTest {
                 // Then
                 assertEquals(
@@ -333,12 +363,12 @@ class TestQuickPinInteractor {
     fun `Given Case 2, When changePin is called, Then it returns Failed with exception's localized message`() {
         coroutineRule.runTest {
             // Given
-            whenever(pinStorageController.setPin(mockedNewPin))
+            whenever(pinStorageController.setPin(any()))
                 .thenThrow(mockedExceptionWithMessage)
 
             // When
             interactor.changePin(
-                newPin = mockedNewPin
+                newPin = securePin(mockedNewPin)
             ).runFlowTest {
                 // Then
                 assertEquals(
@@ -357,12 +387,12 @@ class TestQuickPinInteractor {
     fun `Given Case 3, When changePin is called, Then it returns Failed with the generic error message`() {
         coroutineRule.runTest {
             // Given
-            whenever(pinStorageController.setPin(mockedNewPin))
+            whenever(pinStorageController.setPin(any()))
                 .thenThrow(mockedExceptionWithNoMessage)
 
             // When
             interactor.changePin(
-                newPin = mockedNewPin
+                newPin = securePin(mockedNewPin)
             ).runFlowTest {
                 // Then
                 assertEquals(
@@ -384,12 +414,12 @@ class TestQuickPinInteractor {
     fun `Given Case 1, When isCurrentPinValid is called, Then it returns Success`() {
         coroutineRule.runTest {
             // Given
-            whenever(pinStorageController.verifyPin(anyString()))
+            whenever(pinStorageController.verifyPin(any()))
                 .thenReturn(PinValidationResult.Success)
 
             // When
             interactor.isCurrentPinValid(
-                pin = mockedPin
+                pin = securePin(mockedPin)
             ).runFlowTest {
                 // Then
                 assertEquals(
@@ -406,7 +436,7 @@ class TestQuickPinInteractor {
     fun `Given Case 2, When isCurrentPinValid is called, Then it returns Failed with the appropriate error message`() {
         coroutineRule.runTest {
             // Given
-            whenever(pinStorageController.verifyPin(anyString()))
+            whenever(pinStorageController.verifyPin(any()))
                 .thenReturn(PinValidationResult.Failed(remainingAttempts = 9))
 
             whenever(resourceProvider.getString(R.string.quick_pin_invalid_error))
@@ -414,7 +444,7 @@ class TestQuickPinInteractor {
 
             // When
             interactor.isCurrentPinValid(
-                pin = mockedNewPin
+                pin = securePin(mockedNewPin)
             ).runFlowTest {
                 // Then
                 assertEquals(
@@ -436,12 +466,12 @@ class TestQuickPinInteractor {
     fun `Given Case 3, When isCurrentPinValid is called, Then it returns Failed with exception's localized message`() {
         coroutineRule.runTest {
             // Given
-            whenever(pinStorageController.verifyPin(anyString()))
+            whenever(pinStorageController.verifyPin(any()))
                 .thenThrow(mockedExceptionWithMessage)
 
             // When
             interactor.isCurrentPinValid(
-                pin = mockedPin
+                pin = securePin(mockedPin)
             ).runFlowTest {
                 // Then
                 assertEquals(
@@ -460,12 +490,12 @@ class TestQuickPinInteractor {
     fun `Given Case 4, When isCurrentPinValid is called, Then it returns Failed with the generic error message`() {
         coroutineRule.runTest {
             // Given
-            whenever(pinStorageController.verifyPin(anyString()))
+            whenever(pinStorageController.verifyPin(any()))
                 .thenThrow(mockedExceptionWithNoMessage)
 
             // When
             interactor.isCurrentPinValid(
-                pin = mockedPin
+                pin = securePin(mockedPin)
             ).runFlowTest {
                 // Then
                 assertEquals(
@@ -481,12 +511,12 @@ class TestQuickPinInteractor {
     @Test
     fun `Given recovery is required, When isCurrentPinValid is called, Then it returns a recovery failure`() {
         coroutineRule.runTest {
-            whenever(pinStorageController.verifyPin(anyString()))
+            whenever(pinStorageController.verifyPin(any()))
                 .thenReturn(PinValidationResult.RecoveryRequired)
             whenever(resourceProvider.getString(R.string.quick_pin_recovery_required_error))
                 .thenReturn("Recovery required")
 
-            interactor.isCurrentPinValid(pin = mockedPin).runFlowTest {
+            interactor.isCurrentPinValid(pin = securePin(mockedPin)).runFlowTest {
                 assertEquals(
                     QuickPinInteractorPinValidPartialState.Failed(
                         errorMessage = "Recovery required",
@@ -511,8 +541,8 @@ class TestQuickPinInteractor {
 
             // When
             interactor.isPinMatched(
-                currentPin = mockedPin,
-                newPin = mockedPin
+                currentPin = securePin(mockedPin),
+                newPin = securePin(mockedPin)
             ).runFlowTest {
                 // Then
                 assertEquals(
@@ -535,8 +565,8 @@ class TestQuickPinInteractor {
 
             // When
             interactor.isPinMatched(
-                currentPin = mockedPin,
-                newPin = mockedNewPin
+                currentPin = securePin(mockedPin),
+                newPin = securePin(mockedNewPin)
             ).runFlowTest {
                 // Then
                 assertEquals(
@@ -563,8 +593,8 @@ class TestQuickPinInteractor {
 
             // When
             interactor.isPinMatched(
-                currentPin = mockedPin,
-                newPin = mockedNewPin
+                currentPin = securePin(mockedPin),
+                newPin = securePin(mockedNewPin)
             ).runFlowTest {
                 // Then
                 assertEquals(
@@ -588,8 +618,8 @@ class TestQuickPinInteractor {
 
             // When
             interactor.isPinMatched(
-                currentPin = mockedPin,
-                newPin = mockedNewPin
+                currentPin = securePin(mockedPin),
+                newPin = securePin(mockedNewPin)
             ).runFlowTest {
                 // Then
                 assertEquals(
@@ -632,8 +662,10 @@ class TestQuickPinInteractor {
             )
             verify(resetLocalWalletForRecoveryUseCase).invoke()
             verifyNoInteractions(signOutUseCase)
-        }
+    }
     //endregion
+
+    private fun securePin(value: String): SecurePin = SecurePinImpl(value)
 
     //region Mocked objects needed for tests.
     private val mockedPin = "1234"

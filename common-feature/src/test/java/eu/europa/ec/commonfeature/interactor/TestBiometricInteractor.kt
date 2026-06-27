@@ -96,7 +96,7 @@ class TestBiometricInteractor {
     fun `Given isCurrentPinValid returns state Success, When isPinValid is called, Then assert the result is the expected`() =
         coroutineRule.runTest {
             // Given
-            whenever(quickPinInteractor.isCurrentPinValid(mockedPin)).thenReturn(
+            whenever(quickPinInteractor.isCurrentPinValid(any())).thenReturn(
                 QuickPinInteractorPinValidPartialState.Success.toFlow()
             )
 

@@ -360,30 +360,13 @@ private fun Content(
                     leadingButtonTestTag = AuthTestTags.QuickPin.BIOMETRIC_CTA,
                     backspaceTestTag = AuthTestTags.QuickPin.BACKSPACE,
                     onDigitPressed = { digit ->
-                        val current = state.pin
-                        val next = if (!state.quickPinError.isNullOrEmpty()) {
-                            digit.toString()
-                        } else {
-                            (current + digit.toString())
-                        }.take(state.quickPinSize)
-                        onEventSend(Event.OnQuickPinEntered(next))
+                        onEventSend(Event.OnQuickPinDigitPressed(digit))
                     },
                     onBackspacePressed = {
-                        val current = state.pin
-                        val next = if (current.isNotEmpty()) current.dropLast(1) else current
-                        onEventSend(Event.OnQuickPinEntered(next))
+                        onEventSend(Event.OnQuickPinBackspacePressed)
                     }
                 )
             } // end main Column
-        }
-
-        // Auto-submit: when all digits are entered, trigger verify after a brief
-        // delay so the user sees the last indicator dot fill in.
-        LaunchedEffect(state.pin) {
-            if (state.pin.length == state.quickPinSize) {
-                delay(150L)
-                onEventSend(Event.NextButtonPressed(pin = state.pin))
-            }
         }
 
         // Logo overlay — floats above the scroll content.
@@ -520,7 +503,7 @@ private fun PinFieldLayout(
     PinIndicator(
         modifier = modifier,
         pinLength = state.quickPinSize,
-        filledCount = state.pin.length,
+        filledCount = state.pinLength,
         hasError = !state.quickPinError.isNullOrEmpty(),
         hasSuccess = state.pinSuccess,
         errorMessage = state.quickPinError,
