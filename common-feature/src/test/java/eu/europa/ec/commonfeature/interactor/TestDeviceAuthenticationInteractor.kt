@@ -24,6 +24,7 @@ import eu.europa.ec.testfeature.util.mockedNotifyOnAuthenticationFailure
 import eu.europa.ec.testlogic.base.TestApplication
 import eu.europa.ec.testlogic.base.getMockedContext
 import junit.framework.TestCase.assertEquals
+import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -79,6 +80,19 @@ class TestDeviceAuthenticationInteractor {
         // Then
         assertEquals(BiometricsAvailability.CanAuthenticate, result)
         verify(deviceAuthenticationController).deviceSupportsBiometrics()
+    }
+
+    @Test
+    fun `When canAuthenticateNow is called, Then controller result is returned`() = runTest {
+        // Given
+        whenever(deviceAuthenticationController.canAuthenticateNow()).thenReturn(true)
+
+        // When
+        val result: Boolean = interactor.canAuthenticateNow()
+
+        // Then
+        assertEquals(true, result)
+        verify(deviceAuthenticationController).canAuthenticateNow()
     }
 
     // Case: authenticateWithBiometrics behaviour

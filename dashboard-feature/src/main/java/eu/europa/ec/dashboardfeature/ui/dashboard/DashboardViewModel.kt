@@ -25,7 +25,6 @@ import eu.europa.ec.commonfeature.config.QrScanUiConfig
 import eu.europa.ec.commonfeature.config.RequestUriConfig
 import eu.europa.ec.commonfeature.di.getOrCreateCredentialOfferScope
 import eu.europa.ec.commonfeature.model.PinFlow
-import eu.europa.ec.corelogic.di.getOrCreatePresentationScope
 import eu.europa.ec.corelogic.model.RevokedDocumentDataDomain
 import eu.europa.ec.dashboardfeature.interactor.AuthboundPidEntryInteractor
 import eu.europa.ec.dashboardfeature.interactor.DashboardInteractor
@@ -414,7 +413,6 @@ class DashboardViewModel(
             hasDeepLink(uri)?.let {
                 val arguments: String? = when (it.type) {
                     DeepLinkType.OPENID4VP -> {
-                        getOrCreatePresentationScope()
                         generateComposableArguments(
                             mapOf(
                                 RequestUriConfig.serializedKeyName to uiSerializer.toBase64(

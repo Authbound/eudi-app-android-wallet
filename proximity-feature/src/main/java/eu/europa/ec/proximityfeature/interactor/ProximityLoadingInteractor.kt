@@ -48,7 +48,7 @@ sealed class ProximityLoadingSendRequestedDocumentPartialState {
 interface ProximityLoadingInteractor : ScopedPresentationInteractor {
     fun observeResponse(): Flow<ProximityLoadingObserveResponsePartialState>
     fun sendRequestedDocuments(): ProximityLoadingSendRequestedDocumentPartialState
-    fun handleUserAuthentication(
+    suspend fun handleUserAuthentication(
         context: Context,
         crypto: BiometricCrypto,
         notifyOnAuthenticationFailure: Boolean,
@@ -84,31 +84,56 @@ class ProximityLoadingInteractorImpl(
             }
         }
 
-    override fun handleUserAuthentication(
+    override suspend fun handleUserAuthentication(
         context: Context,
         crypto: BiometricCrypto,
         notifyOnAuthenticationFailure: Boolean,
         resultHandler: DeviceAuthenticationResult,
     ) {
-        deviceAuthenticationInteractor.getBiometricsAvailability {
-            when (it) {
-                is BiometricsAvailability.CanAuthenticate -> {
-                    deviceAuthenticationInteractor.authenticateWithBiometrics(
-                        context = context,
-                        crypto = crypto,
-                        notifyOnAuthenticationFailure = notifyOnAuthenticationFailure,
-                        resultHandler = resultHandler
-                    )
-                }
-
-                is BiometricsAvailability.NonEnrolled -> {
-                    deviceAuthenticationInteractor.launchBiometricSystemScreen()
-                }
-
-                is BiometricsAvailability.Failure -> {
-                    resultHandler.onAuthenticationFailure()
-                }
+        if (deviceAuthenticationInteractor.canAuthenticateNow()) {
+            authenticateWithDeviceCredentialsOrBiometrics(
+                context = context,
+                crypto = crypto,
+                notifyOnAuthenticationFailure = notifyOnAuthenticationFailure,
+                resultHandler = resultHandler
+            )
+            return
+        }
+        when (deviceAuthenticationInteractor.getBiometricsAvailability()) {
+            is BiometricsAvailability.CanAuthenticate -> {
+                authenticateWithDeviceCredentialsOrBiometrics(
+                    context = context,
+                    crypto = crypto,
+                    notifyOnAuthenticationFailure = notifyOnAuthenticationFailure,
+                    resultHandler = resultHandler
+                )
             }
+
+            is BiometricsAvailability.NonEnrolled -> {
+                deviceAuthenticationInteractor.launchBiometricSystemScreen()
+            }
+
+            is BiometricsAvailability.Failure -> {
+                resultHandler.onAuthenticationFailure()
+            }
+        }
+    }
+
+    private fun authenticateWithDeviceCredentialsOrBiometrics(
+        context: Context,
+        crypto: BiometricCrypto,
+        notifyOnAuthenticationFailure: Boolean,
+        resultHandler: DeviceAuthenticationResult,
+    ) {
+        try {
+            deviceAuthenticationInteractor.authenticateWithBiometrics(
+                context = context,
+                crypto = crypto,
+                notifyOnAuthenticationFailure = notifyOnAuthenticationFailure,
+                resultHandler = resultHandler
+            )
+        } catch (e: Exception) {
+            resultHandler.onAuthenticationFailure()
         }
     }
 

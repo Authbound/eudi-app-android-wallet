@@ -25,7 +25,6 @@ import eu.europa.ec.commonfeature.config.PresentationMode
 import eu.europa.ec.commonfeature.config.QrScanFlow
 import eu.europa.ec.commonfeature.config.QrScanUiConfig
 import eu.europa.ec.commonfeature.config.RequestUriConfig
-import eu.europa.ec.corelogic.di.getOrCreatePresentationScope
 import eu.europa.ec.corelogic.model.DocumentCategory
 import eu.europa.ec.dashboardfeature.interactor.AuthboundPidEntryInteractor
 import eu.europa.ec.dashboardfeature.interactor.AuthboundPidEntryState
@@ -516,8 +515,6 @@ class HomeViewModel(
 
     private fun startProximityFlow() {
         setState { copy(bleAvailability = BleAvailability.AVAILABLE) }
-        // Create Koin scope for presentation
-        getOrCreatePresentationScope()
         setEffect {
             Effect.Navigation.SwitchScreen(
                 screenRoute = generateComposableNavigationLink(

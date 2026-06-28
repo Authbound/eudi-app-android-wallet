@@ -28,6 +28,7 @@ interface DeviceAuthenticationInteractor {
     fun getBiometricsAvailability(listener: (BiometricsAvailability) -> Unit) {
         listener(getBiometricsAvailability())
     }
+    suspend fun canAuthenticateNow(): Boolean
     fun authenticateWithBiometrics(
         context: Context,
         crypto: BiometricCrypto,
@@ -49,6 +50,10 @@ class DeviceAuthenticationInteractorImpl(
 
     override fun getBiometricsAvailability(): BiometricsAvailability {
         return deviceAuthenticationController.deviceSupportsBiometrics()
+    }
+
+    override suspend fun canAuthenticateNow(): Boolean {
+        return deviceAuthenticationController.canAuthenticateNow()
     }
 
     override fun authenticateWithBiometrics(

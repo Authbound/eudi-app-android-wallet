@@ -45,10 +45,18 @@ class ReIssuanceWorkManager(
     private val walletCoreConfig: WalletCoreConfig by inject()
     private val logController: LogController by inject()
 
+    internal enum class ReIssuanceOutcome {
+        Replaced,
+        Pending,
+        Failed,
+        UserAuthRequired
+    }
+
     override suspend fun doWork(): Result {
         return try {
             val failedIds = mutableListOf<String>()
             val replacedIds = mutableListOf<String>()
+            val pendingIds = mutableListOf<String>()
             val rule: ReIssuanceRule = walletCoreConfig.documentIssuanceConfig.reissuanceRule
             val now: Instant = Instant.now()
             val previousFailedIds: Set<String> =
@@ -65,18 +73,16 @@ class ReIssuanceWorkManager(
                     issuerId = document.issuerMetadata?.credentialIssuerIdentifier.orEmpty(),
                     allowAuthorizationFallback = false
                 ).first()
-                when (state) {
-                    is IssueDocumentsPartialState.DeferredSuccess,
-                    is IssueDocumentsPartialState.PartialSuccess,
-                    is IssueDocumentsPartialState.Success -> replacedIds.add(document.id)
-
-                    is IssueDocumentsPartialState.UserAuthRequired -> {
-                        state.resultHandler.onAuthenticationFailure()
+                when (classifyReIssuanceState(state)) {
+                    ReIssuanceOutcome.Replaced -> replacedIds.add(document.id)
+                    ReIssuanceOutcome.Pending -> pendingIds.add(document.id)
+                    ReIssuanceOutcome.Failed -> failedIds.add(document.id)
+                    ReIssuanceOutcome.UserAuthRequired -> {
+                        val userAuthRequiredState: IssueDocumentsPartialState.UserAuthRequired =
+                            state as IssueDocumentsPartialState.UserAuthRequired
+                        userAuthRequiredState.resultHandler.onAuthenticationFailure()
                         failedIds.add(document.id)
                     }
-
-                    is IssueDocumentsPartialState.Failure,
-                    IssueDocumentsPartialState.UserAuthCancelled -> failedIds.add(document.id)
                 }
             }
             val failedStatusChangedIds: List<String> =
@@ -84,7 +90,11 @@ class ReIssuanceWorkManager(
             val failedStatusDetailIds: List<String> =
                 getFailedReIssuanceDetailRefreshIds(failedStatusChangedIds, replacedIds)
             walletCoreDocumentsController.replaceFailedReIssuedDocumentIds(failedIds)
-            if (replacedIds.isNotEmpty() || failedStatusChangedIds.isNotEmpty()) {
+            if (
+                replacedIds.isNotEmpty() ||
+                pendingIds.isNotEmpty() ||
+                failedStatusChangedIds.isNotEmpty()
+            ) {
                 notifyDocumentsList()
             }
             if (replacedIds.isNotEmpty()) {
@@ -129,6 +139,18 @@ class ReIssuanceWorkManager(
     companion object {
         private const val TAG = "ReIssuanceWorker"
         const val RE_ISSUANCE_WORK_NAME = "reIssuanceWorker"
+
+        internal fun classifyReIssuanceState(state: IssueDocumentsPartialState): ReIssuanceOutcome {
+            return when (state) {
+                is IssueDocumentsPartialState.DeferredSuccess -> ReIssuanceOutcome.Pending
+                is IssueDocumentsPartialState.PartialSuccess,
+                is IssueDocumentsPartialState.Success -> ReIssuanceOutcome.Replaced
+
+                is IssueDocumentsPartialState.UserAuthRequired -> ReIssuanceOutcome.UserAuthRequired
+                is IssueDocumentsPartialState.Failure,
+                IssueDocumentsPartialState.UserAuthCancelled -> ReIssuanceOutcome.Failed
+            }
+        }
 
         internal suspend fun shouldReIssueDocument(
             document: IssuedDocument,

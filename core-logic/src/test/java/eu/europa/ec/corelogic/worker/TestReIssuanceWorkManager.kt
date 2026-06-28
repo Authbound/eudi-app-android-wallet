@@ -17,6 +17,7 @@
 package eu.europa.ec.corelogic.worker
 
 import eu.europa.ec.corelogic.config.ReIssuanceRule
+import eu.europa.ec.corelogic.controller.IssueDocumentsPartialState
 import eu.europa.ec.eudi.wallet.document.CreateDocumentSettings.CredentialPolicy
 import eu.europa.ec.eudi.wallet.document.IssuedDocument
 import kotlinx.coroutines.runBlocking
@@ -108,6 +109,16 @@ class TestReIssuanceWorkManager {
         )
 
         assertEquals(listOf("doc-1", "doc-3"), result)
+    }
+
+    @Test
+    fun `Given deferred reissuance succeeds, When classified, Then document remains pending`() {
+        val result: ReIssuanceWorkManager.ReIssuanceOutcome =
+            ReIssuanceWorkManager.classifyReIssuanceState(
+                IssueDocumentsPartialState.DeferredSuccess(emptyMap())
+            )
+
+        assertEquals(ReIssuanceWorkManager.ReIssuanceOutcome.Pending, result)
     }
 
     private fun document(

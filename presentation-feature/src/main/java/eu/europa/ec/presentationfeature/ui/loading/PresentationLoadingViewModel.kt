@@ -158,7 +158,7 @@ class PresentationLoadingViewModel(
         }
     }
 
-    private fun openAuthenticationPrompt(
+    private suspend fun openAuthenticationPrompt(
         context: Context,
         popEffect: Effect,
         authenticationDataList: List<AuthenticationData>,
