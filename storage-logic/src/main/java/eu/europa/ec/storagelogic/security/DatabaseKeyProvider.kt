@@ -120,6 +120,8 @@ internal object DatabaseEncryptionMigrator {
         encryptedFile: File,
         databaseKey: ByteArray
     ) {
+        encryptedFile.parentFile?.mkdirs()
+        SqlCipherDatabase.openOrCreateDatabase(encryptedFile, databaseKey, null, null).close()
         SqlCipherDatabase.openDatabase(
             plaintextFile.absolutePath,
             ByteArray(0),
