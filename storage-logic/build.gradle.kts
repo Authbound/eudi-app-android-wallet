@@ -34,7 +34,10 @@ moduleConfig {
 
 dependencies {
     implementation(project(LibraryModule.BusinessLogic.path))
+    implementation(libs.androidx.datastore.prefs)
+    implementation(libs.androidx.datastore.tink)
 
+    testImplementation(project(LibraryModule.TestLogic.path))
 }
 
 excludeFromKoverReport(

@@ -20,8 +20,6 @@ import eu.europa.ec.proximityfeature.interactor.ProximityRequestInteractor
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.testlogic.rule.CoroutineTestRule
 import eu.europa.ec.uilogic.navigation.CommonScreens
-import eu.europa.ec.uilogic.navigation.ProximityScreens
-import eu.europa.ec.uilogic.serializer.UiSerializer
 import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertFalse
 import kotlinx.coroutines.Dispatchers
@@ -55,9 +53,6 @@ class TestProximityRequestViewModel {
     @Mock
     private lateinit var resourceProvider: ResourceProvider
 
-    @Mock
-    private lateinit var uiSerializer: UiSerializer
-
     private lateinit var closeable: AutoCloseable
 
     @Before
@@ -79,7 +74,7 @@ class TestProximityRequestViewModel {
 
         val nextScreen: String = viewModel.getNextScreen()
 
-        assertEquals(ProximityScreens.Loading.screenRoute, nextScreen)
+        assertEquals("PROXIMITY_LOADING?scopeId=scope-id", nextScreen)
         assertFalse(nextScreen.contains(CommonScreens.Biometric.screenName))
     }
 
@@ -87,8 +82,7 @@ class TestProximityRequestViewModel {
         return ProximityRequestViewModel(
             interactor = interactor,
             resourceProvider = resourceProvider,
-            uiSerializer = uiSerializer,
-            requestUriConfigRaw = "request-uri-config"
+            presentationScopeId = "scope-id"
         )
     }
 }

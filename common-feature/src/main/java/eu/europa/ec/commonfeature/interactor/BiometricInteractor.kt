@@ -22,13 +22,17 @@ import eu.europa.ec.authenticationlogic.controller.authentication.BiometricsAuth
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricsAvailability
 import eu.europa.ec.authenticationlogic.controller.storage.BiometryStorageController
 import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
+import eu.europa.ec.authenticationlogic.secure.SecurePinImpl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
 interface BiometricInteractor {
-    fun getBiometricsAvailability(listener: (BiometricsAvailability) -> Unit)
+    fun getBiometricsAvailability(): BiometricsAvailability
+    fun getBiometricsAvailability(listener: (BiometricsAvailability) -> Unit) {
+        listener(getBiometricsAvailability())
+    }
     suspend fun getBiometricUserSelection(): Boolean
     suspend fun storeBiometricsUsageDecision(shouldUseBiometrics: Boolean)
     suspend fun getBiometricsPreferenceDecided(): Boolean
@@ -52,7 +56,7 @@ class BiometricInteractorImpl(
 ) : BiometricInteractor {
 
     override fun isPinValid(pin: String): Flow<QuickPinInteractorPinValidPartialState> =
-        quickPinInteractor.isCurrentPinValid(pin)
+        quickPinInteractor.isCurrentPinValid(SecurePinImpl(pin))
 
     override suspend fun storeBiometricsUsageDecision(shouldUseBiometrics: Boolean) {
         biometryStorageController.setUseBiometricsAuth(shouldUseBiometrics)
@@ -70,8 +74,8 @@ class BiometricInteractorImpl(
         biometryStorageController.setBiometricsPreferenceDecided(value)
     }
 
-    override fun getBiometricsAvailability(listener: (BiometricsAvailability) -> Unit) {
-        biometricAuthenticationController.deviceSupportsBiometrics(listener)
+    override fun getBiometricsAvailability(): BiometricsAvailability {
+        return biometricAuthenticationController.getBiometricsAvailability()
     }
 
     override fun authenticateWithBiometrics(

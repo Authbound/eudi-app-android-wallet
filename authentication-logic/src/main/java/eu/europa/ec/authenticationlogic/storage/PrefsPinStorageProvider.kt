@@ -17,6 +17,7 @@
 package eu.europa.ec.authenticationlogic.storage
 
 import android.os.Build
+import android.util.Base64
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
@@ -26,6 +27,9 @@ import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import eu.europa.ec.authenticationlogic.model.LocalUnlockStatus
 import eu.europa.ec.authenticationlogic.model.PinValidationResult
 import eu.europa.ec.authenticationlogic.provider.PinStorageProvider
+import eu.europa.ec.authenticationlogic.secure.SecurePin
+import eu.europa.ec.authenticationlogic.secure.SecurePinData
+import eu.europa.ec.authenticationlogic.secure.SecurePinImpl
 import eu.europa.ec.businesslogic.controller.crypto.CryptoController
 import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
 import eu.europa.ec.businesslogic.extension.decodeFromBase64
@@ -95,29 +99,31 @@ class PrefsPinStorageProvider(
         else -> PIN_CONFIGURED_SENTINEL
     }
 
-    override suspend fun setPin(pin: String) {
-        require(pin.isNotBlank()) { "PIN must not be blank" }
-
-        val currentState: LocalAuthMaterialLoadState = loadMaterialState(migrateLegacy = false)
-        val vaultUnlockKey: ByteArray = when (currentState) {
-            LocalAuthMaterialLoadState.Missing -> generateRandomBytes(LocalAuthKeys.VAULT_UNLOCK_KEY_SIZE_BYTES)
-            LocalAuthMaterialLoadState.Tampered ->
-                throw SecurityException("Local auth material is tampered")
-            is LocalAuthMaterialLoadState.Valid ->
-                requireTrustedVaultUnlockKey()
-        }
-
-        persistMaterial(
-            createMaterial(
-                pin = pin,
-                vaultUnlockKey = vaultUnlockKey
+    override suspend fun setPin(pin: SecurePin) {
+        try {
+            require(pin.length > 0) { "PIN must not be blank" }
+            val currentState: LocalAuthMaterialLoadState = loadMaterialState(migrateLegacy = false)
+            val vaultUnlockKey: ByteArray = when (currentState) {
+                LocalAuthMaterialLoadState.Missing -> generateRandomBytes(LocalAuthKeys.VAULT_UNLOCK_KEY_SIZE_BYTES)
+                LocalAuthMaterialLoadState.Tampered ->
+                    throw SecurityException("Local auth material is tampered")
+                is LocalAuthMaterialLoadState.Valid ->
+                    requireTrustedVaultUnlockKey()
+            }
+            persistMaterial(
+                createMaterial(
+                    pin = pin,
+                    vaultUnlockKey = vaultUnlockKey
+                )
             )
-        )
-        deleteLegacyPinPrefs()
-        cacheVaultUnlockKey(vaultUnlockKey)
+            deleteLegacyPinPrefs()
+            cacheVaultUnlockKey(vaultUnlockKey)
+        } finally {
+            pin.close()
+        }
     }
 
-    override suspend fun isPinValid(pin: String): Boolean = verifyPin(pin) is PinValidationResult.Success
+    override suspend fun isPinValid(pin: SecurePin): Boolean = verifyPin(pin) is PinValidationResult.Success
 
     override suspend fun getLocalUnlockStatus(): LocalUnlockStatus {
         return when (val state = loadMaterialState(migrateLegacy = true)) {
@@ -127,11 +133,15 @@ class PrefsPinStorageProvider(
         }
     }
 
-    override suspend fun verifyPin(pin: String): PinValidationResult {
-        return when (val state = loadMaterialState(migrateLegacy = true)) {
-            LocalAuthMaterialLoadState.Missing -> PinValidationResult.RecoveryRequired
-            LocalAuthMaterialLoadState.Tampered -> PinValidationResult.TamperDetected
-            is LocalAuthMaterialLoadState.Valid -> verifyAgainstMaterial(pin, state.material)
+    override suspend fun verifyPin(pin: SecurePin): PinValidationResult {
+        return try {
+            when (val state = loadMaterialState(migrateLegacy = true)) {
+                LocalAuthMaterialLoadState.Missing -> PinValidationResult.RecoveryRequired
+                LocalAuthMaterialLoadState.Tampered -> PinValidationResult.TamperDetected
+                is LocalAuthMaterialLoadState.Valid -> verifyAgainstMaterial(pin, state.material)
+            }
+        } finally {
+            pin.close()
         }
     }
 
@@ -141,7 +151,6 @@ class PrefsPinStorageProvider(
             return when (state) {
                 LocalAuthMaterialLoadState.Missing -> LocalUnlockStatus.RecoveryRequired
                 LocalAuthMaterialLoadState.Tampered -> LocalUnlockStatus.TamperDetected
-                else -> LocalUnlockStatus.RecoveryRequired
             }
         }
 
@@ -198,7 +207,7 @@ class PrefsPinStorageProvider(
     }
 
     private suspend fun verifyAgainstMaterial(
-        pin: String,
+        pin: SecurePin,
         material: LocalAuthMaterialV2
     ): PinValidationResult {
         val status: LocalUnlockStatus = resolveStatus(material)
@@ -311,7 +320,7 @@ class PrefsPinStorageProvider(
         }
 
         val migratedMaterial: LocalAuthMaterialV2 = createMaterial(
-            pin = legacyPin,
+            pin = SecurePinImpl(legacyPin),
             vaultUnlockKey = generateRandomBytes(LocalAuthKeys.VAULT_UNLOCK_KEY_SIZE_BYTES)
         )
         persistMaterial(migratedMaterial)
@@ -327,7 +336,7 @@ class PrefsPinStorageProvider(
     }
 
     private fun createMaterial(
-        pin: String,
+        pin: SecurePin,
         vaultUnlockKey: ByteArray
     ): LocalAuthMaterialV2 {
         val pinSalt: ByteArray = generateRandomBytes(LocalAuthKeys.PIN_SALT_SIZE_BYTES)
@@ -351,44 +360,72 @@ class PrefsPinStorageProvider(
     }
 
     private fun wrapWithPin(
-        pin: String,
+        pin: SecurePin,
         vaultUnlockKey: ByteArray,
         salt: ByteArray
     ): WrappedPayload {
-        val cipher: Cipher = Cipher.getInstance(AES_TRANSFORMATION)
-        cipher.init(Cipher.ENCRYPT_MODE, derivePinKey(pin, salt))
-        return WrappedPayload(
-            cipherText = cipher.doFinal(vaultUnlockKey),
-            iv = cipher.iv
-        )
+        val pinData: SecurePinData = pin.getAndClear()
+        return try {
+            val cipher: Cipher = Cipher.getInstance(AES_TRANSFORMATION)
+            cipher.init(Cipher.ENCRYPT_MODE, derivePinKey(pinData, salt))
+            WrappedPayload(
+                cipherText = cipher.doFinal(vaultUnlockKey),
+                iv = cipher.iv
+            )
+        } finally {
+            pinData.close()
+        }
     }
 
     private fun unwrapWithPin(
-        pin: String,
+        pin: SecurePin,
         material: LocalAuthMaterialV2
     ): ByteArray {
-        val cipher: Cipher = Cipher.getInstance(AES_TRANSFORMATION)
-        cipher.init(
-            Cipher.DECRYPT_MODE,
-            derivePinKey(pin, decodeFromBase64(material.pinSalt)),
-            GCMParameterSpec(128, decodeFromBase64(material.pinWrapIv))
-        )
-        return cipher.doFinal(decodeFromBase64(material.pinWrappedUnlockKey))
+        val pinData: SecurePinData = pin.getAndClear()
+        return try {
+            val cipher: Cipher = Cipher.getInstance(AES_TRANSFORMATION)
+            cipher.init(
+                Cipher.DECRYPT_MODE,
+                derivePinKey(pinData, decodeFromBase64(material.pinSalt)),
+                GCMParameterSpec(128, decodeFromBase64(material.pinWrapIv))
+            )
+            cipher.doFinal(decodeFromBase64(material.pinWrappedUnlockKey))
+        } finally {
+            pinData.close()
+        }
     }
 
-    private fun derivePinKey(pin: String, salt: ByteArray): SecretKey {
-        val pepperedPin: String = computeHmac(
-            alias = LocalAuthKeys.PIN_PEPPER_ALIAS,
-            data = pin.toByteArray(StandardCharsets.UTF_8)
-        ).encodeToBase64String()
-        val spec = PBEKeySpec(
-            pepperedPin.toCharArray(),
-            salt,
-            LocalAuthKeys.PBKDF2_ITERATIONS,
-            256
-        )
-        val factory: SecretKeyFactory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
-        return SecretKeySpec(factory.generateSecret(spec).encoded, "AES")
+    private fun derivePinKey(pinData: SecurePinData, salt: ByteArray): SecretKey {
+        var pinBytes: ByteArray? = null
+        var hmacBytes: ByteArray? = null
+        var pepperedPin: CharArray? = null
+        var spec: PBEKeySpec? = null
+        var keyBytes: ByteArray? = null
+        return try {
+            val currentPinBytes: ByteArray = pinData.useChars { it.toPinBytes() }
+            pinBytes = currentPinBytes
+            hmacBytes = computeHmac(
+                alias = LocalAuthKeys.PIN_PEPPER_ALIAS,
+                data = currentPinBytes
+            )
+            pepperedPin = hmacBytes.toDefaultBase64Chars()
+            spec = PBEKeySpec(
+                pepperedPin,
+                salt,
+                LocalAuthKeys.PBKDF2_ITERATIONS,
+                256
+            )
+            val factory: SecretKeyFactory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
+            keyBytes = factory.generateSecret(spec).encoded
+            SecretKeySpec(keyBytes, "AES")
+        } finally {
+            pinData.close()
+            pinBytes?.fill(0)
+            hmacBytes?.fill(0)
+            pepperedPin?.fill('\u0000')
+            spec?.clearPassword()
+            keyBytes?.fill(0)
+        }
     }
 
     private fun wrapWithRecoveryKey(data: ByteArray): ByteArray {
@@ -572,6 +609,24 @@ class PrefsPinStorageProvider(
 
     private fun generateRandomBytes(size: Int): ByteArray {
         return ByteArray(size).also(secureRandom::nextBytes)
+    }
+
+    private fun CharArray.toPinBytes(): ByteArray {
+        val bytes = ByteArray(size)
+        forEachIndexed { index, char ->
+            require(char.code in 0..127) { "PIN contains unsupported characters" }
+            bytes[index] = char.code.toByte()
+        }
+        return bytes
+    }
+
+    private fun ByteArray.toDefaultBase64Chars(): CharArray {
+        val encoded: ByteArray = Base64.encode(this, Base64.DEFAULT)
+        return try {
+            CharArray(encoded.size) { index -> encoded[index].toInt().toChar() }
+        } finally {
+            encoded.fill(0)
+        }
     }
 
     private fun LocalAuthMaterialV2.isStructurallyValid(): Boolean {

@@ -27,6 +27,7 @@ import eu.europa.ec.assemblylogic.di.setupKoin
 import eu.europa.ec.authenticationlogic.gate.AppLockLifecycleObserver
 import eu.europa.ec.businesslogic.config.ConfigLogic
 import eu.europa.ec.corelogic.config.WalletCoreConfig
+import eu.europa.ec.corelogic.worker.ReIssuanceWorkManager
 import eu.europa.ec.corelogic.worker.RevocationWorkManager
 import eu.europa.ec.eudi.rqesui.infrastructure.EudiRQESUi
 
@@ -52,6 +53,9 @@ open class Application : Application() {
         }
         if (shouldInitializeRevocationWorkManager()) {
             initializeRevocationWorkManager()
+        }
+        if (shouldInitializeReIssuanceWorkManager()) {
+            initializeReIssuanceWorkManager()
         }
         if (shouldInitializeAppLockLifecycleObserver()) {
             initializeAppLockLifecycleObserver()
@@ -99,6 +103,18 @@ open class Application : Application() {
         )
     }
 
+    private fun initializeReIssuanceWorkManager() {
+        val periodicWorkRequest = PeriodicWorkRequest.Builder(
+            workerClass = ReIssuanceWorkManager::class.java,
+            repeatInterval = walletCoreConfig.documentIssuanceConfig.reissuanceRule.backgroundInterval,
+        ).build()
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            ReIssuanceWorkManager.RE_ISSUANCE_WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            periodicWorkRequest
+        )
+    }
+
     protected open fun additionalKoinModules(): List<Module> = emptyList()
 
     protected open fun allowKoinOverride(): Boolean? = null
@@ -108,6 +124,8 @@ open class Application : Application() {
     protected open fun shouldInitializeReporting(): Boolean = true
 
     protected open fun shouldInitializeRevocationWorkManager(): Boolean = true
+
+    protected open fun shouldInitializeReIssuanceWorkManager(): Boolean = true
 
     protected open fun shouldInitializeAppLockLifecycleObserver(): Boolean = true
 }

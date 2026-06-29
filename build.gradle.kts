@@ -21,6 +21,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization) apply false
     alias(libs.plugins.gms) apply false
     alias(libs.plugins.ksp) apply false
+    alias(libs.plugins.koin.compiler) apply false
     alias(libs.plugins.secrets) apply false
     alias(libs.plugins.android.library) apply false
     alias(libs.plugins.owasp.dependencycheck) apply false
@@ -31,4 +32,3 @@ plugins {
     alias(libs.plugins.compose.compiler) apply false
     alias(libs.plugins.androidx.room) apply false
 }
-

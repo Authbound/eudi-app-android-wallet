@@ -16,13 +16,18 @@
 
 package eu.europa.ec.corelogic.controller
 
+import android.content.Intent
 import androidx.activity.ComponentActivity
 import eu.europa.ec.authenticationlogic.model.BiometricCrypto
+import eu.europa.ec.businesslogic.controller.session.PresentationSessionController
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.extension.addOrReplace
 import eu.europa.ec.businesslogic.extension.safeAsync
 import eu.europa.ec.businesslogic.extension.toUri
+import eu.europa.ec.corelogic.di.PRESENTATION_WALLET_QUALIFIER
+import eu.europa.ec.corelogic.di.WalletCoreScope
 import eu.europa.ec.corelogic.di.WalletPresentationScope
+import eu.europa.ec.corelogic.di.getOrCreateKoinScope
 import eu.europa.ec.corelogic.model.AuthenticationData
 import eu.europa.ec.corelogic.util.EudiWalletListenerWrapper
 import eu.europa.ec.eudi.iso18013.transfer.response.DisclosedDocument
@@ -49,6 +54,7 @@ import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
+import org.koin.core.qualifier.named
 import org.koin.core.annotation.Scope
 import org.koin.core.annotation.Scoped
 import java.net.URI
@@ -58,6 +64,9 @@ sealed class PresentationControllerConfig(val initiatorRoute: String) {
         PresentationControllerConfig(initiator)
 
     data class Ble(val initiator: String) : PresentationControllerConfig(initiator)
+
+    data class DcApi(val initiator: String, val startIntent: Intent) :
+        PresentationControllerConfig(initiator)
 }
 
 sealed class TransferEventPartialState {
@@ -74,7 +83,7 @@ sealed class TransferEventPartialState {
 
     data object ResponseSent : TransferEventPartialState()
     data class Redirect(val uri: URI) : TransferEventPartialState()
-    data object IntentToSend : TransferEventPartialState()
+    data class IntentToSend(val intent: Intent) : TransferEventPartialState()
 }
 
 sealed class CheckKeyUnlockPartialState {
@@ -95,6 +104,7 @@ sealed class ResponseReceivedPartialState {
     data object Success : ResponseReceivedPartialState()
     data class Redirect(val uri: URI) : ResponseReceivedPartialState()
     data class Failure(val error: String) : ResponseReceivedPartialState()
+    data class IntentToSend(val intent: Intent) : ResponseReceivedPartialState()
 }
 
 sealed class WalletCorePartialState {
@@ -106,6 +116,7 @@ sealed class WalletCorePartialState {
     data object Success : WalletCorePartialState()
     data class Redirect(val uri: URI) : WalletCorePartialState()
     data object RequestIsReadyToBeSent : WalletCorePartialState()
+    data class IntentToSend(val intent: Intent) : WalletCorePartialState()
 }
 
 /**
@@ -138,6 +149,8 @@ interface WalletCorePresentationController {
     val initiatorRoute: String
 
     val redirectUri: URI?
+
+    val pendingIntent: Intent?
 
     /**
      * Set [PresentationControllerConfig]
@@ -198,15 +211,32 @@ interface WalletCorePresentationController {
 @Scope(WalletPresentationScope::class)
 @Scoped
 class WalletCorePresentationControllerImpl(
-    private val eudiWallet: EudiWallet,
+    private val presentationSessionController: PresentationSessionController,
     private val resourceProvider: ResourceProvider,
     private val logController: LogController,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    walletCore: EudiWallet? = null,
 ) : WalletCorePresentationController {
 
     companion object {
         private const val TAG = "WalletPresentation"
     }
+
+    private var scopedEudiWallet: EudiWallet? = walletCore
+
+    private val eudiWallet: EudiWallet
+        get() {
+            val sessionId = presentationSessionController.getSessionId()
+            if (sessionId.isEmpty()) {
+                throw IllegalStateException("Missing presentation session id")
+            }
+            return scopedEudiWallet
+                ?: getOrCreateKoinScope<WalletCoreScope>(sessionId)
+                    .get<EudiWallet>(qualifier = named(PRESENTATION_WALLET_QUALIFIER))
+                    .also {
+                        scopedEudiWallet = it
+                    }
+        }
 
     private val genericErrorMessage = resourceProvider.genericErrorMessage()
 
@@ -229,6 +259,8 @@ class WalletCorePresentationControllerImpl(
         }
 
     override var redirectUri: URI? = null
+
+    override var pendingIntent: Intent? = null
 
     override fun setConfig(config: PresentationControllerConfig) {
         _config = config
@@ -299,9 +331,10 @@ class WalletCorePresentationControllerImpl(
                 )
             },
 
-            intentToSend = {
+            intentToSend = { intent ->
+                pendingIntent = intent
                 trySendBlocking(
-                    TransferEventPartialState.IntentToSend
+                    TransferEventPartialState.IntentToSend(intent = intent)
                 )
             }
         )
@@ -432,6 +465,10 @@ class WalletCorePresentationControllerImpl(
 
                 is TransferEventPartialState.ResponseSent -> ResponseReceivedPartialState.Success
 
+                is TransferEventPartialState.IntentToSend -> {
+                    ResponseReceivedPartialState.IntentToSend(intent = response.intent)
+                }
+
                 else -> null
             }
         }.safeAsync {
@@ -466,6 +503,10 @@ class WalletCorePresentationControllerImpl(
                     WalletCorePartialState.RequestIsReadyToBeSent
                 }
 
+                is ResponseReceivedPartialState.IntentToSend -> {
+                    WalletCorePartialState.IntentToSend(intent = it.intent)
+                }
+
                 else -> {
                     WalletCorePartialState.Success
                 }
@@ -490,32 +531,15 @@ class WalletCorePresentationControllerImpl(
     private fun addListener(listener: EudiWalletListenerWrapper) {
         val config = requireInit { _config }
         eudiWallet.addTransferEventListener(listener)
-        if (config is PresentationControllerConfig.OpenId4VP) {
-            try {
-                val uri = config.uri.toUri()
-                logController.d(TAG, "Starting remote presentation: scheme=${uri.scheme} host=${uri.host} path=${uri.path} params=${uri.queryParameterNames}")
-
-                val hasCredentialOffer = uri.getQueryParameter("credential_offer_uri") != null
-                        || uri.getQueryParameter("credential_offer") != null
-                if (hasCredentialOffer) {
-                    logController.w(TAG) {
-                        "URI contains credential_offer parameter — this looks like an " +
-                                "OpenID4VCI issuance offer, NOT an OpenID4VP presentation request. " +
-                                "The wallet core will likely reject this URI."
-                    }
-                }
-            } catch (e: Exception) {
-                logController.e(TAG) { "Failed to parse URI for logging: ${e.message}" }
+        when (config) {
+            is PresentationControllerConfig.OpenId4VP -> {
+                startRemotePresentation(config)
             }
 
-            try {
-                logController.d(TAG, "Calling eudiWallet.startRemotePresentation()...")
-                eudiWallet.startRemotePresentation(config.uri.toUri())
-                logController.d(TAG, "startRemotePresentation() returned successfully")
-            } catch (e: Exception) {
-                logController.e(TAG) { "startRemotePresentation() threw exception: ${e::class.qualifiedName}: ${e.message}" }
-                logController.e(TAG, e)
-                throw e
+            is PresentationControllerConfig.Ble -> Unit
+
+            is PresentationControllerConfig.DcApi -> {
+                eudiWallet.startDCAPIPresentation(config.startIntent)
             }
         }
     }
@@ -530,5 +554,34 @@ class WalletCorePresentationControllerImpl(
             throw IllegalStateException("setConfig() must be called before using the WalletCorePresentationController")
         }
         return block()
+    }
+
+    private fun startRemotePresentation(config: PresentationControllerConfig.OpenId4VP) {
+        try {
+            val uri = config.uri.toUri()
+            logController.d(TAG, "Starting remote presentation: scheme=${uri.scheme} host=${uri.host} path=${uri.path} params=${uri.queryParameterNames}")
+
+            val hasCredentialOffer = uri.getQueryParameter("credential_offer_uri") != null
+                    || uri.getQueryParameter("credential_offer") != null
+            if (hasCredentialOffer) {
+                logController.w(TAG) {
+                    "URI contains credential_offer parameter — this looks like an " +
+                            "OpenID4VCI issuance offer, NOT an OpenID4VP presentation request. " +
+                            "The wallet core will likely reject this URI."
+                }
+            }
+        } catch (e: Exception) {
+            logController.e(TAG) { "Failed to parse URI for logging: ${e.message}" }
+        }
+
+        try {
+            logController.d(TAG, "Calling eudiWallet.startRemotePresentation()...")
+            eudiWallet.startRemotePresentation(config.uri.toUri())
+            logController.d(TAG, "startRemotePresentation() returned successfully")
+        } catch (e: Exception) {
+            logController.e(TAG) { "startRemotePresentation() threw exception: ${e::class.qualifiedName}: ${e.message}" }
+            logController.e(TAG, e)
+            throw e
+        }
     }
 }

@@ -19,6 +19,7 @@ package eu.europa.ec.businesslogic.controller.crypto
 import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import android.security.keystore.StrongBoxUnavailableException
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
 import eu.europa.ec.businesslogic.provider.UuidProvider
@@ -198,6 +199,27 @@ class KeystoreControllerImpl(
 
     @Suppress("DEPRECATION")
     private fun generateSecretKey(alias: String, userAuthenticationRequired: Boolean) {
+        try {
+            generateSecretKey(
+                alias = alias,
+                userAuthenticationRequired = userAuthenticationRequired,
+                useStrongBox = true
+            )
+        } catch (_: StrongBoxUnavailableException) {
+            generateSecretKey(
+                alias = alias,
+                userAuthenticationRequired = userAuthenticationRequired,
+                useStrongBox = false
+            )
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun generateSecretKey(
+        alias: String,
+        userAuthenticationRequired: Boolean,
+        useStrongBox: Boolean
+    ) {
         val keyGenerator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, STORE_TYPE)
 
         val builder = KeyGenParameterSpec.Builder(
@@ -207,6 +229,9 @@ class KeystoreControllerImpl(
             setKeySize(256)
             setBlockModes(KeyProperties.BLOCK_MODE_GCM)
             setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+            if (useStrongBox && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                setIsStrongBoxBacked(true)
+            }
             if (userAuthenticationRequired) {
                 setUserAuthenticationRequired(true)
                 setInvalidatedByBiometricEnrollment(true)

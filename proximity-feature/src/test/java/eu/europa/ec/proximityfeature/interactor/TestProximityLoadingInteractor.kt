@@ -40,7 +40,6 @@ import org.junit.Test
 import org.mockito.Mock
 import org.mockito.Mockito.mock
 import org.mockito.MockitoAnnotations
-import org.mockito.kotlin.any
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -206,29 +205,54 @@ class TestProximityLoadingInteractor {
     // Case 1 Expected Result:
     // deviceAuthenticationInteractor.authenticateWithBiometrics called once.
     @Test
-    fun `Given case 1, When handleUserAuthentication is called, Then Case 1 Expected Result is returned`() {
-        // Given
-        mockBiometricsAvailabilityResponse(
-            response = BiometricsAvailability.CanAuthenticate
-        )
+    fun `Given case 1, When handleUserAuthentication is called, Then Case 1 Expected Result is returned`() =
+        coroutineRule.runTest {
+            // Given
+            mockCanAuthenticateNow(response = true)
 
-        // When
-        interactor.handleUserAuthentication(
-            context = context,
-            crypto = crypto,
-            notifyOnAuthenticationFailure = mockedNotifyOnAuthenticationFailure,
-            resultHandler = resultHandler
-        )
-
-        // Then
-        verify(deviceAuthenticationInteractor, times(1))
-            .authenticateWithBiometrics(
-                context,
-                crypto,
-                mockedNotifyOnAuthenticationFailure,
-                resultHandler
+            // When
+            interactor.handleUserAuthentication(
+                context = context,
+                crypto = crypto,
+                notifyOnAuthenticationFailure = mockedNotifyOnAuthenticationFailure,
+                resultHandler = resultHandler
             )
-    }
+
+            // Then
+            verify(deviceAuthenticationInteractor, times(1))
+                .authenticateWithBiometrics(
+                    context,
+                    crypto,
+                    mockedNotifyOnAuthenticationFailure,
+                    resultHandler
+                )
+        }
+
+    @Test
+    fun `Given device authentication is available, When handleUserAuthentication is called, Then biometrics setup is not launched`() =
+        coroutineRule.runTest {
+            // Given
+            mockCanAuthenticateNow(response = true)
+
+            // When
+            interactor.handleUserAuthentication(
+                context = context,
+                crypto = crypto,
+                notifyOnAuthenticationFailure = mockedNotifyOnAuthenticationFailure,
+                resultHandler = resultHandler
+            )
+
+            // Then
+            verify(deviceAuthenticationInteractor, times(1))
+                .authenticateWithBiometrics(
+                    context,
+                    crypto,
+                    mockedNotifyOnAuthenticationFailure,
+                    resultHandler
+                )
+            verify(deviceAuthenticationInteractor, times(0)).launchBiometricSystemScreen()
+            verify(deviceAuthenticationInteractor, times(0)).getBiometricsAvailability()
+        }
 
     // Case 2:
     // 1. deviceAuthenticationInteractor.getBiometricsAvailability returns:
@@ -237,24 +261,26 @@ class TestProximityLoadingInteractor {
     // Case 2 Expected Result:
     // deviceAuthenticationInteractor.launchBiometricSystemScreen called once.
     @Test
-    fun `Given case 2, When handleUserAuthentication is called, Then Case 2 expected result is returned`() {
-        // Given
-        mockBiometricsAvailabilityResponse(
-            response = BiometricsAvailability.NonEnrolled
-        )
+    fun `Given case 2, When handleUserAuthentication is called, Then Case 2 expected result is returned`() =
+        coroutineRule.runTest {
+            // Given
+            mockCanAuthenticateNow(response = false)
+            mockBiometricsAvailabilityResponse(
+                response = BiometricsAvailability.NonEnrolled
+            )
 
-        // When
-        interactor.handleUserAuthentication(
-            context = context,
-            crypto = crypto,
-            notifyOnAuthenticationFailure = mockedNotifyOnAuthenticationFailure,
-            resultHandler = resultHandler
-        )
+            // When
+            interactor.handleUserAuthentication(
+                context = context,
+                crypto = crypto,
+                notifyOnAuthenticationFailure = mockedNotifyOnAuthenticationFailure,
+                resultHandler = resultHandler
+            )
 
-        // Then
-        verify(deviceAuthenticationInteractor, times(1))
-            .launchBiometricSystemScreen()
-    }
+            // Then
+            verify(deviceAuthenticationInteractor, times(1))
+                .launchBiometricSystemScreen()
+        }
 
     // Case 3:
     // 1. deviceAuthenticationInteractor.getBiometricsAvailability returns:
@@ -263,30 +289,32 @@ class TestProximityLoadingInteractor {
     // Case 3 Expected Result:
     // resultHandler.onAuthenticationFailure called once.
     @Test
-    fun `Given case 3, When handleUserAuthentication is called, Then Case 3 expected result is returned`() {
-        // Given
-        mockBiometricsAvailabilityResponse(
-            response = BiometricsAvailability.Failure(
-                errorMessage = mockedPlainFailureMessage
+    fun `Given case 3, When handleUserAuthentication is called, Then Case 3 expected result is returned`() =
+        coroutineRule.runTest {
+            // Given
+            mockCanAuthenticateNow(response = false)
+            mockBiometricsAvailabilityResponse(
+                response = BiometricsAvailability.Failure(
+                    errorMessage = mockedPlainFailureMessage
+                )
             )
-        )
 
-        val onFailure = mock<() -> Unit>()
-        val resultHandler = DeviceAuthenticationResult(
-            onAuthenticationFailure = onFailure
-        )
+            val onFailure = mock<() -> Unit>()
+            val resultHandler = DeviceAuthenticationResult(
+                onAuthenticationFailure = onFailure
+            )
 
-        // When
-        interactor.handleUserAuthentication(
-            context = context,
-            crypto = crypto,
-            notifyOnAuthenticationFailure = mockedNotifyOnAuthenticationFailure,
-            resultHandler = resultHandler
-        )
+            // When
+            interactor.handleUserAuthentication(
+                context = context,
+                crypto = crypto,
+                notifyOnAuthenticationFailure = mockedNotifyOnAuthenticationFailure,
+                resultHandler = resultHandler
+            )
 
-        // Then
-        verify(onFailure).invoke()
-    }
+            // Then
+            verify(onFailure).invoke()
+        }
 
     //endregion
 
@@ -296,12 +324,12 @@ class TestProximityLoadingInteractor {
             .thenReturn(event.toFlow())
     }
 
+    private suspend fun mockCanAuthenticateNow(response: Boolean) {
+        whenever(deviceAuthenticationInteractor.canAuthenticateNow()).thenReturn(response)
+    }
+
     private fun mockBiometricsAvailabilityResponse(response: BiometricsAvailability) {
-        whenever(deviceAuthenticationInteractor.getBiometricsAvailability(listener = any()))
-            .thenAnswer {
-                val bioAvailability = it.getArgument<(BiometricsAvailability) -> Unit>(0)
-                bioAvailability(response)
-            }
+        whenever(deviceAuthenticationInteractor.getBiometricsAvailability()).thenReturn(response)
     }
 
     private fun mockEmissionOfIntentionallyNotHandledEvent() {

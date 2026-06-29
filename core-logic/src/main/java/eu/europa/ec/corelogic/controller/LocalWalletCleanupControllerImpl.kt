@@ -20,6 +20,7 @@ import eu.europa.ec.businesslogic.controller.wallet.LocalWalletCleanupController
 import eu.europa.ec.businesslogic.controller.wallet.UserDocumentOwnershipController
 import eu.europa.ec.eudi.wallet.EudiWallet
 import eu.europa.ec.storagelogic.dao.BookmarkDao
+import eu.europa.ec.storagelogic.dao.FailedReIssuedDocumentDao
 import eu.europa.ec.storagelogic.dao.RevokedDocumentDao
 import eu.europa.ec.storagelogic.dao.TransactionLogDao
 
@@ -28,6 +29,7 @@ class LocalWalletCleanupControllerImpl(
     private val bookmarkDao: BookmarkDao,
     private val transactionLogDao: TransactionLogDao,
     private val revokedDocumentDao: RevokedDocumentDao,
+    private val failedReIssuedDocumentDao: FailedReIssuedDocumentDao,
     private val ownershipController: UserDocumentOwnershipController,
     private val logController: LogController
 ) : LocalWalletCleanupController {
@@ -67,6 +69,10 @@ class LocalWalletCleanupControllerImpl(
                 logController.w(TAG) { "Failed to clear revoked documents: ${e.message}" }
                 failures.add("Clear revoked documents")
             }
+            runCatching { failedReIssuedDocumentDao.deleteAllForUser(userId) }.onFailure { e ->
+                logController.w(TAG) { "Failed to clear failed reissued documents: ${e.message}" }
+                failures.add("Clear failed reissued documents")
+            }
 
             // Unbind ownership mappings
             runCatching { ownershipController.unbindAllDocumentsForCurrentUser() }.onFailure { e ->
@@ -102,6 +108,10 @@ class LocalWalletCleanupControllerImpl(
             runCatching { revokedDocumentDao.deleteAll() }.onFailure { e ->
                 logController.w(TAG) { "Failed to clear revoked documents: ${e.message}" }
                 failures.add("Clear revoked documents")
+            }
+            runCatching { failedReIssuedDocumentDao.deleteAll() }.onFailure { e ->
+                logController.w(TAG) { "Failed to clear failed reissued documents: ${e.message}" }
+                failures.add("Clear failed reissued documents")
             }
         }
 

@@ -16,15 +16,28 @@
 
 package eu.europa.ec.corelogic.service
 
+import eu.europa.ec.businesslogic.controller.session.PresentationSessionController
+import eu.europa.ec.corelogic.di.PRESENTATION_WALLET_QUALIFIER
+import eu.europa.ec.corelogic.di.WalletCoreScope
+import eu.europa.ec.corelogic.di.getOrCreateKoinScope
 import eu.europa.ec.eudi.iso18013.transfer.TransferManager
 import eu.europa.ec.eudi.wallet.EudiWallet
 import org.koin.android.ext.android.inject
+import org.koin.core.qualifier.named
 import eu.europa.ec.eudi.iso18013.transfer.engagement.NfcEngagementService as BaseService
 
 class NfcEngagementService : BaseService() {
 
-    val wallet: EudiWallet by inject()
+    private val presentationSessionController: PresentationSessionController by inject()
 
     override val transferManager: TransferManager
-        get() = wallet.transferManager
+        get() {
+            val sessionId = presentationSessionController.getSessionId()
+            if (sessionId.isEmpty()) {
+                throw IllegalStateException("Missing presentation session id")
+            }
+            return getOrCreateKoinScope<WalletCoreScope>(sessionId)
+                .get<EudiWallet>(qualifier = named(PRESENTATION_WALLET_QUALIFIER))
+                .transferManager
+        }
 }

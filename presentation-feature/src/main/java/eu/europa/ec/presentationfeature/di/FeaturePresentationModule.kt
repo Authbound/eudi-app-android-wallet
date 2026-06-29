@@ -20,8 +20,6 @@ import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.provider.UuidProvider
 import eu.europa.ec.commonfeature.interactor.DeviceAuthenticationInteractor
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
-import eu.europa.ec.corelogic.controller.WalletCorePresentationController
-import eu.europa.ec.corelogic.di.PRESENTATION_SCOPE_ID
 import eu.europa.ec.presentationfeature.interactor.PresentationLoadingInteractor
 import eu.europa.ec.presentationfeature.interactor.PresentationLoadingInteractorImpl
 import eu.europa.ec.presentationfeature.interactor.PresentationRequestInteractor
@@ -32,7 +30,6 @@ import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Module
-import org.koin.core.annotation.ScopeId
 
 @Module
 @ComponentScan("eu.europa.ec.presentationfeature")
@@ -43,40 +40,34 @@ fun providePresentationRequestInteractor(
     resourceProvider: ResourceProvider,
     uuidProvider: UuidProvider,
     walletCoreDocumentsController: WalletCoreDocumentsController,
-    @ScopeId(name = PRESENTATION_SCOPE_ID) walletCorePresentationController: WalletCorePresentationController,
     logController: LogController,
 ): PresentationRequestInteractor {
     return PresentationRequestInteractorImpl(
-        resourceProvider,
-        uuidProvider,
-        walletCorePresentationController,
-        walletCoreDocumentsController,
-        logController
+        resourceProvider = resourceProvider,
+        uuidProvider = uuidProvider,
+        walletCoreDocumentsController = walletCoreDocumentsController,
+        logController = logController
     )
 }
 
 @Factory
 fun providePresentationLoadingInteractor(
-    @ScopeId(name = PRESENTATION_SCOPE_ID) walletCorePresentationController: WalletCorePresentationController,
     deviceAuthenticationInteractor: DeviceAuthenticationInteractor,
 ): PresentationLoadingInteractor {
     return PresentationLoadingInteractorImpl(
-        walletCorePresentationController,
-        deviceAuthenticationInteractor
+        deviceAuthenticationInteractor = deviceAuthenticationInteractor
     )
 }
 
 @Factory
 fun providePresentationSuccessInteractor(
-    @ScopeId(name = PRESENTATION_SCOPE_ID) walletCorePresentationController: WalletCorePresentationController,
     walletCoreDocumentsController: WalletCoreDocumentsController,
     resourceProvider: ResourceProvider,
     uuidProvider: UuidProvider,
 ): PresentationSuccessInteractor {
     return PresentationSuccessInteractorImpl(
-        walletCorePresentationController,
-        walletCoreDocumentsController,
-        resourceProvider,
-        uuidProvider,
+        walletCoreDocumentsController = walletCoreDocumentsController,
+        resourceProvider = resourceProvider,
+        uuidProvider = uuidProvider,
     )
 }

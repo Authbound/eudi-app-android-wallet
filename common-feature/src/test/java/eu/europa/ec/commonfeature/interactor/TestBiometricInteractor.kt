@@ -47,7 +47,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(application = TestApplication::class)
+@Config(sdk = [36], application = TestApplication::class)
 class TestBiometricInteractor {
 
     @get:Rule
@@ -96,7 +96,7 @@ class TestBiometricInteractor {
     fun `Given isCurrentPinValid returns state Success, When isPinValid is called, Then assert the result is the expected`() =
         coroutineRule.runTest {
             // Given
-            whenever(quickPinInteractor.isCurrentPinValid(mockedPin)).thenReturn(
+            whenever(quickPinInteractor.isCurrentPinValid(any())).thenReturn(
                 QuickPinInteractorPinValidPartialState.Success.toFlow()
             )
 
@@ -163,15 +163,17 @@ class TestBiometricInteractor {
 
     // Case: getBiometricsAvailability behaviour
     @Test
-    fun `When getBiometricsAvailability is called, Then verify deviceSupportsBiometrics is executed`() {
+    fun `When getBiometricsAvailability is called, Then synchronous availability is returned`() {
         // Given
-        val mockListener: (BiometricsAvailability) -> Unit = mock()
+        whenever(biometricAuthenticationController.getBiometricsAvailability())
+            .thenReturn(BiometricsAvailability.CanAuthenticate)
 
         // When
-        interactor.getBiometricsAvailability(mockListener)
+        val result: BiometricsAvailability = interactor.getBiometricsAvailability()
 
         // Then
-        verify(biometricAuthenticationController).deviceSupportsBiometrics(mockListener)
+        assertEquals(BiometricsAvailability.CanAuthenticate, result)
+        verify(biometricAuthenticationController).getBiometricsAvailability()
     }
     //endregion
 

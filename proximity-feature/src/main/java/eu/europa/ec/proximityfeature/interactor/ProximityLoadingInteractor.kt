@@ -21,6 +21,8 @@ import eu.europa.ec.authenticationlogic.controller.authentication.BiometricsAvai
 import eu.europa.ec.authenticationlogic.controller.authentication.DeviceAuthenticationResult
 import eu.europa.ec.authenticationlogic.model.BiometricCrypto
 import eu.europa.ec.commonfeature.interactor.DeviceAuthenticationInteractor
+import eu.europa.ec.commonfeature.interactor.ScopedPresentationInteractor
+import eu.europa.ec.commonfeature.interactor.ScopedPresentationInteractorDelegate
 import eu.europa.ec.corelogic.controller.SendRequestedDocumentsPartialState
 import eu.europa.ec.corelogic.controller.WalletCorePartialState
 import eu.europa.ec.corelogic.controller.WalletCorePresentationController
@@ -43,10 +45,10 @@ sealed class ProximityLoadingSendRequestedDocumentPartialState {
     data object Success : ProximityLoadingSendRequestedDocumentPartialState()
 }
 
-interface ProximityLoadingInteractor {
+interface ProximityLoadingInteractor : ScopedPresentationInteractor {
     fun observeResponse(): Flow<ProximityLoadingObserveResponsePartialState>
     fun sendRequestedDocuments(): ProximityLoadingSendRequestedDocumentPartialState
-    fun handleUserAuthentication(
+    suspend fun handleUserAuthentication(
         context: Context,
         crypto: BiometricCrypto,
         notifyOnAuthenticationFailure: Boolean,
@@ -55,9 +57,10 @@ interface ProximityLoadingInteractor {
 }
 
 class ProximityLoadingInteractorImpl(
-    private val walletCorePresentationController: WalletCorePresentationController,
     private val deviceAuthenticationInteractor: DeviceAuthenticationInteractor,
-) : ProximityLoadingInteractor {
+    walletCorePresentationController: WalletCorePresentationController? = null,
+) : ProximityLoadingInteractor,
+    ScopedPresentationInteractorDelegate(walletCorePresentationController) {
 
     override fun observeResponse(): Flow<ProximityLoadingObserveResponsePartialState> =
         walletCorePresentationController.observeSentDocumentsRequest().mapNotNull { response ->
@@ -76,34 +79,61 @@ class ProximityLoadingInteractorImpl(
                 }
 
                 is WalletCorePartialState.RequestIsReadyToBeSent -> ProximityLoadingObserveResponsePartialState.RequestReadyToBeSent
+
+                is WalletCorePartialState.IntentToSend -> null
             }
         }
 
-    override fun handleUserAuthentication(
+    override suspend fun handleUserAuthentication(
         context: Context,
         crypto: BiometricCrypto,
         notifyOnAuthenticationFailure: Boolean,
         resultHandler: DeviceAuthenticationResult,
     ) {
-        deviceAuthenticationInteractor.getBiometricsAvailability {
-            when (it) {
-                is BiometricsAvailability.CanAuthenticate -> {
-                    deviceAuthenticationInteractor.authenticateWithBiometrics(
-                        context = context,
-                        crypto = crypto,
-                        notifyOnAuthenticationFailure = notifyOnAuthenticationFailure,
-                        resultHandler = resultHandler
-                    )
-                }
-
-                is BiometricsAvailability.NonEnrolled -> {
-                    deviceAuthenticationInteractor.launchBiometricSystemScreen()
-                }
-
-                is BiometricsAvailability.Failure -> {
-                    resultHandler.onAuthenticationFailure()
-                }
+        if (deviceAuthenticationInteractor.canAuthenticateNow()) {
+            authenticateWithDeviceCredentialsOrBiometrics(
+                context = context,
+                crypto = crypto,
+                notifyOnAuthenticationFailure = notifyOnAuthenticationFailure,
+                resultHandler = resultHandler
+            )
+            return
+        }
+        when (deviceAuthenticationInteractor.getBiometricsAvailability()) {
+            is BiometricsAvailability.CanAuthenticate -> {
+                authenticateWithDeviceCredentialsOrBiometrics(
+                    context = context,
+                    crypto = crypto,
+                    notifyOnAuthenticationFailure = notifyOnAuthenticationFailure,
+                    resultHandler = resultHandler
+                )
             }
+
+            is BiometricsAvailability.NonEnrolled -> {
+                deviceAuthenticationInteractor.launchBiometricSystemScreen()
+            }
+
+            is BiometricsAvailability.Failure -> {
+                resultHandler.onAuthenticationFailure()
+            }
+        }
+    }
+
+    private fun authenticateWithDeviceCredentialsOrBiometrics(
+        context: Context,
+        crypto: BiometricCrypto,
+        notifyOnAuthenticationFailure: Boolean,
+        resultHandler: DeviceAuthenticationResult,
+    ) {
+        try {
+            deviceAuthenticationInteractor.authenticateWithBiometrics(
+                context = context,
+                crypto = crypto,
+                notifyOnAuthenticationFailure = notifyOnAuthenticationFailure,
+                resultHandler = resultHandler
+            )
+        } catch (e: Exception) {
+            resultHandler.onAuthenticationFailure()
         }
     }
 

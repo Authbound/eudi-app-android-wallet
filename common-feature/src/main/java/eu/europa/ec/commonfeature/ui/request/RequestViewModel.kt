@@ -18,7 +18,7 @@ package eu.europa.ec.commonfeature.ui.request
 
 import eu.europa.ec.commonfeature.ui.request.model.DomainDocumentFormat
 import eu.europa.ec.commonfeature.ui.request.model.RequestDocumentItemUi
-import eu.europa.ec.corelogic.di.getOrCreatePresentationScope
+import eu.europa.ec.corelogic.di.getOrNullKoinScope
 import eu.europa.ec.corelogic.model.ClaimPathDomain
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.ListItemTrailingContentDataUi
@@ -33,6 +33,8 @@ import eu.europa.ec.uilogic.mvi.MviViewModel
 import eu.europa.ec.uilogic.mvi.ViewEvent
 import eu.europa.ec.uilogic.mvi.ViewSideEffect
 import eu.europa.ec.uilogic.mvi.ViewState
+import eu.europa.ec.uilogic.navigation.helper.IntentAction
+import eu.europa.ec.uilogic.navigation.helper.IntentType
 import kotlinx.coroutines.Job
 
 data class State(
@@ -46,10 +48,13 @@ data class State(
 
     val items: List<RequestDocumentItemUi> = emptyList(),
     val noItems: Boolean = false,
-    val allowShare: Boolean = false
+    val allowShare: Boolean = false,
+    val presentationScopeId: String = "",
+    val intentAction: IntentAction? = null
 ) : ViewState
 
 sealed class Event : ViewEvent {
+    data class Init(val intentAction: IntentAction?) : Event()
     data object DoWork : Event()
     data object DismissError : Event()
     data object Pop : Event()
@@ -70,6 +75,7 @@ sealed class Effect : ViewSideEffect {
         ) : Navigation()
 
         data object Pop : Navigation()
+        data object Finish : Navigation()
         data class PopTo(
             val screenRoute: String,
         ) : Navigation()
@@ -90,6 +96,8 @@ abstract class RequestViewModel : MviViewModel<Event, State, Effect>() {
     abstract fun getNextScreen(): String
     abstract fun doWork()
 
+    open fun init(intentAction: IntentAction?) {}
+
     /**
      * Called during [NavigationType.Pop].
      *
@@ -97,7 +105,7 @@ abstract class RequestViewModel : MviViewModel<Event, State, Effect>() {
      *
      * */
     open fun cleanUp() {
-        getOrCreatePresentationScope().close()
+        getOrNullKoinScope(viewState.value.presentationScopeId)?.close()
     }
 
     open fun updateData(
@@ -125,6 +133,11 @@ abstract class RequestViewModel : MviViewModel<Event, State, Effect>() {
 
     override fun handleEvents(event: Event) {
         when (event) {
+            is Event.Init -> {
+                init(event.intentAction)
+                doWork()
+            }
+
             is Event.DoWork -> doWork()
 
             is Event.DismissError -> {
@@ -134,10 +147,7 @@ abstract class RequestViewModel : MviViewModel<Event, State, Effect>() {
             }
 
             is Event.Pop -> {
-                setState {
-                    copy(error = null)
-                }
-                doNavigation(NavigationType.Pop)
+                handleOnBack()
             }
 
             is Event.StickyButtonPressed -> {
@@ -235,6 +245,18 @@ abstract class RequestViewModel : MviViewModel<Event, State, Effect>() {
         }
     }
 
+    private fun handleOnBack() {
+        setState {
+            copy(error = null)
+        }
+        val navigationType = if (viewState.value.intentAction?.type == IntentType.DC_API) {
+            NavigationType.Finish
+        } else {
+            NavigationType.Pop
+        }
+        doNavigation(navigationType)
+    }
+
     private fun doNavigation(navigationType: NavigationType) {
         when (navigationType) {
             is NavigationType.PushScreen -> {
@@ -242,8 +264,12 @@ abstract class RequestViewModel : MviViewModel<Event, State, Effect>() {
                 setEffect { Effect.Navigation.SwitchScreen(navigationType.screen.screenRoute) }
             }
 
-            is NavigationType.Pop, NavigationType.Finish -> {
+            is NavigationType.Pop -> {
                 setEffect { Effect.Navigation.Pop }
+            }
+
+            is NavigationType.Finish -> {
+                setEffect { Effect.Navigation.Finish }
             }
 
             is NavigationType.Deeplink -> {}

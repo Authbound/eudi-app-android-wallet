@@ -19,24 +19,25 @@ package eu.europa.ec.authenticationlogic.controller.storage
 import eu.europa.ec.authenticationlogic.config.StorageConfig
 import eu.europa.ec.authenticationlogic.model.LocalUnlockStatus
 import eu.europa.ec.authenticationlogic.model.PinValidationResult
+import eu.europa.ec.authenticationlogic.secure.SecurePin
 
 interface PinStorageController {
     suspend fun retrievePin(): String
-    suspend fun setPin(pin: String)
-    suspend fun isPinValid(pin: String): Boolean
+    suspend fun setPin(pin: SecurePin)
+    suspend fun isPinValid(pin: SecurePin): Boolean
     suspend fun getLocalUnlockStatus(): LocalUnlockStatus = if (retrievePin().isBlank()) {
         LocalUnlockStatus.NotProvisioned
     } else {
         LocalUnlockStatus.ReadyForPin
     }
-    suspend fun verifyPin(pin: String): PinValidationResult = if (isPinValid(pin)) {
+    suspend fun verifyPin(pin: SecurePin): PinValidationResult = if (isPinValid(pin)) {
         PinValidationResult.Success
     } else {
         PinValidationResult.Failed(remainingAttempts = Int.MAX_VALUE)
     }
     suspend fun prepareRecovery(): LocalUnlockStatus = LocalUnlockStatus.RecoveryRequired
     suspend fun clearPinData(userId: String? = null) {
-        setPin("")
+        clearEphemeralSecrets()
     }
     suspend fun clearEphemeralSecrets() = Unit
 
@@ -45,17 +46,17 @@ interface PinStorageController {
 class PinStorageControllerImpl(private val storageConfig: StorageConfig) : PinStorageController {
     override suspend fun retrievePin(): String = storageConfig.pinStorageProvider.retrievePin()
 
-    override suspend fun setPin(pin: String) {
+    override suspend fun setPin(pin: SecurePin) {
         storageConfig.pinStorageProvider.setPin(pin)
     }
 
-    override suspend fun isPinValid(pin: String): Boolean =
+    override suspend fun isPinValid(pin: SecurePin): Boolean =
         storageConfig.pinStorageProvider.isPinValid(pin)
 
     override suspend fun getLocalUnlockStatus(): LocalUnlockStatus =
         storageConfig.pinStorageProvider.getLocalUnlockStatus()
 
-    override suspend fun verifyPin(pin: String): PinValidationResult =
+    override suspend fun verifyPin(pin: SecurePin): PinValidationResult =
         storageConfig.pinStorageProvider.verifyPin(pin)
 
     override suspend fun prepareRecovery(): LocalUnlockStatus =

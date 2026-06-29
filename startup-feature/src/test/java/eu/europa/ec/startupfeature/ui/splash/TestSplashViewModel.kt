@@ -75,11 +75,9 @@ class TestSplashViewModel {
             whenever(interactor.determineStartupState()).thenReturn(StartupState.Ready)
             val viewModel = createViewModel()
 
-            // When
-            viewModel.setEvent(Event.Initialize)
-
-            // Then
+            // When / Then
             viewModel.effect.test {
+                viewModel.setEvent(Event.Initialize)
                 val effect = awaitItem()
                 assertTrue(effect is Effect.Navigation.SwitchScreen)
                 assertEquals(
@@ -99,11 +97,9 @@ class TestSplashViewModel {
             whenever(interactor.determineStartupState()).thenReturn(StartupState.NotAuthenticated)
             val viewModel = createViewModel()
 
-            // When
-            viewModel.setEvent(Event.Initialize)
-
-            // Then
+            // When / Then
             viewModel.effect.test {
+                viewModel.setEvent(Event.Initialize)
                 val effect = awaitItem()
                 assertTrue(effect is Effect.Navigation.SwitchScreen)
                 assertEquals(
@@ -123,11 +119,9 @@ class TestSplashViewModel {
             whenever(interactor.determineStartupState()).thenReturn(StartupState.ProfileIncomplete)
             val viewModel = createViewModel()
 
-            // When
-            viewModel.setEvent(Event.Initialize)
-
-            // Then
+            // When / Then
             viewModel.effect.test {
+                viewModel.setEvent(Event.Initialize)
                 val effect = awaitItem()
                 assertTrue(effect is Effect.Navigation.SwitchScreen)
                 assertEquals(
@@ -144,9 +138,8 @@ class TestSplashViewModel {
                 .thenReturn(StartupState.LegalAcceptanceRequired)
             val viewModel = createViewModel()
 
-            viewModel.setEvent(Event.Initialize)
-
             viewModel.effect.test {
+                viewModel.setEvent(Event.Initialize)
                 val effect = awaitItem()
                 assertTrue(effect is Effect.Navigation.SwitchScreen)
                 assertEquals(
@@ -163,9 +156,8 @@ class TestSplashViewModel {
                 .thenReturn(StartupState.AccountDeletionScheduled)
             val viewModel = createViewModel()
 
-            viewModel.setEvent(Event.Initialize)
-
             viewModel.effect.test {
+                viewModel.setEvent(Event.Initialize)
                 val effect = awaitItem()
                 assertTrue(effect is Effect.Navigation.SwitchScreen)
                 assertEquals(
@@ -185,11 +177,9 @@ class TestSplashViewModel {
             whenever(interactor.determineStartupState()).thenReturn(StartupState.PinVerificationRequired)
             val viewModel = createViewModel()
 
-            // When
-            viewModel.setEvent(Event.Initialize)
-
-            // Then
+            // When / Then
             viewModel.effect.test {
+                viewModel.setEvent(Event.Initialize)
                 val effect = awaitItem()
                 assertTrue(effect is Effect.Navigation.SwitchScreen)
                 val route = (effect as Effect.Navigation.SwitchScreen).route
@@ -214,11 +204,9 @@ class TestSplashViewModel {
             whenever(interactor.determineStartupState()).thenReturn(StartupState.Ready)
             val viewModel = createViewModel()
 
-            // When
-            viewModel.setEvent(Event.Initialize)
-
-            // Then - Should navigate to Dashboard
+            // When / Then - Should navigate to Dashboard
             viewModel.effect.test {
+                viewModel.setEvent(Event.Initialize)
                 val effect = awaitItem()
                 assertTrue(effect is Effect.Navigation.SwitchScreen)
                 assertEquals(
@@ -266,11 +254,9 @@ class TestSplashViewModel {
                 .thenReturn(StartupState.SecurityError("Keystore tampered"))
             val viewModel = createViewModel()
 
-            // When
-            viewModel.setEvent(Event.Initialize)
-
-            // Then
+            // When / Then
             viewModel.effect.test {
+                viewModel.setEvent(Event.Initialize)
                 val effect = awaitItem()
                 assertTrue(effect is Effect.Navigation.SwitchScreen)
                 assertEquals(
@@ -294,11 +280,9 @@ class TestSplashViewModel {
                 ))
             val viewModel = createViewModel()
 
-            // When
-            viewModel.setEvent(Event.Initialize)
-
-            // Then
+            // When / Then
             viewModel.effect.test {
+                viewModel.setEvent(Event.Initialize)
                 val effect = awaitItem()
                 assertTrue(effect is Effect.Navigation.SwitchScreen)
                 assertEquals(
@@ -319,11 +303,9 @@ class TestSplashViewModel {
                 .thenThrow(RuntimeException("Unexpected error"))
             val viewModel = createViewModel()
 
-            // When
-            viewModel.setEvent(Event.Initialize)
-
-            // Then - Exception is caught and defaults to Login
+            // When / Then - Exception is caught and defaults to Login
             viewModel.effect.test {
+                viewModel.setEvent(Event.Initialize)
                 val effect = awaitItem()
                 assertTrue(effect is Effect.Navigation.SwitchScreen)
                 assertEquals(
@@ -347,11 +329,9 @@ class TestSplashViewModel {
             whenever(interactor.determineStartupState()).thenReturn(StartupState.PinNotSet)
             val viewModel = createViewModel()
 
-            // When
-            viewModel.setEvent(Event.Initialize)
-
-            // Then
+            // When / Then
             viewModel.effect.test {
+                viewModel.setEvent(Event.Initialize)
                 val effect = awaitItem()
                 assertTrue(effect is Effect.Navigation.SwitchScreen)
                 val route = (effect as Effect.Navigation.SwitchScreen).route

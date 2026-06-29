@@ -17,6 +17,7 @@
 package eu.europa.ec.assemblylogic.ui
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.compose.setContent
@@ -78,15 +79,19 @@ open class MainActivity : EudiComponentActivity() {
             val unlocked = localUnlockTracker.isUnlocked()
             Log.d(TAG, "    onStart() — was backgrounded, isUnlocked()=$unlocked")
             if (!unlocked) {
-                val deepLink = getPendingDeepLinkUri()
-                Log.d(TAG, "    onStart() — NOT unlocked, restarting clean (no saved state) to trigger PIN flow, pendingDeepLink=$deepLink")
+                val deepLink: Uri? = getPendingDeepLinkUri()
+                val pendingIntent: Intent? = getPendingIntentForRestart()
+                Log.d(TAG, "    onStart() — NOT unlocked, restarting clean (no saved state) to trigger PIN flow, pendingDeepLink=$deepLink, pendingAction=${pendingIntent?.action}")
                 // Must NOT use recreate() — it preserves savedInstanceState which
                 // restores the Compose Navigation back stack to Dashboard.
                 // Instead, launch a fresh MainActivity and finish this one.
-                // Preserve any pending deeplink so it survives the restart.
-                val restartIntent = Intent(this, MainActivity::class.java).apply {
+                // Preserve any pending external request so it survives the restart.
+                val restartIntent: Intent = Intent(pendingIntent ?: Intent()).apply {
+                    setClass(this@MainActivity, MainActivity::class.java)
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                    deepLink?.let { data = it }
+                    if (data == null) {
+                        deepLink?.let { data = it }
+                    }
                 }
                 startActivity(restartIntent)
                 finish()

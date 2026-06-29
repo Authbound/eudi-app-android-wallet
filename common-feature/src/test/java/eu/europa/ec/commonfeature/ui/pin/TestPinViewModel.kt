@@ -139,16 +139,20 @@ class TestPinViewModel {
     fun `Given CREATE ENTER state, When NextButtonPressed, Then transitions to REENTER`() =
         coroutineRule.runTest {
             // Given
+            whenever(interactor.validateForm(any<Form>()))
+                .thenReturn(FormValidationResult(isValid = true))
             val viewModel = createViewModel(PinFlow.CREATE_WITHOUT_ACTIVATION)
             assertEquals(PinValidationState.ENTER, viewModel.viewState.value.pinState)
 
             // When
-            viewModel.setEvent(Event.NextButtonPressed(pin = "123456"))
+            viewModel.setEvent(Event.OnQuickPinEntered("123456"))
+            testScope.advanceUntilIdle()
+            viewModel.setEvent(Event.NextButtonPressed)
             testScope.advanceUntilIdle()
 
             // Then
             assertEquals(PinValidationState.REENTER, viewModel.viewState.value.pinState)
-            assertEquals("123456", viewModel.viewState.value.enteredPin)
+            assertEquals(0, viewModel.viewState.value.pinLength)
         }
 
     //endregion
@@ -291,14 +295,14 @@ class TestPinViewModel {
         assertFalse(viewModel.viewState.value.isButtonEnabled)
     }
 
-    // Case 14: Initial pin is empty
+    // Case 14: Initial pin length is zero
     @Test
-    fun `Given new ViewModel, When created, Then pin is empty`() {
+    fun `Given new ViewModel, When created, Then pin length is zero`() {
         // Given/When
         val viewModel = createViewModel(PinFlow.CREATE_WITHOUT_ACTIVATION)
 
         // Then
-        assertEquals("", viewModel.viewState.value.pin)
+        assertEquals(0, viewModel.viewState.value.pinLength)
     }
 
     // Case 15: Initial resetPin is false
@@ -374,8 +378,12 @@ class TestPinViewModel {
     fun `Given REENTER state, When checking buttonText, Then returns Confirm`() =
         coroutineRule.runTest {
             // Given
+            whenever(interactor.validateForm(any<Form>()))
+                .thenReturn(FormValidationResult(isValid = true))
             val viewModel = createViewModel(PinFlow.CREATE_WITHOUT_ACTIVATION)
-            viewModel.setEvent(Event.NextButtonPressed(pin = "123456"))
+            viewModel.setEvent(Event.OnQuickPinEntered("123456"))
+            testScope.advanceUntilIdle()
+            viewModel.setEvent(Event.NextButtonPressed)
             testScope.advanceUntilIdle()
 
             // Then

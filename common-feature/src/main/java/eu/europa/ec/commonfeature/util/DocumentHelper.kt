@@ -52,8 +52,9 @@ fun extractValueFromDocumentOrEmpty(
         ?: ""
 }
 
-fun keyIsPortrait(key: String): Boolean {
-    return key == DocumentJsonKeys.PORTRAIT
+fun keyIsUserImage(key: String): Boolean {
+    val userImageKeys: List<String> = DocumentJsonKeys.BASE64_USER_IMAGE_KEYS
+    return userImageKeys.contains(key)
 }
 
 fun keyIsSignature(key: String): Boolean {

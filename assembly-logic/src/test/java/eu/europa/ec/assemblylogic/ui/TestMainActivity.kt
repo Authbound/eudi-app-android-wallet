@@ -22,13 +22,17 @@ import android.net.Uri
 import android.os.Bundle
 import com.google.common.truth.Truth.assertThat
 import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
+import eu.europa.ec.businesslogic.controller.session.PresentationSessionController
+import eu.europa.ec.businesslogic.provider.UuidProvider
+import eu.europa.ec.uilogic.di.LogicUiModule
+import eu.europa.ec.uilogic.di.module as logicUiModule
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
-import org.koin.dsl.module
+import org.koin.dsl.module as koinModule
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows
@@ -50,8 +54,11 @@ class TestMainActivity {
         localUnlockTracker = FakeLocalUnlockTracker()
         startKoin {
             modules(
-                module {
+                LogicUiModule().logicUiModule(),
+                koinModule {
                     single<LocalUnlockTracker> { localUnlockTracker }
+                    single<PresentationSessionController> { FakePresentationSessionController() }
+                    single<UuidProvider> { FakeUuidProvider() }
                 }
             )
         }
@@ -110,6 +117,33 @@ class TestMainActivity {
         assertThat(controller.get().isFinishing).isTrue()
     }
 
+    @Test
+    fun `Given activity was backgrounded and is locked, When it starts again, Then it restarts and preserves DC API intent`() {
+        localUnlockTracker.unlocked = false
+        val expectedAction: String = "androidx.identitycredentials.action.get_credentials"
+        val expectedExtra: String = "provider-request"
+        val controller: ActivityController<TestableMainActivity> = buildActivity()
+
+        controller.create().start()
+        controller.get().setPendingIntent(
+            Intent(expectedAction).putExtra("request_id", expectedExtra)
+        )
+        controller.stop()
+        controller.start()
+
+        val startedIntent: Intent = Shadows.shadowOf(controller.get())
+            .getNextStartedActivityForResult()
+            .intent
+
+        assertThat(localUnlockTracker.isUnlockedChecks).isEqualTo(1)
+        assertThat(startedIntent.component?.className).isEqualTo(MainActivity::class.java.name)
+        assertThat(startedIntent.action).isEqualTo(expectedAction)
+        assertThat(startedIntent.getStringExtra("request_id")).isEqualTo(expectedExtra)
+        assertThat(startedIntent.flags and Intent.FLAG_ACTIVITY_NEW_TASK).isEqualTo(Intent.FLAG_ACTIVITY_NEW_TASK)
+        assertThat(startedIntent.flags and Intent.FLAG_ACTIVITY_CLEAR_TASK).isEqualTo(Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        assertThat(controller.get().isFinishing).isTrue()
+    }
+
     private fun buildActivity(): ActivityController<TestableMainActivity> {
         return Robolectric.buildActivity(TestableMainActivity::class.java)
     }
@@ -131,11 +165,39 @@ private class FakeLocalUnlockTracker(
     }
 }
 
+private class FakePresentationSessionController : PresentationSessionController {
+    private var sessionId: String = ""
+
+    override fun setSessionId(value: String) {
+        sessionId = value
+    }
+
+    override fun getSessionId(): String {
+        return sessionId
+    }
+
+    override fun clearSessionId(value: String) {
+        if (sessionId == value) {
+            sessionId = ""
+        }
+    }
+}
+
+private class FakeUuidProvider : UuidProvider {
+    override fun provideUuid(): String {
+        return "test-session-id"
+    }
+}
+
 private class TestableMainActivity : MainActivity() {
     override fun initializeActivityUi(startIntent: Intent?) = Unit
 
     fun setPendingDeepLink(uri: Uri?) {
         cacheDeepLink(uri)
+    }
+
+    fun setPendingIntent(intent: Intent?) {
+        cacheIntent(intent)
     }
 }
 

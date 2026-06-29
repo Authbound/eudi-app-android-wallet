@@ -19,12 +19,23 @@ package eu.europa.ec.businesslogic.controller.storage
 import android.content.Context.MODE_PRIVATE
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.MutablePreferences
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import eu.europa.ec.businesslogic.config.E2eRuntimeConfig
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import io.github.jan.supabase.SupabaseClient
-
 import io.github.jan.supabase.auth.auth
+import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -94,16 +105,25 @@ interface PrefsControllerV2 {
 class PrefsControllerV2Impl(
     private val resourceProvider: ResourceProvider,
     private val logController: LogController,
-    private val supabaseClient: SupabaseClient
+    private val supabaseClient: SupabaseClient,
+    private val currentUserIdProvider: (suspend () -> String?)? = null,
+    private val currentUserIdSyncProvider: (() -> String?)? = null,
+    private val dataStoreProvider: (String) -> DataStore<Preferences> = { fileName ->
+        EncryptedPreferenceDataStores.create(resourceProvider.provideContext(), fileName)
+    }
 ) : PrefsControllerV2 {
 
     // Cache the user ID for performance (invalidated on sign-out)
     @Volatile
     private var cachedUserId: String? = null
     private val cacheMutex = Mutex()
+    private val migrationMutex = Mutex()
+    private val migratedUserIds: MutableSet<String> = mutableSetOf()
+    private val userDataStores: ConcurrentHashMap<String, DataStore<Preferences>> = ConcurrentHashMap()
 
     companion object {
         private const val USER_PREFS_PREFIX = "authbound-wallet-user-"
+        private const val USER_DATASTORE_PREFIX = "authbound-wallet-user-"
     }
 
     /**
@@ -114,13 +134,7 @@ class PrefsControllerV2Impl(
         // Return cached value if available
         cachedUserId?.let { return@withLock it }
 
-        // Fetch from Supabase (single source of truth)
-        val userId = try {
-            supabaseClient.auth.currentSessionOrNull()?.user?.id
-        } catch (e: Exception) {
-            logController.w("PrefsControllerV2") { "Failed to get current user from Supabase: ${e.message}" }
-            null
-        } ?: getSyntheticUserId()
+        val userId = resolveCurrentUserId() ?: getSyntheticUserId()
 
         // Cache for future accesses
         if (userId != null) {
@@ -140,15 +154,24 @@ class PrefsControllerV2Impl(
     }
 
     /**
-     * Get SharedPreferences for the current authenticated user.
+     * Get encrypted preferences for the current authenticated user.
      * Returns null if no user is authenticated.
      */
-    private suspend fun getCurrentUserPrefs(): SharedPreferences? {
+    private suspend fun getCurrentUserDataStore(): DataStore<Preferences>? {
         val userId = getCurrentUserId() ?: return null
-        return getUserPrefs(userId)
+        migrateLegacyPrefsIfNeeded(userId)
+        return getUserDataStore(userId)
+    }
+
+    private fun getUserDataStore(userId: String): DataStore<Preferences> {
+        val fileName: String = getUserDataStoreFileName(userId)
+        return userDataStores.computeIfAbsent(fileName) {
+            dataStoreProvider(it)
+        }
     }
 
     override fun hasAuthenticatedUser(): Boolean {
+        currentUserIdSyncProvider?.invoke()?.let { return true }
         return try {
             supabaseClient.auth.currentSessionOrNull() != null || E2eRuntimeConfig.isEnabled
         } catch (e: Exception) {
@@ -160,7 +183,7 @@ class PrefsControllerV2Impl(
     override suspend fun clearCurrentUserData() {
         val userId = getCurrentUserId()
         if (userId != null) {
-            getUserPrefs(userId).edit { clear() }
+            clearDataForUser(userId)
             logController.i("PrefsControllerV2") { "Cleared all data for current user: ${userId.take(8)}..." }
         } else {
             logController.w("PrefsControllerV2") { "Cannot clear data: No authenticated user" }
@@ -168,11 +191,14 @@ class PrefsControllerV2Impl(
     }
 
     override suspend fun clearUserData(userId: String) {
-        getUserPrefs(userId).edit { clear() }
+        clearDataForUser(userId)
         logController.i("PrefsControllerV2") { "Cleared all data for user: ${userId.take(8)}..." }
     }
 
     override suspend fun clearForUser(userId: String, key: String) {
+        getUserDataStore(userId).edit { prefs ->
+            removeKey(prefs, key)
+        }
         getUserPrefs(userId).edit { remove(key) }
     }
 
@@ -186,63 +212,73 @@ class PrefsControllerV2Impl(
     // ============================================================
 
     override suspend fun setString(key: String, value: String) {
-        val prefs = getCurrentUserPrefs()
+        val dataStore = getCurrentUserDataStore()
             ?: throw SecurityException("Cannot access preferences: No authenticated user session")
-        prefs.edit { putString(key, value) }
+        dataStore.edit { prefs ->
+            prefs[stringPreferencesKey(key)] = value
+        }
     }
 
     override suspend fun getString(key: String, defaultValue: String): String {
-        val prefs = getCurrentUserPrefs()
+        val dataStore = getCurrentUserDataStore()
             ?: throw SecurityException("Cannot access preferences: No authenticated user session")
-        return prefs.getString(key, defaultValue) ?: defaultValue
+        return dataStore.data.first()[stringPreferencesKey(key)] ?: defaultValue
     }
 
     override suspend fun setLong(key: String, value: Long) {
-        val prefs = getCurrentUserPrefs()
+        val dataStore = getCurrentUserDataStore()
             ?: throw SecurityException("Cannot access preferences: No authenticated user session")
-        prefs.edit { putLong(key, value) }
+        dataStore.edit { prefs ->
+            prefs[longPreferencesKey(key)] = value
+        }
     }
 
     override suspend fun getLong(key: String, defaultValue: Long): Long {
-        val prefs = getCurrentUserPrefs()
+        val dataStore = getCurrentUserDataStore()
             ?: throw SecurityException("Cannot access preferences: No authenticated user session")
-        return prefs.getLong(key, defaultValue)
+        return dataStore.data.first()[longPreferencesKey(key)] ?: defaultValue
     }
 
     override suspend fun setBool(key: String, value: Boolean) {
-        val prefs = getCurrentUserPrefs()
+        val dataStore = getCurrentUserDataStore()
             ?: throw SecurityException("Cannot access preferences: No authenticated user session")
-        prefs.edit { putBoolean(key, value) }
+        dataStore.edit { prefs ->
+            prefs[booleanPreferencesKey(key)] = value
+        }
     }
 
     override suspend fun getBool(key: String, defaultValue: Boolean): Boolean {
-        val prefs = getCurrentUserPrefs()
+        val dataStore = getCurrentUserDataStore()
             ?: throw SecurityException("Cannot access preferences: No authenticated user session")
-        return prefs.getBoolean(key, defaultValue)
+        return dataStore.data.first()[booleanPreferencesKey(key)] ?: defaultValue
     }
 
     override suspend fun getInt(key: String, defaultValue: Int): Int {
-        val prefs = getCurrentUserPrefs()
+        val dataStore = getCurrentUserDataStore()
             ?: throw SecurityException("Cannot access preferences: No authenticated user session")
-        return prefs.getInt(key, defaultValue)
+        return dataStore.data.first()[intPreferencesKey(key)] ?: defaultValue
     }
 
     override suspend fun setInt(key: String, value: Int) {
-        val prefs = getCurrentUserPrefs()
+        val dataStore = getCurrentUserDataStore()
             ?: throw SecurityException("Cannot access preferences: No authenticated user session")
-        prefs.edit { putInt(key, value) }
+        dataStore.edit { prefs ->
+            prefs[intPreferencesKey(key)] = value
+        }
     }
 
     override suspend fun contains(key: String): Boolean {
-        val prefs = getCurrentUserPrefs()
+        val dataStore = getCurrentUserDataStore()
             ?: throw SecurityException("Cannot access preferences: No authenticated user session")
-        return prefs.contains(key)
+        return dataStore.data.first().asMap().keys.any { it.name == key }
     }
 
     override suspend fun clear(key: String) {
-        val prefs = getCurrentUserPrefs()
+        val dataStore = getCurrentUserDataStore()
             ?: throw SecurityException("Cannot access preferences: No authenticated user session")
-        prefs.edit { remove(key) }
+        dataStore.edit { prefs ->
+            removeKey(prefs, key)
+        }
     }
 
     override suspend fun clearAll() {
@@ -257,7 +293,10 @@ class PrefsControllerV2Impl(
         return try {
             val userId = resolveCurrentUserIdSync()
             if (userId != null) {
-                getUserPrefs(userId).getBoolean(key, defaultValue)
+                runBlocking(Dispatchers.IO) {
+                    migrateLegacyPrefsIfNeeded(userId)
+                    getUserDataStore(userId).data.first()[booleanPreferencesKey(key)] ?: defaultValue
+                }
             } else {
                 logController.d("PrefsControllerV2", "No user session for safe access to key: $key, returning default: $defaultValue")
                 defaultValue
@@ -272,7 +311,10 @@ class PrefsControllerV2Impl(
         return try {
             val userId = resolveCurrentUserIdSync()
             if (userId != null) {
-                getUserPrefs(userId).getString(key, defaultValue) ?: defaultValue
+                runBlocking(Dispatchers.IO) {
+                    migrateLegacyPrefsIfNeeded(userId)
+                    getUserDataStore(userId).data.first()[stringPreferencesKey(key)] ?: defaultValue
+                }
             } else {
                 logController.d("PrefsControllerV2", "No user session for safe string access: $key, returning default: $defaultValue")
                 defaultValue
@@ -287,7 +329,10 @@ class PrefsControllerV2Impl(
         return try {
             val userId = resolveCurrentUserIdSync()
             if (userId != null) {
-                getUserPrefs(userId).getLong(key, defaultValue)
+                runBlocking(Dispatchers.IO) {
+                    migrateLegacyPrefsIfNeeded(userId)
+                    getUserDataStore(userId).data.first()[longPreferencesKey(key)] ?: defaultValue
+                }
             } else {
                 logController.d("PrefsControllerV2", "No user session for safe long access: $key, returning default: $defaultValue")
                 defaultValue
@@ -298,13 +343,78 @@ class PrefsControllerV2Impl(
         }
     }
 
+    private suspend fun resolveCurrentUserId(): String? {
+        return try {
+            currentUserIdProvider?.invoke()
+                ?: supabaseClient.auth.currentSessionOrNull()?.user?.id
+        } catch (e: Exception) {
+            logController.w("PrefsControllerV2") { "Failed to get current user from Supabase: ${e.message}" }
+            null
+        }
+    }
+
     private fun resolveCurrentUserIdSync(): String? {
         return try {
-            supabaseClient.auth.currentSessionOrNull()?.user?.id
+            currentUserIdSyncProvider?.invoke()
+                ?: supabaseClient.auth.currentSessionOrNull()?.user?.id
         } catch (e: Exception) {
             logController.w("PrefsControllerV2") { "Failed to resolve current user synchronously: ${e.message}" }
             null
         } ?: getSyntheticUserId()
+    }
+
+    private suspend fun clearDataForUser(userId: String) {
+        migrationMutex.withLock {
+            getUserDataStore(userId).edit { prefs ->
+                prefs.clear()
+            }
+            getUserPrefs(userId).edit { clear() }
+            migratedUserIds.remove(userId)
+        }
+    }
+
+    private suspend fun migrateLegacyPrefsIfNeeded(userId: String) {
+        migrationMutex.withLock {
+            if (migratedUserIds.contains(userId)) {
+                return@withLock
+            }
+            val legacyPrefs: SharedPreferences = getUserPrefs(userId)
+            val legacyEntries: Map<String, *> = legacyPrefs.all
+            if (legacyEntries.isNotEmpty()) {
+                getUserDataStore(userId).edit { prefs ->
+                    legacyEntries.forEach { (key, value) ->
+                        putLegacyValue(prefs, key, value)
+                    }
+                }
+                legacyPrefs.edit { clear() }
+            }
+            migratedUserIds.add(userId)
+        }
+    }
+
+    private fun putLegacyValue(
+        prefs: MutablePreferences,
+        key: String,
+        value: Any?
+    ) {
+        when (value) {
+            is String -> prefs[stringPreferencesKey(key)] = value
+            is Boolean -> prefs[booleanPreferencesKey(key)] = value
+            is Long -> prefs[longPreferencesKey(key)] = value
+            is Int -> prefs[intPreferencesKey(key)] = value
+        }
+    }
+
+    private fun removeKey(prefs: MutablePreferences, key: String) {
+        prefs.remove(stringPreferencesKey(key))
+        prefs.remove(booleanPreferencesKey(key))
+        prefs.remove(longPreferencesKey(key))
+        prefs.remove(intPreferencesKey(key))
+    }
+
+    private fun getUserDataStoreFileName(userId: String): String {
+        val userHash: String = EncryptedPreferenceDataStores.hashValue(userId)
+        return USER_DATASTORE_PREFIX + userHash
     }
 
     private fun getSyntheticUserId(): String? {

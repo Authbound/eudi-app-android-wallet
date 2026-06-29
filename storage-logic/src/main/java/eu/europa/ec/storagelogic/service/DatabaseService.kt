@@ -19,10 +19,12 @@ package eu.europa.ec.storagelogic.service
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import eu.europa.ec.storagelogic.dao.BookmarkDao
+import eu.europa.ec.storagelogic.dao.FailedReIssuedDocumentDao
 import eu.europa.ec.storagelogic.dao.RevokedDocumentDao
 import eu.europa.ec.storagelogic.dao.TransactionLogDao
 import eu.europa.ec.storagelogic.dao.UserDocumentMappingDao
 import eu.europa.ec.storagelogic.model.Bookmark
+import eu.europa.ec.storagelogic.model.FailedReIssuedDocument
 import eu.europa.ec.storagelogic.model.RevokedDocument
 import eu.europa.ec.storagelogic.model.TransactionLog
 import eu.europa.ec.storagelogic.model.UserDocumentMapping
@@ -32,13 +34,15 @@ import eu.europa.ec.storagelogic.model.UserDocumentMapping
         Bookmark::class,
         RevokedDocument::class,
         TransactionLog::class,
-        UserDocumentMapping::class
+        UserDocumentMapping::class,
+        FailedReIssuedDocument::class
     ],
-    version = 2
+    version = 3
 )
 abstract class DatabaseService : RoomDatabase() {
     abstract fun bookmarkDao(): BookmarkDao
     abstract fun revokedDocumentDao(): RevokedDocumentDao
     abstract fun transactionLogDao(): TransactionLogDao
     abstract fun userDocumentMappingDao(): UserDocumentMappingDao
+    abstract fun failedReIssuedDocumentDao(): FailedReIssuedDocumentDao
 }

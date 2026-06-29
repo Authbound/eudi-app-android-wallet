@@ -21,12 +21,15 @@ import eu.europa.ec.businesslogic.extension.safeAsync
 import eu.europa.ec.businesslogic.provider.UuidProvider
 import eu.europa.ec.commonfeature.config.RequestUriConfig
 import eu.europa.ec.commonfeature.config.toDomainConfig
+import eu.europa.ec.commonfeature.interactor.ScopedPresentationInteractor
+import eu.europa.ec.commonfeature.interactor.ScopedPresentationInteractorDelegate
 import eu.europa.ec.commonfeature.ui.request.model.RequestDocumentItemUi
 import eu.europa.ec.commonfeature.ui.request.transformer.RequestTransformer
 import eu.europa.ec.corelogic.controller.TransferEventPartialState
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
 import eu.europa.ec.corelogic.controller.WalletCorePresentationController
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
+import eu.europa.ec.uilogic.navigation.helper.IntentAction
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.mapNotNull
 
@@ -46,20 +49,21 @@ sealed class PresentationRequestInteractorPartialState {
     data object Disconnect : PresentationRequestInteractorPartialState()
 }
 
-interface PresentationRequestInteractor {
+interface PresentationRequestInteractor : ScopedPresentationInteractor {
     fun getRequestDocuments(): Flow<PresentationRequestInteractorPartialState>
     fun stopPresentation()
     fun updateRequestedDocuments(items: List<RequestDocumentItemUi>)
-    fun setConfig(config: RequestUriConfig)
+    fun setConfig(config: RequestUriConfig, intentAction: IntentAction? = null)
 }
 
 class PresentationRequestInteractorImpl(
     private val resourceProvider: ResourceProvider,
     private val uuidProvider: UuidProvider,
-    private val walletCorePresentationController: WalletCorePresentationController,
     private val walletCoreDocumentsController: WalletCoreDocumentsController,
-    private val logController: LogController
-) : PresentationRequestInteractor {
+    private val logController: LogController,
+    walletCorePresentationController: WalletCorePresentationController? = null
+) : PresentationRequestInteractor,
+    ScopedPresentationInteractorDelegate(walletCorePresentationController) {
 
     companion object {
         private const val TAG = "PresentationRequest"
@@ -68,8 +72,9 @@ class PresentationRequestInteractorImpl(
     private val genericErrorMsg
         get() = resourceProvider.genericErrorMessage()
 
-    override fun setConfig(config: RequestUriConfig) {
-        walletCorePresentationController.setConfig(config.toDomainConfig())
+    override fun setConfig(config: RequestUriConfig, intentAction: IntentAction?) {
+        setScopeId(config.presentationScopeId)
+        walletCorePresentationController.setConfig(config.toDomainConfig(intentAction))
     }
 
     override fun getRequestDocuments(): Flow<PresentationRequestInteractorPartialState> =

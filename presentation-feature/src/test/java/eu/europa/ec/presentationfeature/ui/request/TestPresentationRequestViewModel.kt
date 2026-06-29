@@ -16,6 +16,8 @@
 
 package eu.europa.ec.presentationfeature.ui.request
 
+import eu.europa.ec.commonfeature.config.PresentationMode
+import eu.europa.ec.commonfeature.config.RequestUriConfig
 import eu.europa.ec.presentationfeature.interactor.PresentationRequestInteractor
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.testlogic.rule.CoroutineTestRule
@@ -24,6 +26,7 @@ import eu.europa.ec.uilogic.navigation.PresentationScreens
 import eu.europa.ec.uilogic.serializer.UiSerializer
 import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertFalse
+import junit.framework.TestCase.assertTrue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -38,6 +41,8 @@ import org.junit.Test
 import org.mockito.Mock
 import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.any
+import org.mockito.kotlin.never
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -65,6 +70,7 @@ class TestPresentationRequestViewModel {
         closeable = MockitoAnnotations.openMocks(this)
         Dispatchers.setMain(testDispatcher)
         whenever(resourceProvider.getString(any<Int>())).thenReturn("text")
+        whenever(resourceProvider.genericErrorMessage()).thenReturn("generic error")
     }
 
     @After
@@ -79,8 +85,30 @@ class TestPresentationRequestViewModel {
 
         val nextScreen: String = viewModel.getNextScreen()
 
-        assertEquals(PresentationScreens.PresentationLoading.screenRoute, nextScreen)
+        assertTrue(nextScreen.startsWith(PresentationScreens.PresentationLoading.screenName))
         assertFalse(nextScreen.contains(CommonScreens.Biometric.screenName))
+    }
+
+    @Test
+    fun `Given restored DC API request without intent, When doing work, Then error is shown without configuring interactor`() {
+        val requestUriConfig: RequestUriConfig = RequestUriConfig(
+            mode = PresentationMode.DcApi(initiatorRoute = "dashboard")
+        )
+        whenever(
+            uiSerializer.fromBase64(
+                "request-uri-config",
+                RequestUriConfig::class.java,
+                RequestUriConfig.Parser
+            )
+        ).thenReturn(requestUriConfig)
+        val viewModel: PresentationRequestViewModel = createViewModel()
+
+        viewModel.init(intentAction = null)
+        viewModel.doWork()
+
+        assertFalse(viewModel.viewState.value.isLoading)
+        assertEquals("generic error", viewModel.viewState.value.error?.errorSubTitle)
+        verify(interactor, never()).setConfig(any(), any())
     }
 
     private fun createViewModel(): PresentationRequestViewModel {

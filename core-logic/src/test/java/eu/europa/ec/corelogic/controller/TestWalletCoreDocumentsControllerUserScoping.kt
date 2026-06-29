@@ -24,9 +24,11 @@ import eu.europa.ec.eudi.wallet.EudiWallet
 import eu.europa.ec.eudi.wallet.document.IssuedDocument
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.storagelogic.dao.BookmarkDao
+import eu.europa.ec.storagelogic.dao.FailedReIssuedDocumentDao
 import eu.europa.ec.storagelogic.dao.RevokedDocumentDao
 import eu.europa.ec.storagelogic.dao.TransactionLogDao
 import eu.europa.ec.storagelogic.model.Bookmark
+import eu.europa.ec.storagelogic.model.FailedReIssuedDocument
 import eu.europa.ec.storagelogic.model.RevokedDocument
 import eu.europa.ec.testlogic.extension.runTest
 import eu.europa.ec.testlogic.rule.CoroutineTestRule
@@ -79,6 +81,9 @@ class TestWalletCoreDocumentsControllerUserScoping {
     private lateinit var revokedDocumentDao: RevokedDocumentDao
 
     @Mock
+    private lateinit var failedReIssuedDocumentDao: FailedReIssuedDocumentDao
+
+    @Mock
     private lateinit var ownershipController: UserDocumentOwnershipController
 
     @Mock
@@ -100,6 +105,7 @@ class TestWalletCoreDocumentsControllerUserScoping {
             bookmarkDao = bookmarkDao,
             transactionLogDao = transactionLogDao,
             revokedDocumentDao = revokedDocumentDao,
+            failedReIssuedDocumentDao = failedReIssuedDocumentDao,
             ownershipController = ownershipController,
             logController = logController,
             dispatcher = Dispatchers.Unconfined
@@ -265,6 +271,38 @@ class TestWalletCoreDocumentsControllerUserScoping {
 
             verify(revokedDocumentDao).delete("doc-1", USER_A)
             verify(revokedDocumentDao).delete("doc-2", USER_A)
+        }
+
+    //endregion
+
+    //region Failed reissued documents - user-scoped
+
+    @Test
+    fun `replaceFailedReIssuedDocumentIds scopes by userId`() =
+        coroutineRule.runTest {
+            whenever(ownershipController.requireCurrentUserId()).thenReturn(USER_A)
+
+            controller.replaceFailedReIssuedDocumentIds(listOf("doc-1", "doc-2", "doc-1"))
+
+            verify(failedReIssuedDocumentDao).deleteAllForUser(USER_A)
+            verify(failedReIssuedDocumentDao).storeAll(argThat { docs ->
+                docs == listOf(
+                    FailedReIssuedDocument("doc-1", USER_A),
+                    FailedReIssuedDocument("doc-2", USER_A)
+                )
+            })
+        }
+
+    @Test
+    fun `getFailedReIssuedDocumentIds returns only current users failed docs`() =
+        coroutineRule.runTest {
+            whenever(ownershipController.getCurrentUserId()).thenReturn(USER_A)
+            whenever(failedReIssuedDocumentDao.retrieveAllForUser(USER_A))
+                .thenReturn(listOf(FailedReIssuedDocument("doc-1", USER_A)))
+
+            val result = controller.getFailedReIssuedDocumentIds()
+
+            assertEquals(listOf("doc-1"), result)
         }
 
     //endregion

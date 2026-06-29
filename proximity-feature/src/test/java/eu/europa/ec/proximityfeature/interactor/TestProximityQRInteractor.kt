@@ -34,7 +34,6 @@ import eu.europa.ec.testlogic.extension.runFlowTest
 import eu.europa.ec.testlogic.extension.runTest
 import eu.europa.ec.testlogic.extension.toFlow
 import eu.europa.ec.testlogic.rule.CoroutineTestRule
-import eu.europa.ec.uilogic.container.EudiComponentActivity
 import eu.europa.ec.uilogic.navigation.DashboardScreens
 import junit.framework.TestCase.assertEquals
 import kotlinx.coroutines.flow.SharingStarted
@@ -55,7 +54,7 @@ import org.robolectric.annotation.Config
 import java.net.URI
 
 @RunWith(RobolectricTestRunner::class)
-@Config(application = TestApplication::class)
+@Config(sdk = [36], application = TestApplication::class)
 class TestProximityQRInteractor {
 
     @get:Rule
@@ -324,7 +323,7 @@ class TestProximityQRInteractor {
     @Test
     fun `Given Case 1, When toggleNfcEngagement is called, Then Case 1 Expected Result is returned`() {
         val componentActivity =
-            createActivity(EudiComponentActivity::class.java) as ComponentActivity
+            createActivity(ComponentActivity::class.java) as ComponentActivity
 
         interactor.toggleNfcEngagement(
             componentActivity = componentActivity,
@@ -348,7 +347,7 @@ class TestProximityQRInteractor {
     @Test
     fun `Given Case 2, When toggleNfcEngagement is called, Then Case 2 Expected Result is returned`() {
         val componentActivity =
-            createActivity(EudiComponentActivity::class.java) as ComponentActivity
+            createActivity(ComponentActivity::class.java) as ComponentActivity
 
         interactor.toggleNfcEngagement(
             componentActivity = componentActivity,

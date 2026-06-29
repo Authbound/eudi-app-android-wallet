@@ -93,33 +93,41 @@ private class EuReferenceWalletAttestationProvider(
 
     override suspend fun getWalletAttestation(
         keyInfo: KeyInfo
-    ): Result<String> = walletAttestationRepository.getWalletAttestation(
-        baseUrl = walletProviderConfig.baseUrl,
-        request = WalletAttestationRequest(
-            body = buildJsonObject {
-                put("jwk", keyInfo.publicKey.toJwk())
-            }
+    ): Result<String> {
+        val jwk: JsonObject = keyInfo.publicKey.toJwk()
+        return walletAttestationRepository.getWalletAttestation(
+            baseUrl = walletProviderConfig.baseUrl,
+            request = WalletAttestationRequest(
+                body = buildJsonObject {
+                    put("jwk", jwk)
+                }
+            )
         )
-    )
+    }
 
     override suspend fun getKeyAttestation(
         keys: List<KeyInfo>,
         nonce: Nonce?
-    ): Result<String> = walletAttestationRepository.getKeyAttestation(
-        baseUrl = walletProviderConfig.baseUrl,
-        request = WalletAttestationRequest(
-            body = buildJsonObject {
-                put("nonce", JsonPrimitive(nonce?.value.orEmpty()))
-                putJsonObject("jwkSet") {
-                    putJsonArray("keys") {
-                        keys.forEach { keyInfo ->
-                            add(keyInfo.publicKey.toJwk())
+    ): Result<String> {
+        val jwks: List<JsonObject> = keys.map { keyInfo ->
+            keyInfo.publicKey.toJwk()
+        }
+        return walletAttestationRepository.getKeyAttestation(
+            baseUrl = walletProviderConfig.baseUrl,
+            request = WalletAttestationRequest(
+                body = buildJsonObject {
+                    put("nonce", JsonPrimitive(nonce?.value.orEmpty()))
+                    putJsonObject("jwkSet") {
+                        putJsonArray("keys") {
+                            jwks.forEach { jwk ->
+                                add(jwk)
+                            }
                         }
                     }
                 }
-            }
+            )
         )
-    )
+    }
 }
 
 private class AuthboundWalletAttestationProvider(
@@ -139,7 +147,7 @@ private class AuthboundWalletAttestationProvider(
 
     override suspend fun getWalletAttestation(
         keyInfo: KeyInfo
-    ): Result<String> = runCatching {
+    ): Result<String> = runSuspendCatching {
         val attestationChain = keyInfo.requireAttestationChain()
         val keyMaterial = keyInfo.toAuthboundAttestedKeyMaterial(attestationChain)
         val baseRequestBody = buildWalletInstanceProofFreeRequest(keyMaterial)
@@ -174,7 +182,7 @@ private class AuthboundWalletAttestationProvider(
     override suspend fun getKeyAttestation(
         keys: List<KeyInfo>,
         nonce: Nonce?
-    ): Result<String> = runCatching {
+    ): Result<String> = runSuspendCatching {
         val nonceValue = nonce?.value.orEmpty()
         val attestedKeys = keys.map { keyInfo ->
             keyInfo.toAuthboundAttestedKeyMaterial(keyInfo.requireAttestationChain())
@@ -407,7 +415,7 @@ private fun JsonObject.toCanonicalHash(): String {
 private fun JsonObject.toBase64Url(): String =
     canonicalJsonString(this).toByteArray(StandardCharsets.UTF_8).toBase64Url()
 
-private fun KeyInfo.toAuthboundAttestedKeyMaterial(
+private suspend fun KeyInfo.toAuthboundAttestedKeyMaterial(
     attestationChain: X509CertChain,
 ): AuthboundAttestedKeyMaterial = AuthboundAttestedKeyMaterial(
     keyAlias = alias,
@@ -446,3 +454,10 @@ private fun ByteArray.toJoseBase64Url(): String {
     )
     return joseBytes.toBase64Url()
 }
+
+private suspend fun <T> runSuspendCatching(block: suspend () -> T): Result<T> =
+    try {
+        Result.success(block())
+    } catch (e: Throwable) {
+        Result.failure(e)
+    }

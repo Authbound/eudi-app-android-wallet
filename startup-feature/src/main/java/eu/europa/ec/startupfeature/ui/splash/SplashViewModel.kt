@@ -28,7 +28,7 @@ import eu.europa.ec.uilogic.navigation.ModuleRoute
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
-import org.koin.android.annotation.KoinViewModel
+import org.koin.core.annotation.KoinViewModel
 import kotlin.coroutines.cancellation.CancellationException
 
 data class State(

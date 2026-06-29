@@ -23,6 +23,8 @@ import eu.europa.ec.authenticationlogic.controller.authentication.DeviceAuthenti
 import eu.europa.ec.authenticationlogic.model.BiometricCrypto
 import eu.europa.ec.authenticationlogic.model.LocalRecoveryResetResult
 import eu.europa.ec.authenticationlogic.model.LocalUnlockStatus
+import eu.europa.ec.authenticationlogic.secure.SecurePin
+import eu.europa.ec.authenticationlogic.secure.SecurePinImpl
 import androidx.lifecycle.viewModelScope
 import eu.europa.ec.businesslogic.validator.Form
 import eu.europa.ec.businesslogic.validator.FormValidationResult
@@ -52,7 +54,7 @@ import eu.europa.ec.uilogic.serializer.UiSerializer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import org.koin.android.annotation.KoinViewModel
+import org.koin.core.annotation.KoinViewModel
 import org.koin.core.annotation.InjectedParam
 
 enum class PinValidationState {
@@ -72,8 +74,7 @@ data class State(
         val validationResult: FormValidationResult = FormValidationResult(false),
         val subtitle: String = "",
         val title: String = "",
-        val pin: String = "",
-        val enteredPin: String = "",
+        val pinLength: Int = 0,
         val buttonText: String = "",
         val resetPin: Boolean = false,
         val pinState: PinValidationState,
@@ -111,7 +112,9 @@ data class State(
 }
 
 sealed class Event : ViewEvent {
-    data class NextButtonPressed(val pin: String) : Event()
+    data object NextButtonPressed : Event()
+    data class OnQuickPinDigitPressed(val digit: Int) : Event()
+    data object OnQuickPinBackspacePressed : Event()
     data class OnQuickPinEntered(val quickPin: String) : Event()
     data class OnBiometricLoginPressed(val context: Context) : Event()
     data class OnBiometricsPreferenceSelected(val shouldUseBiometrics: Boolean) : Event()
@@ -162,6 +165,9 @@ class PinViewModel(
 
     // Cached at init time so saveNewPin() can decide whether to show the prompt post-creation.
     private var biometricsPreferenceNotYetDecided: Boolean = false
+    private val pinBuffer: CharArray = CharArray(DEFAULT_PIN_SIZE)
+    private var pinBufferLength: Int = 0
+    private var pendingEnteredPin: SecurePin? = null
 
     override fun setInitialState(): State {
         val title: String
@@ -220,6 +226,12 @@ class PinViewModel(
 
     override fun handleEvents(event: Event) {
         when (event) {
+            is Event.OnQuickPinDigitPressed -> {
+                appendPinDigit(event.digit)
+            }
+            Event.OnQuickPinBackspacePressed -> {
+                removePinDigit()
+            }
             is Event.OnQuickPinEntered -> {
                 validateForm(event.quickPin)
             }
@@ -230,19 +242,18 @@ class PinViewModel(
                 storeBiometricsPreference(event.shouldUseBiometrics)
             }
             is Event.NextButtonPressed -> {
-                val state = viewState.value
-
-                when (state.pinState) {
+                if (pinBufferLength != viewState.value.quickPinSize) {
+                    return
+                }
+                when (viewState.value.pinState) {
                     PinValidationState.ENTER -> {
-                        // Set state for re-enter phase
-                        setupReenterPhase(enteredPin = event.pin)
+                        setupReenterPhase(enteredPin = consumePinBuffer())
                     }
                     PinValidationState.REENTER -> {
-                        // Save the new pin
-                        saveNewPin(newPin = state.pin, enteredPin = state.enteredPin)
+                        saveNewPin(newPin = consumePinBuffer())
                     }
                     PinValidationState.VALIDATE -> {
-                        validatePin(currentPin = state.pin)
+                        validatePin(currentPin = consumePinBuffer())
                     }
                 }
             }
@@ -257,6 +268,7 @@ class PinViewModel(
             }
             is Event.BottomSheet.Cancel.SecondaryButtonPressed -> {
                 viewModelScope.launch {
+                    clearPendingPin()
                     hideBottomSheet()
                     delay(200L)
                     setEffect { Effect.Navigation.Pop }
@@ -274,19 +286,25 @@ class PinViewModel(
             is Event.BottomSheet.Reset.CancelPressed -> {
                 setState { copy(showResetConfirmation = false) }
             }
-            is Event.Finish -> setEffect { Effect.Navigation.Finish }
+            is Event.Finish -> {
+                clearPendingPin()
+                clearPinBuffer()
+                setEffect { Effect.Navigation.Finish }
+            }
         }
     }
 
-    private fun validatePin(currentPin: String) {
+    private fun validatePin(currentPin: SecurePin) {
         viewModelScope.launch {
             interactor.isCurrentPinValid(pin = currentPin).collect {
                 when (it) {
                     is QuickPinInteractorPinValidPartialState.Failed -> {
+                        clearPinBuffer()
                         setState {
                             copy(
                                 quickPinError = it.errorMessage,
-                                pin = "",
+                                isButtonEnabled = false,
+                                pinLength = 0,
                                 resetPin = true,
                                 showResetConfirmation = it.requiresRecovery
                             )
@@ -342,13 +360,15 @@ class PinViewModel(
     private fun setupEnterPhase() {
         val newPinState = PinValidationState.ENTER
 
+        clearPendingPin()
+        clearPinBuffer()
         setState {
             copy(
                     quickPinError = null,
-                    enteredPin = "",
+                    isButtonEnabled = false,
                     pinState = newPinState,
                     buttonText = calculateButtonText(newPinState),
-                    pin = "",
+                    pinLength = 0,
                     resetPin = true,
                     subtitle = calculateSubtitle(newPinState),
                     isRecoveringPin = false
@@ -358,13 +378,15 @@ class PinViewModel(
 
     private fun setupRecoveryPhase() {
         val newPinState = PinValidationState.ENTER
+        clearPendingPin()
+        clearPinBuffer()
         setState {
             copy(
                 quickPinError = null,
-                enteredPin = "",
+                isButtonEnabled = false,
                 pinState = newPinState,
                 buttonText = calculateButtonText(newPinState),
-                pin = "",
+                pinLength = 0,
                 resetPin = true,
                 subtitle = resourceProvider.getString(R.string.quick_pin_create_enter_subtitle),
                 title = resourceProvider.getString(R.string.quick_pin_create_title),
@@ -374,28 +396,43 @@ class PinViewModel(
         }
     }
 
-    private fun setupReenterPhase(enteredPin: String) {
+    private fun setupReenterPhase(enteredPin: SecurePin) {
         val newPinState = PinValidationState.REENTER
+        clearPendingPin()
+        pendingEnteredPin = enteredPin
+        clearPinBuffer()
 
         setState {
             copy(
                     quickPinError = null,
-                    enteredPin = enteredPin,
+                    isButtonEnabled = false,
                     pinState = PinValidationState.REENTER,
                     buttonText = calculateButtonText(newPinState),
-                    pin = "",
+                    pinLength = 0,
                     resetPin = true,
                     subtitle = calculateSubtitle(newPinState)
             )
         }
     }
 
-    private fun saveNewPin(newPin: String, enteredPin: String) {
+    private fun saveNewPin(newPin: SecurePin) {
+        val enteredPin: SecurePin = pendingEnteredPin ?: run {
+            newPin.close()
+            return
+        }
+        pendingEnteredPin = null
         viewModelScope.launch {
             interactor.setPin(newPin = newPin, initialPin = enteredPin).collect {
                 when (it) {
                     is QuickPinInteractorSetPinPartialState.Failed -> {
-                        setState { copy(quickPinError = it.errorMessage) }
+                        clearPinBuffer()
+                        setState {
+                            copy(
+                                quickPinError = it.errorMessage,
+                                isButtonEnabled = false,
+                                pinLength = 0
+                            )
+                        }
                     }
                     is QuickPinInteractorSetPinPartialState.Success -> {
                         if (viewState.value.isRecoveringPin) {
@@ -406,7 +443,14 @@ class PinViewModel(
                         } else {
                             getNextScreenRoute()
                         }
-                        setState { copy(pinSuccess = true) }
+                        clearPinBuffer()
+                        setState {
+                            copy(
+                                isButtonEnabled = false,
+                                pinSuccess = true,
+                                pinLength = 0
+                            )
+                        }
                         delay(250L)
                         if (biometricsPreferenceNotYetDecided && !viewState.value.isRecoveringPin) {
                             // Ask about biometrics now that the PIN is set, before proceeding.
@@ -451,12 +495,17 @@ class PinViewModel(
     private fun validateForm(pin: String) {
         viewModelScope.launch {
             val validationResult = interactor.validateForm(getListOfRules(pin))
+            if (validationResult.isValid || pin.length < viewState.value.quickPinSize) {
+                replacePinBuffer(pin)
+            } else {
+                clearPinBuffer()
+            }
             setState {
                 copy(
                         validationResult = validationResult,
                         isButtonEnabled = validationResult.isValid,
                         quickPinError = validationResult.message,
-                        pin = pin,
+                        pinLength = pinBufferLength,
                         resetPin = false
                 )
             }
@@ -519,8 +568,14 @@ class PinViewModel(
                                     // CREATE flow: scan failed but preference is saved — proceed anyway.
                                     navigateAfterBiometricActivation(pendingRoute)
                                 } else {
+                                    clearPinBuffer()
                                     setState {
-                                        copy(quickPinError = authResult.errorMessage, pin = "", resetPin = true)
+                                        copy(
+                                            quickPinError = authResult.errorMessage,
+                                            isButtonEnabled = false,
+                                            pinLength = 0,
+                                            resetPin = true
+                                        )
                                     }
                                 }
                             }
@@ -538,12 +593,14 @@ class PinViewModel(
                     if (pendingRoute != null) {
                         navigateAfterBiometricActivation(pendingRoute)
                     } else {
+                        clearPinBuffer()
                         setState {
                             copy(
                                     quickPinError = resourceProvider.getString(
                                             R.string.quick_pin_biometric_not_enrolled_error
                                     ),
-                                    pin = "",
+                                    isButtonEnabled = false,
+                                    pinLength = 0,
                                     resetPin = true
                             )
                         }
@@ -553,8 +610,14 @@ class PinViewModel(
                     if (pendingRoute != null) {
                         navigateAfterBiometricActivation(pendingRoute)
                     } else {
+                        clearPinBuffer()
                         setState {
-                            copy(quickPinError = availability.errorMessage, pin = "", resetPin = true)
+                            copy(
+                                quickPinError = availability.errorMessage,
+                                isButtonEnabled = false,
+                                pinLength = 0,
+                                resetPin = true
+                            )
                         }
                     }
                 }
@@ -757,5 +820,95 @@ class PinViewModel(
 
     private fun hideBottomSheet() {
         setEffect { Effect.CloseBottomSheet }
+    }
+
+    override fun onCleared() {
+        clearPendingPin()
+        clearPinBuffer()
+        super.onCleared()
+    }
+
+    private fun appendPinDigit(digit: Int) {
+        if (digit !in 0..9) {
+            return
+        }
+        if (!viewState.value.quickPinError.isNullOrEmpty()) {
+            clearPinBuffer()
+        }
+        if (pinBufferLength >= viewState.value.quickPinSize) {
+            return
+        }
+        pinBuffer[pinBufferLength] = ('0'.code + digit).toChar()
+        pinBufferLength += 1
+        setState {
+            copy(
+                quickPinError = null,
+                isButtonEnabled = pinBufferLength == viewState.value.quickPinSize,
+                pinLength = pinBufferLength,
+                resetPin = false
+            )
+        }
+        if (pinBufferLength == viewState.value.quickPinSize) {
+            viewModelScope.launch {
+                delay(150L)
+                if (pinBufferLength == viewState.value.quickPinSize) {
+                    handleEvents(Event.NextButtonPressed)
+                }
+            }
+        }
+    }
+
+    private fun removePinDigit() {
+        if (pinBufferLength <= 0) {
+            if (!viewState.value.quickPinError.isNullOrEmpty()) {
+                setState {
+                    copy(
+                        quickPinError = null,
+                        isButtonEnabled = false,
+                        pinLength = 0
+                    )
+                }
+            }
+            return
+        }
+        pinBufferLength -= 1
+        pinBuffer[pinBufferLength] = '\u0000'
+        setState {
+            copy(
+                quickPinError = null,
+                isButtonEnabled = false,
+                pinLength = pinBufferLength,
+                resetPin = false
+            )
+        }
+    }
+
+    private fun replacePinBuffer(pin: String) {
+        clearPinBuffer()
+        pin.take(viewState.value.quickPinSize).forEach { char ->
+            pinBuffer[pinBufferLength] = char
+            pinBufferLength += 1
+        }
+    }
+
+    private fun consumePinBuffer(): SecurePin {
+        val securePin: SecurePin = SecurePinImpl.from(pinBuffer, pinBufferLength)
+        clearPinBuffer()
+        setState { copy(isButtonEnabled = false, pinLength = 0, resetPin = true) }
+        return securePin
+    }
+
+    private fun clearPinBuffer() {
+        pinBuffer.fill('\u0000')
+        pinBufferLength = 0
+    }
+
+    private fun clearPendingPin() {
+        pendingEnteredPin?.close()
+        pendingEnteredPin = null
+    }
+
+    private companion object {
+        const val DEFAULT_PIN_SIZE = 6
     }
 }

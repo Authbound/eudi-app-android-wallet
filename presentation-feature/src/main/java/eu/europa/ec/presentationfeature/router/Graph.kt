@@ -30,6 +30,8 @@ import eu.europa.ec.presentationfeature.ui.request.PresentationRequestScreen
 import eu.europa.ec.presentationfeature.ui.success.PresentationSuccessScreen
 import eu.europa.ec.uilogic.navigation.ModuleRoute
 import eu.europa.ec.uilogic.navigation.PresentationScreens
+import eu.europa.ec.uilogic.navigation.helper.INTENT_ACTION_KEY
+import eu.europa.ec.uilogic.navigation.helper.IntentAction
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -53,24 +55,49 @@ fun NavGraphBuilder.presentationGraph(navController: NavController) {
                 },
             )
         ) {
+            val currentIntentAction: IntentAction? = navController.currentBackStackEntry
+                ?.savedStateHandle
+                ?.get<IntentAction>(INTENT_ACTION_KEY)
+            val previousIntentAction: IntentAction? = navController.previousBackStackEntry
+                ?.savedStateHandle
+                ?.remove<IntentAction>(INTENT_ACTION_KEY)
+            val intentAction: IntentAction? = currentIntentAction ?: previousIntentAction
+            if (currentIntentAction == null && previousIntentAction != null) {
+                navController.currentBackStackEntry
+                    ?.savedStateHandle
+                    ?.set(INTENT_ACTION_KEY, previousIntentAction)
+            }
+
             PresentationRequestScreen(
-                navController,
-                koinViewModel(
+                navController = navController,
+                viewModel = koinViewModel(
                     parameters = {
                         parametersOf(
                             it.arguments?.getString(RequestUriConfig.serializedKeyName).orEmpty()
                         )
                     }
-                )
+                ),
+                intentAction = intentAction
             )
         }
 
         composable(
             route = PresentationScreens.PresentationLoading.screenRoute,
+            arguments = listOf(
+                navArgument("scopeId") {
+                    type = NavType.StringType
+                }
+            )
         ) {
             PresentationLoadingScreen(
                 navController,
-                koinViewModel()
+                koinViewModel(
+                    parameters = {
+                        parametersOf(
+                            it.arguments?.getString("scopeId").orEmpty()
+                        )
+                    }
+                )
             )
         }
 
@@ -82,10 +109,21 @@ fun NavGraphBuilder.presentationGraph(navController: NavController) {
                         BuildConfig.DEEPLINK + PresentationScreens.PresentationSuccess.screenRoute
                 }
             ),
+            arguments = listOf(
+                navArgument("scopeId") {
+                    type = NavType.StringType
+                }
+            )
         ) {
             PresentationSuccessScreen(
                 navController,
-                koinViewModel()
+                koinViewModel(
+                    parameters = {
+                        parametersOf(
+                            it.arguments?.getString("scopeId").orEmpty()
+                        )
+                    }
+                )
             )
         }
     }

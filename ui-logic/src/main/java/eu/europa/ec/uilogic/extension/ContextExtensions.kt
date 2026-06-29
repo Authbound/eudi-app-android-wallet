@@ -43,6 +43,14 @@ fun Context.getPendingDeepLink(): Uri? {
     }
 }
 
+fun Context.getPendingIntent(alsoClearIt: Boolean = false): Intent? {
+    return (this as? EudiComponentActivity)?.pendingIntent?.also {
+        if (alsoClearIt) {
+            clearPendingIntent()
+        }
+    }
+}
+
 fun Context.peekPendingDeepLink(): Uri? {
     return (this as? EudiComponentActivity)?.pendingDeepLink
 }
@@ -69,6 +77,10 @@ fun Context.findActivity(): ComponentActivity {
 
 private fun Context.clearPendingDeepLink() {
     (this as? EudiComponentActivity)?.pendingDeepLink = null
+}
+
+private fun Context.clearPendingIntent() {
+    (this as? EudiComponentActivity)?.pendingIntent = null
 }
 
 /**

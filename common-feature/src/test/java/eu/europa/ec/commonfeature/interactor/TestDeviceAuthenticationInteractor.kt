@@ -23,19 +23,21 @@ import eu.europa.ec.authenticationlogic.model.BiometricCrypto
 import eu.europa.ec.testfeature.util.mockedNotifyOnAuthenticationFailure
 import eu.europa.ec.testlogic.base.TestApplication
 import eu.europa.ec.testlogic.base.getMockedContext
+import junit.framework.TestCase.assertEquals
+import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mock
-import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
 import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(application = TestApplication::class)
+@Config(sdk = [36], application = TestApplication::class)
 class TestDeviceAuthenticationInteractor {
 
     @Mock
@@ -67,17 +69,30 @@ class TestDeviceAuthenticationInteractor {
 
     // Case: getBiometricsAvailability behaviour
     @Test
-    fun `Given a BiometricsAvailability listener, When getBiometricsAvailability is called, Then deviceSupportsBiometrics should be triggered`() {
+    fun `When getBiometricsAvailability is called, Then synchronous availability is returned`() {
         // Given
-        val mockListener: (BiometricsAvailability) -> Unit = mock()
+        whenever(deviceAuthenticationController.deviceSupportsBiometrics())
+            .thenReturn(BiometricsAvailability.CanAuthenticate)
 
         // When
-        interactor.getBiometricsAvailability(
-            listener = mockListener
-        )
+        val result: BiometricsAvailability = interactor.getBiometricsAvailability()
 
         // Then
-        verify(deviceAuthenticationController).deviceSupportsBiometrics(mockListener)
+        assertEquals(BiometricsAvailability.CanAuthenticate, result)
+        verify(deviceAuthenticationController).deviceSupportsBiometrics()
+    }
+
+    @Test
+    fun `When canAuthenticateNow is called, Then controller result is returned`() = runTest {
+        // Given
+        whenever(deviceAuthenticationController.canAuthenticateNow()).thenReturn(true)
+
+        // When
+        val result: Boolean = interactor.canAuthenticateNow()
+
+        // Then
+        assertEquals(true, result)
+        verify(deviceAuthenticationController).canAuthenticateNow()
     }
 
     // Case: authenticateWithBiometrics behaviour

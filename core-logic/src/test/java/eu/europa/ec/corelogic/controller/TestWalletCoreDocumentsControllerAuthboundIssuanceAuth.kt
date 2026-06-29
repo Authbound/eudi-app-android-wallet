@@ -23,6 +23,7 @@ import eu.europa.ec.corelogic.config.AuthboundWalletProviderConfig
 import eu.europa.ec.corelogic.config.DocumentIssuanceConfig
 import eu.europa.ec.corelogic.config.DocumentIssuanceRule
 import eu.europa.ec.corelogic.config.EuReferenceWalletProviderConfig
+import eu.europa.ec.corelogic.config.ReIssuanceRule
 import eu.europa.ec.corelogic.config.VciConfig
 import eu.europa.ec.corelogic.config.WalletCoreConfig
 import eu.europa.ec.corelogic.provider.IssuerOpenId4VciManagerFactory
@@ -42,11 +43,15 @@ import eu.europa.ec.eudi.openid4vci.SdJwtVcCredential
 import eu.europa.ec.eudi.wallet.EudiWallet
 import eu.europa.ec.eudi.wallet.EudiWalletConfig
 import eu.europa.ec.eudi.wallet.document.CreateDocumentSettings.CredentialPolicy
+import eu.europa.ec.eudi.wallet.document.IssuedDocument
+import eu.europa.ec.eudi.wallet.document.format.SdJwtVcFormat
 import eu.europa.ec.eudi.wallet.issue.openid4vci.IssueEvent
 import eu.europa.ec.eudi.wallet.issue.openid4vci.Offer
+import eu.europa.ec.eudi.wallet.issue.openid4vci.OfferResult
 import eu.europa.ec.eudi.wallet.issue.openid4vci.OpenId4VciManager
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.storagelogic.dao.BookmarkDao
+import eu.europa.ec.storagelogic.dao.FailedReIssuedDocumentDao
 import eu.europa.ec.storagelogic.dao.RevokedDocumentDao
 import eu.europa.ec.storagelogic.dao.TransactionLogDao
 import eu.europa.ec.testlogic.extension.runFlowTest
@@ -69,6 +74,8 @@ import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.net.URI
+import java.net.URLEncoder
+import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
 
@@ -99,6 +106,9 @@ class TestWalletCoreDocumentsControllerAuthboundIssuanceAuth {
     private lateinit var revokedDocumentDao: RevokedDocumentDao
 
     @Mock
+    private lateinit var failedReIssuedDocumentDao: FailedReIssuedDocumentDao
+
+    @Mock
     private lateinit var ownershipController: UserDocumentOwnershipController
 
     @Mock
@@ -106,6 +116,9 @@ class TestWalletCoreDocumentsControllerAuthboundIssuanceAuth {
 
     @Mock
     private lateinit var manager: OpenId4VciManager
+
+    @Mock
+    private lateinit var fallbackManager: OpenId4VciManager
 
     private lateinit var closeable: AutoCloseable
     private lateinit var controller: WalletCoreDocumentsControllerImpl
@@ -137,7 +150,12 @@ class TestWalletCoreDocumentsControllerAuthboundIssuanceAuth {
                     policy = CredentialPolicy.RotateUse,
                     numberOfCredentials = 1
                 ),
-                documentSpecificRules = emptyMap()
+                documentSpecificRules = emptyMap(),
+                reissuanceRule = ReIssuanceRule(
+                    minNumberOfCredentials = 2,
+                    minExpirationHours = 24,
+                    backgroundInterval = Duration.ofMinutes(15)
+                )
             )
         )
         whenever(issuerOpenId4VciManagerFactory.create(eudiWallet, authboundVciConfig))
@@ -150,6 +168,7 @@ class TestWalletCoreDocumentsControllerAuthboundIssuanceAuth {
             bookmarkDao = bookmarkDao,
             transactionLogDao = transactionLogDao,
             revokedDocumentDao = revokedDocumentDao,
+            failedReIssuedDocumentDao = failedReIssuedDocumentDao,
             ownershipController = ownershipController,
             logController = logController
         )
@@ -177,6 +196,106 @@ class TestWalletCoreDocumentsControllerAuthboundIssuanceAuth {
                 verify(manager).issueDocumentByOffer(
                     offer = eq(offer),
                     txCode = anyOrNull(),
+                    executor = anyOrNull(),
+                    onIssueEvent = any()
+                )
+            }
+        }
+
+    @Test
+    fun `Given offer issuer is not configured, When issuance starts, Then default manager is used`() =
+        coroutineRule.runTest {
+            val offer: Offer = authboundOffer(issuerUrl = UNCONFIGURED_ISSUER_URL)
+            controller.issueDocumentsByOffer(offer).runFlowTest {
+                val result: IssueDocumentsPartialState = awaitItem()
+                assertTrue(result is IssueDocumentsPartialState.UserAuthRequired)
+                (result as IssueDocumentsPartialState.UserAuthRequired).resultHandler.onAuthenticationSuccess()
+                verify(manager).issueDocumentByOffer(
+                    offer = eq(offer),
+                    txCode = anyOrNull(),
+                    executor = anyOrNull(),
+                    onIssueEvent = any()
+                )
+            }
+        }
+
+    @Test
+    fun `Given offer URI issuer is not configured, When offer is resolved, Then default manager is used`() =
+        coroutineRule.runTest {
+            val offer: Offer = authboundOffer(issuerUrl = UNCONFIGURED_ISSUER_URL)
+            val offerUri: String = offerUriForIssuer(UNCONFIGURED_ISSUER_URL)
+            doAnswer { invocation ->
+                val listener: OpenId4VciManager.OnResolvedOffer =
+                    invocation.getArgument<OpenId4VciManager.OnResolvedOffer>(2)
+                listener.onResult(OfferResult.Success(offer))
+                Unit
+            }.whenever(manager).resolveDocumentOffer(eq(offerUri), anyOrNull(), any())
+            controller.resolveDocumentOffer(offerUri).runFlowTest {
+                val result: ResolveDocumentOfferPartialState = awaitItem()
+                assertTrue(result is ResolveDocumentOfferPartialState.Success)
+                verify(manager).resolveDocumentOffer(eq(offerUri), anyOrNull(), any())
+            }
+        }
+
+    @Test
+    fun `Given remote credential offer URI, When first manager fails, Then next manager is tried`() =
+        coroutineRule.runTest {
+            val fallbackVciConfig: VciConfig = euReferenceVciConfig(issuerUrl = UNCONFIGURED_ISSUER_URL)
+            val offer: Offer = authboundOffer(issuerUrl = UNCONFIGURED_ISSUER_URL)
+            val offerUri: String = offerUriForRemoteOffer("https://issuer.example/offers/custom/123")
+            whenever(walletCoreConfig.issuersConfig).thenReturn(
+                listOf(authboundVciConfig, fallbackVciConfig)
+            )
+            whenever(issuerOpenId4VciManagerFactory.create(eudiWallet, fallbackVciConfig))
+                .thenReturn(fallbackManager)
+            doAnswer { invocation ->
+                val listener: OpenId4VciManager.OnResolvedOffer =
+                    invocation.getArgument<OpenId4VciManager.OnResolvedOffer>(2)
+                listener.onResult(OfferResult.Failure(RuntimeException("not this issuer")))
+                Unit
+            }.whenever(manager).resolveDocumentOffer(eq(offerUri), anyOrNull(), any())
+            doAnswer { invocation ->
+                val listener: OpenId4VciManager.OnResolvedOffer =
+                    invocation.getArgument<OpenId4VciManager.OnResolvedOffer>(2)
+                listener.onResult(OfferResult.Success(offer))
+                Unit
+            }.whenever(fallbackManager).resolveDocumentOffer(eq(offerUri), anyOrNull(), any())
+
+            controller.resolveDocumentOffer(offerUri).runFlowTest {
+                val result: ResolveDocumentOfferPartialState = awaitItem()
+
+                assertTrue(result is ResolveDocumentOfferPartialState.Success)
+                verify(manager).resolveDocumentOffer(eq(offerUri), anyOrNull(), any())
+                verify(fallbackManager).resolveDocumentOffer(eq(offerUri), anyOrNull(), any())
+            }
+        }
+
+    @Test
+    fun `Given document is reissued, When issuer is configured, Then manager reissues without authorization fallback`() =
+        coroutineRule.runTest {
+            doAnswer { invocation ->
+                val listener: OpenId4VciManager.OnIssueEvent =
+                    invocation.getArgument<OpenId4VciManager.OnIssueEvent>(3)
+                listener.onResult(IssueEvent.Failure(RuntimeException("stop")))
+                Unit
+            }.whenever(manager).reissueDocument(
+                documentId = eq(DOCUMENT_ID),
+                allowAuthorizationFallback = eq(false),
+                executor = anyOrNull(),
+                onIssueEvent = any()
+            )
+
+            controller.reIssueDocument(
+                documentId = DOCUMENT_ID,
+                issuerId = ISSUER_URL,
+                allowAuthorizationFallback = false
+            ).runFlowTest {
+                val result: IssueDocumentsPartialState = awaitItem()
+
+                assertTrue(result is IssueDocumentsPartialState.Failure)
+                verify(manager).reissueDocument(
+                    documentId = eq(DOCUMENT_ID),
+                    allowAuthorizationFallback = eq(false),
                     executor = anyOrNull(),
                     onIssueEvent = any()
                 )
@@ -255,6 +374,36 @@ class TestWalletCoreDocumentsControllerAuthboundIssuanceAuth {
             }
         }
 
+    @Test
+    fun `Given issued document binding fails, When issuance finishes, Then failure is emitted`() =
+        coroutineRule.runTest {
+            val offer: Offer = authboundOffer()
+            val issuedDocument: IssuedDocument = issuedDocument()
+            whenever(ownershipController.bindDocumentToCurrentUser(DOCUMENT_ID))
+                .thenThrow(RuntimeException("bind failed"))
+            doAnswer { invocation ->
+                val listener: OpenId4VciManager.OnIssueEvent =
+                    invocation.getArgument<OpenId4VciManager.OnIssueEvent>(3)
+                listener.onResult(IssueEvent.Started(total = 1))
+                listener.onResult(IssueEvent.DocumentIssued(issuedDocument))
+                listener.onResult(IssueEvent.Finished(listOf(DOCUMENT_ID)))
+                Unit
+            }.whenever(manager).issueDocumentByOffer(
+                offer = eq(offer),
+                txCode = anyOrNull(),
+                executor = anyOrNull(),
+                onIssueEvent = any()
+            )
+
+            controller.issueDocumentsByOffer(offer).runFlowTest {
+                val authRequired: IssueDocumentsPartialState.UserAuthRequired =
+                    awaitItem() as IssueDocumentsPartialState.UserAuthRequired
+                authRequired.resultHandler.onAuthenticationSuccess()
+
+                assertTrue(awaitItem() is IssueDocumentsPartialState.Failure)
+            }
+        }
+
     private fun eudiWalletConfig(): EudiWalletConfig {
         return EudiWalletConfig {
             configureDocumentKeyCreation(
@@ -265,10 +414,10 @@ class TestWalletCoreDocumentsControllerAuthboundIssuanceAuth {
         }
     }
 
-    private fun euReferenceVciConfig(): VciConfig {
+    private fun euReferenceVciConfig(issuerUrl: String = ISSUER_URL): VciConfig {
         return VciConfig(
             config = OpenId4VciManager.Config.Builder()
-                .withIssuerUrl(ISSUER_URL)
+                .withIssuerUrl(issuerUrl)
                 .withClientAuthenticationType(OpenId4VciManager.ClientAuthenticationType.AttestationBased)
                 .withAuthFlowRedirectionURI("eudi-openid4ci://authorize")
                 .build(),
@@ -277,13 +426,13 @@ class TestWalletCoreDocumentsControllerAuthboundIssuanceAuth {
         )
     }
 
-    private fun authboundOffer(): Offer {
-        val issuerId: CredentialIssuerId = CredentialIssuerId(ISSUER_URL).getOrThrow()
+    private fun authboundOffer(issuerUrl: String = ISSUER_URL): Offer {
+        val issuerId: CredentialIssuerId = CredentialIssuerId(issuerUrl).getOrThrow()
         val configurationId: CredentialConfigurationIdentifier =
             CredentialConfigurationIdentifier("authbound-pid")
         val metadata: CredentialIssuerMetadata = CredentialIssuerMetadata(
             credentialIssuerIdentifier = issuerId,
-            credentialEndpoint = CredentialIssuerEndpoint("$ISSUER_URL/credential").getOrThrow(),
+            credentialEndpoint = CredentialIssuerEndpoint("$issuerUrl/credential").getOrThrow(),
             credentialConfigurationsSupported = mapOf(
                 configurationId to SdJwtVcCredential(
                     credentialMetadata = CredentialMetadata(),
@@ -310,7 +459,28 @@ class TestWalletCoreDocumentsControllerAuthboundIssuanceAuth {
         return Offer(credentialOffer)
     }
 
+    private fun offerUriForIssuer(issuerUrl: String): String {
+        val offerJson: String = """{"credential_issuer":"$issuerUrl"}"""
+        val encodedOffer: String = URLEncoder.encode(offerJson, "UTF-8")
+        return "openid-credential-offer://credential_offer?credential_offer=$encodedOffer"
+    }
+
+    private fun offerUriForRemoteOffer(remoteOfferUri: String): String {
+        val encodedOfferUri: String = URLEncoder.encode(remoteOfferUri, "UTF-8")
+        return "openid-credential-offer://credential_offer?credential_offer_uri=$encodedOfferUri"
+    }
+
+    private fun issuedDocument(): IssuedDocument {
+        return mock<IssuedDocument> {
+            whenever(it.id).thenReturn(DOCUMENT_ID)
+            whenever(it.name).thenReturn("Test document")
+            whenever(it.format).thenReturn(SdJwtVcFormat("eu.europa.ec.eudi.pid.1"))
+        }
+    }
+
     private companion object {
         const val ISSUER_URL: String = "https://issuer.authbound.io/api/v1/openid4vci"
+        const val UNCONFIGURED_ISSUER_URL: String = "https://issuer.example/openid4vci"
+        const val DOCUMENT_ID: String = "document-id"
     }
 }

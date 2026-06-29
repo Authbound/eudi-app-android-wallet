@@ -82,4 +82,18 @@ object DatabaseMigrations {
             db.execSQL("ALTER TABLE `transactionLogs_new` RENAME TO `transactionLogs`")
         }
     }
+
+    val MIGRATION_2_3 = object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `failedReIssuedDocuments` (
+                    `identifier` TEXT NOT NULL,
+                    `userId` TEXT NOT NULL,
+                    PRIMARY KEY(`identifier`, `userId`)
+                )
+                """.trimIndent()
+            )
+        }
+    }
 }

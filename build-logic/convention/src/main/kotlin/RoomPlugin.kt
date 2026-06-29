@@ -25,6 +25,7 @@ class RoomPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         with(target) {
             with(pluginManager) {
+                apply("com.google.devtools.ksp")
                 apply("androidx.room")
             }
             extensions.configure<RoomExtension> {
@@ -32,6 +33,7 @@ class RoomPlugin : Plugin<Project> {
             }
             dependencies {
                 add("implementation", libs.findLibrary("androidx-room").get())
+                add("implementation", libs.findLibrary("sqlcipher-android").get())
                 add("ksp", libs.findLibrary("androidx-room-ksp").get())
             }
         }

@@ -30,5 +30,7 @@ class AuthTestApplication : eu.europa.ec.assemblylogic.Application() {
 
     override fun shouldInitializeRevocationWorkManager(): Boolean = false
 
+    override fun shouldInitializeReIssuanceWorkManager(): Boolean = false
+
     override fun shouldInitializeAppLockLifecycleObserver(): Boolean = false
 }

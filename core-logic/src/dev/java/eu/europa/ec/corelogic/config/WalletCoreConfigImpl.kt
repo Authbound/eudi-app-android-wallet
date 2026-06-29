@@ -34,6 +34,7 @@ import eu.europa.ec.resourceslogic.R
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.runBlocking
 import java.io.ByteArrayInputStream
+import java.time.Duration
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
 import kotlin.time.Duration.Companion.seconds
@@ -141,6 +142,10 @@ internal class WalletCoreConfigImpl(
                         )
                     }
 
+                    configureDCAPI {
+                        withEnabled(true)
+                    }
+
                     configureReaderTrustStore(
                         context,
                         R.raw.authbound_verifier_root_ca,
@@ -152,7 +157,8 @@ internal class WalletCoreConfigImpl(
                         R.raw.pidissuerca02_pt,
                         R.raw.pidissuerca02_ut,
                         R.raw.dc4eu,
-                        R.raw.r45_staging
+                        R.raw.r45_staging,
+                        R.raw.multipaz
                     )
 
                     if (dynamicCerts.isNotEmpty()) {
@@ -234,6 +240,11 @@ internal class WalletCoreConfigImpl(
                     policy = CredentialPolicy.OneTimeUse,
                     numberOfCredentials = 60
                 ),
+            ),
+            reissuanceRule = ReIssuanceRule(
+                minNumberOfCredentials = 2,
+                minExpirationHours = 24,
+                backgroundInterval = Duration.ofMinutes(15)
             )
         )
 }

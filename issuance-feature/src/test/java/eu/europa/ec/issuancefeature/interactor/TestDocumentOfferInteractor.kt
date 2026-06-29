@@ -1164,8 +1164,7 @@ class TestDocumentOfferInteractor {
             credentialConfigurationsSupported = mapOf(
                 CredentialConfigurationIdentifier("identifier") to MsoMdocCredential(
                     docType = docType,
-                    isoPolicy = null,
-                    credentialMetadata = null
+                    credentialMetadata = CredentialMetadata()
                 )
             ),
             display = listOf(
@@ -1192,7 +1191,6 @@ class TestDocumentOfferInteractor {
             whenever(this.configuration).thenReturn(
                 MsoMdocCredential(
                     docType = mockedOfferedDocumentDocType,
-                    isoPolicy = null,
                     credentialMetadata = CredentialMetadata(display = display)
                 )
             )

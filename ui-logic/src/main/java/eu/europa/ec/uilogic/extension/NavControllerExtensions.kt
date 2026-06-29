@@ -17,7 +17,11 @@
 package eu.europa.ec.uilogic.extension
 
 import androidx.navigation.NavController
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavOptionsBuilder
 import eu.europa.ec.uilogic.config.FlowCompletion
+import eu.europa.ec.uilogic.navigation.helper.INTENT_ACTION_KEY
+import eu.europa.ec.uilogic.navigation.helper.IntentAction
 
 private const val FLOW_CANCELLATION = "FLOW_CANCELLATION"
 private const val FLOW_SUCCESS = "FLOW_SUCCESS"
@@ -68,4 +72,19 @@ fun NavController.getFlowCompletion(): FlowCompletion {
     } else {
         FlowCompletion.NONE
     }
+}
+
+fun NavController.navigateWithIntentAction(
+    route: String,
+    intentAction: IntentAction,
+    builder: NavOptionsBuilder.() -> Unit = {}
+) {
+    val sourceBackStackEntry: NavBackStackEntry? = currentBackStackEntry
+    sourceBackStackEntry
+        ?.savedStateHandle
+        ?.set(INTENT_ACTION_KEY, intentAction)
+    navigate(route, builder)
+    currentBackStackEntry
+        ?.savedStateHandle
+        ?.set(INTENT_ACTION_KEY, intentAction)
 }

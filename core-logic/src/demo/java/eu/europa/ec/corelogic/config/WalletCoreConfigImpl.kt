@@ -29,6 +29,7 @@ import eu.europa.ec.eudi.wallet.transfer.openId4vp.ClientIdScheme
 import eu.europa.ec.eudi.wallet.transfer.openId4vp.Format
 import eu.europa.ec.eudi.wallet.transfer.openId4vp.PreregisteredVerifier
 import eu.europa.ec.resourceslogic.R
+import java.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 internal class WalletCoreConfigImpl(
@@ -129,6 +130,10 @@ internal class WalletCoreConfigImpl(
                         )
                     }
 
+                    configureDCAPI {
+                        withEnabled(true)
+                    }
+
                     configureReaderTrustStore(
                         context,
                         R.raw.authbound_verifier_root_ca,
@@ -140,7 +145,8 @@ internal class WalletCoreConfigImpl(
                         R.raw.pidissuerca02_pt,
                         R.raw.pidissuerca02_ut,
                         R.raw.dc4eu,
-                        R.raw.r45_staging
+                        R.raw.r45_staging,
+                        R.raw.multipaz
                     )
                 }
             }
@@ -199,6 +205,11 @@ internal class WalletCoreConfigImpl(
                     policy = CredentialPolicy.OneTimeUse,
                     numberOfCredentials = 10
                 ),
+            ),
+            reissuanceRule = ReIssuanceRule(
+                minNumberOfCredentials = 2,
+                minExpirationHours = 24,
+                backgroundInterval = Duration.ofMinutes(15)
             )
         )
 }

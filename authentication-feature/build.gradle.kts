@@ -5,7 +5,6 @@ import project.convention.logic.kover.excludeFromKoverReport
 plugins {
     id("project.android.feature")
     id("project.android.library.compose")
-    alias(libs.plugins.ksp)
 }
 
 android {
@@ -40,7 +39,6 @@ dependencies {
     implementation("androidx.compose.foundation:foundation")
 
     implementation(libs.koin.annotations)
-    ksp(libs.koin.ksp)
 }
 
 moduleConfig {
@@ -50,4 +48,4 @@ moduleConfig {
 excludeFromKoverReport(
     excludedClasses = listOf(),
     excludedPackages = listOf(),
-) 
+)

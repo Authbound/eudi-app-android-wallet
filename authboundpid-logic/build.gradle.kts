@@ -2,7 +2,6 @@ import project.convention.logic.config.LibraryModule
 
 plugins {
     id("project.android.library")
-    alias(libs.plugins.ksp)
 }
 
 android {
@@ -25,7 +24,6 @@ dependencies {
 
     // Koin annotations support
     implementation(libs.koin.annotations)
-    ksp(libs.koin.ksp)
 
     testImplementation(project(LibraryModule.TestLogic.path))
     androidTestImplementation(project(LibraryModule.TestLogic.path))

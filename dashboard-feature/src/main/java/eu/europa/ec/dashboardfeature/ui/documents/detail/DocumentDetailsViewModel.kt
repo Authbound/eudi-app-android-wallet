@@ -26,6 +26,7 @@ import eu.europa.ec.dashboardfeature.interactor.DocumentDetailsInteractorDeleteD
 import eu.europa.ec.dashboardfeature.interactor.DocumentDetailsInteractorPartialState
 import eu.europa.ec.dashboardfeature.interactor.DocumentDetailsInteractorStoreBookmarkPartialState
 import eu.europa.ec.dashboardfeature.ui.documents.detail.model.DocumentDetailsUi
+import eu.europa.ec.dashboardfeature.ui.documents.detail.model.DocumentIssuanceStateUi
 import eu.europa.ec.dashboardfeature.ui.documents.detail.transformer.DocumentDetailsTransformer.transformToDocumentDetailsUi
 import eu.europa.ec.dashboardfeature.ui.documents.model.DocumentCredentialsInfoUi
 import eu.europa.ec.eudi.wallet.document.DocumentId
@@ -45,7 +46,7 @@ import eu.europa.ec.uilogic.navigation.helper.generateComposableArguments
 import eu.europa.ec.uilogic.navigation.helper.generateComposableNavigationLink
 import eu.europa.ec.uilogic.serializer.UiSerializer
 import kotlinx.coroutines.launch
-import org.koin.android.annotation.KoinViewModel
+import org.koin.core.annotation.KoinViewModel
 import org.koin.core.annotation.InjectedParam
 import java.net.URI
 
@@ -92,6 +93,8 @@ sealed class Event : ViewEvent {
     data object OnBookmarkRemoved : Event()
     data object IssuerCardPressed : Event()
     data class OnRevocationStatusChanged(val revokedIds: List<String>) : Event()
+    data class OnReIssuanceStatusChanged(val reIssuedIds: List<String>) : Event()
+    data class OnReIssuanceFailureStatusChanged(val failedStatusChangedIds: List<String>) : Event()
     data object ToggleExpansionStateOfDocumentCredentialsSection : Event()
     data object DocumentCredentialsSectionPrimaryButtonPressed : Event()
 }
@@ -220,6 +223,18 @@ class DocumentDetailsViewModel(
                 }
             }
 
+            is Event.OnReIssuanceStatusChanged -> {
+                if (event.reIssuedIds.contains(documentId)) {
+                    setEvent(Event.Pop)
+                }
+            }
+
+            is Event.OnReIssuanceFailureStatusChanged -> {
+                if (event.failedStatusChangedIds.contains(documentId)) {
+                    getDocumentDetails(event)
+                }
+            }
+
             is Event.ToggleExpansionStateOfDocumentCredentialsSection -> toggleExpansionStateOfDocumentCredentialsSection()
 
             is Event.DocumentCredentialsSectionPrimaryButtonPressed -> {
@@ -244,8 +259,17 @@ class DocumentDetailsViewModel(
             ).collect { response ->
                 when (response) {
                     is DocumentDetailsInteractorPartialState.Success -> {
-                        val documentDetailsUi = response.documentDetailsDomain
+                        val documentDetailsUi: DocumentDetailsUi = response.documentDetailsDomain
                             .transformToDocumentDetailsUi()
+                            .let { documentDetailsUi ->
+                                if (response.isReIssuanceFailed) {
+                                    documentDetailsUi.copy(
+                                        documentIssuanceStateUi = DocumentIssuanceStateUi.Failed
+                                    )
+                                } else {
+                                    documentDetailsUi
+                                }
+                            }
 
                         setState {
                             copy(
