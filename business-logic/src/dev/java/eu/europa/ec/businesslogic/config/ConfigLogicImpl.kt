@@ -40,7 +40,7 @@ private class DevEnvironmentConfig : EnvironmentConfig() {
             val host = EmulatorDetector.getLocalhostAddress()
             "http://$host:3009"
         }
-        ServerConfig.Release -> "https://mobile-backend.authbound.io"
+        ServerConfig.Release -> "https://staging-mobile.authbound.io"
     }
 
     override fun getGatewayHost(): String = when (environment) {
@@ -48,6 +48,6 @@ private class DevEnvironmentConfig : EnvironmentConfig() {
             val host = EmulatorDetector.getLocalhostAddress()
             "http://$host:8080"
         }
-        ServerConfig.Release -> "https://api.authbound.io"
+        ServerConfig.Release -> "https://staging-api.authbound.io"
     }
 }

@@ -29,10 +29,20 @@ interface WalletCoreConfig {
 You configure these properties **per flavor** by providing a `WalletCoreConfigImpl` for each build
 variant:
 
-* `core-logic/src/demo/config/WalletCoreConfigImpl.kt`
-* `core-logic/src/dev/config/WalletCoreConfigImpl.kt`
+* `core-logic/src/demo/java/eu/europa/ec/corelogic/config/WalletCoreConfigImpl.kt`
+* `core-logic/src/dev/java/eu/europa/ec/corelogic/config/WalletCoreConfigImpl.kt`
+* `core-logic/src/prod/java/eu/europa/ec/corelogic/config/WalletCoreConfigImpl.kt`
 
 Each flavor can use different issuer URLs, issuer-scoped wallet providers, and trust stores.
+
+Authbound uses the dev release variant as the internal staging artifact:
+
+* `devDebug` uses local emulator hosts for local development.
+* `devRelease` uses `https://staging-api.authbound.io`,
+  `https://staging-mobile.authbound.io`, and
+  `https://staging-issuer.authbound.io/api/v1/openid4vci`.
+* `prodRelease` uses production hosts and is only release evidence for an
+  approved production or release-tag commit.
 
 1. Issuing API
 
@@ -53,7 +63,7 @@ Each flavor can use different issuer URLs, issuer-scoped wallet providers, and t
                   .build(),
                order = 0,
                walletProviderConfig = AuthboundWalletProviderConfig(
-                   baseUrl = "https://mobile-backend.authbound.io/api/mobile/wallet-provider"
+                   baseUrl = "https://staging-mobile.authbound.io/api/mobile/wallet-provider"
                )
            )
     )

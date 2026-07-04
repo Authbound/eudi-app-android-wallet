@@ -174,7 +174,7 @@ internal class WalletCoreConfigImpl(
         VciConfig(
             walletProviderConfig = authboundWalletProviderConfig,
             config = OpenId4VciManager.Config.Builder()
-                .withIssuerUrl(issuerUrl = "https://issuer.authbound.io/api/v1/openid4vci")
+                .withIssuerUrl(issuerUrl = "https://staging-issuer.authbound.io/api/v1/openid4vci")
                 .withClientAuthenticationType(OpenId4VciManager.ClientAuthenticationType.AttestationBased)
                 .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
                 .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)

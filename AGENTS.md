@@ -40,7 +40,10 @@ Use this guide when operating as an agentic coding assistant.
 
 ## Build environment requirements
 - JDK 17 required (JDK 21+ often fails).
-- Gradle via wrapper `./gradlew` (AGP 8.13, Kotlin 2.2.21).
+- Gradle via wrapper `./gradlew` (AGP 9.2.1, Kotlin 2.4.0).
+- Android Studio must support AGP 9.2.1. If the IDE refuses to import the
+  project because it only supports an older AGP, upgrade Android Studio instead
+  of downgrading the repo.
 - Android SDK 34+.
 - If needed, set `JAVA_HOME` to JDK 17 or Android Studio JBR.
 

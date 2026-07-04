@@ -9,12 +9,14 @@ This guide aims to assist developers in building the Android Wallet application.
 ## Setup Apps
 ### EUDI Android Wallet reference application
 You need [Android Studio](https://developer.android.com/studio) and its associated tools installed on your machine. We recommend the latest stable version.
+Use an Android Studio build that supports Android Gradle Plugin 9.2.1, Kotlin 2.4.0, and JDK 17. If Android Studio reports that AGP 9.2.1 is unsupported, upgrade the IDE rather than downgrading the repository.
+
 Clone the [Android repository](https://github.com/eu-digital-identity-wallet/eudi-app-android-wallet-ui)
 Open the project in Android Studio.
 
 The application has two product flavors:
-- "Dev", which communicates with the services deployed in an environment based on the latest main branch.
-- "Demo", which communicates with the services deployed in an environment based on the latest main branch.
+- "Dev", which is the Authbound internal testing flavor. `devDebug` talks to local emulator hosts; `devRelease` talks to Authbound staging (`staging-api.authbound.io`, `staging-mobile.authbound.io`, `staging-issuer.authbound.io`).
+- "Demo", which keeps the reference/demo service configuration.
 
 and two Build Types:
 - "Debug", which has full logging enabled.
@@ -23,6 +25,11 @@ and two Build Types:
 which, ultimately, result in the following Build Variants:
 
 - "devDebug", "devRelease", "demoDebug", "demoRelease".
+
+Authbound release artifact usage:
+
+- `./gradlew :app:bundleDevRelease` builds the internal staging artifact.
+- `./gradlew :app:bundleProdRelease` builds the production candidate artifact and must only be used from an approved production/release commit.
 
 To change the Build Variant, go to Build -> Select Build Variant and from the tool window you can click on the "Active Build Variant" of the module ":app" and select the one you prefer.
 It will automatically apply it to the other modules as well.
@@ -45,19 +52,19 @@ You can also use the `JITPACK_AUTH_TOKEN` environment variable.
 The build reads `JITPACK_AUTH_TOKEN`, then `jitpackAuthToken`.
 
 ### Running with remote services
-The app is configured to use some configuration in the two ***ConfigWalletCoreImpl.kt*** files (located in the "**core-logic**" module, in either
-*src\dev\java\eu\europa\ec\corelogic\config* or
-*src\demo\java\eu\europa\ec\corelogic\config*,
+The app is configured to use the `WalletCoreConfigImpl.kt` files (located in the "**core-logic**" module, in either
+*src/dev/java/eu/europa/ec/corelogic/config* or
+*src/demo/java/eu/europa/ec/corelogic/config*,
 depending on the flavor of your choice).
 
-These are the contents of the ConfigWalletCoreImpl file (dev flavor), and you don't need to change anything:
+The dev release flavor includes Authbound staging first, and you don't need to change anything for internal staging testing:
 
 ```kotlin
 override val issuersConfig: List<VciConfig>
     get() = listOf(
        VciConfig(
            config = OpenId4VciManager.Config.Builder()
-              .withIssuerUrl(issuerUrl = "https://ec.dev.issuer.eudiw.dev")
+              .withIssuerUrl(issuerUrl = "https://staging-issuer.authbound.io/api/v1/openid4vci")
               .withClientAuthenticationType(OpenId4VciManager.ClientAuthenticationType.AttestationBased)
               .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
               .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
