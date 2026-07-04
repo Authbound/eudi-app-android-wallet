@@ -14,9 +14,10 @@ Use an Android Studio build that supports Android Gradle Plugin 9.2.1, Kotlin 2.
 Clone the [Android repository](https://github.com/eu-digital-identity-wallet/eudi-app-android-wallet-ui)
 Open the project in Android Studio.
 
-The application has two product flavors:
+The application has three product flavors:
 - "Dev", which is the Authbound internal testing flavor. `devDebug` talks to local emulator hosts; `devRelease` talks to Authbound staging (`staging-api.authbound.io`, `staging-mobile.authbound.io`, `staging-issuer.authbound.io`).
 - "Demo", which keeps the reference/demo service configuration.
+- "Prod", which uses Authbound production service configuration and is reserved for approved production or release-tag commits.
 
 and two Build Types:
 - "Debug", which has full logging enabled.
@@ -24,7 +25,7 @@ and two Build Types:
 
 which, ultimately, result in the following Build Variants:
 
-- "devDebug", "devRelease", "demoDebug", "demoRelease".
+- "devDebug", "devRelease", "demoDebug", "demoRelease", "prodDebug", "prodRelease".
 
 Authbound release artifact usage:
 
