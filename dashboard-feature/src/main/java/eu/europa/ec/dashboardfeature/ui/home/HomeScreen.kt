@@ -240,7 +240,8 @@ fun HomeScreen(
     if (isBottomSheetOpen && state.sheetContent is HomeScreenBottomSheetContent.PresentId) {
         PresentIdNfcLifecycle(
             context = context,
-            onEventSent = { event -> viewModel.setEvent(event) }
+            onEventSent = { event -> viewModel.setEvent(event) },
+            onLifecycleStopped = { viewModel.setEvent(Event.PresentIdLifecycleStopped) }
         )
     }
 
@@ -259,7 +260,8 @@ fun HomeScreen(
 @Composable
 private fun PresentIdNfcLifecycle(
     context: Context,
-    onEventSent: (Event.PresentIdNfcEngagement) -> Unit
+    onEventSent: (Event.PresentIdNfcEngagement) -> Unit,
+    onLifecycleStopped: () -> Unit
 ) {
     val componentActivity: ComponentActivity? = remember(context) {
         runCatching { context.findActivity() }.getOrNull()
@@ -269,6 +271,7 @@ private fun PresentIdNfcLifecycle(
         sendPresentIdNfcEngagement(componentActivity, true, onEventSent)
         onDispose {
             sendPresentIdNfcEngagement(componentActivity, false, onEventSent)
+            onLifecycleStopped()
         }
     }
     LifecycleEffect(
@@ -282,6 +285,7 @@ private fun PresentIdNfcLifecycle(
         lifecycleEvent = Lifecycle.Event.ON_PAUSE
     ) {
         sendPresentIdNfcEngagement(componentActivity, false, onEventSent)
+        onLifecycleStopped()
     }
 }
 

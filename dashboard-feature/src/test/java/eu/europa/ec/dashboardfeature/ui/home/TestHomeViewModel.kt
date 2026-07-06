@@ -486,16 +486,69 @@ class TestHomeViewModel {
             testScope.advanceUntilIdle()
             viewModel.setEvent(Event.StartProximityFlow)
             testScope.advanceUntilIdle()
+            viewModel.setEvent(Event.BottomSheet.UpdateBottomSheetState(isOpen = true))
+            testScope.advanceUntilIdle()
+            assertTrue(viewModel.viewState.value.isBottomSheetOpen)
             presentIdEvents.emit(HomeInteractorPresentIdPartialState.Connected)
             testScope.advanceUntilIdle()
 
             verify(homeInteractor, never()).cancelPresentIdPresentation()
             verify(homeInteractor).releasePresentIdPresentationController()
+            assertFalse(viewModel.viewState.value.isBottomSheetOpen)
             val navigationEffect = effects.filterIsInstance<Effect.Navigation.SwitchScreen>().last()
             assertTrue(navigationEffect.screenRoute.contains("PROXIMITY_REQUEST"))
             assertTrue(navigationEffect.screenRoute.contains("scopeId=ble_presentation_scope_id"))
             assertTrue(navigationEffect.screenRoute.contains("presentingDocumentId=$selectedDocumentId"))
             collectJob.cancel()
+        }
+
+    @Test
+    fun `Given present id sheet is open, When lifecycle stops before handoff, Then presentation is cancelled`() =
+        coroutineRule.runTest {
+            val selectedDocumentId = "hero-document-id"
+            val presentIdEvents = MutableSharedFlow<HomeInteractorPresentIdPartialState>()
+            val viewModel = createViewModelWithPresentIdFlow(
+                selectedDocumentId = selectedDocumentId,
+                presentIdEvents = presentIdEvents
+            )
+
+            viewModel.setEvent(Event.HeroCredentialPressed(selectedDocumentId))
+            testScope.advanceUntilIdle()
+            viewModel.setEvent(Event.StartProximityFlow)
+            testScope.advanceUntilIdle()
+            viewModel.setEvent(Event.BottomSheet.UpdateBottomSheetState(isOpen = true))
+            testScope.advanceUntilIdle()
+            viewModel.setEvent(Event.PresentIdLifecycleStopped)
+            testScope.advanceUntilIdle()
+
+            verify(homeInteractor).cancelPresentIdPresentation()
+            assertFalse(viewModel.viewState.value.isBottomSheetOpen)
+            assertEquals("", viewModel.viewState.value.presentIdPresentationScopeId)
+            assertEquals(null, viewModel.viewState.value.presentIdDocumentId)
+        }
+
+    @Test
+    fun `Given present id handoff is in progress, When lifecycle stops, Then presentation is not cancelled`() =
+        coroutineRule.runTest {
+            val selectedDocumentId = "hero-document-id"
+            val presentIdEvents = MutableSharedFlow<HomeInteractorPresentIdPartialState>()
+            val viewModel = createViewModelWithPresentIdFlow(
+                selectedDocumentId = selectedDocumentId,
+                presentIdEvents = presentIdEvents
+            )
+
+            viewModel.setEvent(Event.HeroCredentialPressed(selectedDocumentId))
+            testScope.advanceUntilIdle()
+            viewModel.setEvent(Event.StartProximityFlow)
+            testScope.advanceUntilIdle()
+            presentIdEvents.emit(HomeInteractorPresentIdPartialState.Connected)
+            testScope.advanceUntilIdle()
+            viewModel.setEvent(Event.PresentIdLifecycleStopped)
+            testScope.advanceUntilIdle()
+
+            verify(homeInteractor, never()).cancelPresentIdPresentation()
+            verify(homeInteractor).releasePresentIdPresentationController()
+            assertFalse(viewModel.viewState.value.isBottomSheetOpen)
         }
 
     //region Helper Methods

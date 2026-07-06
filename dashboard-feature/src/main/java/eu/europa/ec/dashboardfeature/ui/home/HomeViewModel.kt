@@ -109,6 +109,7 @@ sealed class Event : ViewEvent {
         val componentActivity: ComponentActivity,
         val enable: Boolean
     ) : Event()
+    data object PresentIdLifecycleStopped : Event()
 
     sealed class AuthenticateCard : Event() {
         data object AuthenticatePressed : Event()
@@ -408,6 +409,10 @@ class HomeViewModel(
                 handlePresentIdNfcEngagement(event)
             }
 
+            is Event.PresentIdLifecycleStopped -> {
+                stopPresentIdShareFromLifecycle()
+            }
+
             is Event.BottomSheet.Bluetooth.PrimaryButtonPressed -> {
                 hideBottomSheet()
                 onBleUserAction(event.availability)
@@ -606,6 +611,7 @@ class HomeViewModel(
         homeInteractor.releasePresentIdPresentationController()
         setState {
             copy(
+                isBottomSheetOpen = false,
                 isPresentIdHandoffInProgress = true,
                 presentIdQrCode = ""
             )
@@ -653,6 +659,15 @@ class HomeViewModel(
                 isPresentIdHandoffInProgress = false
             )
         }
+    }
+
+    private fun stopPresentIdShareFromLifecycle() {
+        val shouldStopPresentIdPresentation: Boolean =
+            viewState.value.sheetContent is HomeScreenBottomSheetContent.PresentId
+                    && viewState.value.isPresentIdHandoffInProgress.not()
+        if (shouldStopPresentIdPresentation.not()) return
+        cancelPresentIdShare()
+        setState { copy(isBottomSheetOpen = false) }
     }
 
     private fun navigateToQrSignatureScan() {
