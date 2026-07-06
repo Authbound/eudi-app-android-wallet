@@ -238,29 +238,10 @@ fun HomeScreen(
     }
 
     if (isBottomSheetOpen && state.sheetContent is HomeScreenBottomSheetContent.PresentId) {
-        val componentActivity: ComponentActivity? = remember(context) {
-            runCatching { context.findActivity() }.getOrNull()
-        }
-        DisposableEffect(componentActivity) {
-            componentActivity?.let { activity ->
-                viewModel.setEvent(
-                    Event.PresentIdNfcEngagement(
-                        componentActivity = activity,
-                        enable = true
-                    )
-                )
-            }
-            onDispose {
-                componentActivity?.let { activity ->
-                    viewModel.setEvent(
-                        Event.PresentIdNfcEngagement(
-                            componentActivity = activity,
-                            enable = false
-                        )
-                    )
-                }
-            }
-        }
+        PresentIdNfcLifecycle(
+            context = context,
+            onEventSent = { event -> viewModel.setEvent(event) }
+        )
     }
 
     OneTimeLaunchedEffect {
@@ -272,6 +253,50 @@ fun HomeScreen(
         lifecycleEvent = Lifecycle.Event.ON_RESUME
     ) {
         viewModel.setEvent(Event.GetCredentials)
+    }
+}
+
+@Composable
+private fun PresentIdNfcLifecycle(
+    context: Context,
+    onEventSent: (Event.PresentIdNfcEngagement) -> Unit
+) {
+    val componentActivity: ComponentActivity? = remember(context) {
+        runCatching { context.findActivity() }.getOrNull()
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(componentActivity) {
+        sendPresentIdNfcEngagement(componentActivity, true, onEventSent)
+        onDispose {
+            sendPresentIdNfcEngagement(componentActivity, false, onEventSent)
+        }
+    }
+    LifecycleEffect(
+        lifecycleOwner = lifecycleOwner,
+        lifecycleEvent = Lifecycle.Event.ON_RESUME
+    ) {
+        sendPresentIdNfcEngagement(componentActivity, true, onEventSent)
+    }
+    LifecycleEffect(
+        lifecycleOwner = lifecycleOwner,
+        lifecycleEvent = Lifecycle.Event.ON_PAUSE
+    ) {
+        sendPresentIdNfcEngagement(componentActivity, false, onEventSent)
+    }
+}
+
+private fun sendPresentIdNfcEngagement(
+    componentActivity: ComponentActivity?,
+    enable: Boolean,
+    onEventSent: (Event.PresentIdNfcEngagement) -> Unit
+) {
+    componentActivity?.let { activity ->
+        onEventSent(
+            Event.PresentIdNfcEngagement(
+                componentActivity = activity,
+                enable = enable
+            )
+        )
     }
 }
 

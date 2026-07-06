@@ -17,6 +17,7 @@
 package io.authbound.wallet.test
 
 import android.content.Context
+import androidx.activity.ComponentActivity
 import androidx.biometric.BiometricPrompt
 import androidx.fragment.app.FragmentActivity
 import eu.europa.ec.authenticationlogic.controller.authentication.BiometricAuthenticationController
@@ -58,6 +59,7 @@ import eu.europa.ec.businesslogic.validator.FormsValidationResult
 import eu.europa.ec.businesslogic.validator.model.FilterableList
 import eu.europa.ec.businesslogic.validator.model.Filters
 import eu.europa.ec.businesslogic.validator.model.SortOrder
+import eu.europa.ec.commonfeature.config.RequestUriConfig
 import eu.europa.ec.commonfeature.interactor.BiometricInteractor
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractor
 import eu.europa.ec.commonfeature.interactor.QuickPinInteractorPinValidPartialState
@@ -78,6 +80,7 @@ import eu.europa.ec.dashboardfeature.interactor.HomeInteractor
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetCredentialsPartialState
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetHeroCredentialPartialState
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetUserNameViaMainPidDocumentPartialState
+import eu.europa.ec.dashboardfeature.interactor.HomeInteractorPresentIdPartialState
 import eu.europa.ec.dashboardfeature.interactor.SettingsInteractor
 import eu.europa.ec.dashboardfeature.interactor.CredentialSummaryUi
 import eu.europa.ec.dashboardfeature.model.verification.VerificationDraftAttribute
@@ -894,6 +897,19 @@ private class FakeHomeInteractor : HomeInteractor {
     override fun getHeroCredential(): Flow<HomeInteractorGetHeroCredentialPartialState> {
         return flowOf(HomeInteractorGetHeroCredentialPartialState.Success(emptyList<HeroCredentialUi>()))
     }
+
+    override fun setPresentIdConfig(config: RequestUriConfig): Unit = Unit
+
+    override fun startPresentIdEngagement(): Flow<HomeInteractorPresentIdPartialState> = emptyFlow()
+
+    override fun togglePresentIdNfcEngagement(
+        componentActivity: ComponentActivity,
+        toggle: Boolean
+    ): Unit = Unit
+
+    override fun cancelPresentIdPresentation(): Unit = Unit
+
+    override fun releasePresentIdPresentationController(): Unit = Unit
 }
 
 private class FakeDocumentsInteractor : DocumentsInteractor {
