@@ -19,6 +19,7 @@ package eu.europa.ec.commonfeature.interactor
 import eu.europa.ec.corelogic.controller.WalletCorePresentationController
 import eu.europa.ec.corelogic.di.WalletPresentationScope
 import eu.europa.ec.corelogic.di.getOrCreateKoinScope
+import eu.europa.ec.corelogic.di.getOrNullKoinScope
 
 interface ScopedPresentationInteractor {
     val presentationScopeId: String
@@ -30,6 +31,9 @@ abstract class ScopedPresentationInteractorDelegate(
 ) : ScopedPresentationInteractor {
 
     override var presentationScopeId: String = "DefaultPresentationScopeId"
+
+    private val hasInjectedWalletCorePresentationController: Boolean =
+        walletCorePresentationController != null
 
     private var scopedWalletCorePresentationController: WalletCorePresentationController? =
         walletCorePresentationController
@@ -43,6 +47,20 @@ abstract class ScopedPresentationInteractorDelegate(
                 }
 
     override fun setScopeId(scopeId: String) {
+        if (presentationScopeId != scopeId && hasInjectedWalletCorePresentationController.not()) {
+            releaseScopedPresentationController()
+        }
         presentationScopeId = scopeId
+    }
+
+    protected fun releaseScopedPresentationController() {
+        if (hasInjectedWalletCorePresentationController.not()) {
+            scopedWalletCorePresentationController = null
+        }
+    }
+
+    protected fun closeScopedPresentationScope() {
+        getOrNullKoinScope(presentationScopeId)?.close()
+        releaseScopedPresentationController()
     }
 }

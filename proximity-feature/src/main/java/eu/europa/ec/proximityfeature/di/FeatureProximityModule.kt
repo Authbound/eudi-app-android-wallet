@@ -39,8 +39,12 @@ class FeatureProximityModule
 @Factory
 fun provideProximityQRInteractor(
     resourceProvider: ResourceProvider,
+    walletCoreDocumentsController: WalletCoreDocumentsController,
 ): ProximityQRInteractor =
-    ProximityQRInteractorImpl(resourceProvider = resourceProvider)
+    ProximityQRInteractorImpl(
+        resourceProvider = resourceProvider,
+        walletCoreDocumentsController = walletCoreDocumentsController
+    )
 
 @Factory
 fun provideProximityRequestInteractor(

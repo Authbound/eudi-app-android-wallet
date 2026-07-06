@@ -16,6 +16,8 @@
 
 package eu.europa.ec.dashboardfeature.ui.home
 
+import eu.europa.ec.commonfeature.config.PresentationMode
+import eu.europa.ec.commonfeature.config.RequestUriConfig
 import eu.europa.ec.corelogic.model.DocumentCategory
 import eu.europa.ec.corelogic.model.DocumentIdentifier
 import eu.europa.ec.dashboardfeature.interactor.AuthboundPidEntryInteractor
@@ -23,8 +25,10 @@ import eu.europa.ec.dashboardfeature.interactor.AuthboundPidEntryState
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractor
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetCredentialsPartialState
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetHeroCredentialPartialState
+import eu.europa.ec.dashboardfeature.interactor.HomeInteractorPresentIdPartialState
 import eu.europa.ec.dashboardfeature.ui.documents.detail.model.DocumentIssuanceStateUi
 import eu.europa.ec.dashboardfeature.ui.documents.list.model.DocumentUi
+import eu.europa.ec.dashboardfeature.ui.home.model.HeroCredentialUi
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.testlogic.extension.runTest
 import eu.europa.ec.testlogic.rule.CoroutineTestRule
@@ -39,7 +43,9 @@ import junit.framework.TestCase.assertFalse
 import junit.framework.TestCase.assertTrue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -55,6 +61,10 @@ import org.junit.Test
 import org.mockito.Mock
 import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.never
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -376,6 +386,118 @@ class TestHomeViewModel {
             collectJob.cancel()
         }
 
+    @Test
+    fun `Given hero credential is pressed, When proximity flow starts, Then present id sheet opens with selected document`() =
+        coroutineRule.runTest {
+            val selectedDocumentId = "hero-document-id"
+            val heroCredentials = listOf(createHeroCredential(selectedDocumentId))
+            whenever(homeInteractor.isBleAvailable()).thenReturn(true)
+            whenever(homeInteractor.getCredentials()).thenReturn(
+                flow {
+                    emit(HomeInteractorGetCredentialsPartialState.Success(emptyList()))
+                }
+            )
+            whenever(homeInteractor.getHeroCredential()).thenReturn(
+                flow {
+                    emit(HomeInteractorGetHeroCredentialPartialState.Success(heroCredentials))
+                }
+            )
+            whenever(homeInteractor.startPresentIdEngagement()).thenReturn(emptyFlow())
+            val viewModel = createViewModel()
+            viewModel.setEvent(Event.GetCredentials)
+            testScope.advanceUntilIdle()
+
+            viewModel.setEvent(Event.HeroCredentialPressed(selectedDocumentId))
+            testScope.advanceUntilIdle()
+            assertEquals(selectedDocumentId, viewModel.viewState.value.selectedHeroCredentialDocumentId)
+            viewModel.setEvent(Event.StartProximityFlow)
+            testScope.advanceUntilIdle()
+
+            val requestConfigCaptor = argumentCaptor<RequestUriConfig>()
+            verify(homeInteractor).setPresentIdConfig(requestConfigCaptor.capture())
+            assertEquals(selectedDocumentId, requestConfigCaptor.firstValue.presentingDocumentId)
+            assertTrue(requestConfigCaptor.firstValue.mode is PresentationMode.Ble)
+            assertEquals(null, viewModel.viewState.value.selectedHeroCredentialDocumentId)
+            assertEquals(selectedDocumentId, viewModel.viewState.value.presentIdDocumentId)
+            assertEquals(
+                requestConfigCaptor.firstValue.presentationScopeId,
+                viewModel.viewState.value.presentIdPresentationScopeId
+            )
+            assertTrue(viewModel.viewState.value.sheetContent is HomeScreenBottomSheetContent.PresentId)
+        }
+
+    @Test
+    fun `Given present id sheet is open, When qr becomes ready, Then qr code is shown in state`() =
+        coroutineRule.runTest {
+            val selectedDocumentId = "hero-document-id"
+            val presentIdEvents = MutableSharedFlow<HomeInteractorPresentIdPartialState>()
+            val viewModel = createViewModelWithPresentIdFlow(
+                selectedDocumentId = selectedDocumentId,
+                presentIdEvents = presentIdEvents
+            )
+
+            viewModel.setEvent(Event.HeroCredentialPressed(selectedDocumentId))
+            testScope.advanceUntilIdle()
+            viewModel.setEvent(Event.StartProximityFlow)
+            testScope.advanceUntilIdle()
+            presentIdEvents.emit(HomeInteractorPresentIdPartialState.QrReady("qr-payload"))
+            testScope.advanceUntilIdle()
+
+            assertEquals("qr-payload", viewModel.viewState.value.presentIdQrCode)
+        }
+
+    @Test
+    fun `Given present id sheet is open, When user closes it, Then presentation is cancelled immediately`() =
+        coroutineRule.runTest {
+            val selectedDocumentId = "hero-document-id"
+            val presentIdEvents = MutableSharedFlow<HomeInteractorPresentIdPartialState>()
+            val viewModel = createViewModelWithPresentIdFlow(
+                selectedDocumentId = selectedDocumentId,
+                presentIdEvents = presentIdEvents
+            )
+
+            viewModel.setEvent(Event.HeroCredentialPressed(selectedDocumentId))
+            testScope.advanceUntilIdle()
+            viewModel.setEvent(Event.StartProximityFlow)
+            testScope.advanceUntilIdle()
+            viewModel.setEvent(Event.BottomSheet.Close)
+            testScope.advanceUntilIdle()
+
+            verify(homeInteractor).cancelPresentIdPresentation()
+            assertEquals("", viewModel.viewState.value.presentIdPresentationScopeId)
+            assertEquals(null, viewModel.viewState.value.presentIdDocumentId)
+        }
+
+    @Test
+    fun `Given present id sheet is open, When reader connects, Then request screen opens without cancelling presentation`() =
+        coroutineRule.runTest {
+            val selectedDocumentId = "hero-document-id"
+            val presentIdEvents = MutableSharedFlow<HomeInteractorPresentIdPartialState>()
+            val viewModel = createViewModelWithPresentIdFlow(
+                selectedDocumentId = selectedDocumentId,
+                presentIdEvents = presentIdEvents
+            )
+            val effects: MutableList<Effect> = mutableListOf()
+            val collectJob = launch {
+                viewModel.effect.toList(effects)
+            }
+
+            viewModel.setEvent(Event.HeroCredentialPressed(selectedDocumentId))
+            testScope.advanceUntilIdle()
+            viewModel.setEvent(Event.StartProximityFlow)
+            testScope.advanceUntilIdle()
+            presentIdEvents.emit(HomeInteractorPresentIdPartialState.Connected)
+            testScope.advanceUntilIdle()
+
+            verify(homeInteractor, never()).cancelPresentIdPresentation()
+            verify(homeInteractor).releasePresentIdPresentationController()
+            val navigationEffect = effects.filterIsInstance<Effect.Navigation.SwitchScreen>().last()
+            assertTrue(navigationEffect.screenRoute.contains("PROXIMITY_REQUEST"))
+            assertTrue(navigationEffect.screenRoute.contains("scopeId=ble_presentation_scope_id"))
+            assertTrue(navigationEffect.screenRoute.contains("presentingDocumentId=$selectedDocumentId"))
+            collectJob.cancel()
+        }
+
     //region Helper Methods
 
     private fun createViewModel(): HomeViewModel {
@@ -385,6 +507,29 @@ class TestHomeViewModel {
             uiSerializer = uiSerializer,
             resourceProvider = resourceProvider
         )
+    }
+
+    private suspend fun createViewModelWithPresentIdFlow(
+        selectedDocumentId: String,
+        presentIdEvents: MutableSharedFlow<HomeInteractorPresentIdPartialState>
+    ): HomeViewModel {
+        val heroCredentials = listOf(createHeroCredential(selectedDocumentId))
+        whenever(homeInteractor.isBleAvailable()).thenReturn(true)
+        whenever(homeInteractor.getCredentials()).thenReturn(
+            flow {
+                emit(HomeInteractorGetCredentialsPartialState.Success(emptyList()))
+            }
+        )
+        whenever(homeInteractor.getHeroCredential()).thenReturn(
+            flow {
+                emit(HomeInteractorGetHeroCredentialPartialState.Success(heroCredentials))
+            }
+        )
+        whenever(homeInteractor.startPresentIdEngagement()).thenReturn(presentIdEvents)
+        return createViewModel().also { viewModel ->
+            viewModel.setEvent(Event.GetCredentials)
+            testScope.advanceUntilIdle()
+        }
     }
 
     private fun createDocumentUi(id: String, name: String): DocumentUi {
@@ -401,6 +546,22 @@ class TestHomeViewModel {
             ),
             documentIdentifier = DocumentIdentifier.MdocPid,
             documentCategory = DocumentCategory.Government
+        )
+    }
+
+    private fun createHeroCredential(documentId: String): HeroCredentialUi {
+        return HeroCredentialUi(
+            documentId = documentId,
+            documentIdentifier = DocumentIdentifier.MdocPid,
+            title = "PID Document",
+            subtitle = null,
+            holderName = "JAN ANDERSSON",
+            issuerName = "Authbound",
+            expiryDate = "11/07/2026",
+            status = DocumentIssuanceStateUi.Issued,
+            hasPhoto = false,
+            portraitBase64 = null,
+            nationality = "FIN"
         )
     }
 

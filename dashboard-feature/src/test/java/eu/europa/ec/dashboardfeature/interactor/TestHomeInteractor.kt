@@ -22,12 +22,18 @@ import android.content.Context
 import eu.europa.ec.corelogic.config.WalletCoreConfig
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
+import eu.europa.ec.testfeature.util.getMockedFullMdl
+import eu.europa.ec.testfeature.util.getMockedFullPid
 import eu.europa.ec.testfeature.util.mockedGenericErrorMessage
 import eu.europa.ec.testfeature.walletcore.getMockedEudiWalletConfig
 import eu.europa.ec.testlogic.base.TestApplication
 import eu.europa.ec.testlogic.base.getMockedContext
+import eu.europa.ec.testlogic.extension.runFlowTest
+import eu.europa.ec.testlogic.extension.runTest
 import eu.europa.ec.testlogic.rule.CoroutineTestRule
 import junit.framework.TestCase.assertEquals
+import junit.framework.TestCase.assertTrue
+import java.util.Locale
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -35,6 +41,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mock
 import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.any
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows
@@ -163,7 +170,68 @@ class TestHomeInteractor {
     }
     //endregion
 
+    //region getHeroCredential
+
+    // Case 1:
+    // A full PID document with a nationality claim.
+    // Expected: hero credential carries alpha-3 nationality for the passport-style UI fields.
+    @Test
+    fun `Given a full PID, When getHeroCredential is called, Then nationality is populated`() {
+        coroutineRule.runTest {
+            // Given
+            mockGetHeroCredentialDependencies()
+            val mockedPid = getMockedFullPid()
+            whenever(walletCoreDocumentsController.getMainPidDocument()).thenReturn(mockedPid)
+            whenever(walletCoreDocumentsController.getAllIssuedDocuments())
+                .thenReturn(listOf(mockedPid))
+
+            // When
+            interactor.getHeroCredential().runFlowTest {
+                // Then
+                val state = awaitItem()
+                assertTrue(state is HomeInteractorGetHeroCredentialPartialState.Success)
+                val heroCredential =
+                    (state as HomeInteractorGetHeroCredentialPartialState.Success)
+                        .heroCredentials
+                        .first()
+
+                assertEquals("SWE", heroCredential.nationality)
+            }
+        }
+    }
+
+    @Test
+    fun `Given an mDL with issuing country, When getHeroCredential is called, Then nationality falls back to issuing country`() {
+        coroutineRule.runTest {
+            // Given
+            mockGetHeroCredentialDependencies()
+            val mockedMdl = getMockedFullMdl()
+            whenever(walletCoreDocumentsController.getMainPidDocument()).thenReturn(null)
+            whenever(walletCoreDocumentsController.getAllIssuedDocuments())
+                .thenReturn(listOf(mockedMdl))
+
+            // When
+            interactor.getHeroCredential().runFlowTest {
+                // Then
+                val state = awaitItem()
+                assertTrue(state is HomeInteractorGetHeroCredentialPartialState.Success)
+                val heroCredential =
+                    (state as HomeInteractorGetHeroCredentialPartialState.Success)
+                        .heroCredentials
+                        .first()
+
+                assertEquals("SWE", heroCredential.nationality)
+            }
+        }
+    }
+    //endregion
+
     //region Mock Calls of the Dependencies
+    private fun mockGetHeroCredentialDependencies() {
+        whenever(resourceProvider.getLocale()).thenReturn(Locale.ENGLISH)
+        whenever(resourceProvider.getString(any())).thenReturn("Personal Identification Data")
+    }
+
     private fun mockBluetoothAdapterEnabledState(enabled: Boolean) {
         val newBluetoothAdapterState = if (enabled) {
             BluetoothAdapter.STATE_ON

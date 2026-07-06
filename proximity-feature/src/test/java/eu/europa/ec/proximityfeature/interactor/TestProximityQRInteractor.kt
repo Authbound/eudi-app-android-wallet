@@ -21,11 +21,17 @@ import eu.europa.ec.commonfeature.config.PresentationMode
 import eu.europa.ec.commonfeature.config.RequestUriConfig
 import eu.europa.ec.corelogic.controller.PresentationControllerConfig
 import eu.europa.ec.corelogic.controller.TransferEventPartialState
+import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
 import eu.europa.ec.corelogic.controller.WalletCorePresentationController
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.testfeature.util.mockedExceptionWithMessage
 import eu.europa.ec.testfeature.util.mockedExceptionWithNoMessage
+import eu.europa.ec.testfeature.util.getMockedFullPid
+import eu.europa.ec.testfeature.util.getMockedFullMdl
+import eu.europa.ec.testfeature.util.mockedMdlDocName
+import eu.europa.ec.testfeature.util.mockedMdlId
 import eu.europa.ec.testfeature.util.mockedGenericErrorMessage
+import eu.europa.ec.testfeature.util.mockedPidDocName
 import eu.europa.ec.testfeature.util.mockedPlainFailureMessage
 import eu.europa.ec.testlogic.base.TestApplication
 import eu.europa.ec.testlogic.base.createActivity
@@ -52,6 +58,7 @@ import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.net.URI
+import java.util.Locale
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], application = TestApplication::class)
@@ -66,6 +73,9 @@ class TestProximityQRInteractor {
     @Mock
     private lateinit var walletCorePresentationController: WalletCorePresentationController
 
+    @Mock
+    private lateinit var walletCoreDocumentsController: WalletCoreDocumentsController
+
     private lateinit var interactor: ProximityQRInteractor
 
     private lateinit var closeable: AutoCloseable
@@ -76,6 +86,7 @@ class TestProximityQRInteractor {
 
         interactor = ProximityQRInteractorImpl(
             resourceProvider = resourceProvider,
+            walletCoreDocumentsController = walletCoreDocumentsController,
             walletCorePresentationController = walletCorePresentationController,
         )
 
@@ -427,6 +438,130 @@ class TestProximityQRInteractor {
     private fun verifyStartQrEngagementWasCalledExactlyOnce() {
         verify(walletCorePresentationController, times(1))
             .startQrEngagement()
+    }
+    //endregion
+
+    //region getPresentingDocument
+
+    // Case 1:
+    // A main PID document exists.
+    // Expected: summary with holder name and formatted validity date.
+    @Test
+    fun `Given a main PID exists, When getPresentingDocument is called, Then it returns its summary`() {
+        coroutineRule.runTest {
+            // Given
+            whenever(resourceProvider.getLocale()).thenReturn(Locale.ENGLISH)
+            val mockedPid = getMockedFullPid()
+            whenever(walletCoreDocumentsController.getMainPidDocument())
+                .thenReturn(mockedPid)
+
+            // When
+            val actual = interactor.getPresentingDocument()
+
+            // Then
+            assertEquals("JAN ANDERSSON", actual?.holderName)
+            assertEquals(mockedPidDocName, actual?.documentName)
+            assertEquals("30/03/1985", actual?.birthDate)
+            assertEquals("SWE", actual?.countryCode)
+            assertEquals("M", actual?.sex)
+        }
+    }
+
+    // Case 2:
+    // A selected document id exists in the request config.
+    // Expected: summary is built from that document instead of always using the main PID.
+    @Test
+    fun `Given selected document id is configured, When getPresentingDocument is called, Then it returns selected document summary`() {
+        coroutineRule.runTest {
+            // Given
+            whenever(resourceProvider.getLocale()).thenReturn(Locale.ENGLISH)
+            val mockedPid = getMockedFullPid()
+            val mockedMdl = getMockedFullMdl()
+            interactor.setConfig(
+                RequestUriConfig(
+                    mode = PresentationMode.Ble(DashboardScreens.Dashboard.screenRoute),
+                    presentingDocumentId = mockedMdlId
+                )
+            )
+            whenever(walletCoreDocumentsController.getMainPidDocument())
+                .thenReturn(mockedPid)
+            whenever(walletCoreDocumentsController.getAllIssuedDocuments())
+                .thenReturn(listOf(mockedPid, mockedMdl))
+
+            // When
+            val actual = interactor.getPresentingDocument()
+
+            // Then
+            assertEquals(mockedMdlDocName, actual?.documentName)
+            assertEquals("MDL", actual?.documentCode)
+            assertEquals("SWE", actual?.countryCode)
+        }
+    }
+
+    @Test
+    fun `Given selected document id is stale, When getPresentingDocument is called, Then it returns null`() {
+        coroutineRule.runTest {
+            // Given
+            val mockedPid = getMockedFullPid()
+            interactor.setConfig(
+                RequestUriConfig(
+                    mode = PresentationMode.Ble(DashboardScreens.Dashboard.screenRoute),
+                    presentingDocumentId = "missing-document-id"
+                )
+            )
+            whenever(walletCoreDocumentsController.getMainPidDocument())
+                .thenReturn(mockedPid)
+            whenever(walletCoreDocumentsController.getAllIssuedDocuments())
+                .thenReturn(listOf(mockedPid))
+
+            // When
+            val actual = interactor.getPresentingDocument()
+
+            // Then
+            assertEquals(null, actual)
+        }
+    }
+
+    // Case 2:
+    // No main PID, but another issued document exists (e.g. a custom-issued PID).
+    // Expected: summary built from the fallback document.
+    @Test
+    fun `Given no main PID but an issued document, When getPresentingDocument is called, Then it falls back`() {
+        coroutineRule.runTest {
+            // Given
+            whenever(resourceProvider.getLocale()).thenReturn(Locale.ENGLISH)
+            val mockedPid = getMockedFullPid()
+            whenever(walletCoreDocumentsController.getMainPidDocument())
+                .thenReturn(null)
+            whenever(walletCoreDocumentsController.getAllIssuedDocuments())
+                .thenReturn(listOf(mockedPid))
+
+            // When
+            val actual = interactor.getPresentingDocument()
+
+            // Then
+            assertEquals("JAN ANDERSSON", actual?.holderName)
+        }
+    }
+
+    // Case 3:
+    // No documents at all.
+    // Expected: null (the summary row is simply hidden).
+    @Test
+    fun `Given no documents exist, When getPresentingDocument is called, Then it returns null`() {
+        coroutineRule.runTest {
+            // Given
+            whenever(walletCoreDocumentsController.getMainPidDocument())
+                .thenReturn(null)
+            whenever(walletCoreDocumentsController.getAllIssuedDocuments())
+                .thenReturn(emptyList())
+
+            // When
+            val actual = interactor.getPresentingDocument()
+
+            // Then
+            assertEquals(null, actual)
+        }
     }
     //endregion
 }

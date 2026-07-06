@@ -32,6 +32,7 @@ import eu.europa.ec.testfeature.util.getMockedPidWithBasicFields
 import eu.europa.ec.testfeature.util.mockedExceptionWithMessage
 import eu.europa.ec.testfeature.util.mockedExceptionWithNoMessage
 import eu.europa.ec.testfeature.util.mockedGenericErrorMessage
+import eu.europa.ec.testfeature.util.mockedMdlId
 import eu.europa.ec.testfeature.util.mockedPlainFailureMessage
 import eu.europa.ec.testfeature.util.mockedValidMdlWithBasicFieldsRequestDocument
 import eu.europa.ec.testfeature.util.mockedValidPidWithBasicFieldsRequestDocument
@@ -556,6 +557,85 @@ class TestProximityRequestInteractor {
                                 documentsDomain = requestDataUi.getOrThrow(),
                                 resourceProvider = resourceProvider,
                             )
+                        ),
+                        awaitItem()
+                    )
+                }
+        }
+    }
+
+    @Test
+    fun `Given selected document id and request includes multiple documents, When getRequestDocuments is called, Then only selected document is returned`() {
+        coroutineRule.runTest {
+            // Given
+            val mockedPidWithBasicFields = getMockedPidWithBasicFields()
+            val mockedMdlWithBasicFields = getMockedMdlWithBasicFields()
+            interactor.setConfig(
+                RequestUriConfig(
+                    mode = PresentationMode.Ble(DashboardScreens.Dashboard.screenRoute),
+                    presentingDocumentId = mockedMdlId
+                )
+            )
+            mockGetAllIssuedDocumentsCall(
+                response = listOf(
+                    mockedPidWithBasicFields,
+                    mockedMdlWithBasicFields
+                )
+            )
+            mockTransformToUiItemsStrings(resourceProvider = resourceProvider)
+            mockIsDocumentRevoked(isRevoked = false)
+            mockWalletCorePresentationControllerEventEmission(
+                event = TransferEventPartialState.RequestReceived(
+                    requestData = listOf(
+                        mockedValidPidWithBasicFieldsRequestDocument,
+                        mockedValidMdlWithBasicFieldsRequestDocument
+                    ),
+                    verifierName = mockedVerifierName,
+                    verifierIsTrusted = mockedVerifierIsTrusted
+                )
+            )
+
+            // When
+            interactor.getRequestDocuments()
+                .runFlowTest {
+                    val actual: ProximityRequestInteractorPartialState = awaitItem()
+
+                    // Then
+                    check(actual is ProximityRequestInteractorPartialState.Success)
+                    assertEquals(
+                        listOf(mockedMdlId),
+                        actual.requestDocuments.map { item -> item.domainPayload.docId }
+                    )
+                }
+        }
+    }
+
+    @Test
+    fun `Given selected document id and request does not include it, When getRequestDocuments is called, Then NoData is returned`() {
+        coroutineRule.runTest {
+            // Given
+            interactor.setConfig(
+                RequestUriConfig(
+                    mode = PresentationMode.Ble(DashboardScreens.Dashboard.screenRoute),
+                    presentingDocumentId = mockedMdlId
+                )
+            )
+            mockWalletCorePresentationControllerEventEmission(
+                event = TransferEventPartialState.RequestReceived(
+                    requestData = listOf(mockedValidPidWithBasicFieldsRequestDocument),
+                    verifierName = mockedVerifierName,
+                    verifierIsTrusted = mockedVerifierIsTrusted
+                )
+            )
+
+            // When
+            interactor.getRequestDocuments()
+                .runFlowTest {
+                    // Then
+                    assertEquals(
+                        ProximityRequestInteractorPartialState.NoData(
+                            verifierName = mockedVerifierName,
+                            verifierIsTrusted = mockedVerifierIsTrusted
                         ),
                         awaitItem()
                     )

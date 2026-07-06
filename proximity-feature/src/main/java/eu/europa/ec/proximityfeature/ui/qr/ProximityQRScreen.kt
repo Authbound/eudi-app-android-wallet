@@ -17,44 +17,90 @@
 package eu.europa.ec.proximityfeature.ui.qr
 
 import androidx.activity.ComponentActivity
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import eu.europa.ec.proximityfeature.ui.qr.component.rememberQrBitmapPainter
+import eu.europa.ec.proximityfeature.interactor.ProximityPresentingDocumentUi
+import eu.europa.ec.uilogic.component.qr.rememberQrBitmapPainter
 import eu.europa.ec.resourceslogic.R
+import eu.europa.ec.resourceslogic.theme.values.brandNavyDeep
+import eu.europa.ec.resourceslogic.theme.values.brandNavyMedium
+import eu.europa.ec.resourceslogic.theme.values.glowAccent
 import eu.europa.ec.uilogic.component.AppIcons
+import eu.europa.ec.uilogic.component.ImageOrPlaceholder
 import eu.europa.ec.uilogic.component.content.ContentScreen
-import eu.europa.ec.uilogic.component.content.ContentTitle
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
+import eu.europa.ec.uilogic.component.loader.SkeletonBox
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
 import eu.europa.ec.uilogic.component.utils.LifecycleEffect
 import eu.europa.ec.uilogic.component.utils.OneTimeLaunchedEffect
+import eu.europa.ec.uilogic.component.utils.SPACING_LARGE
 import eu.europa.ec.uilogic.component.utils.SPACING_MEDIUM
 import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
-import eu.europa.ec.uilogic.component.utils.screenWidthInDp
+import eu.europa.ec.uilogic.component.utils.rememberAnimationsEnabled
+import eu.europa.ec.uilogic.component.wrap.WrapIcon
 import eu.europa.ec.uilogic.component.wrap.WrapImage
+import eu.europa.ec.uilogic.component.wrap.WrapModalBottomSheet
 import eu.europa.ec.uilogic.extension.paddingFrom
 import eu.europa.ec.uilogic.navigation.ProximityScreens
 import kotlinx.coroutines.channels.Channel
@@ -80,6 +126,7 @@ fun ProximityQRScreen(
         Content(
             state = state,
             effectFlow = viewModel.effect,
+            onGoBack = { viewModel.setEvent(Event.GoBack) },
             onNavigationRequested = { navigationEffect ->
                 when (navigationEffect) {
                     is Effect.Navigation.SwitchScreen -> {
@@ -128,43 +175,62 @@ fun ProximityQRScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun Content(
     state: State,
     effectFlow: Flow<Effect>,
+    onGoBack: () -> Unit,
     onNavigationRequested: (navigationEffect: Effect.Navigation) -> Unit,
     paddingValues: PaddingValues,
 ) {
+    var isQrExpanded by rememberSaveable { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scrollState = rememberScrollState()
+    val contentTopPadding = maxOf(
+        SPACING_SMALL.dp,
+        paddingValues.calculateTopPadding() - 36.dp
+    )
 
-    val qrSize = screenWidthInDp(true) / 1.4f
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .paddingFrom(paddingValues, bottom = false)
-        ) {
-            ContentTitle(
-                modifier = Modifier.fillMaxWidth(),
-                title = stringResource(id = R.string.proximity_qr_title),
-                subtitle = stringResource(id = R.string.proximity_qr_subtitle)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .paddingFrom(
+                pv = paddingValues,
+                top = false,
+                start = false,
+                end = false,
+                bottom = false
             )
-
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                QRCode(
-                    qrCode = state.qrCode,
-                    qrSize = qrSize
-                )
-            }
+            .verticalScroll(scrollState)
+            .padding(top = contentTopPadding)
+            .padding(horizontal = SPACING_LARGE.dp)
+            .padding(bottom = paddingValues.calculateBottomPadding() + SPACING_SMALL.dp),
+        verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp)
+    ) {
+        PresentHeader()
+        if (state.isLoadingPresentingDocument || state.presentingDocument != null) {
+            PresentingPidCard(
+                presentingDocument = state.presentingDocument,
+                isLoading = state.isLoadingPresentingDocument
+            )
         }
+        PresentationMethodsCard(
+            qrCode = state.qrCode,
+            onExpandQr = { isQrExpanded = true }
+        )
+        CancelAction(onClick = onGoBack)
+    }
 
-        Column {
-            HorizontalDivider()
-            NFCSection(paddingValues)
+    if (isQrExpanded) {
+        WrapModalBottomSheet(
+            onDismissRequest = { isQrExpanded = false },
+            sheetState = sheetState
+        ) {
+            ExpandedQrSheet(
+                qrCode = state.qrCode,
+                onClose = { isQrExpanded = false }
+            )
         }
     }
 
@@ -178,49 +244,695 @@ private fun Content(
 }
 
 @Composable
-private fun NFCSection(paddingValues: PaddingValues) {
+private fun PresentHeader() {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .wrapContentHeight()
-            .padding(
-                start = SPACING_MEDIUM.dp,
-                end = SPACING_MEDIUM.dp,
-                top = SPACING_MEDIUM.dp,
-                bottom = paddingValues.calculateBottomPadding()
-            ),
-        verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp),
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = stringResource(id = R.string.proximity_qr_use_nfc),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        WrapImage(iconData = AppIcons.NFC)
-        Text(
-            text = stringResource(id = R.string.proximity_qr_hold_near_reader),
-            style = MaterialTheme.typography.bodySmall,
+            text = stringResource(id = R.string.proximity_qr_title),
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
         )
     }
 }
 
 @Composable
-private fun QRCode(
-    modifier: Modifier = Modifier,
-    qrCode: String,
-    qrSize: Dp
+private fun PresentingPidCard(
+    presentingDocument: ProximityPresentingDocumentUi?,
+    isLoading: Boolean
 ) {
-    if (qrCode.isNotEmpty()) {
-        WrapImage(
-            modifier = modifier,
-            painter = rememberQrBitmapPainter(
-                content = qrCode,
-                size = qrSize
+    val cardShape = RoundedCornerShape(22.dp)
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(304.dp)
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.glowAccent.copy(alpha = 0.55f),
+                shape = cardShape
             ),
-            contentDescription = stringResource(id = R.string.content_description_qr_code_icon)
+        shape = cardShape,
+        color = Color.Transparent,
+        shadowElevation = 10.dp
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.brandNavyDeep,
+                            MaterialTheme.colorScheme.brandNavyMedium
+                        ),
+                        start = Offset(0f, 0f),
+                        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+                    )
+                )
+        ) {
+            PidSecurityPattern(modifier = Modifier.matchParentSize())
+            if (isLoading) {
+                PidCardSkeleton()
+            } else if (presentingDocument != null) {
+                PidCardContent(presentingDocument = presentingDocument)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PidCardContent(
+    presentingDocument: ProximityPresentingDocumentUi
+) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(20.dp),
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = presentingDocument.documentName.uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 1.6.sp,
+                    color = Color.White.copy(alpha = 0.72f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = presentingDocument.documentCode,
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White.copy(alpha = 0.92f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            presentingDocument.countryCode?.let { countryCode ->
+                Surface(
+                    color = Color.White.copy(alpha = 0.10f),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text(
+                        text = countryCode,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                    )
+                }
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            ImageOrPlaceholder(
+                modifier = Modifier
+                    .width(118.dp)
+                    .height(152.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .border(
+                        width = 1.5.dp,
+                        color = Color.White.copy(alpha = 0.28f),
+                        shape = RoundedCornerShape(10.dp)
+                    ),
+                base64Image = presentingDocument.portraitBase64.orEmpty(),
+                contentScale = ContentScale.Crop,
+                fallbackIcon = AppIcons.User
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                PidField(
+                    label = stringResource(id = R.string.proximity_qr_field_name),
+                    value = presentingDocument.holderName ?: presentingDocument.documentName
+                )
+                PidDivider()
+                PidDetailGrid(
+                    details = buildPidDetails(presentingDocument = presentingDocument)
+                )
+            }
+        }
+        PidDivider()
+    }
+}
+
+private data class PidDetailUi(
+    val label: String,
+    val value: String
+)
+
+private data class PidDetailsUi(
+    val birthDate: PidDetailUi?,
+    val nationality: PidDetailUi?,
+    val sex: PidDetailUi?,
+    val validUntil: PidDetailUi?
+)
+
+@Composable
+private fun buildPidDetails(
+    presentingDocument: ProximityPresentingDocumentUi
+): PidDetailsUi {
+    return PidDetailsUi(
+        birthDate = presentingDocument.birthDate?.let { birthDate ->
+            PidDetailUi(
+                label = stringResource(id = R.string.proximity_qr_field_birth_date),
+                value = birthDate
+            )
+        },
+        nationality = presentingDocument.countryCode?.let { countryCode ->
+            PidDetailUi(
+                label = stringResource(id = R.string.proximity_qr_field_nationality),
+                value = countryCode
+            )
+        },
+        sex = presentingDocument.sex?.let { sex ->
+            PidDetailUi(
+                label = stringResource(id = R.string.proximity_qr_field_sex),
+                value = sex
+            )
+        },
+        validUntil = presentingDocument.validUntil?.let { validUntil ->
+            PidDetailUi(
+                label = stringResource(id = R.string.proximity_qr_field_valid_until),
+                value = validUntil
+            )
+        }
+    )
+}
+
+@Composable
+private fun PidDetailGrid(details: PidDetailsUi) {
+    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        details.birthDate?.let { detail ->
+            PidInlineField(
+                label = detail.label,
+                value = detail.value
+            )
+        }
+        if (details.nationality != null || details.sex != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
+            ) {
+                details.nationality?.let { detail ->
+                    PidCompactField(
+                        modifier = Modifier.weight(1f),
+                        label = detail.label,
+                        value = detail.value
+                    )
+                } ?: Spacer(modifier = Modifier.weight(1f))
+                details.sex?.let { detail ->
+                    PidCompactField(
+                        modifier = Modifier.weight(1f),
+                        label = detail.label,
+                        value = detail.value
+                    )
+                } ?: Spacer(modifier = Modifier.weight(1f))
+            }
+        }
+        details.validUntil?.let { detail ->
+            PidInlineField(
+                label = detail.label,
+                value = detail.value
+            )
+        }
+    }
+}
+
+@Composable
+private fun PidInlineField(
+    label: String,
+    value: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label.uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            fontSize = 9.sp,
+            letterSpacing = 1.sp,
+            color = Color.White.copy(alpha = 0.56f),
+            modifier = Modifier.width(42.dp),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
+        Text(
+            text = value.uppercase(),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+            modifier = Modifier.weight(1f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun PidCompactField(
+    modifier: Modifier = Modifier,
+    label: String,
+    value: String
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Text(
+            text = label.uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            fontSize = 9.sp,
+            letterSpacing = 1.sp,
+            color = Color.White.copy(alpha = 0.56f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            text = value.uppercase(),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun PidField(
+    label: String,
+    value: String
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Text(
+            text = label.uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            fontSize = 10.sp,
+            letterSpacing = 1.1.sp,
+            color = Color.White.copy(alpha = 0.56f)
+        )
+        Text(
+            text = value.uppercase(),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun PidDivider() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(Color.White.copy(alpha = 0.14f))
+    )
+}
+
+@Composable
+private fun PidCardSkeleton() {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
+    ) {
+        SkeletonBox(
+            modifier = Modifier.fillMaxWidth(),
+            height = 42.dp,
+            cornerRadius = 12.dp
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)) {
+            SkeletonBox(
+                modifier = Modifier.width(118.dp),
+                height = 152.dp,
+                cornerRadius = 10.dp
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
+            ) {
+                repeat(3) {
+                    SkeletonBox(
+                        modifier = Modifier.fillMaxWidth(),
+                        height = 36.dp,
+                        cornerRadius = 8.dp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PresentationMethodsCard(
+    qrCode: String,
+    onExpandQr: () -> Unit
+) {
+    val cardShape = RoundedCornerShape(22.dp)
+    val expandQrLabel = stringResource(id = R.string.proximity_qr_enlarge_qr)
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.glowAccent.copy(alpha = 0.42f),
+                shape = cardShape
+            )
+            .clickable(
+                onClickLabel = expandQrLabel,
+                role = Role.Button,
+                onClick = onExpandQr
+            ),
+        shape = cardShape,
+        color = MaterialTheme.colorScheme.brandNavyMedium.copy(alpha = 0.28f),
+        shadowElevation = 8.dp
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp)
+        ) {
+            Text(
+                text = stringResource(id = R.string.proximity_qr_share_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                QrPreview(
+                    qrCode = qrCode,
+                    size = 124.dp,
+                    onClick = onExpandQr
+                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(
+                            text = stringResource(id = R.string.proximity_qr_scan_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = stringResource(id = R.string.proximity_qr_tap_to_enlarge),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
+                    NfcReadyRow()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QrPreview(
+    qrCode: String,
+    size: Dp,
+    onClick: () -> Unit
+) {
+    val enlargeQrDescription = stringResource(id = R.string.proximity_qr_enlarge_qr)
+    Surface(
+        modifier = Modifier
+            .size(size)
+            .semantics {
+                role = Role.Button
+                contentDescription = enlargeQrDescription
+            }
+            .clickable(
+                onClickLabel = enlargeQrDescription,
+                onClick = onClick
+            ),
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White,
+        shadowElevation = 8.dp
+    ) {
+        Box(
+            modifier = Modifier.padding(8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (qrCode.isNotEmpty()) {
+                WrapImage(
+                    modifier = Modifier.fillMaxSize(),
+                    painter = rememberQrBitmapPainter(
+                        content = qrCode,
+                        size = size - 16.dp
+                    ),
+                    contentDescription = stringResource(
+                        id = R.string.content_description_qr_code_icon
+                    )
+                )
+            } else {
+                SkeletonBox(
+                    modifier = Modifier.fillMaxSize(),
+                    height = size - 16.dp,
+                    cornerRadius = 10.dp
+                )
+            }
+            Surface(
+                modifier = Modifier.align(Alignment.BottomEnd),
+                shape = RoundedCornerShape(10.dp),
+                color = MaterialTheme.colorScheme.brandNavyDeep.copy(alpha = 0.88f)
+            ) {
+                WrapIcon(
+                    iconData = AppIcons.OpenInBrowser,
+                    customTint = MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.padding(5.dp).size(16.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun NfcReadyRow(
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        PulsingNfcIcon()
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = stringResource(id = R.string.proximity_qr_nfc_ready),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = stringResource(id = R.string.proximity_qr_hold_near_reader),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+private fun CancelAction(onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        color = Color.Transparent,
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f)
+        )
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = stringResource(id = R.string.generic_cancel),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExpandedQrSheet(
+    qrCode: String,
+    onClose: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = SPACING_LARGE.dp),
+        verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
+    ) {
+        ExpandedQrHeader(onClose = onClose)
+        ExpandedQrCode(qrCode = qrCode)
+        ExpandedQrDivider()
+        CenteredNfcReadyStatus()
+        Spacer(modifier = Modifier.height(SPACING_LARGE.dp))
+    }
+}
+
+@Composable
+private fun ExpandedQrHeader(onClose: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = stringResource(id = R.string.proximity_qr_scan_title),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Surface(
+            modifier = Modifier.size(48.dp).clickable(onClick = onClose),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceContainerHighest
+        ) {
+            WrapIcon(
+                iconData = AppIcons.Close,
+                customTint = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(14.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExpandedQrCode(qrCode: String) {
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
+    ) {
+        QrPreview(
+            qrCode = qrCode,
+            size = 286.dp,
+            onClick = {}
+        )
+    }
+}
+
+@Composable
+private fun ExpandedQrDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(horizontal = SPACING_MEDIUM.dp),
+        thickness = 1.dp,
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+    )
+}
+
+@Composable
+private fun CenteredNfcReadyStatus() {
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
+    ) {
+        NfcReadyRow(modifier = Modifier.widthIn(max = 228.dp))
+    }
+}
+
+@Composable
+private fun PulsingNfcIcon() {
+    val animationsEnabled = rememberAnimationsEnabled()
+    val haloScale: Float
+    val haloAlpha: Float
+    if (animationsEnabled) {
+        val pulseTransition = rememberInfiniteTransition(label = "nfc_pulse")
+        val animatedScale by pulseTransition.animateFloat(
+            initialValue = 1f,
+            targetValue = 1.22f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 1200),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "nfc_pulse_scale"
+        )
+        val animatedAlpha by pulseTransition.animateFloat(
+            initialValue = 0.22f,
+            targetValue = 0.08f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 1200),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "nfc_pulse_alpha"
+        )
+        haloScale = animatedScale
+        haloAlpha = animatedAlpha
+    } else {
+        haloScale = 1f
+        haloAlpha = 0.16f
+    }
+    Box(contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .scale(haloScale)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.tertiary.copy(alpha = haloAlpha))
+        )
+        WrapImage(
+            iconData = AppIcons.NFC,
+            modifier = Modifier.size(34.dp)
+        )
+    }
+}
+
+@Composable
+private fun PidSecurityPattern(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        val accent = Color(0xFF38BDF8)
+        val spacing = 14.dp.toPx()
+        val stroke = 0.7.dp.toPx()
+        var y = spacing
+        while (y < size.height) {
+            drawLine(
+                color = accent.copy(alpha = 0.035f),
+                start = Offset(0f, y),
+                end = Offset(size.width, y),
+                strokeWidth = stroke
+            )
+            y += spacing
+        }
+        listOf(98.dp.toPx(), 142.dp.toPx(), 186.dp.toPx()).forEachIndexed { index, radius ->
+            drawCircle(
+                color = accent.copy(alpha = 0.07f - index * 0.014f),
+                radius = radius,
+                center = Offset(size.width * 0.92f, size.height * 0.08f),
+                style = Stroke(width = 1.dp.toPx())
+            )
+        }
     }
 }
 
@@ -232,9 +944,38 @@ private fun ContentPreview() {
             state = State(
                 isLoading = false,
                 error = null,
-                qrCode = "some qr code"
+                qrCode = "some qr code",
+                presentingDocument = ProximityPresentingDocumentUi(
+                    holderName = "Lassi Palojärvi",
+                    documentName = "Authbound Digital ID",
+                    documentCode = "PID",
+                    countryCode = "FIN",
+                    birthDate = "12/08/1985",
+                    sex = "M",
+                    validUntil = "11/07/2026",
+                    portraitBase64 = null
+                )
             ),
             effectFlow = Channel<Effect>().receiveAsFlow(),
+            onGoBack = {},
+            onNavigationRequested = {},
+            paddingValues = PaddingValues(SPACING_MEDIUM.dp)
+        )
+    }
+}
+
+@ThemeModePreviews
+@Composable
+private fun ContentLoadingPreview() {
+    PreviewTheme {
+        Content(
+            state = State(
+                isLoading = false,
+                error = null,
+                qrCode = ""
+            ),
+            effectFlow = Channel<Effect>().receiveAsFlow(),
+            onGoBack = {},
             onNavigationRequested = {},
             paddingValues = PaddingValues(SPACING_MEDIUM.dp)
         )

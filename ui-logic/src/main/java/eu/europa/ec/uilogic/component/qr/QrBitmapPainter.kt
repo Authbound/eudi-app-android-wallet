@@ -14,7 +14,7 @@
  * governing permissions and limitations under the Licence.
  */
 
-package eu.europa.ec.proximityfeature.ui.qr.component
+package eu.europa.ec.uilogic.component.qr
 
 import android.graphics.Bitmap
 import android.graphics.Color

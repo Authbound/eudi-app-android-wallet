@@ -49,7 +49,8 @@ sealed interface PresentationMode {
 }
 
 data class RequestUriConfig(
-    val mode: PresentationMode
+    val mode: PresentationMode,
+    val presentingDocumentId: String? = null
 ) : UiSerializable {
 
     val presentationScopeId: String = mode.scopeId

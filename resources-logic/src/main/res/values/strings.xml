@@ -318,7 +318,10 @@
 
     <!-- Home Screen Hero Card -->
     <string name="home_hero_digital_wallet_label">DIGITAL WALLET</string>
-    <string name="home_hero_tap_to_share">Tap to share</string>
+    <string name="home_hero_present_id">Present ID</string>
+    <string name="home_hero_present_id_methods">QR + NFC</string>
+    <string name="credential_card_label_nationality">Nationality</string>
+    <string name="credential_card_label_valid_until">Valid until</string>
     <string name="home_hero_empty_title">Get Your Digital ID</string>
     <string name="home_hero_empty_description">Your wallet is ready for your first digital credential</string>
     <string name="home_hero_pid_subtitle">Personal Identification Data</string>
@@ -457,10 +460,20 @@
     <string name="transaction_details_collapsed_supporting_text">@string/generic_view_details</string>
 
     <!-- Proximity QR -->
-    <string name="proximity_qr_title">Present document in person</string>
+    <string name="proximity_qr_title">Present ID</string>
     <string name="proximity_qr_subtitle">Show this QR code to a Relying Party to present a digital document.</string>
-    <string name="proximity_qr_use_nfc">Or share via NFC</string>
-    <string name="proximity_qr_hold_near_reader">Hold your phone near reader to scan.</string>
+    <string name="proximity_qr_share_title">Share</string>
+    <string name="proximity_qr_scan_title">Scan QR</string>
+    <string name="proximity_qr_tap_to_enlarge">Tap to enlarge</string>
+    <string name="proximity_qr_enlarge_qr">Enlarge QR code</string>
+    <string name="proximity_qr_nfc_ready">NFC ready</string>
+    <string name="proximity_qr_hold_near_reader">Hold near reader</string>
+    <string name="proximity_qr_field_name">Name</string>
+    <string name="proximity_qr_field_birth_date">DOB</string>
+    <string name="proximity_qr_field_nationality">NAT</string>
+    <string name="proximity_qr_field_sex">SEX</string>
+    <string name="proximity_qr_field_valid_until">VALID</string>
+    <string name="proximity_qr_nfc_active">NFC ready</string>
 
     <!-- Presentation Qr Scan -->
     <string name="presentation_qr_scan_title">Present document online</string>

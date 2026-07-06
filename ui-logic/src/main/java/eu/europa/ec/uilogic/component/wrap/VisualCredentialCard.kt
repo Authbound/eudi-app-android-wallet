@@ -61,14 +61,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import eu.europa.ec.resourceslogic.R
+import eu.europa.ec.resourceslogic.theme.values.brandNavyDeep
+import eu.europa.ec.resourceslogic.theme.values.brandNavyMedium
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.ImageOrPlaceholder
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
+import java.util.Locale
 import kotlinx.coroutines.delay
 
 /** Visual type for credential cards - determines styling. */
@@ -95,6 +100,14 @@ enum class CredentialStatus {
         REVOKED
 }
 
+/** Layout variant for credential cards. */
+enum class CredentialCardLayout {
+        /** Standard wallet-card layout used across document lists. */
+        COMPACT,
+        /** Passport-style layout: portrait frame and identity fields for hero credentials. */
+        PASSPORT
+}
+
 /** Configuration for visual credential card. */
 data class VisualCredentialConfig(
         val id: String,
@@ -108,7 +121,9 @@ data class VisualCredentialConfig(
         val status: CredentialStatus,
         val expiryDate: String?,
         val hasPhoto: Boolean = false,
-        val portraitBase64: String? = null
+        val portraitBase64: String? = null,
+        val nationality: String? = null,
+        val layout: CredentialCardLayout = CredentialCardLayout.COMPACT
 )
 
 /** Color scheme for credential types. */
@@ -131,13 +146,16 @@ data class CredentialColorScheme(
  * - Blue Accent: #3B82F6 (Primary interactive elements)
  * - Teal Accent: #2A8A9A (Secondary highlights)
  */
+@Composable
 private fun getCredentialColors(type: CredentialVisualType): CredentialColorScheme {
+        val navyDeep = MaterialTheme.colorScheme.brandNavyDeep
+        val navyMedium = MaterialTheme.colorScheme.brandNavyMedium
         return when (type) {
                 // PID: Premium navy with gold accent (EU identity + Authbound brand)
                 CredentialVisualType.PID ->
                         CredentialColorScheme(
-                                gradientStart = Color(0xFF0A1A36), // Navy Deep (brand primary)
-                                gradientEnd = Color(0xFF1E3A5F), // Navy Medium
+                                gradientStart = navyDeep,
+                                gradientEnd = navyMedium,
                                 accent = Color(0xFFD4A84B), // Refined gold (premium feel)
                                 textPrimary = Color.White,
                                 textSecondary = Color.White.copy(alpha = 0.75f)
@@ -145,7 +163,7 @@ private fun getCredentialColors(type: CredentialVisualType): CredentialColorSche
                 // MDL: Navy base with teal accent (driving = go = teal/green undertone)
                 CredentialVisualType.MDL ->
                         CredentialColorScheme(
-                                gradientStart = Color(0xFF0A1A36), // Navy Deep (consistent brand)
+                                gradientStart = navyDeep,
                                 gradientEnd = Color(0xFF14294F), // Navy variant
                                 accent = Color(0xFF2A8A9A), // Teal accent (brand)
                                 textPrimary = Color.White,
@@ -172,8 +190,8 @@ private fun getCredentialColors(type: CredentialVisualType): CredentialColorSche
                 // GENERIC: Standard navy with blue accent
                 CredentialVisualType.GENERIC ->
                         CredentialColorScheme(
-                                gradientStart = Color(0xFF0A1A36), // Navy Deep
-                                gradientEnd = Color(0xFF1E3A5F), // Navy Medium
+                                gradientStart = navyDeep,
+                                gradientEnd = navyMedium,
                                 accent = Color(0xFF3B82F6), // Blue accent (brand)
                                 textPrimary = Color.White,
                                 textSecondary = Color.White.copy(alpha = 0.75f)
@@ -181,7 +199,7 @@ private fun getCredentialColors(type: CredentialVisualType): CredentialColorSche
                 // AUTHBOUND: Navy base with Authbound brand blue accent (distinct from gold PID)
                 CredentialVisualType.AUTHBOUND ->
                         CredentialColorScheme(
-                                gradientStart = Color(0xFF0A1A36), // Navy Deep (brand primary)
+                                gradientStart = navyDeep,
                                 gradientEnd = Color(0xFF1A3060), // Slightly deeper navy
                                 accent = Color(0xFF3B82F6), // Authbound blue accent
                                 textPrimary = Color.White,
@@ -270,6 +288,10 @@ fun VisualCredentialCard(
                                         modifier = Modifier.fillMaxSize(),
                                         color = colors.accent
                                 )
+
+                                if (config.layout == CredentialCardLayout.PASSPORT) {
+                                        PassportCardContent(config = config, colors = colors)
+                                } else {
 
                                 // Decorative circles (Authbound brand motif)
                                 CredentialDecorativeCircles(
@@ -667,6 +689,7 @@ fun VisualCredentialCard(
                                                 }
                                         }
                                 }
+                                }
                         }
                 }
         }
@@ -689,6 +712,251 @@ fun VisualCredentialCard(
                 ) { content() }
         } else {
                 content()
+        }
+}
+
+/**
+ * Passport-style card content for hero credentials: restrained physical-ID cues without the
+ * machine-readable strip, which is too noisy for the home screen.
+ */
+@Composable
+private fun PassportCardContent(
+        config: VisualCredentialConfig,
+        colors: CredentialColorScheme
+) {
+        Box(modifier = Modifier.fillMaxSize()) {
+                PassportMicroLines(
+                        modifier = Modifier.align(Alignment.BottomCenter),
+                        color = colors.accent
+                )
+                Column(
+                        modifier =
+                                Modifier.fillMaxSize()
+                                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                        verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                        Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.Top
+                        ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                        Text(
+                                                text = getTypeLabel(config.visualType),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.SemiBold,
+                                                letterSpacing = 1.5.sp,
+                                                color = colors.textSecondary
+                                        )
+                                        Text(
+                                                text = config.subtitle?.takeIf { it.isNotBlank() }
+                                                        ?: config.title,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = colors.textSecondary.copy(alpha = 0.58f),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                        )
+                                }
+                                CredentialStatusBadge(status = config.status, colors = colors)
+                        }
+                        Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                        ) {
+                                PassportPortraitFrame(
+                                        portraitBase64 = config.portraitBase64,
+                                        colors = colors
+                                )
+                                Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(9.dp)
+                                ) {
+                                        val displayName =
+                                                config.holderName?.takeIf { it.isNotBlank() }
+                                                        ?: config.title
+                                        Text(
+                                                text = displayName.uppercase(),
+                                                style =
+                                                        MaterialTheme.typography.titleLarge.copy(
+                                                                fontWeight = FontWeight.Bold,
+                                                                fontSize = 22.sp,
+                                                                lineHeight = 26.sp,
+                                                                letterSpacing = 0.sp
+                                                        ),
+                                                color = colors.textPrimary,
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis
+                                        )
+                                        Box(
+                                                modifier =
+                                                        Modifier.fillMaxWidth()
+                                                                .height(1.dp)
+                                                                .background(
+                                                                        colors.textPrimary.copy(
+                                                                                alpha = 0.14f
+                                                                        )
+                                                                )
+                                        )
+                                        Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(22.dp)
+                                        ) {
+                                                PassportLabeledField(
+                                                        modifier = Modifier.weight(1f),
+                                                        label =
+                                                                stringResource(
+                                                                        R.string
+                                                                                .credential_card_label_nationality
+                                                                ),
+                                                        value = config.nationality,
+                                                        colors = colors
+                                                )
+                                                PassportLabeledField(
+                                                        modifier = Modifier.weight(1.25f),
+                                                        label =
+                                                                stringResource(
+                                                                        R.string
+                                                                                .credential_card_label_valid_until
+                                                                ),
+                                                        value = config.expiryDate,
+                                                        colors = colors
+                                                )
+                                        }
+                                }
+                        }
+                        PassportFooterRule(
+                                issuerName = config.issuerName,
+                                colors = colors
+                        )
+                }
+        }
+}
+
+/** Rounded portrait frame with an accent border, echoing a physical ID photo window. */
+@Composable
+private fun PassportPortraitFrame(
+        portraitBase64: String?,
+        colors: CredentialColorScheme
+) {
+        Box(
+                modifier =
+                        Modifier.width(72.dp)
+                                .height(92.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(colors.textPrimary.copy(alpha = 0.08f))
+                                .border(
+                                        width = 1.5.dp,
+                                        color = colors.accent.copy(alpha = 0.4f),
+                                        shape = RoundedCornerShape(8.dp)
+                                ),
+                contentAlignment = Alignment.Center
+        ) {
+                ImageOrPlaceholder(
+                        modifier =
+                                Modifier.fillMaxSize()
+                                        .padding(2.dp)
+                                        .clip(RoundedCornerShape(6.dp)),
+                        base64Image = portraitBase64.orEmpty(),
+                        contentScale = ContentScale.Crop,
+                        fallbackIcon = AppIcons.User
+                )
+        }
+}
+
+/** Small letterspaced-caps label above its value; hidden entirely when the value is blank. */
+@Composable
+private fun PassportLabeledField(
+        modifier: Modifier = Modifier,
+        label: String,
+        value: String?,
+        colors: CredentialColorScheme
+) {
+        if (value.isNullOrBlank()) return
+        Column(
+                modifier = modifier,
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+                Text(
+                        text = label.uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 9.sp,
+                        letterSpacing = 1.2.sp,
+                        color = colors.textSecondary
+                )
+                Text(
+                        text = value,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                )
+        }
+}
+
+@Composable
+private fun PassportFooterRule(
+        issuerName: String?,
+        colors: CredentialColorScheme
+) {
+        val footerLabel: String? = issuerName
+                ?.trim()
+                ?.takeIf { it.isNotBlank() }
+                ?.uppercase(Locale.ROOT)
+        Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+                Box(
+                        modifier =
+                                Modifier.weight(1f)
+                                        .height(1.dp)
+                                        .background(colors.textPrimary.copy(alpha = 0.12f))
+                )
+                if (footerLabel != null) {
+                        Text(
+                                text = footerLabel,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 1.4.sp,
+                                color = colors.textSecondary.copy(alpha = 0.58f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                        )
+                }
+        }
+}
+
+/** Fine horizontal security lines near the bottom of the card. */
+@Composable
+private fun PassportMicroLines(
+        modifier: Modifier = Modifier,
+        color: Color
+) {
+        Box(
+                modifier =
+                        modifier.fillMaxWidth()
+                                .height(48.dp)
+        ) {
+                Canvas(
+                        modifier = Modifier.matchParentSize(),
+                ) {
+                        val spacing = 4.dp.toPx()
+                        val stroke = 0.8.dp.toPx()
+                        var y = 0f
+                        while (y < size.height) {
+                                drawLine(
+                                        color = color.copy(alpha = 0.035f),
+                                        start = Offset(0f, y),
+                                        end = Offset(size.width, y),
+                                        strokeWidth = stroke
+                                )
+                                y += spacing
+                        }
+                }
         }
 }
 
@@ -864,6 +1132,55 @@ private fun CredentialSecurityPattern(modifier: Modifier = Modifier, color: Colo
                                 start = Offset(0f, yPosition),
                                 end = Offset(size.width * 0.3f, yPosition),
                                 strokeWidth = 0.6.dp.toPx()
+                        )
+                }
+        }
+}
+
+@ThemeModePreviews
+@Composable
+private fun PassportCredentialCardPreview() {
+        PreviewTheme {
+                Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                        // PID hero card with passport-style identity fields
+                        VisualCredentialCard(
+                                config =
+                                        VisualCredentialConfig(
+                                                id = "1",
+                                                visualType = CredentialVisualType.AUTHBOUND,
+                                                title = "Authbound Digital ID",
+                                                subtitle = "Digital ID",
+                                                holderName = "Lassi Palojärvi",
+                                                issuerName = "Authbound",
+                                                primaryField = null,
+                                                secondaryField = null,
+                                                status = CredentialStatus.ISSUED,
+                                                expiryDate = "11/07/2026",
+                                                hasPhoto = false,
+                                                nationality = "FIN",
+                                                layout = CredentialCardLayout.PASSPORT
+                                        )
+                        )
+
+                        VisualCredentialCard(
+                                config =
+                                        VisualCredentialConfig(
+                                                id = "2",
+                                                visualType = CredentialVisualType.MDL,
+                                                title = "Driving License",
+                                                subtitle = "Mobile Driving License",
+                                                holderName = "Lassi Palojärvi",
+                                                issuerName = "Transport Agency",
+                                                primaryField = null,
+                                                secondaryField = null,
+                                                status = CredentialStatus.ISSUED,
+                                                expiryDate = "15/06/2028",
+                                                hasPhoto = false,
+                                                layout = CredentialCardLayout.PASSPORT
+                                        )
                         )
                 }
         }

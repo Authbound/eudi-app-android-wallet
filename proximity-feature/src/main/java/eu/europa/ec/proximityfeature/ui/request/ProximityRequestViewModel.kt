@@ -39,7 +39,8 @@ import org.koin.core.annotation.InjectedParam
 class ProximityRequestViewModel(
     private val interactor: ProximityRequestInteractor,
     private val resourceProvider: ResourceProvider,
-    @InjectedParam private val presentationScopeId: String
+    @InjectedParam private val presentationScopeId: String,
+    @InjectedParam private val presentingDocumentId: String? = null
 ) : RequestViewModel() {
 
     override fun getHeaderConfig(): ContentHeaderConfig {
@@ -75,6 +76,7 @@ class ProximityRequestViewModel(
         }
 
         interactor.setScopeId(presentationScopeId)
+        interactor.setSelectedDocumentId(presentingDocumentId)
 
         viewModelJob = viewModelScope.launch {
             interactor.getRequestDocuments().collect { response ->

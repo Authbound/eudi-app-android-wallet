@@ -24,6 +24,10 @@ object DocumentJsonKeys {
     const val SIGNATURE = "signature_usual_mark"
     const val EXPIRY_DATE = "expiry_date"
     const val USER_PSEUDONYM = "user_pseudonym"
+    const val BIRTH_DATE = "birth_date"
+    const val NATIONALITY = "nationality"
+    const val NATIONALITIES = "nationalities"
+    const val ISSUING_COUNTRY = "issuing_country"
     private const val GENDER = "gender"
     private const val SEX = "sex"
 

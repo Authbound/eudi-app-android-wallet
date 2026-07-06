@@ -20,6 +20,7 @@ import eu.europa.ec.corelogic.model.DocumentIdentifier
 import eu.europa.ec.dashboardfeature.ui.common.resolveCredentialVisualType
 import eu.europa.ec.dashboardfeature.ui.documents.detail.model.DocumentIssuanceStateUi
 import eu.europa.ec.eudi.wallet.document.DocumentId
+import eu.europa.ec.uilogic.component.wrap.CredentialCardLayout
 import eu.europa.ec.uilogic.component.wrap.CredentialStatus
 import eu.europa.ec.uilogic.component.wrap.VisualCredentialConfig
 
@@ -37,7 +38,8 @@ data class HeroCredentialUi(
     val expiryDate: String?,
     val status: DocumentIssuanceStateUi,
     val hasPhoto: Boolean,
-    val portraitBase64: String?
+    val portraitBase64: String?,
+    val nationality: String? = null
 ) {
     /**
      * Convert to VisualCredentialConfig for the visual credential card component.
@@ -58,7 +60,9 @@ data class HeroCredentialUi(
             status = status.toCredentialStatus(),
             expiryDate = expiryDate,
             hasPhoto = hasPhoto,
-            portraitBase64 = portraitBase64
+            portraitBase64 = portraitBase64,
+            nationality = nationality,
+            layout = CredentialCardLayout.PASSPORT
         )
     }
 }

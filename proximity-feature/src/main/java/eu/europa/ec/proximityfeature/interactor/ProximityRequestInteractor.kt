@@ -27,6 +27,7 @@ import eu.europa.ec.commonfeature.ui.request.transformer.RequestTransformer
 import eu.europa.ec.corelogic.controller.TransferEventPartialState
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
 import eu.europa.ec.corelogic.controller.WalletCorePresentationController
+import eu.europa.ec.eudi.iso18013.transfer.response.RequestedDocument
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.mapNotNull
@@ -52,6 +53,7 @@ interface ProximityRequestInteractor : ScopedPresentationInteractor {
     fun stopPresentation()
     fun updateRequestedDocuments(items: List<RequestDocumentItemUi>)
     fun setConfig(config: RequestUriConfig)
+    fun setSelectedDocumentId(documentId: String?)
 }
 
 class ProximityRequestInteractorImpl(
@@ -65,16 +67,25 @@ class ProximityRequestInteractorImpl(
     private val genericErrorMsg
         get() = resourceProvider.genericErrorMessage()
 
+    private var selectedDocumentId: String? = null
+
     override fun setConfig(config: RequestUriConfig) {
+        setSelectedDocumentId(config.presentingDocumentId)
         setScopeId(config.presentationScopeId)
         walletCorePresentationController.setConfig(config.toDomainConfig())
+    }
+
+    override fun setSelectedDocumentId(documentId: String?) {
+        selectedDocumentId = documentId?.takeIf { it.isNotBlank() }
     }
 
     override fun getRequestDocuments(): Flow<ProximityRequestInteractorPartialState> =
         walletCorePresentationController.events.mapNotNull { response ->
             when (response) {
                 is TransferEventPartialState.RequestReceived -> {
-                    if (response.requestData.all { it.requestedItems.isEmpty() }) {
+                    val requestData: List<RequestedDocument> =
+                        filterRequestedDocuments(response.requestData)
+                    if (requestData.all { it.requestedItems.isEmpty() }) {
                         ProximityRequestInteractorPartialState.NoData(
                             verifierName = response.verifierName,
                             verifierIsTrusted = response.verifierIsTrusted,
@@ -82,7 +93,7 @@ class ProximityRequestInteractorImpl(
                     } else {
                         val documentsDomain = RequestTransformer.transformToDomainItems(
                             storageDocuments = walletCoreDocumentsController.getAllIssuedDocuments(),
-                            requestDocuments = response.requestData,
+                            requestDocuments = requestData,
                             resourceProvider = resourceProvider,
                             uuidProvider = uuidProvider
                         ).getOrThrow()
@@ -131,5 +142,12 @@ class ProximityRequestInteractorImpl(
     override fun updateRequestedDocuments(items: List<RequestDocumentItemUi>) {
         val disclosedDocuments = RequestTransformer.createDisclosedDocuments(items)
         walletCorePresentationController.updateRequestedDocuments(disclosedDocuments.toMutableList())
+    }
+
+    private fun filterRequestedDocuments(
+        requestData: List<RequestedDocument>
+    ): List<RequestedDocument> {
+        val safeSelectedDocumentId: String = selectedDocumentId ?: return requestData
+        return requestData.filter { document -> document.documentId == safeSelectedDocumentId }
     }
 }

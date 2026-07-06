@@ -40,6 +40,8 @@ class TestProximityGraphContract {
         assertTrue(viewModel.contains("requestUriConfigRaw"))
         assertTrue(graph.contains("navArgument(RequestUriConfig.serializedKeyName)"))
         assertTrue(graph.contains("getString(RequestUriConfig.serializedKeyName)"))
+        assertTrue(routerContract.contains("presentingDocumentId={presentingDocumentId}"))
+        assertTrue(graph.contains("navArgument(\"presentingDocumentId\")"))
         assertFalse(graph.contains("navArgument(\"scopeId\") {\n                    type = NavType.StringType\n                },\n            ) {\n            ProximityQRScreen"))
         assertFalse(graph.contains("ProximityQRScreen(\n                navController,\n                koinViewModel(\n                    parameters = {\n                        parametersOf(\n                            it.arguments?.getString(\"scopeId\")"))
     }

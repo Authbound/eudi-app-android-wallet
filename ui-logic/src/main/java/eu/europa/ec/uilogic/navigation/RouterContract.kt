@@ -107,7 +107,7 @@ sealed class ProximityScreens {
 
     data object Request : Screen(
         name = "PROXIMITY_REQUEST",
-        parameters = "?scopeId={scopeId}"
+        parameters = "?scopeId={scopeId}&presentingDocumentId={presentingDocumentId}"
     )
 
     data object Loading : Screen(name = "PROXIMITY_LOADING", parameters = "?scopeId={scopeId}")

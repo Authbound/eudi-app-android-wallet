@@ -79,6 +79,11 @@ fun NavGraphBuilder.featureProximityGraph(navController: NavController) {
                 navArgument("scopeId") {
                     type = NavType.StringType
                 },
+                navArgument("presentingDocumentId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
             )
         ) {
             ProximityRequestScreen(
@@ -86,7 +91,8 @@ fun NavGraphBuilder.featureProximityGraph(navController: NavController) {
                 koinViewModel(
                     parameters = {
                         parametersOf(
-                            it.arguments?.getString("scopeId").orEmpty()
+                            it.arguments?.getString("scopeId").orEmpty(),
+                            it.arguments?.getString("presentingDocumentId")
                         )
                     }
                 )

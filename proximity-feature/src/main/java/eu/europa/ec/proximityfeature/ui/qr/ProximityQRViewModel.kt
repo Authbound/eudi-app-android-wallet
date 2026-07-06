@@ -20,6 +20,7 @@ import androidx.activity.ComponentActivity
 import androidx.lifecycle.viewModelScope
 import eu.europa.ec.commonfeature.config.RequestUriConfig
 import eu.europa.ec.corelogic.di.getOrNullKoinScope
+import eu.europa.ec.proximityfeature.interactor.ProximityPresentingDocumentUi
 import eu.europa.ec.proximityfeature.interactor.ProximityQRInteractor
 import eu.europa.ec.proximityfeature.interactor.ProximityQRPartialState
 import eu.europa.ec.uilogic.component.content.ContentErrorConfig
@@ -37,11 +38,14 @@ import org.koin.core.annotation.KoinViewModel
 import org.koin.core.annotation.InjectedParam
 
 data class State(
-    val isLoading: Boolean = true,
+    val isLoading: Boolean = false,
     val error: ContentErrorConfig? = null,
 
     val qrCode: String = "",
     val presentationScopeId: String = "",
+    val presentingDocumentId: String? = null,
+    val isLoadingPresentingDocument: Boolean = true,
+    val presentingDocument: ProximityPresentingDocumentUi? = null,
 ) : ViewState
 
 sealed class Event : ViewEvent {
@@ -78,6 +82,7 @@ class ProximityQRViewModel(
         when (event) {
             is Event.Init -> {
                 initializeConfig()
+                loadPresentingDocument()
                 generateQrCode()
             }
 
@@ -104,16 +109,35 @@ class ProximityQRViewModel(
         ) ?: throw RuntimeException("RequestUriConfig:: is Missing or invalid")
 
         setState {
-            copy(presentationScopeId = requestUriConfig.presentationScopeId)
+            copy(
+                presentationScopeId = requestUriConfig.presentationScopeId,
+                presentingDocumentId = requestUriConfig.presentingDocumentId
+            )
         }
 
         interactor.setConfig(requestUriConfig)
     }
 
+    /** Fetches the document summary shown under the QR; failures simply hide the row. */
+    private fun loadPresentingDocument() {
+        setState { copy(isLoadingPresentingDocument = true) }
+        viewModelScope.launch {
+            val presentingDocument = interactor.getPresentingDocument()
+            setState {
+                copy(
+                    presentingDocument = presentingDocument,
+                    isLoadingPresentingDocument = false
+                )
+            }
+        }
+    }
+
     private fun generateQrCode() {
+        // No full-screen loader: while the QR is not ready the screen shows an
+        // in-place shimmer placeholder (keyed on an empty qrCode with no error).
         setState {
             copy(
-                isLoading = true,
+                isLoading = false,
                 error = null
             )
         }
@@ -147,14 +171,16 @@ class ProximityQRViewModel(
                     is ProximityQRPartialState.Connected -> {
                         unsubscribe()
                         setEffect {
+                            val arguments: Map<String, String> = buildMap {
+                                put("scopeId", viewState.value.presentationScopeId)
+                                viewState.value.presentingDocumentId
+                                    ?.takeIf { it.isNotBlank() }
+                                    ?.let { put("presentingDocumentId", it) }
+                            }
                             Effect.Navigation.SwitchScreen(
                                 screenRoute = generateComposableNavigationLink(
                                     screen = ProximityScreens.Request,
-                                    arguments = generateComposableArguments(
-                                        mapOf(
-                                            "scopeId" to viewState.value.presentationScopeId
-                                        )
-                                    )
+                                    arguments = generateComposableArguments(arguments)
                                 )
                             )
                         }

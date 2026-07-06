@@ -20,13 +20,13 @@ import android.Manifest
 import android.content.Context
 import android.os.Build
 import android.view.HapticFeedbackConstants
+import androidx.activity.ComponentActivity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -34,17 +34,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -60,7 +59,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.draw.rotate
@@ -73,14 +71,12 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.material3.ripple
 
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Surface
@@ -88,6 +84,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.rememberCoroutineScope
@@ -95,9 +92,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -123,7 +121,8 @@ import eu.europa.ec.uilogic.component.wrap.DocumentCategoryHeader
 import eu.europa.ec.uilogic.component.wrap.VisualCredentialCard
 
 import eu.europa.ec.resourceslogic.R
-import eu.europa.ec.resourceslogic.theme.values.warning
+import eu.europa.ec.resourceslogic.theme.values.brandNavyMedium
+import eu.europa.ec.resourceslogic.theme.values.glowAccent
 import eu.europa.ec.uilogic.component.AppIconAndText
 import eu.europa.ec.uilogic.component.AppIconAndTextData
 import eu.europa.ec.uilogic.component.AppIcons
@@ -132,11 +131,11 @@ import eu.europa.ec.uilogic.component.ListItemDataUi
 import eu.europa.ec.uilogic.component.ListItemLeadingContentDataUi
 import eu.europa.ec.uilogic.component.ListItemMainContentDataUi
 import eu.europa.ec.uilogic.component.ModalOptionUi
-import eu.europa.ec.uilogic.component.SectionTitle
 import eu.europa.ec.uilogic.component.content.ContentScreen
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
+import eu.europa.ec.uilogic.component.qr.rememberQrBitmapPainter
 import eu.europa.ec.uilogic.component.utils.HSpacer
 import eu.europa.ec.uilogic.component.utils.LifecycleEffect
 import eu.europa.ec.uilogic.component.utils.OneTimeLaunchedEffect
@@ -148,14 +147,14 @@ import eu.europa.ec.uilogic.component.wrap.BottomSheetTextDataUi
 import eu.europa.ec.uilogic.component.wrap.BottomSheetWithTwoBigIcons
 import eu.europa.ec.uilogic.component.wrap.DialogBottomSheet
 import eu.europa.ec.uilogic.component.wrap.GenericBottomSheet
-import eu.europa.ec.uilogic.component.wrap.QuickActionCard
 import eu.europa.ec.uilogic.component.wrap.QuickActionConfig
-import eu.europa.ec.uilogic.component.wrap.WrapActionCard
+import eu.europa.ec.uilogic.component.wrap.QuickActionCard
+import eu.europa.ec.uilogic.component.wrap.WrapImage
 import eu.europa.ec.uilogic.component.wrap.WrapIcon
 import eu.europa.ec.uilogic.component.wrap.WrapIconButton
-import eu.europa.ec.uilogic.component.wrap.WrapListItem
 import eu.europa.ec.uilogic.component.wrap.WrapModalBottomSheet
 import eu.europa.ec.uilogic.extension.finish
+import eu.europa.ec.uilogic.extension.findActivity
 import eu.europa.ec.uilogic.extension.openAppSettings
 import eu.europa.ec.uilogic.extension.openBleSettings
 import eu.europa.ec.uilogic.extension.paddingFrom
@@ -231,9 +230,36 @@ fun HomeScreen(
         ) {
             HomeScreenSheetContent(
                 sheetContent = state.sheetContent,
+                presentIdQrCode = state.presentIdQrCode,
                 shouldShowAuthboundPidEntry = state.shouldShowAuthboundPidEntry,
                 onEventSent = { event -> viewModel.setEvent(event) },
             )
+        }
+    }
+
+    if (isBottomSheetOpen && state.sheetContent is HomeScreenBottomSheetContent.PresentId) {
+        val componentActivity: ComponentActivity? = remember(context) {
+            runCatching { context.findActivity() }.getOrNull()
+        }
+        DisposableEffect(componentActivity) {
+            componentActivity?.let { activity ->
+                viewModel.setEvent(
+                    Event.PresentIdNfcEngagement(
+                        componentActivity = activity,
+                        enable = true
+                    )
+                )
+            }
+            onDispose {
+                componentActivity?.let { activity ->
+                    viewModel.setEvent(
+                        Event.PresentIdNfcEngagement(
+                            componentActivity = activity,
+                            enable = false
+                        )
+                    )
+                }
+            }
         }
     }
 
@@ -323,8 +349,8 @@ private fun Content(
             HeroCredentialSection(
                 heroCredentials = state.heroCredentials,
                 isLoading = state.isLoadingHeroCredential,
-                onCredentialClick = {
-                    onEventSent(Event.HeroCredentialPressed)
+                onCredentialClick = { documentId ->
+                    onEventSent(Event.HeroCredentialPressed(documentId))
                 },
                 onAddCredentialClick = {
                     onEventSent(Event.AddCredentialPressed)
@@ -761,10 +787,20 @@ private fun handleNavigationEffect(
 @Composable
 private fun HomeScreenSheetContent(
     sheetContent: HomeScreenBottomSheetContent,
+    presentIdQrCode: String,
     shouldShowAuthboundPidEntry: Boolean,
     onEventSent: (event: Event) -> Unit,
 ) {
     when (sheetContent) {
+        is HomeScreenBottomSheetContent.PresentId -> {
+            PresentIdShareSheet(
+                qrCode = presentIdQrCode,
+                onClose = {
+                    onEventSent(Event.BottomSheet.Close)
+                }
+            )
+        }
+
         is HomeScreenBottomSheetContent.Authenticate -> {
             BottomSheetWithTwoBigIcons(
                 textData = BottomSheetTextDataUi(
@@ -955,6 +991,149 @@ private fun HomeScreenSheetContent(
 }
 
 @Composable
+private fun PresentIdShareSheet(
+    qrCode: String,
+    onClose: () -> Unit
+) {
+    val closeLabel: String = stringResource(id = R.string.content_description_close_icon)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = SPACING_LARGE.dp)
+            .padding(bottom = SPACING_LARGE.dp),
+        verticalArrangement = Arrangement.spacedBy(SPACING_LARGE.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.proximity_qr_scan_title),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.brandNavyMedium.copy(alpha = 0.52f))
+                    .clickable(
+                        onClickLabel = closeLabel,
+                        role = Role.Button,
+                        onClick = onClose
+                    )
+                    .semantics {
+                        contentDescription = closeLabel
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                WrapIcon(
+                    iconData = AppIcons.Close,
+                    customTint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+        }
+        BoxWithConstraints(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            val availableWidth: Dp = maxWidth - (SPACING_LARGE * 2).dp
+            val qrSize: Dp = if (availableWidth < 312.dp) availableWidth else 312.dp
+            PresentIdQrPreview(
+                qrCode = qrCode,
+                size = qrSize
+            )
+        }
+        HorizontalDivider(
+            modifier = Modifier.padding(horizontal = SPACING_SMALL.dp),
+            thickness = 1.dp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f)
+        )
+        PresentIdNfcReadyStatus(
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+private fun PresentIdQrPreview(
+    qrCode: String,
+    size: Dp
+) {
+    Surface(
+        modifier = Modifier.size(size),
+        shape = RoundedCornerShape(22.dp),
+        color = Color.White,
+        shadowElevation = 8.dp
+    ) {
+        Box(
+            modifier = Modifier.padding(10.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (qrCode.isNotEmpty()) {
+                WrapImage(
+                    modifier = Modifier.fillMaxSize(),
+                    painter = rememberQrBitmapPainter(
+                        content = qrCode,
+                        size = size - 20.dp
+                    ),
+                    contentDescription = stringResource(
+                        id = R.string.content_description_qr_code_icon
+                    )
+                )
+            } else {
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PresentIdNfcReadyStatus(
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(68.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.brandNavyMedium.copy(alpha = 0.55f)),
+            contentAlignment = Alignment.Center
+        ) {
+            WrapImage(
+                iconData = AppIcons.NFC,
+                modifier = Modifier.size(42.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(SPACING_MEDIUM.dp))
+        Column(
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.proximity_qr_nfc_ready),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = stringResource(R.string.proximity_qr_hold_near_reader),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
 private fun buildAddDocumentOptions(
     shouldShowAuthboundPidEntry: Boolean,
 ): List<ModalOptionUi<Event>> {
@@ -1042,15 +1221,6 @@ private fun QuickActionsSection(
             .padding(vertical = SPACING_SMALL.dp),
         verticalArrangement = Arrangement.spacedBy(SPACING_LARGE.dp)
     ) {
-        // Section title
-        /* Text(
-            text = stringResource(R.string.home_screen_quick_actions),
-            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(horizontal = SPACING_SMALL.dp)
-        ) */
-
-        // First row - first two actions
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1068,8 +1238,6 @@ private fun QuickActionsSection(
                 )
             }
         }
-
-        // Second row - next two actions (if available)
         if (quickActions.size > 2) {
             Row(
                 modifier = Modifier
@@ -1078,22 +1246,27 @@ private fun QuickActionsSection(
                 horizontalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
             ) {
                 quickActions.drop(2).take(2).forEachIndexed { index, action ->
-                    if (action.id == "sign") {
-                        Box(modifier = Modifier.weight(1f)) {
-                            QuickActionCard(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(140.dp),
-                                config = action,
-                                animationDelay = (index + 2) * 70,
-                                onClick = {
+                    val isComingSoon = action.id == "sign"
+                    Box(modifier = Modifier.weight(1f)) {
+                        QuickActionCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(140.dp),
+                            config = action,
+                            animationDelay = (index + 2) * 70,
+                            onClick = {
+                                if (isComingSoon) {
                                     android.widget.Toast.makeText(
                                         context,
                                         context.getString(R.string.feature_coming_soon),
                                         android.widget.Toast.LENGTH_SHORT
                                     ).show()
+                                } else {
+                                    onQuickActionClick(action.id)
                                 }
-                            )
+                            }
+                        )
+                        if (isComingSoon) {
                             Surface(
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
@@ -1110,15 +1283,6 @@ private fun QuickActionsSection(
                                 )
                             }
                         }
-                    } else {
-                        QuickActionCard(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(140.dp),
-                            config = action,
-                            animationDelay = (index + 2) * 70,
-                            onClick = { onQuickActionClick(action.id) }
-                        )
                     }
                 }
             }
@@ -1259,11 +1423,14 @@ private fun AuthboundIdHomePrompt(
 /**
  * Hero Credential Section - displays the primary credential (PID or mDL) at the top
  */
+/** Shared height for all hero card states so the pager never jumps between pages. */
+private val HERO_CARD_HEIGHT = 220.dp
+
 @Composable
 private fun HeroCredentialSection(
     heroCredentials: List<HeroCredentialUi>,
     isLoading: Boolean,
-    onCredentialClick: () -> Unit,
+    onCredentialClick: (DocumentId) -> Unit,
     onAddCredentialClick: () -> Unit,
 ) {
     Column(
@@ -1277,7 +1444,7 @@ private fun HeroCredentialSection(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(200.dp),
+                        .height(HERO_CARD_HEIGHT),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator()
@@ -1315,9 +1482,9 @@ private fun HeroCredentialSection(
                                 config = heroCredential.toVisualConfig(),
                                 modifier = Modifier
                                     .width(itemWidth)
-                                    .height(200.dp),
+                                    .height(HERO_CARD_HEIGHT),
                                 showAuthboundBadge = heroCredential.isAuthboundIssued(),
-                                onClick = onCredentialClick
+                                onClick = { onCredentialClick(heroCredential.documentId) }
                             )
                         }
                     }
@@ -1329,15 +1496,13 @@ private fun HeroCredentialSection(
                     )
                 }
 
-                // Tap to share hint
-                Text(
-                    text = stringResource(R.string.home_hero_tap_to_share),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    textAlign = TextAlign.Center
+                val selectedHeroCredential = heroCredentials
+                    .getOrNull(selectedPage)
+                    ?: heroCredentials.first()
+                PresentIdBar(
+                    onClick = {
+                        onCredentialClick(selectedHeroCredential.documentId)
+                    }
                 )
             }
 
@@ -1391,6 +1556,77 @@ private fun HeroCredentialUi.isAuthboundIssued(): Boolean {
     return issuerName?.contains("authbound", ignoreCase = true) == true
 }
 
+/**
+ * Explicit share affordance under the hero card. QR and NFC marks communicate that both
+ * channels open together; tapping starts the same present flow as tapping the card itself.
+ */
+@Composable
+private fun PresentIdBar(onClick: () -> Unit) {
+    val view = LocalView.current
+    val presentIdLabel: String = stringResource(R.string.home_hero_present_id)
+    val methodsLabel: String = stringResource(R.string.home_hero_present_id_methods)
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = tween(durationMillis = 100),
+        label = "present_id_bar_scale"
+    )
+    val barShape = RoundedCornerShape(16.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = SPACING_SMALL.dp)
+            .scale(scale)
+            .clip(barShape)
+            .background(MaterialTheme.colorScheme.brandNavyMedium.copy(alpha = 0.30f))
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.glowAccent,
+                shape = barShape
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(bounded = true),
+                onClickLabel = presentIdLabel,
+                role = Role.Button
+            ) {
+                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                onClick()
+            }
+            .semantics {
+                contentDescription = "$presentIdLabel, $methodsLabel"
+            }
+            .heightIn(min = 52.dp)
+            .padding(horizontal = SPACING_MEDIUM.dp, vertical = SPACING_SMALL.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
+    ) {
+        WrapIcon(
+            iconData = AppIcons.QR,
+            customTint = MaterialTheme.colorScheme.tertiary,
+            modifier = Modifier.size(22.dp)
+        )
+        Text(
+            text = presentIdLabel,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.weight(1f))
+        Text(
+            text = methodsLabel,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f)
+        )
+        WrapIcon(
+            iconData = AppIcons.KeyboardArrowRight,
+            customTint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
 @Composable
 private fun EmptyHeroCard(
     onAddCredentialClick: () -> Unit
@@ -1419,7 +1655,7 @@ private fun EmptyHeroCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(200.dp)
+                .height(HERO_CARD_HEIGHT)
                 .scale(scale)
                 .clip(RoundedCornerShape(24.dp))
                 .clickable(

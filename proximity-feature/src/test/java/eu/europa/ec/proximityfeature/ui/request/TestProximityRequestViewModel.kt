@@ -24,9 +24,11 @@ import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertFalse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -36,6 +38,7 @@ import org.junit.Test
 import org.mockito.Mock
 import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.any
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -78,11 +81,30 @@ class TestProximityRequestViewModel {
         assertFalse(nextScreen.contains(CommonScreens.Biometric.screenName))
     }
 
-    private fun createViewModel(): ProximityRequestViewModel {
+    @Test
+    fun `Given selected document id, When doing work, Then interactor receives selected document id`() {
+        // Given
+        whenever(interactor.getRequestDocuments()).thenReturn(emptyFlow())
+        val viewModel: ProximityRequestViewModel = createViewModel(
+            presentingDocumentId = "selected-doc-id"
+        )
+
+        // When
+        viewModel.doWork()
+        testScope.advanceUntilIdle()
+
+        // Then
+        verify(interactor).setSelectedDocumentId("selected-doc-id")
+    }
+
+    private fun createViewModel(
+        presentingDocumentId: String? = null
+    ): ProximityRequestViewModel {
         return ProximityRequestViewModel(
             interactor = interactor,
             resourceProvider = resourceProvider,
-            presentationScopeId = "scope-id"
+            presentationScopeId = "scope-id",
+            presentingDocumentId = presentingDocumentId
         )
     }
 }
