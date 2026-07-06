@@ -43,8 +43,11 @@ import eu.europa.ec.eudi.openid4vci.SdJwtVcCredential
 import eu.europa.ec.eudi.wallet.EudiWallet
 import eu.europa.ec.eudi.wallet.EudiWalletConfig
 import eu.europa.ec.eudi.wallet.document.CreateDocumentSettings.CredentialPolicy
+import eu.europa.ec.eudi.wallet.document.DeferredDocument
 import eu.europa.ec.eudi.wallet.document.IssuedDocument
 import eu.europa.ec.eudi.wallet.document.format.SdJwtVcFormat
+import eu.europa.ec.eudi.wallet.document.metadata.IssuerMetadata
+import eu.europa.ec.eudi.wallet.issue.openid4vci.DeferredIssueResult
 import eu.europa.ec.eudi.wallet.issue.openid4vci.IssueEvent
 import eu.europa.ec.eudi.wallet.issue.openid4vci.Offer
 import eu.europa.ec.eudi.wallet.issue.openid4vci.OfferResult
@@ -203,14 +206,15 @@ class TestWalletCoreDocumentsControllerAuthboundIssuanceAuth {
         }
 
     @Test
-    fun `Given offer issuer is not configured, When issuance starts, Then default manager is used`() =
+    fun `Given offer issuer is not configured, When issuance starts, Then issuance fails without default manager`() =
         coroutineRule.runTest {
             val offer: Offer = authboundOffer(issuerUrl = UNCONFIGURED_ISSUER_URL)
+
             controller.issueDocumentsByOffer(offer).runFlowTest {
                 val result: IssueDocumentsPartialState = awaitItem()
-                assertTrue(result is IssueDocumentsPartialState.UserAuthRequired)
-                (result as IssueDocumentsPartialState.UserAuthRequired).resultHandler.onAuthenticationSuccess()
-                verify(manager).issueDocumentByOffer(
+
+                assertTrue(result is IssueDocumentsPartialState.Failure)
+                verify(manager, never()).issueDocumentByOffer(
                     offer = eq(offer),
                     txCode = anyOrNull(),
                     executor = anyOrNull(),
@@ -298,6 +302,72 @@ class TestWalletCoreDocumentsControllerAuthboundIssuanceAuth {
                     allowAuthorizationFallback = eq(false),
                     executor = anyOrNull(),
                     onIssueEvent = any()
+                )
+            }
+        }
+
+    @Test
+    fun `Given document is reissued for unknown issuer, When reissuance starts, Then manager is not used`() =
+        coroutineRule.runTest {
+            doAnswer { invocation ->
+                val listener: OpenId4VciManager.OnIssueEvent =
+                    invocation.getArgument<OpenId4VciManager.OnIssueEvent>(3)
+                listener.onResult(IssueEvent.Failure(RuntimeException("unexpected fallback")))
+                Unit
+            }.whenever(manager).reissueDocument(
+                documentId = eq(DOCUMENT_ID),
+                allowAuthorizationFallback = eq(false),
+                executor = anyOrNull(),
+                onIssueEvent = any()
+            )
+
+            controller.reIssueDocument(
+                documentId = DOCUMENT_ID,
+                issuerId = UNCONFIGURED_ISSUER_URL,
+                allowAuthorizationFallback = false
+            ).runFlowTest {
+                val result: IssueDocumentsPartialState = awaitItem()
+
+                assertTrue(result is IssueDocumentsPartialState.Failure)
+                verify(manager, never()).reissueDocument(
+                    documentId = eq(DOCUMENT_ID),
+                    allowAuthorizationFallback = eq(false),
+                    executor = anyOrNull(),
+                    onIssueEvent = any()
+                )
+            }
+        }
+
+    @Test
+    fun `Given deferred document has unknown issuer, When deferred issuance starts, Then manager is not used`() =
+        coroutineRule.runTest {
+            val deferredDocument: DeferredDocument = deferredDocument(issuerUrl = UNCONFIGURED_ISSUER_URL)
+            whenever(ownershipController.isDocumentOwnedByCurrentUser(DOCUMENT_ID)).thenReturn(true)
+            whenever(eudiWallet.getDocumentById(DOCUMENT_ID)).thenReturn(deferredDocument)
+            doAnswer { invocation ->
+                val listener: OpenId4VciManager.OnDeferredIssueResult =
+                    invocation.getArgument<OpenId4VciManager.OnDeferredIssueResult>(2)
+                listener.onResult(
+                    DeferredIssueResult.DocumentFailed(
+                        document = deferredDocument,
+                        cause = RuntimeException("unexpected fallback")
+                    )
+                )
+                Unit
+            }.whenever(manager).issueDeferredDocument(
+                deferredDocument = eq(deferredDocument),
+                executor = anyOrNull(),
+                onIssueResult = any()
+            )
+
+            controller.issueDeferredDocument(DOCUMENT_ID).runFlowTest {
+                val result: IssueDeferredDocumentPartialState = awaitItem()
+
+                assertTrue(result is IssueDeferredDocumentPartialState.Failed)
+                verify(manager, never()).issueDeferredDocument(
+                    deferredDocument = eq(deferredDocument),
+                    executor = anyOrNull(),
+                    onIssueResult = any()
                 )
             }
         }
@@ -475,6 +545,23 @@ class TestWalletCoreDocumentsControllerAuthboundIssuanceAuth {
             whenever(it.id).thenReturn(DOCUMENT_ID)
             whenever(it.name).thenReturn("Test document")
             whenever(it.format).thenReturn(SdJwtVcFormat("eu.europa.ec.eudi.pid.1"))
+        }
+    }
+
+    private fun deferredDocument(issuerUrl: String): DeferredDocument {
+        return mock<DeferredDocument> {
+            whenever(it.id).thenReturn(DOCUMENT_ID)
+            whenever(it.name).thenReturn("Deferred document")
+            whenever(it.format).thenReturn(SdJwtVcFormat("eu.europa.ec.eudi.pid.1"))
+            whenever(it.issuerMetadata).thenReturn(
+                IssuerMetadata(
+                    documentConfigurationIdentifier = "authbound-pid",
+                    display = emptyList(),
+                    claims = emptyList(),
+                    credentialIssuerIdentifier = issuerUrl,
+                    issuerDisplay = emptyList()
+                )
+            )
         }
     }
 

@@ -431,9 +431,9 @@ class WalletCoreDocumentsControllerImpl(
                 .toString()
 
             val managerEntry: Map.Entry<VciConfig, OpenId4VciManager>? =
-                getVciManagerEntry(issuerId = issuerId, useDefault = true)
+                getVciManagerEntry(issuerId = issuerId)
             if (managerEntry == null) {
-                logController.e(TAG) { "issueDocumentsByOffer: no VCI managers configured" }
+                logController.e(TAG) { "issueDocumentsByOffer: no configured manager for issuer" }
                 trySendBlocking(
                     IssueDocumentsPartialState.Failure(errorMessage = documentErrorMessage)
                 )
@@ -481,9 +481,9 @@ class WalletCoreDocumentsControllerImpl(
     ): Flow<IssueDocumentsPartialState> =
         callbackFlow {
             val managerEntry: Map.Entry<VciConfig, OpenId4VciManager>? =
-                getVciManagerEntry(issuerId = issuerId, useDefault = true)
+                getVciManagerEntry(issuerId = issuerId)
             if (managerEntry == null) {
-                logController.e(TAG) { "reIssueDocument: no VCI managers configured" }
+                logController.e(TAG) { "reIssueDocument: no configured manager for issuer" }
                 trySendBlocking(IssueDocumentsPartialState.Failure(errorMessage = documentErrorMessage))
                 close()
                 return@callbackFlow
@@ -624,59 +624,64 @@ class WalletCoreDocumentsControllerImpl(
 
     override fun issueDeferredDocument(docId: DocumentId): Flow<IssueDeferredDocumentPartialState> =
         callbackFlow {
-            (getDocumentById(docId) as? DeferredDocument)?.let { deferredDoc ->
+            val deferredDoc: DeferredDocument? = getDocumentById(docId) as? DeferredDocument
+            if (deferredDoc == null) {
+                trySendBlocking(
+                    IssueDeferredDocumentPartialState.Failed(
+                        documentId = docId,
+                        errorMessage = documentErrorMessage
+                    )
+                )
+                close()
+                return@callbackFlow
+            }
 
-                val manager = deferredDoc.issuerMetadata?.credentialIssuerIdentifier
-                    ?.let { id ->
-                        getVciManagerEntry(issuerId = id, useDefault = true)?.value
-                    }
-                    ?: openId4VciManagers.values.firstOrNull()
+            val manager = deferredDoc.issuerMetadata?.credentialIssuerIdentifier
+                ?.let { id ->
+                    getVciManagerEntry(issuerId = id)?.value
+                }
+            if (manager == null) {
+                logController.e(TAG) { "issueDeferredDocument: no configured manager for issuer" }
+                trySendBlocking(
+                    IssueDeferredDocumentPartialState.Failed(
+                        documentId = docId,
+                        errorMessage = documentErrorMessage
+                    )
+                )
+                close()
+                return@callbackFlow
+            }
 
-                require(manager != null) { documentErrorMessage }
-
-                manager.issueDeferredDocument(
-                    deferredDocument = deferredDoc,
-                    executor = null,
-                    onIssueResult = { deferredIssuanceResult ->
-                        when (deferredIssuanceResult) {
-                            is DeferredIssueResult.DocumentFailed -> {
-                                trySendBlocking(
-                                    IssueDeferredDocumentPartialState.Failed(
-                                        documentId = deferredIssuanceResult.documentId,
-                                        errorMessage = deferredIssuanceResult.cause.localizedMessage
-                                            ?: documentErrorMessage
-                                    )
+            manager.issueDeferredDocument(
+                deferredDocument = deferredDoc,
+                executor = null,
+                onIssueResult = { deferredIssuanceResult ->
+                    when (deferredIssuanceResult) {
+                        is DeferredIssueResult.DocumentFailed -> {
+                            trySendBlocking(
+                                IssueDeferredDocumentPartialState.Failed(
+                                    documentId = deferredIssuanceResult.documentId,
+                                    errorMessage = deferredIssuanceResult.cause.localizedMessage
+                                        ?: documentErrorMessage
                                 )
-                            }
+                            )
+                        }
 
-                            is DeferredIssueResult.DocumentIssued -> {
-                                launch {
-                                    val isBound: Boolean =
-                                        bindDocumentToCurrentUser(deferredIssuanceResult.documentId)
-                                    if (!isBound) {
-                                        trySendBlocking(
-                                            IssueDeferredDocumentPartialState.Failed(
-                                                documentId = deferredIssuanceResult.documentId,
-                                                errorMessage = documentErrorMessage
-                                            )
-                                        )
-                                        return@launch
-                                    }
+                        is DeferredIssueResult.DocumentIssued -> {
+                            launch {
+                                val isBound: Boolean =
+                                    bindDocumentToCurrentUser(deferredIssuanceResult.documentId)
+                                if (!isBound) {
                                     trySendBlocking(
-                                        IssueDeferredDocumentPartialState.Issued(
-                                            DeferredDocumentDataDomain(
-                                                documentId = deferredIssuanceResult.documentId,
-                                                formatType = deferredIssuanceResult.docType,
-                                                docName = deferredIssuanceResult.name
-                                            )
+                                        IssueDeferredDocumentPartialState.Failed(
+                                            documentId = deferredIssuanceResult.documentId,
+                                            errorMessage = documentErrorMessage
                                         )
                                     )
+                                    return@launch
                                 }
-                            }
-
-                            is DeferredIssueResult.DocumentNotReady -> {
                                 trySendBlocking(
-                                    IssueDeferredDocumentPartialState.NotReady(
+                                    IssueDeferredDocumentPartialState.Issued(
                                         DeferredDocumentDataDomain(
                                             documentId = deferredIssuanceResult.documentId,
                                             formatType = deferredIssuanceResult.docType,
@@ -685,22 +690,29 @@ class WalletCoreDocumentsControllerImpl(
                                     )
                                 )
                             }
+                        }
 
-                            is DeferredIssueResult.DocumentExpired -> {
-                                trySendBlocking(
-                                    IssueDeferredDocumentPartialState.Expired(
-                                        documentId = deferredIssuanceResult.documentId
+                        is DeferredIssueResult.DocumentNotReady -> {
+                            trySendBlocking(
+                                IssueDeferredDocumentPartialState.NotReady(
+                                    DeferredDocumentDataDomain(
+                                        documentId = deferredIssuanceResult.documentId,
+                                        formatType = deferredIssuanceResult.docType,
+                                        docName = deferredIssuanceResult.name
                                     )
                                 )
-                            }
+                            )
+                        }
+
+                        is DeferredIssueResult.DocumentExpired -> {
+                            trySendBlocking(
+                                IssueDeferredDocumentPartialState.Expired(
+                                    documentId = deferredIssuanceResult.documentId
+                                )
+                            )
                         }
                     }
-                )
-            } ?: trySendBlocking(
-                IssueDeferredDocumentPartialState.Failed(
-                    documentId = docId,
-                    errorMessage = documentErrorMessage
-                )
+                }
             )
 
             awaitClose()
@@ -817,7 +829,7 @@ class WalletCoreDocumentsControllerImpl(
         callbackFlow {
 
             val managerEntry: Map.Entry<VciConfig, OpenId4VciManager>? =
-                getVciManagerEntry(issuerId = issuerId, useDefault = false)
+                getVciManagerEntry(issuerId = issuerId)
             require(managerEntry != null) { documentErrorMessage }
             val manager: OpenId4VciManager = managerEntry.value
             val allowWuaProofAuthenticationRetry: Boolean =
@@ -1098,15 +1110,14 @@ class WalletCoreDocumentsControllerImpl(
     }
 
     private fun getVciManagerEntry(
-        issuerId: String?,
-        useDefault: Boolean
+        issuerId: String?
     ): Map.Entry<VciConfig, OpenId4VciManager>? {
         val configuredEntry: Map.Entry<VciConfig, OpenId4VciManager>? = issuerId?.let { id ->
             openId4VciManagers.entries.firstOrNull { (vciConfig, _) ->
                 vciConfig.config.issuerUrl == id
             }
         }
-        return configuredEntry ?: if (useDefault) openId4VciManagers.entries.firstOrNull() else null
+        return configuredEntry
     }
 
     private fun getVciManagerEntriesForOffer(
