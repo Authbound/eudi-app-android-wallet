@@ -16,6 +16,8 @@
 
 package eu.europa.ec.proximityfeature.ui.qr
 
+import android.Manifest
+import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -79,6 +81,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import eu.europa.ec.proximityfeature.interactor.ProximityPresentingDocumentUi
 import eu.europa.ec.uilogic.component.qr.rememberQrBitmapPainter
 import eu.europa.ec.resourceslogic.R
@@ -116,6 +120,7 @@ fun ProximityQRScreen(
 ) {
     val state: State by viewModel.viewState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val hasBlePermissions = rememberBlePermissionsGranted()
 
     ContentScreen(
         isLoading = state.isLoading,
@@ -146,33 +151,61 @@ fun ProximityQRScreen(
         )
     }
 
-    OneTimeLaunchedEffect {
-        viewModel.setEvent(Event.Init)
+    if (hasBlePermissions) {
+        OneTimeLaunchedEffect {
+            viewModel.setEvent(Event.Init)
+        }
     }
 
     LifecycleEffect(
         lifecycleOwner = LocalLifecycleOwner.current,
         lifecycleEvent = Lifecycle.Event.ON_RESUME
     ) {
-        viewModel.setEvent(
-            Event.NfcEngagement(
-                componentActivity = context as ComponentActivity,
-                enable = true
+        if (hasBlePermissions) {
+            viewModel.setEvent(
+                Event.NfcEngagement(
+                    componentActivity = context as ComponentActivity,
+                    enable = true
+                )
             )
-        )
+        }
     }
 
     LifecycleEffect(
         lifecycleOwner = LocalLifecycleOwner.current,
         lifecycleEvent = Lifecycle.Event.ON_PAUSE
     ) {
-        viewModel.setEvent(
-            Event.NfcEngagement(
-                componentActivity = context as ComponentActivity,
-                enable = false
+        if (hasBlePermissions) {
+            viewModel.setEvent(
+                Event.NfcEngagement(
+                    componentActivity = context as ComponentActivity,
+                    enable = false
+                )
             )
-        )
+        }
     }
+}
+
+@OptIn(ExperimentalPermissionsApi::class)
+@Composable
+private fun rememberBlePermissionsGranted(): Boolean {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
+
+    val permissionsState = rememberMultiplePermissionsState(
+        permissions = listOf(
+            Manifest.permission.BLUETOOTH_ADVERTISE,
+            Manifest.permission.BLUETOOTH_SCAN,
+            Manifest.permission.BLUETOOTH_CONNECT
+        )
+    )
+
+    LaunchedEffect(permissionsState.allPermissionsGranted) {
+        if (!permissionsState.allPermissionsGranted) {
+            permissionsState.launchMultiplePermissionRequest()
+        }
+    }
+
+    return permissionsState.allPermissionsGranted
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

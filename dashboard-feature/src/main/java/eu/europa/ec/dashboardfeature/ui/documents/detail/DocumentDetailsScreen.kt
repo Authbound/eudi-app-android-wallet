@@ -56,8 +56,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import eu.europa.ec.commonfeature.util.DocumentJsonKeys
 import eu.europa.ec.corelogic.model.DocumentIdentifier
 import eu.europa.ec.corelogic.util.CoreActions
+import eu.europa.ec.dashboardfeature.ui.common.resolveCredentialVisualType
 import eu.europa.ec.dashboardfeature.ui.documents.detail.model.DocumentDetailsUi
 import eu.europa.ec.dashboardfeature.ui.documents.detail.model.DocumentIssuanceStateUi
 import eu.europa.ec.dashboardfeature.ui.documents.model.DocumentCredentialsInfoUi
@@ -88,10 +90,14 @@ import eu.europa.ec.uilogic.component.utils.VSpacer
 import eu.europa.ec.uilogic.component.wrap.BottomSheetTextDataUi
 import eu.europa.ec.uilogic.component.wrap.ButtonConfig
 import eu.europa.ec.uilogic.component.wrap.ButtonType
+import eu.europa.ec.uilogic.component.wrap.CredentialCardLayout
+import eu.europa.ec.uilogic.component.wrap.CredentialStatus
 import eu.europa.ec.uilogic.component.wrap.DialogBottomSheet
 import eu.europa.ec.uilogic.component.wrap.ExpandableListItemUi
 import eu.europa.ec.uilogic.component.wrap.SimpleBottomSheet
 import eu.europa.ec.uilogic.component.wrap.TextConfig
+import eu.europa.ec.uilogic.component.wrap.VisualCredentialCard
+import eu.europa.ec.uilogic.component.wrap.VisualCredentialConfig
 import eu.europa.ec.uilogic.component.wrap.WrapButton
 import eu.europa.ec.uilogic.component.wrap.WrapCard
 import eu.europa.ec.uilogic.component.wrap.WrapListItems
@@ -312,6 +318,16 @@ private fun Content(
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState()),
             ) {
+                DocumentHero(
+                    modifier = Modifier.fillMaxWidth(),
+                    documentDetailsUi = safeDocumentDetailsUi,
+                    issuerName = state.issuerName,
+                    hideSensitiveContent = state.hideSensitiveContent,
+                    isRevoked = state.isRevoked,
+                    onEventSend = onEventSend
+                )
+                VSpacer.ExtraLarge()
+
                 state.documentCredentialsInfoUi?.let { safeDocumentCredentialsInfo ->
                     ExpandableDocumentCredentialsSection(
                         modifier = Modifier
@@ -641,6 +657,53 @@ private fun CollapsedDocumentCredentials(
 }
 
 @Composable
+private fun DocumentHero(
+    modifier: Modifier = Modifier,
+    documentDetailsUi: DocumentDetailsUi,
+    issuerName: String?,
+    hideSensitiveContent: Boolean,
+    isRevoked: Boolean,
+    onEventSend: (Event) -> Unit,
+) {
+    val canPresentId = !isRevoked &&
+            documentDetailsUi.documentIssuanceStateUi == DocumentIssuanceStateUi.Issued
+
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp)
+    ) {
+        VisualCredentialCard(
+            modifier = Modifier.fillMaxWidth(),
+            config = documentDetailsUi.toVisualCredentialConfig(
+                issuerName = issuerName,
+                hideSensitiveContent = hideSensitiveContent,
+                isRevoked = isRevoked
+            ),
+            enableAnimations = false,
+            showAuthboundBadge = issuerName?.contains("authbound", ignoreCase = true) == true,
+            onClick = null
+        )
+
+        if (canPresentId) {
+            WrapButton(
+                modifier = Modifier.fillMaxWidth(),
+                buttonConfig = ButtonConfig(
+                    type = ButtonType.PRIMARY,
+                    onClick = { onEventSend(Event.PresentIdPressed) },
+                )
+            ) {
+                Text(
+                    text = "${stringResource(R.string.home_hero_present_id)} - ${
+                        stringResource(R.string.home_hero_present_id_methods)
+                    }",
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun DocumentDetails(
     modifier: Modifier = Modifier,
     onEventSend: (Event) -> Unit,
@@ -697,6 +760,88 @@ private fun ButtonsSection(onEventSend: (Event) -> Unit) {
         }
     }
 }
+
+private fun DocumentDetailsUi.toVisualCredentialConfig(
+    issuerName: String?,
+    hideSensitiveContent: Boolean,
+    isRevoked: Boolean
+): VisualCredentialConfig {
+    val firstName = claimText(DocumentJsonKeys.FIRST_NAME)
+    val lastName = claimText(DocumentJsonKeys.LAST_NAME)
+    val holderName = listOf(firstName, lastName)
+        .filterNot { it.isNullOrBlank() }
+        .joinToString(" ")
+        .takeIf { it.isNotBlank() }
+    val portraitBase64 = claimImage(DocumentJsonKeys.PORTRAIT)
+        ?: claimImage(DocumentJsonKeys.PICTURE)
+    val nationality = claimText(DocumentJsonKeys.NATIONALITY)
+        ?: claimText(DocumentJsonKeys.NATIONALITIES)
+        ?: claimText(DocumentJsonKeys.ISSUING_COUNTRY)
+
+    return VisualCredentialConfig(
+        id = documentId,
+        visualType = resolveCredentialVisualType(
+            documentIdentifier = documentIdentifier,
+            issuerName = issuerName
+        ),
+        title = documentName,
+        subtitle = null,
+        holderName = holderName.takeUnless { hideSensitiveContent },
+        issuerName = issuerName,
+        primaryField = null,
+        secondaryField = null,
+        status = if (isRevoked) CredentialStatus.REVOKED else documentIssuanceStateUi.toCredentialStatus(),
+        expiryDate = claimText(DocumentJsonKeys.EXPIRY_DATE).takeUnless { hideSensitiveContent },
+        hasPhoto = !hideSensitiveContent && !portraitBase64.isNullOrBlank(),
+        portraitBase64 = portraitBase64.takeUnless { hideSensitiveContent },
+        nationality = nationality.takeUnless { hideSensitiveContent },
+        layout = CredentialCardLayout.PASSPORT
+    )
+}
+
+private fun DocumentIssuanceStateUi.toCredentialStatus(): CredentialStatus =
+    when (this) {
+        DocumentIssuanceStateUi.Issued -> CredentialStatus.ISSUED
+        DocumentIssuanceStateUi.Pending -> CredentialStatus.PENDING
+        DocumentIssuanceStateUi.Failed,
+        DocumentIssuanceStateUi.Revoked -> CredentialStatus.REVOKED
+        DocumentIssuanceStateUi.Expired -> CredentialStatus.EXPIRED
+    }
+
+private fun DocumentDetailsUi.claimText(key: String): String? =
+    documentClaims.claimHeader(key)?.textValue()
+
+private fun DocumentDetailsUi.claimImage(key: String): String? =
+    documentClaims.claimHeader(key)?.imageValue()
+
+private fun List<ExpandableListItemUi>.claimHeader(key: String): ListItemDataUi? =
+    firstNotNullOfOrNull { item -> item.claimHeader(key) }
+
+private fun ExpandableListItemUi.claimHeader(key: String): ListItemDataUi? {
+    header.takeIf { it.matchesClaimKey(key) }?.let { return it }
+    return when (this) {
+        is ExpandableListItemUi.NestedListItem -> nestedItems.claimHeader(key)
+        is ExpandableListItemUi.SingleListItem -> null
+    }
+}
+
+private fun ListItemDataUi.matchesClaimKey(key: String): Boolean {
+    val pathKey = itemId.substringAfterLast(",")
+    return pathKey.equals(key, ignoreCase = true) ||
+            overlineText?.equals(key, ignoreCase = true) == true
+}
+
+private fun ListItemDataUi.textValue(): String? =
+    when (val content = mainContentData) {
+        is ListItemMainContentDataUi.Text -> content.text.takeIf { it.isNotBlank() }
+        is ListItemMainContentDataUi.Image -> content.base64Image.takeIf { it.isNotBlank() }
+    }
+
+private fun ListItemDataUi.imageValue(): String? =
+    when (val leading = leadingContentData) {
+        is ListItemLeadingContentDataUi.UserImage -> leading.userBase64Image.takeIf { it.isNotBlank() }
+        else -> textValue()
+    }
 
 private const val SHARED_BOUNDS_KEY = "bounds"
 

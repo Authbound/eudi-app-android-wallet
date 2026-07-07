@@ -381,6 +381,9 @@ private fun Content(
                 onCredentialClick = { documentId ->
                     onEventSent(Event.HeroCredentialPressed(documentId))
                 },
+                onPresentIdClick = { documentId ->
+                    onEventSent(Event.PresentIdPressed(documentId))
+                },
                 onAddCredentialClick = {
                     onEventSent(Event.AddCredentialPressed)
                 }
@@ -1460,6 +1463,7 @@ private fun HeroCredentialSection(
     heroCredentials: List<HeroCredentialUi>,
     isLoading: Boolean,
     onCredentialClick: (DocumentId) -> Unit,
+    onPresentIdClick: (DocumentId) -> Unit,
     onAddCredentialClick: () -> Unit,
 ) {
     Column(
@@ -1530,7 +1534,7 @@ private fun HeroCredentialSection(
                     ?: heroCredentials.first()
                 PresentIdBar(
                     onClick = {
-                        onCredentialClick(selectedHeroCredential.documentId)
+                        onPresentIdClick(selectedHeroCredential.documentId)
                     }
                 )
             }
@@ -1587,7 +1591,7 @@ private fun HeroCredentialUi.isAuthboundIssued(): Boolean {
 
 /**
  * Explicit share affordance under the hero card. QR and NFC marks communicate that both
- * channels open together; tapping starts the same present flow as tapping the card itself.
+ * channels open together; tapping starts the present flow for the selected hero credential.
  */
 @Composable
 private fun PresentIdBar(onClick: () -> Unit) {

@@ -16,6 +16,8 @@
 
 package eu.europa.ec.dashboardfeature.ui.documents.detail
 
+import eu.europa.ec.commonfeature.config.RequestUriConfig
+import eu.europa.ec.commonfeature.config.PresentationMode
 import eu.europa.ec.dashboardfeature.interactor.DocumentDetailsInteractor
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.testlogic.extension.runFlowTest
@@ -32,12 +34,15 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.Mock
 import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -111,6 +116,29 @@ class TestDocumentDetailsViewModel {
                 assertEquals(Effect.Navigation.Pop, awaitItem())
             }
             verify(interactor, never()).getDocumentDetails(DOCUMENT_ID)
+        }
+
+    @Test
+    fun `Given present id is pressed, When event is handled, Then proximity QR opens for current document`() =
+        coroutineRule.runTest {
+            val configCaptor = argumentCaptor<RequestUriConfig>()
+            whenever(
+                uiSerializer.toBase64(
+                    model = configCaptor.capture(),
+                    parser = eq(RequestUriConfig.Parser)
+                )
+            ).thenReturn("present-id-config")
+
+            viewModel.effect.runFlowTest {
+                viewModel.handleEvents(Event.PresentIdPressed)
+                testScope.advanceUntilIdle()
+
+                val effect = awaitItem() as Effect.Navigation.SwitchScreen
+                assertTrue(effect.screenRoute.contains("PROXIMITY_QR"))
+                assertTrue(effect.screenRoute.contains("requestUriConfig=present-id-config"))
+                assertEquals(DOCUMENT_ID, configCaptor.firstValue.presentingDocumentId)
+                assertTrue(configCaptor.firstValue.mode is PresentationMode.Ble)
+            }
         }
 
     private companion object {

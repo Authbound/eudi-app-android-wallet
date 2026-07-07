@@ -104,6 +104,7 @@ sealed class Event : ViewEvent {
     data object StartProximityFlow : Event()
     data object GetCredentials : Event()
     data class HeroCredentialPressed(val documentId: DocumentId) : Event()
+    data class PresentIdPressed(val documentId: DocumentId) : Event()
     data object QrScanPressed : Event()
     data class PresentIdNfcEngagement(
         val componentActivity: ComponentActivity,
@@ -440,6 +441,10 @@ class HomeViewModel(
 
             is Event.HeroCredentialPressed -> {
                 handleHeroCredentialPressed(event.documentId)
+            }
+
+            is Event.PresentIdPressed -> {
+                handlePresentIdPressed(event.documentId)
             }
 
             is Event.QrScanPressed -> {
@@ -891,8 +896,15 @@ class HomeViewModel(
         }
         if (!isKnownHeroCredential) return
 
-        // Check Bluetooth permissions before navigating to proximity screen
-        // This triggers the permission request flow if needed
+        navigateToDocumentDetails(documentId)
+    }
+
+    private fun handlePresentIdPressed(documentId: DocumentId) {
+        val isKnownHeroCredential = viewState.value.heroCredentials.any { heroCredential ->
+            heroCredential.documentId == documentId
+        }
+        if (!isKnownHeroCredential) return
+
         setState { copy(selectedHeroCredentialDocumentId = documentId) }
         checkIfBluetoothIsEnabled()
     }

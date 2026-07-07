@@ -117,6 +117,11 @@
 -keep interface eu.europa.ec.corelogic.config.WalletCoreConfig
 -keepclassmembers class * implements eu.europa.ec.corelogic.config.WalletCoreConfig { *; }
 
+# EUDI wallet document-manager persists CredentialPolicy by Java class name in
+# document metadata. Keep these names stable across release builds.
+-keep class eu.europa.ec.eudi.wallet.document.CreateDocumentSettings$CredentialPolicy { *; }
+-keep class eu.europa.ec.eudi.wallet.document.CreateDocumentSettings$CredentialPolicy$* { *; }
+
 # Bouncycastle
 -keep class org.bouncycastle.** { *; }
 -keep class org.bouncycastle.jce.provider.BouncyCastleProvider { *; }

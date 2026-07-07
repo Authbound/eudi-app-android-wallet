@@ -219,7 +219,7 @@ fun VisualCredentialCard(
         animationDelay: Int = 0,
         enableAnimations: Boolean = true,
         showAuthboundBadge: Boolean = false,
-        onClick: () -> Unit = {}
+        onClick: (() -> Unit)? = {}
 ) {
         val view = LocalView.current
         val interactionSource = remember { MutableInteractionSource() }
@@ -250,14 +250,20 @@ fun VisualCredentialCard(
                                                 shape = cardShape
                                         )
                                         .scale(scale)
-                                        .clickable(
-                                                interactionSource = interactionSource,
-                                                indication = ripple(bounded = true),
-                                                onClick = {
-                                                        view.performHapticFeedback(
-                                                                HapticFeedbackConstants.VIRTUAL_KEY
+                                        .then(
+                                                if (onClick != null) {
+                                                        Modifier.clickable(
+                                                                interactionSource = interactionSource,
+                                                                indication = ripple(bounded = true),
+                                                                onClick = {
+                                                                        view.performHapticFeedback(
+                                                                                HapticFeedbackConstants.VIRTUAL_KEY
+                                                                        )
+                                                                        onClick()
+                                                                }
                                                         )
-                                                        onClick()
+                                                } else {
+                                                        Modifier
                                                 }
                                         ),
                         shape = cardShape,

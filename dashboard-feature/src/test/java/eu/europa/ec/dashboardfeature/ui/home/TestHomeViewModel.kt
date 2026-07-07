@@ -387,7 +387,41 @@ class TestHomeViewModel {
         }
 
     @Test
-    fun `Given hero credential is pressed, When proximity flow starts, Then present id sheet opens with selected document`() =
+    fun `Given hero credential is pressed, When credential is known, Then document details opens`() =
+        coroutineRule.runTest {
+            val selectedDocumentId = "hero-document-id"
+            val heroCredentials = listOf(createHeroCredential(selectedDocumentId))
+            whenever(homeInteractor.getCredentials()).thenReturn(
+                flow {
+                    emit(HomeInteractorGetCredentialsPartialState.Success(emptyList()))
+                }
+            )
+            whenever(homeInteractor.getHeroCredential()).thenReturn(
+                flow {
+                    emit(HomeInteractorGetHeroCredentialPartialState.Success(heroCredentials))
+                }
+            )
+            val viewModel = createViewModel()
+            val effects: MutableList<Effect> = mutableListOf()
+            val collectJob = launch {
+                viewModel.effect.toList(effects)
+            }
+            viewModel.setEvent(Event.GetCredentials)
+            testScope.advanceUntilIdle()
+
+            viewModel.setEvent(Event.HeroCredentialPressed(selectedDocumentId))
+            testScope.advanceUntilIdle()
+
+            val navigationEffect = effects.filterIsInstance<Effect.Navigation.SwitchScreen>().last()
+            assertTrue(navigationEffect.screenRoute.contains("DOCUMENT_DETAILS"))
+            assertTrue(navigationEffect.screenRoute.contains("documentId=$selectedDocumentId"))
+            assertFalse(viewModel.viewState.value.isBottomSheetOpen)
+            verify(homeInteractor, never()).setPresentIdConfig(any())
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `Given present id is pressed, When proximity flow starts, Then present id sheet opens with selected document`() =
         coroutineRule.runTest {
             val selectedDocumentId = "hero-document-id"
             val heroCredentials = listOf(createHeroCredential(selectedDocumentId))
@@ -407,7 +441,7 @@ class TestHomeViewModel {
             viewModel.setEvent(Event.GetCredentials)
             testScope.advanceUntilIdle()
 
-            viewModel.setEvent(Event.HeroCredentialPressed(selectedDocumentId))
+            viewModel.setEvent(Event.PresentIdPressed(selectedDocumentId))
             testScope.advanceUntilIdle()
             assertEquals(selectedDocumentId, viewModel.viewState.value.selectedHeroCredentialDocumentId)
             viewModel.setEvent(Event.StartProximityFlow)
@@ -436,7 +470,7 @@ class TestHomeViewModel {
                 presentIdEvents = presentIdEvents
             )
 
-            viewModel.setEvent(Event.HeroCredentialPressed(selectedDocumentId))
+            viewModel.setEvent(Event.PresentIdPressed(selectedDocumentId))
             testScope.advanceUntilIdle()
             viewModel.setEvent(Event.StartProximityFlow)
             testScope.advanceUntilIdle()
@@ -456,7 +490,7 @@ class TestHomeViewModel {
                 presentIdEvents = presentIdEvents
             )
 
-            viewModel.setEvent(Event.HeroCredentialPressed(selectedDocumentId))
+            viewModel.setEvent(Event.PresentIdPressed(selectedDocumentId))
             testScope.advanceUntilIdle()
             viewModel.setEvent(Event.StartProximityFlow)
             testScope.advanceUntilIdle()
@@ -482,7 +516,7 @@ class TestHomeViewModel {
                 viewModel.effect.toList(effects)
             }
 
-            viewModel.setEvent(Event.HeroCredentialPressed(selectedDocumentId))
+            viewModel.setEvent(Event.PresentIdPressed(selectedDocumentId))
             testScope.advanceUntilIdle()
             viewModel.setEvent(Event.StartProximityFlow)
             testScope.advanceUntilIdle()
@@ -512,7 +546,7 @@ class TestHomeViewModel {
                 presentIdEvents = presentIdEvents
             )
 
-            viewModel.setEvent(Event.HeroCredentialPressed(selectedDocumentId))
+            viewModel.setEvent(Event.PresentIdPressed(selectedDocumentId))
             testScope.advanceUntilIdle()
             viewModel.setEvent(Event.StartProximityFlow)
             testScope.advanceUntilIdle()
@@ -537,7 +571,7 @@ class TestHomeViewModel {
                 presentIdEvents = presentIdEvents
             )
 
-            viewModel.setEvent(Event.HeroCredentialPressed(selectedDocumentId))
+            viewModel.setEvent(Event.PresentIdPressed(selectedDocumentId))
             testScope.advanceUntilIdle()
             viewModel.setEvent(Event.StartProximityFlow)
             testScope.advanceUntilIdle()

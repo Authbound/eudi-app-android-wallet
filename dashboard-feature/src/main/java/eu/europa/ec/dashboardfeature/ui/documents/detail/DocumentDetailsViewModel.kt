@@ -19,6 +19,8 @@ package eu.europa.ec.dashboardfeature.ui.documents.detail
 import androidx.lifecycle.viewModelScope
 import eu.europa.ec.commonfeature.config.IssuanceFlowType
 import eu.europa.ec.commonfeature.config.IssuanceUiConfig
+import eu.europa.ec.commonfeature.config.PresentationMode
+import eu.europa.ec.commonfeature.config.RequestUriConfig
 import eu.europa.ec.corelogic.model.FormatType
 import eu.europa.ec.dashboardfeature.interactor.DocumentDetailsInteractor
 import eu.europa.ec.dashboardfeature.interactor.DocumentDetailsInteractorDeleteBookmarkPartialState
@@ -41,6 +43,7 @@ import eu.europa.ec.uilogic.mvi.ViewSideEffect
 import eu.europa.ec.uilogic.mvi.ViewState
 import eu.europa.ec.uilogic.navigation.DashboardScreens
 import eu.europa.ec.uilogic.navigation.IssuanceScreens
+import eu.europa.ec.uilogic.navigation.ProximityScreens
 import eu.europa.ec.uilogic.navigation.StartupScreens
 import eu.europa.ec.uilogic.navigation.helper.generateComposableArguments
 import eu.europa.ec.uilogic.navigation.helper.generateComposableNavigationLink
@@ -97,6 +100,7 @@ sealed class Event : ViewEvent {
     data class OnReIssuanceFailureStatusChanged(val failedStatusChangedIds: List<String>) : Event()
     data object ToggleExpansionStateOfDocumentCredentialsSection : Event()
     data object DocumentCredentialsSectionPrimaryButtonPressed : Event()
+    data object PresentIdPressed : Event()
 }
 
 sealed class Effect : ViewSideEffect {
@@ -242,6 +246,8 @@ class DocumentDetailsViewModel(
                     goToAddDocumentScreen(documentFormatType = safeDocumentDetailsUi.documentIdentifier.formatType)
                 }
             }
+
+            is Event.PresentIdPressed -> goToPresentId()
         }
     }
 
@@ -483,6 +489,31 @@ class DocumentDetailsViewModel(
         setEffect {
             Effect.Navigation.SwitchScreen(
                 screenRoute = addDocumentScreenRoute,
+                popUpToScreenRoute = null,
+                inclusive = null
+            )
+        }
+    }
+
+    private fun goToPresentId() {
+        val presentIdScreenRoute = generateComposableNavigationLink(
+            screen = ProximityScreens.QR,
+            arguments = generateComposableArguments(
+                mapOf(
+                    RequestUriConfig.serializedKeyName to uiSerializer.toBase64(
+                        model = RequestUriConfig(
+                            mode = PresentationMode.Ble(DashboardScreens.Dashboard.screenRoute),
+                            presentingDocumentId = documentId
+                        ),
+                        parser = RequestUriConfig.Parser
+                    )
+                )
+            )
+        )
+
+        setEffect {
+            Effect.Navigation.SwitchScreen(
+                screenRoute = presentIdScreenRoute,
                 popUpToScreenRoute = null,
                 inclusive = null
             )
