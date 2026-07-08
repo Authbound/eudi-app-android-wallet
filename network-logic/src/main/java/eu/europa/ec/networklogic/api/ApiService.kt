@@ -252,7 +252,8 @@ class KtorApiClient(
 
     override suspend fun getAttestationChallenge(bearerToken: String): ApiResponse<AttestationChallengeResponse> {
         return executeRequest {
-            httpClient.get("$baseUrl/api/mobile/wallet-activation/challenge") {
+            httpClient.get("$baseUrl/v1/mobile/wallet-activation/challenge") {
+                authboundMobileContractHeaders()
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
             }
         }
@@ -263,8 +264,9 @@ class KtorApiClient(
         bearerToken: String
     ): ApiResponse<WalletActivationResponse> {
         return executeRequest {
-            httpClient.post("$baseUrl/api/mobile/wallet-activation") {
+            httpClient.post("$baseUrl/v1/mobile/wallet-activation") {
                 contentType(ContentType.Application.Json)
+                authboundMobileContractHeaders()
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
                 setBody(body)
             }
@@ -273,7 +275,8 @@ class KtorApiClient(
 
     override suspend fun deleteWalletActivation(bearerToken: String): ApiResponse<Unit> {
         return executeUnitRequest {
-            httpClient.delete("$baseUrl/api/mobile/profile") {
+            httpClient.delete("$baseUrl/v1/mobile/profile") {
+                authboundMobileContractHeaders()
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
             }
         }
@@ -284,8 +287,9 @@ class KtorApiClient(
         bearerToken: String
     ): ApiResponse<Unit> {
         return executeUnitRequest {
-            httpClient.post("$baseUrl/api/mobile/wallet-security/incidents") {
+            httpClient.post("$baseUrl/v1/mobile/wallet-security/incidents") {
                 contentType(ContentType.Application.Json)
+                authboundMobileContractHeaders()
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
                 setBody(body)
             }
@@ -297,8 +301,9 @@ class KtorApiClient(
         bearerToken: String
     ): ApiResponse<WalletRecoveryPrepareResponse> {
         return executeRequest {
-            httpClient.post("$baseUrl/api/mobile/wallet-recovery/prepare") {
+            httpClient.post("$baseUrl/v1/mobile/wallet-recovery/prepare") {
                 contentType(ContentType.Application.Json)
+                authboundMobileContractHeaders()
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
                 setBody(body)
             }
@@ -314,8 +319,9 @@ class KtorApiClient(
         bearerToken: String
     ): ApiResponse<Unit> {
         return executeUnitRequest {
-            httpClient.post("$baseUrl/api/profiles/complete") {
+            httpClient.post("$baseUrl/v1/mobile/profiles/complete") {
                 contentType(ContentType.Application.Json)
+                authboundMobileContractHeaders()
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
                 setBody(body)
             }
@@ -326,10 +332,11 @@ class KtorApiClient(
         handle: String,
         bearerToken: String
     ): ApiResponse<CheckHandleResponse> {
-        val url = "$baseUrl/api/profiles/check?handle=$handle"
+        val url = "$baseUrl/v1/mobile/profiles/check?handle=$handle"
         android.util.Log.d(TAG, "checkHandleAvailability: GET $url")
         return executeRequest {
-            httpClient.get("$baseUrl/api/profiles/check") {
+            httpClient.get("$baseUrl/v1/mobile/profiles/check") {
+                authboundMobileContractHeaders()
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
                 parameter("handle", handle)
             }
@@ -338,7 +345,8 @@ class KtorApiClient(
 
     override suspend fun getMyProfile(bearerToken: String): ApiResponse<ProfileResponse> {
         return executeRequest {
-            httpClient.get("$baseUrl/api/profiles/me") {
+            httpClient.get("$baseUrl/v1/mobile/profiles/me") {
+                authboundMobileContractHeaders()
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
             }
         }
@@ -349,8 +357,9 @@ class KtorApiClient(
         bearerToken: String
     ): ApiResponse<LegalAcceptanceEnvelopeResponse> {
         return executeRequest {
-            httpClient.post("$baseUrl/api/profiles/legal-acceptance") {
+            httpClient.post("$baseUrl/v1/mobile/profiles/legal-acceptance") {
                 contentType(ContentType.Application.Json)
+                authboundMobileContractHeaders()
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
                 setBody(body)
             }
@@ -361,7 +370,8 @@ class KtorApiClient(
         bearerToken: String
     ): ApiResponse<AccountDeletionEnvelopeResponse> {
         return executeRequest {
-            httpClient.delete("$baseUrl/api/profiles/account") {
+            httpClient.delete("$baseUrl/v1/mobile/profiles/account") {
+                authboundMobileContractHeaders()
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
             }
         }
@@ -371,7 +381,8 @@ class KtorApiClient(
         bearerToken: String
     ): ApiResponse<AccountDeletionEnvelopeResponse> {
         return executeRequest {
-            httpClient.post("$baseUrl/api/profiles/account/cancel-deletion") {
+            httpClient.post("$baseUrl/v1/mobile/profiles/account/cancel-deletion") {
+                authboundMobileContractHeaders()
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
             }
         }
@@ -383,8 +394,9 @@ class KtorApiClient(
 
     override suspend fun startMaisaAuth(bearerToken: String?): ApiResponse<MaisaAuthorizeResponse> {
         return executeRequest {
-            httpClient.post("$baseUrl/api/mobile/maisa/authorize") {
+            httpClient.post("$baseUrl/v1/mobile/maisa/authorize") {
                 contentType(ContentType.Application.Json)
+                authboundMobileContractHeaders()
                 bearerToken?.let { header(HttpHeaders.Authorization, "Bearer $it") }
             }
         }
@@ -395,8 +407,9 @@ class KtorApiClient(
         bearerToken: String?
     ): ApiResponse<MaisaExchangeResponse> {
         return executeRequest {
-            httpClient.post("$baseUrl/api/mobile/maisa/exchange") {
+            httpClient.post("$baseUrl/v1/mobile/maisa/exchange") {
                 contentType(ContentType.Application.Json)
+                authboundMobileContractHeaders()
                 bearerToken?.let { header(HttpHeaders.Authorization, "Bearer $it") }
                 setBody(body)
             }
@@ -408,8 +421,9 @@ class KtorApiClient(
         bearerToken: String?
     ): ApiResponse<MaisaIssueResponse> {
         return executeRequest {
-            httpClient.post("$baseUrl/api/mobile/maisa/issue") {
+            httpClient.post("$baseUrl/v1/mobile/maisa/issue") {
                 contentType(ContentType.Application.Json)
+                authboundMobileContractHeaders()
                 bearerToken?.let { header(HttpHeaders.Authorization, "Bearer $it") }
                 setBody(body)
             }
@@ -426,7 +440,8 @@ class KtorApiClient(
         type: String?
     ): ApiResponse<ActionsListResponse> {
         return executeRequest {
-            httpClient.get("$baseUrl/v1/actions/me/actions") {
+            httpClient.get("$baseUrl/v1/mobile/actions/me/actions") {
+                authboundMobileContractHeaders()
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
                 status?.let { parameter("status", it) }
                 type?.let { parameter("type", it) }
@@ -440,8 +455,9 @@ class KtorApiClient(
         bearerToken: String
     ): ApiResponse<ActionRespondResponse> {
         return executeRequest {
-            httpClient.post("$baseUrl/v1/actions/me/actions/$actionId/respond") {
+            httpClient.post("$baseUrl/v1/mobile/actions/me/actions/$actionId/respond") {
                 contentType(ContentType.Application.Json)
+                authboundMobileContractHeaders()
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
                 setBody(body)
             }
@@ -455,6 +471,7 @@ class KtorApiClient(
         return executeRequest {
             httpClient.post("$gatewayBaseUrl/v1/verification-invitations") {
                 contentType(ContentType.Application.Json)
+                authboundPublicContractHeaders()
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
                 setBody(body)
             }
@@ -464,6 +481,7 @@ class KtorApiClient(
     override suspend fun getVerificationSessions(bearerToken: String): ApiResponse<VerificationSessionsListResponse> {
         return executeRequest {
             httpClient.get("$gatewayBaseUrl/v1/verification-invitations") {
+                authboundPublicContractHeaders()
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
             }
         }
@@ -475,6 +493,7 @@ class KtorApiClient(
     ): ApiResponse<VerificationSessionDetailResponse> {
         return executeRequest {
             httpClient.get("$gatewayBaseUrl/v1/verification-invitations/$sessionId") {
+                authboundPublicContractHeaders()
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
             }
         }
@@ -486,6 +505,7 @@ class KtorApiClient(
     ): ApiResponse<VerificationPublicSessionResponse> {
         return executeRequest {
             httpClient.get("$gatewayBaseUrl/v1/verification-invitations/public/$sessionId") {
+                authboundPublicContractHeaders()
                 header("X-Authbound-Verification-Token", accessToken)
             }
         }
@@ -497,6 +517,7 @@ class KtorApiClient(
     ): ApiResponse<StartVerificationInvitationResponse> {
         return executeRequest {
             httpClient.post("$gatewayBaseUrl/v1/verification-invitations/public/$sessionId/start") {
+                authboundPublicContractHeaders()
                 header("X-Authbound-Verification-Token", accessToken)
             }
         }
@@ -514,6 +535,7 @@ class KtorApiClient(
         return executeRequest {
             httpClient.post(completionUrl) {
                 contentType(ContentType.Application.Json)
+                authboundMobileContractHeaders()
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
                 setBody(body)
             }
@@ -522,7 +544,8 @@ class KtorApiClient(
 
     override suspend fun unlinkCurrentDevice(bearerToken: String): ApiResponse<Unit> {
         return executeUnitRequest {
-            httpClient.delete("$baseUrl/api/pairing/devices/current") {
+            httpClient.delete("$baseUrl/v1/mobile/pairing/devices/current") {
+                authboundMobileContractHeaders()
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
             }
         }
@@ -532,7 +555,8 @@ class KtorApiClient(
         bearerToken: String
     ): ApiResponse<DeviceStatusResponse> {
         return executeRequest {
-            httpClient.get("$baseUrl/api/pairing/devices/current") {
+            httpClient.get("$baseUrl/v1/mobile/pairing/devices/current") {
+                authboundMobileContractHeaders()
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
             }
         }
@@ -547,8 +571,9 @@ class KtorApiClient(
         bearerToken: String
     ): ApiResponse<CreateAuthboundPidSessionResponse> {
         return executeRequest {
-            httpClient.post("$baseUrl/api/authboundpid/sessions") {
+            httpClient.post("$baseUrl/v1/mobile/authboundpid/sessions") {
                 contentType(ContentType.Application.Json)
+                authboundMobileContractHeaders()
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
                 setBody(body)
             }
@@ -560,7 +585,8 @@ class KtorApiClient(
         bearerToken: String
     ): ApiResponse<AuthboundPidSessionStatus> {
         return executeRequest {
-            httpClient.get("$baseUrl/api/authboundpid/sessions/$sessionId") {
+            httpClient.get("$baseUrl/v1/mobile/authboundpid/sessions/$sessionId") {
+                authboundMobileContractHeaders()
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
             }
         }
@@ -571,7 +597,8 @@ class KtorApiClient(
         bearerToken: String
     ): ApiResponse<AuthboundPidSessionStatus> {
         return executeRequest {
-            httpClient.post("$baseUrl/api/authboundpid/sessions/$sessionId/resolve") {
+            httpClient.post("$baseUrl/v1/mobile/authboundpid/sessions/$sessionId/resolve") {
+                authboundMobileContractHeaders()
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
             }
         }

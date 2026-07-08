@@ -38,7 +38,7 @@ internal class WalletCoreConfigImpl(
 
     private val authboundWalletProviderConfig: WalletProviderConfig
         get() = AuthboundWalletProviderConfig(
-            baseUrl = "${configLogic.environmentConfig.getServerHost()}/api/mobile/wallet-provider"
+            baseUrl = "${configLogic.environmentConfig.getServerHost()}/v1/mobile/wallet-provider"
         )
 
     private val euWalletProviderConfig: WalletProviderConfig

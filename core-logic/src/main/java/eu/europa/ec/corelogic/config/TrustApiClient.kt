@@ -1,6 +1,7 @@
 package eu.europa.ec.corelogic.config
 
 import android.util.Log
+import eu.europa.ec.networklogic.api.authboundMobileContractHeaders
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
@@ -31,6 +32,7 @@ internal class TrustApiClient(
     suspend fun fetchIssuerUrls(): List<String>? = withTimeoutOrNull(REQUEST_TIMEOUT_MS) {
         try {
             val response = httpClient.get("$baseUrl/entities") {
+                authboundMobileContractHeaders()
                 parameter("type", "issuer")
             }
 
@@ -68,7 +70,9 @@ internal class TrustApiClient(
      */
     suspend fun fetchTrustedCertificates(): List<String>? = withTimeoutOrNull(REQUEST_TIMEOUT_MS) {
         try {
-            val response = httpClient.get("$baseUrl/certificates")
+            val response = httpClient.get("$baseUrl/certificates") {
+                authboundMobileContractHeaders()
+            }
 
             if (!response.status.isSuccess()) {
                 Log.w(TAG, "Trust API returned ${response.status} for certificates")

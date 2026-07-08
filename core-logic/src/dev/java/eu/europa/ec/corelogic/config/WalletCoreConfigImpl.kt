@@ -72,13 +72,13 @@ internal class WalletCoreConfigImpl(
     private val trustApiClient by lazy {
         TrustApiClient(
             httpClient = httpClient,
-            baseUrl = "http://$localhostAddress:$MOBILE_BACKEND_PORT/api/trust",
+            baseUrl = "http://$localhostAddress:$MOBILE_BACKEND_PORT/v1/mobile/trust",
         )
     }
 
     private val authboundWalletProviderConfig: WalletProviderConfig
         get() = AuthboundWalletProviderConfig(
-            baseUrl = "${configLogic.environmentConfig.getServerHost()}/api/mobile/wallet-provider"
+            baseUrl = "${configLogic.environmentConfig.getServerHost()}/v1/mobile/wallet-provider"
         )
 
     private val euWalletProviderConfig: WalletProviderConfig

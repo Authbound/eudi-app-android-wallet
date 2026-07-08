@@ -17,6 +17,7 @@
 package eu.europa.ec.networklogic.repository
 
 import android.util.Log
+import eu.europa.ec.networklogic.api.authboundMobileContractHeaders
 import io.ktor.client.HttpClient
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.header
@@ -102,6 +103,7 @@ class WalletAttestationRepositoryImpl(
         val url = baseUrl + PROOF_CHALLENGE_PATH
         Log.d(TAG, "createProofChallenge POST $url")
         val response = httpClient.post(url) {
+            authboundMobileContractHeaders()
             contentType(ContentType.Application.Json)
             header(HttpHeaders.Authorization, "Bearer $bearerToken")
             setBody(
@@ -139,6 +141,7 @@ class WalletAttestationRepositoryImpl(
         val url = baseUrl + WALLET_INSTANCE_ATTESTATION_PATH
         Log.d(TAG, "getWalletAttestation POST $url")
         val response = httpClient.post(url) {
+            authboundMobileContractHeaders()
             contentType(ContentType.Application.Json)
             applyHeaders(request.headers)
             setBody(request.body)
@@ -157,6 +160,7 @@ class WalletAttestationRepositoryImpl(
         val url = baseUrl + WALLET_UNIT_ATTESTATION_PATH
         Log.d(TAG, "getKeyAttestation POST $url")
         val response = httpClient.post(url) {
+            authboundMobileContractHeaders()
             contentType(ContentType.Application.Json)
             applyHeaders(request.headers)
             setBody(request.body)

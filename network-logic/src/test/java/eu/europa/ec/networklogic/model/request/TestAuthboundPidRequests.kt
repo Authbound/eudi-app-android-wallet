@@ -36,4 +36,23 @@ class TestAuthboundPidRequests {
 
         assertEquals("""{"launch_type":"sdk"}""", serialized)
     }
+
+    @Test
+    fun `Given authbound pid v2 create session request, When serializing, Then profile and transport are included`() {
+        val request: CreateAuthboundPidSessionRequest = CreateAuthboundPidSessionRequest(
+            launchType = "sdk",
+            supportedCredentialProfiles = listOf("authbound_pid_v2", "authbound_pid_v1"),
+            preferredTransport = "openid_credential_offer"
+        )
+
+        val serialized: String = json.encodeToString(
+            CreateAuthboundPidSessionRequest.serializer(),
+            request
+        )
+
+        assertEquals(
+            """{"launch_type":"sdk","supported_credential_profiles":["authbound_pid_v2","authbound_pid_v1"],"preferred_transport":"openid_credential_offer"}""",
+            serialized
+        )
+    }
 }

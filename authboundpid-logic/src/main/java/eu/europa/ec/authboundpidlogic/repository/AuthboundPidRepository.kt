@@ -54,7 +54,9 @@ class AuthboundPidRepositoryImpl(
             ?: return Result.failure(IllegalStateException("User not authenticated"))
 
         val request: CreateAuthboundPidSessionRequest = CreateAuthboundPidSessionRequest(
-            launchType = "sdk"
+            launchType = "sdk",
+            supportedCredentialProfiles = listOf("authbound_pid_v2", "authbound_pid_v1"),
+            preferredTransport = "openid_credential_offer"
         )
 
         return when (val response = apiClient.createAuthboundPidSession(request, accessToken)) {

@@ -63,7 +63,7 @@ Authbound uses the dev release variant as the internal staging artifact:
                   .build(),
                order = 0,
                walletProviderConfig = AuthboundWalletProviderConfig(
-                   baseUrl = "https://staging-mobile.authbound.io/api/mobile/wallet-provider"
+                   baseUrl = "https://staging-mobile.authbound.io/v1/mobile/wallet-provider"
                )
            )
     )

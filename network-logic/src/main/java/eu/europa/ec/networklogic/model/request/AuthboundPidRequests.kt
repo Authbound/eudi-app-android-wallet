@@ -24,5 +24,7 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class CreateAuthboundPidSessionRequest(
-    @SerialName("launch_type") val launchType: String
+    @SerialName("launch_type") val launchType: String,
+    @SerialName("supported_credential_profiles") val supportedCredentialProfiles: List<String>? = null,
+    @SerialName("preferred_transport") val preferredTransport: String? = null
 )

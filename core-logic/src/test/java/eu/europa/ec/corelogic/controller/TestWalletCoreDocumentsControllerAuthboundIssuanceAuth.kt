@@ -138,7 +138,7 @@ class TestWalletCoreDocumentsControllerAuthboundIssuanceAuth {
                 .build(),
             order = 0,
             walletProviderConfig = AuthboundWalletProviderConfig(
-                baseUrl = "https://mobile-backend.authbound.io/api/mobile/wallet-provider"
+                baseUrl = "https://mobile-backend.authbound.io/v1/mobile/wallet-provider"
             )
         )
         whenever(resourceProvider.getString(any())).thenReturn("Issuance failed")

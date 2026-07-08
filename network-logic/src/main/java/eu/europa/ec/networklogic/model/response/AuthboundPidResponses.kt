@@ -27,6 +27,10 @@ data class CreateAuthboundPidSessionResponse(
     @SerialName("session_id") val sessionId: String,
     @SerialName("candour_session_id") val candourSessionId: String,
     @SerialName("candour_api_endpoint") val candourApiEndpoint: String,
+    @SerialName("credential_profile") val credentialProfile: String? = null,
+    @SerialName("credential_definition_id") val credentialDefinitionId: String? = null,
+    val vct: String? = null,
+    @SerialName("credential_offer_transport") val credentialOfferTransport: String? = null,
     @SerialName("expires_at") val expiresAt: String
 )
 
@@ -42,6 +46,10 @@ data class AuthboundPidSessionStatus(
     val status: String,
     @SerialName("identity_verified") val identityVerified: Boolean? = null,
     @SerialName("credential_offer_uri") val credentialOfferUri: String? = null,
+    @SerialName("credential_profile") val credentialProfile: String? = null,
+    @SerialName("credential_definition_id") val credentialDefinitionId: String? = null,
+    val vct: String? = null,
+    @SerialName("credential_offer_transport") val credentialOfferTransport: String? = null,
     @SerialName("expires_at") val expiresAt: String
 ) {
     companion object {
