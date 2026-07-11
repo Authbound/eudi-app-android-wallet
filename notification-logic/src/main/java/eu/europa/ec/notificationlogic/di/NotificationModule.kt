@@ -21,6 +21,8 @@ import eu.europa.ec.notificationlogic.controller.PushNotificationControllerImpl
 import eu.europa.ec.notificationlogic.controller.UserScopedPushNotificationController
 import eu.europa.ec.notificationlogic.controller.UserScopedPushNotificationControllerImpl
 import eu.europa.ec.businesslogic.controller.log.LogController
+import eu.europa.ec.networklogic.api.ApiClient
+import io.github.jan.supabase.SupabaseClient
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Module
 import org.koin.core.annotation.Single
@@ -44,7 +46,14 @@ fun providePushNotificationController(firebaseMessaging: FirebaseMessaging): Pus
 @Single
 fun provideUserScopedPushNotificationController(
     firebaseMessaging: FirebaseMessaging,
-    logController: LogController
+    logController: LogController,
+    apiClient: ApiClient,
+    supabaseClient: SupabaseClient
 ): UserScopedPushNotificationController {
-    return UserScopedPushNotificationControllerImpl(firebaseMessaging, logController)
+    return UserScopedPushNotificationControllerImpl(
+        firebaseMessaging,
+        logController,
+        apiClient,
+        supabaseClient
+    )
 }

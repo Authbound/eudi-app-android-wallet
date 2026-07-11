@@ -24,6 +24,11 @@ import com.google.common.truth.Truth.assertThat
 import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import eu.europa.ec.businesslogic.controller.session.PresentationSessionController
 import eu.europa.ec.businesslogic.provider.UuidProvider
+import eu.europa.ec.notificationlogic.controller.UserScopedPushNotificationController
+import eu.europa.ec.notificationlogic.controller.ActionNotification
+import eu.europa.ec.notificationlogic.controller.WalletNotification
+import eu.europa.ec.businesslogic.model.CredentialClaim
+import eu.europa.ec.businesslogic.model.VerificationRequest
 import eu.europa.ec.uilogic.di.LogicUiModule
 import eu.europa.ec.uilogic.di.module as logicUiModule
 import org.junit.After
@@ -38,6 +43,8 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows
 import org.robolectric.android.controller.ActivityController
 import org.robolectric.annotation.Config
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 
 @RunWith(RobolectricTestRunner::class)
 @Config(
@@ -48,10 +55,12 @@ import org.robolectric.annotation.Config
 class TestMainActivity {
 
     private lateinit var localUnlockTracker: FakeLocalUnlockTracker
+    private lateinit var pushNotificationController: FakePushNotificationController
 
     @Before
     fun before() {
         localUnlockTracker = FakeLocalUnlockTracker()
+        pushNotificationController = FakePushNotificationController()
         startKoin {
             modules(
                 LogicUiModule().logicUiModule(),
@@ -59,6 +68,7 @@ class TestMainActivity {
                     single<LocalUnlockTracker> { localUnlockTracker }
                     single<PresentationSessionController> { FakePresentationSessionController() }
                     single<UuidProvider> { FakeUuidProvider() }
+                    single<UserScopedPushNotificationController> { pushNotificationController }
                 }
             )
         }
@@ -144,6 +154,36 @@ class TestMainActivity {
         assertThat(controller.get().isFinishing).isTrue()
     }
 
+    @Test
+    fun `Given launcher intent contains wallet refresh, When activity is created, Then opaque refresh reaches controller`() {
+        val intent = Intent().apply {
+            putExtra("type", "wallet_refresh")
+            putExtra("created_at", "2026-07-10T12:00:00Z")
+            putExtra("action_id", "must-not-be-forwarded")
+        }
+
+        Robolectric.buildActivity(TestableMainActivity::class.java, intent).create()
+
+        assertThat(pushNotificationController.received).containsExactly(
+            mapOf(
+                "type" to "wallet_refresh",
+                "created_at" to "2026-07-10T12:00:00Z"
+            )
+        )
+    }
+
+    @Test
+    fun `Given launcher intent contains user scoped data, When activity is created, Then it is not forwarded`() {
+        val intent = Intent().apply {
+            putExtra("type", "action_request")
+            putExtra("user_id", "user-1")
+        }
+
+        Robolectric.buildActivity(TestableMainActivity::class.java, intent).create()
+
+        assertThat(pushNotificationController.received).isEmpty()
+    }
+
     private fun buildActivity(): ActivityController<TestableMainActivity> {
         return Robolectric.buildActivity(TestableMainActivity::class.java)
     }
@@ -187,6 +227,29 @@ private class FakeUuidProvider : UuidProvider {
     override fun provideUuid(): String {
         return "test-session-id"
     }
+}
+
+private class FakePushNotificationController : UserScopedPushNotificationController {
+    val received = mutableListOf<Map<String, String>>()
+
+    override suspend fun registerForPushNotifications(userId: String): Result<String> =
+        Result.success("test-token")
+
+    override suspend fun unregisterPushNotifications(userId: String): Result<Unit> =
+        Result.success(Unit)
+
+    override suspend fun syncCurrentDeviceToken(token: String?): Result<Unit> = Result.success(Unit)
+
+    override fun observeCredentialClaims(): Flow<CredentialClaim> = emptyFlow()
+    override fun observeVerificationRequests(): Flow<VerificationRequest> = emptyFlow()
+    override fun observeActionRequests(): Flow<ActionNotification> = emptyFlow()
+    override fun observeGeneralNotifications(): Flow<WalletNotification> = emptyFlow()
+
+    override fun handleIncomingNotification(data: Map<String, String>) {
+        received += data
+    }
+
+    override fun clearUserNotifications(userId: String) = Unit
 }
 
 private class TestableMainActivity : MainActivity() {

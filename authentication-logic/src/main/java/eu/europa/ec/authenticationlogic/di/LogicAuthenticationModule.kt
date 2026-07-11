@@ -52,6 +52,7 @@ import eu.europa.ec.authenticationlogic.usecase.SignOutUseCaseImpl
 import eu.europa.ec.authenticationlogic.usecase.IsProfileCompletedUseCaseV2Impl
 import eu.europa.ec.authenticationlogic.usecase.IsWalletActivatedUseCaseImpl
 import eu.europa.ec.businesslogic.controller.crypto.CryptoController
+import eu.europa.ec.notificationlogic.controller.UserScopedPushNotificationController
 import eu.europa.ec.businesslogic.controller.crypto.KeystoreController
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
@@ -208,7 +209,8 @@ fun provideSignOutUseCase(
     prefKeys: PrefKeysV2,
     pinStorageController: PinStorageController,
     localUnlockTracker: LocalUnlockTracker,
-    logController: LogController
+    logController: LogController,
+    pushNotificationController: UserScopedPushNotificationController
 ): SignOutUseCase = SignOutUseCaseImpl(
     supabaseAuthRepository,
     prefsController,
@@ -216,7 +218,8 @@ fun provideSignOutUseCase(
     prefKeys,
     pinStorageController,
     localUnlockTracker,
-    logController
+    logController,
+    pushNotificationController
 )
 
 @Factory

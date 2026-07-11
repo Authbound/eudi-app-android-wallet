@@ -23,6 +23,7 @@ import eu.europa.ec.businesslogic.controller.crypto.KeystoreController
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
 import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
+import eu.europa.ec.notificationlogic.controller.UserScopedPushNotificationController
 import eu.europa.ec.testlogic.extension.runTest
 import eu.europa.ec.testlogic.rule.CoroutineTestRule
 import io.github.jan.supabase.auth.user.UserInfo
@@ -81,6 +82,9 @@ class TestSignOutUseCase {
     private lateinit var logController: LogController
 
     @Mock
+    private lateinit var pushNotificationController: UserScopedPushNotificationController
+
+    @Mock
     private lateinit var mockUserInfo: UserInfo
 
     private lateinit var useCase: SignOutUseCaseImpl
@@ -96,7 +100,8 @@ class TestSignOutUseCase {
             prefKeys = prefKeys,
             pinStorageController = pinStorageController,
             localUnlockTracker = localUnlockTracker,
-            logController = logController
+            logController = logController,
+            pushNotificationController = pushNotificationController
         )
     }
 
@@ -335,9 +340,15 @@ class TestSignOutUseCase {
             // When
             useCase.invoke(SignOutMode.Soft)
 
-            // Then - Verify ordering: lockNow -> signOut -> invalidateCache
-            val inOrder = inOrder(localUnlockTracker, supabaseAuthRepository, prefsController)
+            // Then - Clear replayed notifications before dropping the remote session.
+            val inOrder = inOrder(
+                localUnlockTracker,
+                pushNotificationController,
+                supabaseAuthRepository,
+                prefsController
+            )
             inOrder.verify(localUnlockTracker).lockNow()
+            inOrder.verify(pushNotificationController).clearUserNotifications(MOCK_USER_ID)
             inOrder.verify(supabaseAuthRepository).signOut()
             inOrder.verify(prefsController).invalidateCache()
         }

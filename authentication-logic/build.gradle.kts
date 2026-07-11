@@ -36,6 +36,7 @@ dependencies {
     implementation(project(LibraryModule.ResourcesLogic.path))
     implementation(project(LibraryModule.BusinessLogic.path))
     implementation(project(LibraryModule.NetworkLogic.path))
+    implementation(project(LibraryModule.NotificationLogic.path))
 
     implementation(libs.gson)
     api(libs.androidx.biometric)

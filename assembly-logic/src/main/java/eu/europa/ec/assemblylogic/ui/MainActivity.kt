@@ -29,17 +29,21 @@ import eu.europa.ec.issuancefeature.router.featureIssuanceGraph
 import eu.europa.ec.presentationfeature.router.presentationGraph
 import eu.europa.ec.proximityfeature.router.featureProximityGraph
 import eu.europa.ec.authboundpidfeature.router.featureAuthboundPidGraph
+import eu.europa.ec.notificationlogic.controller.UserScopedPushNotificationController
 
 import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
 import eu.europa.ec.startupfeature.router.featureStartupGraph
 import eu.europa.ec.uilogic.component.utils.NfcTagHandler
 import eu.europa.ec.uilogic.container.EudiComponentActivity
 import org.koin.android.ext.android.inject
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
 open class MainActivity : EudiComponentActivity() {
 
     private val nfcTagHandler: NfcTagHandler by inject()
     private val localUnlockTracker: LocalUnlockTracker by inject()
+    private val pushNotificationController: UserScopedPushNotificationController by inject()
 
     /**
      * Tracks whether the Activity was stopped (app went to background).
@@ -50,6 +54,7 @@ open class MainActivity : EudiComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        forwardWalletRefresh(intent)
         Log.d(TAG, ">>> onCreate() — wasBackgrounded=$wasBackgrounded, savedInstanceState=${savedInstanceState != null}")
         initializeActivityUi(intent)
     }
@@ -73,6 +78,9 @@ open class MainActivity : EudiComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        lifecycleScope.launch {
+            pushNotificationController.syncCurrentDeviceToken()
+        }
         Log.d(TAG, ">>> onStart() — wasBackgrounded=$wasBackgrounded")
         if (wasBackgrounded) {
             wasBackgrounded = false
@@ -127,7 +135,20 @@ open class MainActivity : EudiComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        forwardWalletRefresh(intent)
         // Try to handle as NFC intent first
         nfcTagHandler.handleIntent(intent)
+    }
+
+    internal fun forwardWalletRefresh(intent: Intent?) {
+        if (intent?.getStringExtra("type") != "wallet_refresh") {
+            return
+        }
+
+        val data = buildMap {
+            put("type", "wallet_refresh")
+            intent.getStringExtra("created_at")?.let { put("created_at", it) }
+        }
+        pushNotificationController.handleIncomingNotification(data)
     }
 }

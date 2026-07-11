@@ -35,6 +35,9 @@ dependencies {
     implementation(libs.supabase.realtime.kt)
     implementation(platform(libs.firebase.bom))
     implementation(project(LibraryModule.BusinessLogic.path))
+    implementation(project(LibraryModule.NetworkLogic.path))
+    implementation(libs.supabase.auth.kt)
     implementation(libs.firebase.messaging)
     implementation(libs.gson)
-} 
+    testImplementation(project(LibraryModule.TestLogic.path))
+}

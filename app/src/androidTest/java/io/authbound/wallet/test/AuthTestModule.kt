@@ -436,6 +436,8 @@ private class FakeUserScopedPushNotificationController : UserScopedPushNotificat
 
     override suspend fun unregisterPushNotifications(userId: String): Result<Unit> = Result.success(Unit)
 
+    override suspend fun syncCurrentDeviceToken(token: String?): Result<Unit> = Result.success(Unit)
+
     override fun observeCredentialClaims(): Flow<eu.europa.ec.businesslogic.model.CredentialClaim> = emptyFlow()
 
     override fun observeVerificationRequests(): Flow<eu.europa.ec.businesslogic.model.VerificationRequest> = emptyFlow()

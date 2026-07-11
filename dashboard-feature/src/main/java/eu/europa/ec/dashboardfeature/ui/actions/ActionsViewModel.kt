@@ -29,6 +29,8 @@ import eu.europa.ec.dashboardfeature.ui.actions.model.ActionType
 import eu.europa.ec.dashboardfeature.ui.actions.model.ActionUi
 import eu.europa.ec.dashboardfeature.ui.actions.model.DeviceLinkStatus
 import eu.europa.ec.dashboardfeature.ui.actions.model.LinkedDeviceInfo
+import eu.europa.ec.notificationlogic.controller.NotificationType
+import eu.europa.ec.notificationlogic.controller.UserScopedPushNotificationController
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.uilogic.component.content.ContentErrorConfig
@@ -115,7 +117,21 @@ class ActionsViewModel(
     private val interactor: ActionsInteractor,
     private val resourceProvider: ResourceProvider,
     private val uiSerializer: UiSerializer,
+    private val pushNotificationController: UserScopedPushNotificationController,
 ) : MviViewModel<Event, State, Effect>() {
+
+    init {
+        viewModelScope.launch {
+            pushNotificationController.observeGeneralNotifications().collect { notification ->
+                if (
+                    notification.type == NotificationType.ACTION_REQUEST &&
+                    notification.data["type"] == "wallet_refresh"
+                ) {
+                    loadActions()
+                }
+            }
+        }
+    }
 
     override fun setInitialState(): State = State()
 

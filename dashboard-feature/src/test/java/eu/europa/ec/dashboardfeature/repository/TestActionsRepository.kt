@@ -327,7 +327,7 @@ class TestActionsRepository {
             ),
             code = 200
         )
-        whenever(apiClient.completePairing(eq("https://app.authbound.io/api/pairing/complete/550e8400-e29b-41d4-a716-446655440000"), any(), eq(testAccessToken)))
+        whenever(apiClient.completePairing(eq("550e8400-e29b-41d4-a716-446655440000"), any(), eq(testAccessToken)))
             .thenReturn(successResponse)
         whenever(apiClient.getDeviceStatus(eq(testAccessToken))).thenReturn(
             ApiResponse.Success(
@@ -355,7 +355,7 @@ class TestActionsRepository {
 
         val requestCaptor = argumentCaptor<CompletePairingRequest>()
         verify(apiClient).completePairing(
-            eq("https://app.authbound.io/api/pairing/complete/550e8400-e29b-41d4-a716-446655440000"),
+            eq("550e8400-e29b-41d4-a716-446655440000"),
             requestCaptor.capture(),
             eq(testAccessToken)
         )
@@ -368,6 +368,39 @@ class TestActionsRepository {
     }
 
     @Test
+    fun `Given pairing QR with untrusted URL, When linkDevice is called, Then URL does not reach API client`() = runTest {
+        // Given
+        val sessionId = "550e8400-e29b-41d4-a716-446655440000"
+        val untrustedUrl = "https://attacker.example/collect"
+        val pairingPayload = """
+            {"t":"authbound_pair","v":1,"sid":"$sessionId","cr":"challenge-response","url":"$untrustedUrl","exp":4102444800}
+        """.trimIndent()
+        whenever(userScopedPushNotificationController.registerForPushNotifications(eq("user-123")))
+            .thenReturn(Result.success("fcm-token-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_=:-fcm-token-1234567890"))
+        whenever(apiClient.completePairing(eq(sessionId), any(), eq(testAccessToken)))
+            .thenReturn(
+                ApiResponse.Success(
+                    body = PairingCompleteResponse(
+                        success = true,
+                        deviceId = "device-123",
+                        previousDeviceReplaced = false
+                    ),
+                    code = 200
+                )
+            )
+
+        val testableRepository = createTestableRepository(testAccessToken, "user-123")
+
+        // When
+        val result = testableRepository.linkDevice(pairingPayload)
+
+        // Then
+        assertTrue("Pairing should use the scanned session id", result.isSuccess)
+        verify(apiClient).completePairing(eq(sessionId), any(), eq(testAccessToken))
+        verify(apiClient, never()).completePairing(eq(untrustedUrl), any(), any())
+    }
+
+    @Test
     fun `Given pairing completion succeeds, When device status refresh fails, Then linkDevice still returns success`() = runTest {
         // Given
         val pairingPayload = """
@@ -375,7 +408,7 @@ class TestActionsRepository {
         """.trimIndent()
         whenever(userScopedPushNotificationController.registerForPushNotifications(eq("user-123")))
             .thenReturn(Result.success("fcm-token-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_=:-fcm-token-1234567890"))
-        whenever(apiClient.completePairing(eq("https://staging.authbound.io/api/pairing/complete/550e8400-e29b-41d4-a716-446655440000"), any(), eq(testAccessToken)))
+        whenever(apiClient.completePairing(eq("550e8400-e29b-41d4-a716-446655440000"), any(), eq(testAccessToken)))
             .thenReturn(
                 ApiResponse.Success(
                     body = PairingCompleteResponse(
