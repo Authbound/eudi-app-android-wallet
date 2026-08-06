@@ -16,6 +16,9 @@
 
 import com.android.build.api.dsl.LibraryExtension
 import project.convention.logic.config.LibraryModule
+import java.nio.file.Files
+import java.nio.file.LinkOption.NOFOLLOW_LINKS
+import java.nio.file.Path
 
 plugins {
     id("project.android.library")
@@ -28,6 +31,24 @@ extensions.configure<LibraryExtension>("android") {
 
 moduleConfig {
     module = LibraryModule.ResourcesLogic
+}
+
+providers.gradleProperty("authboundM31ProofResourcesDir").orNull?.let { rawPath ->
+    val proofResourcesPath = Path.of(rawPath)
+    require(proofResourcesPath.isAbsolute)
+    val proofResources = proofResourcesPath.toFile()
+    val proofRaw = proofResourcesPath.resolve("raw")
+    val proofCa = proofRaw.resolve("authbound_verifier_root_ca.pem")
+
+    require(Files.isDirectory(proofResourcesPath, NOFOLLOW_LINKS))
+    require(Files.isDirectory(proofRaw, NOFOLLOW_LINKS))
+    require(Files.isRegularFile(proofCa, NOFOLLOW_LINKS))
+
+    extensions.configure<LibraryExtension>("android") {
+        sourceSets.named("demo") {
+            res.srcDir(proofResources)
+        }
+    }
 }
 
 dependencies {
