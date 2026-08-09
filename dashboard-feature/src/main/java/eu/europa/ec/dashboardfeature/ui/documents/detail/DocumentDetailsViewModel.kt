@@ -70,7 +70,8 @@ data class State(
     val documentIssuerSectionTitle: String,
 
     val isDocumentBookmarked: Boolean = false,
-    val hideSensitiveContent: Boolean = true,
+    /** Full claim list is advanced/technical data; collapsed by default. */
+    val areDocumentClaimsExpanded: Boolean = false,
 
     val sheetContent: DocumentDetailsBottomSheetContent = DocumentDetailsBottomSheetContent.DeleteDocumentConfirmation,
 ) : ViewState
@@ -92,7 +93,7 @@ sealed class Event : ViewEvent {
         }
     }
 
-    data object ChangeContentVisibility : Event()
+    data object ToggleDocumentClaimsExpanded : Event()
     data object BookmarkPressed : Event()
     data object OnBookmarkStored : Event()
     data object OnBookmarkRemoved : Event()
@@ -183,10 +184,8 @@ class DocumentDetailsViewModel(
 
             is Event.DismissError -> setState { copy(error = null) }
 
-            is Event.ChangeContentVisibility -> setState {
-                copy(
-                    hideSensitiveContent = !hideSensitiveContent,
-                )
+            is Event.ToggleDocumentClaimsExpanded -> setState {
+                copy(areDocumentClaimsExpanded = !areDocumentClaimsExpanded)
             }
 
             is Event.BookmarkPressed -> {

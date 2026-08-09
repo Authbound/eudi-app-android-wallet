@@ -34,6 +34,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -139,6 +140,20 @@ class TestDocumentDetailsViewModel {
                 assertEquals(DOCUMENT_ID, configCaptor.firstValue.presentingDocumentId)
                 assertTrue(configCaptor.firstValue.mode is PresentationMode.Ble)
             }
+        }
+
+    @Test
+    fun `Given claims are collapsed by default, When toggle is pressed twice, Then expand state flips each time`() =
+        coroutineRule.runTest {
+            assertFalse(viewModel.viewState.value.areDocumentClaimsExpanded)
+
+            viewModel.handleEvents(Event.ToggleDocumentClaimsExpanded)
+            testScope.advanceUntilIdle()
+            assertTrue(viewModel.viewState.value.areDocumentClaimsExpanded)
+
+            viewModel.handleEvents(Event.ToggleDocumentClaimsExpanded)
+            testScope.advanceUntilIdle()
+            assertFalse(viewModel.viewState.value.areDocumentClaimsExpanded)
         }
 
     private companion object {

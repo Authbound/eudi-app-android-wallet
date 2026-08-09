@@ -788,34 +788,41 @@ private fun PassportCardContent(
                                         IdentityHairline(
                                                 color = colors.textPrimary.copy(alpha = 0.14f)
                                         )
-                                        Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.spacedBy(18.dp)
+                                        // Two-row field grid so full dd/MM/yyyy dates fit on phone
+                                        // widths (three columns was truncating values mid-date).
+                                        Column(
+                                                verticalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
+                                                Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement =
+                                                                Arrangement.spacedBy(18.dp)
+                                                ) {
+                                                        IdentityLabeledField(
+                                                                modifier = Modifier.weight(1f),
+                                                                label =
+                                                                        stringResource(
+                                                                                R.string
+                                                                                        .credential_card_label_nationality
+                                                                        ),
+                                                                value = config.nationality,
+                                                                labelColor = colors.textSecondary,
+                                                                valueColor = colors.textPrimary
+                                                        )
+                                                        IdentityLabeledField(
+                                                                modifier = Modifier.weight(1.25f),
+                                                                label =
+                                                                        stringResource(
+                                                                                R.string
+                                                                                        .credential_card_label_date_of_birth
+                                                                        ),
+                                                                value = config.birthDate,
+                                                                labelColor = colors.textSecondary,
+                                                                valueColor = colors.textPrimary
+                                                        )
+                                                }
                                                 IdentityLabeledField(
-                                                        modifier = Modifier.weight(1f),
-                                                        label =
-                                                                stringResource(
-                                                                        R.string
-                                                                                .credential_card_label_nationality
-                                                                ),
-                                                        value = config.nationality,
-                                                        labelColor = colors.textSecondary,
-                                                        valueColor = colors.textPrimary
-                                                )
-                                                IdentityLabeledField(
-                                                        modifier = Modifier.weight(1.25f),
-                                                        label =
-                                                                stringResource(
-                                                                        R.string
-                                                                                .credential_card_label_date_of_birth
-                                                                ),
-                                                        value = config.birthDate,
-                                                        labelColor = colors.textSecondary,
-                                                        valueColor = colors.textPrimary
-                                                )
-                                                IdentityLabeledField(
-                                                        modifier = Modifier.weight(1.25f),
+                                                        modifier = Modifier.fillMaxWidth(),
                                                         label =
                                                                 stringResource(
                                                                         R.string

@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -50,6 +51,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -94,12 +98,14 @@ import eu.europa.ec.uilogic.component.wrap.CredentialStatus
 import eu.europa.ec.uilogic.component.wrap.DialogBottomSheet
 import eu.europa.ec.uilogic.component.wrap.ExpandableListItemUi
 import eu.europa.ec.uilogic.component.wrap.IdentityStatusDot
+import eu.europa.ec.uilogic.component.wrap.PresentIdBar
 import eu.europa.ec.uilogic.component.wrap.SimpleBottomSheet
 import eu.europa.ec.uilogic.component.wrap.TextConfig
 import eu.europa.ec.uilogic.component.wrap.VisualCredentialCard
 import eu.europa.ec.uilogic.component.wrap.VisualCredentialConfig
 import eu.europa.ec.uilogic.component.wrap.WrapButton
 import eu.europa.ec.uilogic.component.wrap.WrapCard
+import eu.europa.ec.uilogic.component.wrap.WrapIcon
 import eu.europa.ec.uilogic.component.wrap.WrapListItems
 import eu.europa.ec.uilogic.component.wrap.WrapModalBottomSheet
 import eu.europa.ec.uilogic.component.wrap.WrapText
@@ -138,12 +144,6 @@ fun DocumentDetailsScreen(
                     enabled = !state.isLoading,
                     throttleClicks = true,
                 ),
-                ToolbarActionUi(
-                    icon = if (state.hideSensitiveContent) AppIcons.VisibilityOff else AppIcons.Visibility,
-                    onClick = { viewModel.setEvent(Event.ChangeContentVisibility) },
-                    enabled = !state.isLoading,
-                    throttleClicks = false,
-                )
             )
         } else {
             emptyList()
@@ -323,7 +323,6 @@ private fun Content(
                     documentDetailsUi = safeDocumentDetailsUi,
                     identityCardData = state.identityCardData,
                     issuerName = state.issuerName,
-                    hideSensitiveContent = state.hideSensitiveContent,
                     isRevoked = state.isRevoked,
                     onEventSend = onEventSend
                 )
@@ -345,12 +344,12 @@ private fun Content(
                     VSpacer.ExtraLarge()
                 }
 
-                DocumentDetails(
+                DocumentClaimsSection(
                     modifier = Modifier.fillMaxWidth(),
-                    onEventSend = onEventSend,
                     sectionTitle = state.documentDetailsSectionTitle,
                     documentDetailsUi = safeDocumentDetailsUi,
-                    hideSensitiveContent = state.hideSensitiveContent,
+                    areClaimsExpanded = state.areDocumentClaimsExpanded,
+                    onEventSend = onEventSend,
                 )
 
                 if (state.issuerName != null || state.issuerLogo != null) {
@@ -664,7 +663,6 @@ private fun DocumentHero(
     documentDetailsUi: DocumentDetailsUi,
     identityCardData: IdentityCardData?,
     issuerName: String?,
-    hideSensitiveContent: Boolean,
     isRevoked: Boolean,
     onEventSend: (Event) -> Unit,
 ) {
@@ -680,7 +678,6 @@ private fun DocumentHero(
             config = documentDetailsUi.toVisualCredentialConfig(
                 identityCardData = identityCardData,
                 issuerName = issuerName,
-                hideSensitiveContent = hideSensitiveContent,
                 isRevoked = isRevoked
             ),
             enableAnimations = false,
@@ -689,51 +686,86 @@ private fun DocumentHero(
         )
 
         if (canPresentId) {
-            WrapButton(
-                modifier = Modifier.fillMaxWidth(),
-                buttonConfig = ButtonConfig(
-                    type = ButtonType.PRIMARY,
-                    onClick = { onEventSend(Event.PresentIdPressed) },
-                )
-            ) {
-                Text(
-                    text = "${stringResource(R.string.home_hero_present_id)} - ${
-                        stringResource(R.string.home_hero_present_id_methods)
-                    }",
-                    style = MaterialTheme.typography.labelLarge
-                )
-            }
+            PresentIdBar(
+                onClick = { onEventSend(Event.PresentIdPressed) },
+            )
         }
     }
 }
 
+/**
+ * Advanced document claims: collapsed by default so the passport card remains the primary
+ * identity surface. Expanding reveals the full claim tree without the old blur/eye toggle.
+ */
 @Composable
-private fun DocumentDetails(
+private fun DocumentClaimsSection(
     modifier: Modifier = Modifier,
-    onEventSend: (Event) -> Unit,
     sectionTitle: String,
     documentDetailsUi: DocumentDetailsUi,
-    hideSensitiveContent: Boolean,
+    areClaimsExpanded: Boolean,
+    onEventSend: (Event) -> Unit,
 ) {
+    val toggleLabel = if (areClaimsExpanded) {
+        stringResource(R.string.document_details_hide_claims)
+    } else {
+        stringResource(R.string.document_details_show_claims)
+    }
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
     ) {
-        SectionTitle(
-            modifier = Modifier.fillMaxWidth(),
-            text = sectionTitle,
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickableNoRipple(
+                    onClick = { onEventSend(Event.ToggleDocumentClaimsExpanded) }
+                )
+                .semantics {
+                    role = Role.Button
+                }
+                .padding(vertical = SPACING_SMALL.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            SectionTitle(
+                modifier = Modifier.weight(1f),
+                text = if (areClaimsExpanded) sectionTitle else toggleLabel,
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp)
+            ) {
+                if (areClaimsExpanded) {
+                    Text(
+                        text = stringResource(R.string.document_details_hide_claims),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                WrapIcon(
+                    iconData = if (areClaimsExpanded) {
+                        AppIcons.KeyboardArrowUp
+                    } else {
+                        AppIcons.KeyboardArrowDown
+                    },
+                    customTint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
 
-        WrapListItems(
-            modifier = Modifier.fillMaxWidth(),
-            items = documentDetailsUi.documentClaims,
-            hideSensitiveContent = hideSensitiveContent,
-            onExpandedChange = { item ->
-                onEventSend(Event.ClaimClicked(itemId = item.itemId))
-            },
-            onItemClick = null,
-            throttleClicks = false,
-        )
+        AnimatedVisibility(visible = areClaimsExpanded) {
+            WrapListItems(
+                modifier = Modifier.fillMaxWidth(),
+                items = documentDetailsUi.documentClaims,
+                hideSensitiveContent = false,
+                onExpandedChange = { item ->
+                    onEventSend(Event.ClaimClicked(itemId = item.itemId))
+                },
+                onItemClick = null,
+                throttleClicks = false,
+            )
+        }
     }
 }
 
@@ -768,7 +800,6 @@ private fun ButtonsSection(onEventSend: (Event) -> Unit) {
 private fun DocumentDetailsUi.toVisualCredentialConfig(
     identityCardData: IdentityCardData?,
     issuerName: String?,
-    hideSensitiveContent: Boolean,
     isRevoked: Boolean
 ): VisualCredentialConfig {
     val portraitBase64 = identityCardData?.portraitBase64
@@ -781,16 +812,16 @@ private fun DocumentDetailsUi.toVisualCredentialConfig(
         ),
         title = documentName,
         subtitle = null,
-        holderName = identityCardData?.holderName.takeUnless { hideSensitiveContent },
+        holderName = identityCardData?.holderName,
         issuerName = issuerName,
         primaryField = null,
         secondaryField = null,
         status = if (isRevoked) CredentialStatus.REVOKED else documentIssuanceStateUi.toCredentialStatus(),
-        expiryDate = identityCardData?.expiryDate.takeUnless { hideSensitiveContent },
-        hasPhoto = !hideSensitiveContent && !portraitBase64.isNullOrBlank(),
-        portraitBase64 = portraitBase64.takeUnless { hideSensitiveContent },
-        nationality = identityCardData?.nationality.takeUnless { hideSensitiveContent },
-        birthDate = identityCardData?.birthDate.takeUnless { hideSensitiveContent },
+        expiryDate = identityCardData?.expiryDate,
+        hasPhoto = !portraitBase64.isNullOrBlank(),
+        portraitBase64 = portraitBase64,
+        nationality = identityCardData?.nationality,
+        birthDate = identityCardData?.birthDate,
         layout = CredentialCardLayout.PASSPORT
     )
 }
@@ -874,7 +905,7 @@ private fun DocumentDetailsScreenPreview() {
                 documentIssuanceStateUi = DocumentIssuanceStateUi.Issued,
             ),
             issuerName = "Digital Credentials Issuer",
-            hideSensitiveContent = false,
+            areDocumentClaimsExpanded = true,
             sheetContent = DocumentDetailsBottomSheetContent.DeleteDocumentConfirmation
         )
 

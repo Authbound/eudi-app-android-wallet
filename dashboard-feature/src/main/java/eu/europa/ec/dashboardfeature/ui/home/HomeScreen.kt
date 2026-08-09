@@ -144,6 +144,7 @@ import eu.europa.ec.uilogic.component.wrap.BottomSheetTextDataUi
 import eu.europa.ec.uilogic.component.wrap.BottomSheetWithTwoBigIcons
 import eu.europa.ec.uilogic.component.wrap.DialogBottomSheet
 import eu.europa.ec.uilogic.component.wrap.GenericBottomSheet
+import eu.europa.ec.uilogic.component.wrap.PresentIdBar
 import eu.europa.ec.uilogic.component.wrap.QuickActionConfig
 import eu.europa.ec.uilogic.component.wrap.QuickActionCard
 import eu.europa.ec.uilogic.component.wrap.WrapIcon
@@ -1374,77 +1375,6 @@ private fun HeroCredentialPageIndicator(
 
 private fun HeroCredentialUi.isAuthboundIssued(): Boolean {
     return issuerName?.contains("authbound", ignoreCase = true) == true
-}
-
-/**
- * Explicit share affordance under the hero card. QR and NFC marks communicate that both
- * channels open together; tapping starts the present flow for the selected hero credential.
- */
-@Composable
-private fun PresentIdBar(onClick: () -> Unit) {
-    val view = LocalView.current
-    val presentIdLabel: String = stringResource(R.string.home_hero_present_id)
-    val methodsLabel: String = stringResource(R.string.home_hero_present_id_methods)
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = tween(durationMillis = 100),
-        label = "present_id_bar_scale"
-    )
-    val barShape = RoundedCornerShape(16.dp)
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = SPACING_SMALL.dp)
-            .scale(scale)
-            .clip(barShape)
-            .background(MaterialTheme.colorScheme.brandNavyMedium.copy(alpha = 0.30f))
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.glowAccent,
-                shape = barShape
-            )
-            .clickable(
-                interactionSource = interactionSource,
-                indication = ripple(bounded = true),
-                onClickLabel = presentIdLabel,
-                role = Role.Button
-            ) {
-                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                onClick()
-            }
-            .semantics {
-                contentDescription = "$presentIdLabel, $methodsLabel"
-            }
-            .heightIn(min = 52.dp)
-            .padding(horizontal = SPACING_MEDIUM.dp, vertical = SPACING_SMALL.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
-    ) {
-        WrapIcon(
-            iconData = AppIcons.QR,
-            customTint = MaterialTheme.colorScheme.tertiary,
-            modifier = Modifier.size(22.dp)
-        )
-        Text(
-            text = presentIdLabel,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Spacer(modifier = Modifier.weight(1f))
-        Text(
-            text = methodsLabel,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f)
-        )
-        WrapIcon(
-            iconData = AppIcons.KeyboardArrowRight,
-            customTint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
 }
 
 @Composable

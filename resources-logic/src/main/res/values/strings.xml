@@ -436,6 +436,8 @@
     <string name="document_details_document_credentials_info_expanded_button_update_now_text">Issue new</string>
     <string name="document_details_document_credentials_info_expanded_button_hide_text">Hide</string>
     <string name="document_details_main_section_text">DOCUMENT DETAILS</string>
+    <string name="document_details_show_claims">Show document claims</string>
+    <string name="document_details_hide_claims">Hide document claims</string>
     <string name="document_details_issuer_section_text">ISSUER</string>
     <string name="document_details_secondary_button_text">Delete document</string>
 
