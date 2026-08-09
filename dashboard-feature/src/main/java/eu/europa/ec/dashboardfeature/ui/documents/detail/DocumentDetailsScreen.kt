@@ -16,6 +16,8 @@
 
 package eu.europa.ec.dashboardfeature.ui.documents.detail
 
+import android.content.Context
+import androidx.activity.ComponentActivity
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
@@ -44,11 +46,14 @@ import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -99,6 +104,7 @@ import eu.europa.ec.uilogic.component.wrap.DialogBottomSheet
 import eu.europa.ec.uilogic.component.wrap.ExpandableListItemUi
 import eu.europa.ec.uilogic.component.wrap.IdentityStatusDot
 import eu.europa.ec.uilogic.component.wrap.PresentIdBar
+import eu.europa.ec.uilogic.component.wrap.PresentIdShareSheet
 import eu.europa.ec.uilogic.component.wrap.SimpleBottomSheet
 import eu.europa.ec.uilogic.component.wrap.TextConfig
 import eu.europa.ec.uilogic.component.wrap.VisualCredentialCard
@@ -111,6 +117,7 @@ import eu.europa.ec.uilogic.component.wrap.WrapModalBottomSheet
 import eu.europa.ec.uilogic.component.wrap.WrapText
 import eu.europa.ec.uilogic.extension.applyTestTag
 import eu.europa.ec.uilogic.extension.clickableNoRipple
+import eu.europa.ec.uilogic.extension.findActivity
 import eu.europa.ec.uilogic.extension.paddingFrom
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
@@ -128,6 +135,7 @@ fun DocumentDetailsScreen(
     viewModel: DocumentDetailsViewModel,
 ) {
     val state: State by viewModel.viewState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     val isBottomSheetOpen = state.isBottomSheetOpen
     val scope = rememberCoroutineScope()
@@ -216,11 +224,20 @@ fun DocumentDetailsScreen(
             ) {
                 SheetContent(
                     sheetContent = state.sheetContent,
+                    presentIdQrCode = state.presentIdQrCode,
                     onEventSent = {
                         viewModel.setEvent(it)
                     }
                 )
             }
+        }
+
+        if (isBottomSheetOpen && state.sheetContent is DocumentDetailsBottomSheetContent.PresentId) {
+            PresentIdNfcLifecycle(
+                context = context,
+                onEventSent = { event -> viewModel.setEvent(event) },
+                onLifecycleStopped = { viewModel.setEvent(Event.PresentIdLifecycleStopped) }
+            )
         }
     }
 
@@ -229,6 +246,54 @@ fun DocumentDetailsScreen(
         lifecycleEvent = Lifecycle.Event.ON_RESUME
     ) {
         viewModel.setEvent(Event.Init)
+    }
+}
+
+
+@Composable
+private fun PresentIdNfcLifecycle(
+    context: Context,
+    onEventSent: (Event.PresentIdNfcEngagement) -> Unit,
+    onLifecycleStopped: () -> Unit
+) {
+    val componentActivity: ComponentActivity? = remember(context) {
+        runCatching { context.findActivity() }.getOrNull()
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(componentActivity) {
+        sendPresentIdNfcEngagement(componentActivity, true, onEventSent)
+        onDispose {
+            sendPresentIdNfcEngagement(componentActivity, false, onEventSent)
+            onLifecycleStopped()
+        }
+    }
+    LifecycleEffect(
+        lifecycleOwner = lifecycleOwner,
+        lifecycleEvent = Lifecycle.Event.ON_RESUME
+    ) {
+        sendPresentIdNfcEngagement(componentActivity, true, onEventSent)
+    }
+    LifecycleEffect(
+        lifecycleOwner = lifecycleOwner,
+        lifecycleEvent = Lifecycle.Event.ON_PAUSE
+    ) {
+        sendPresentIdNfcEngagement(componentActivity, false, onEventSent)
+        onLifecycleStopped()
+    }
+}
+
+private fun sendPresentIdNfcEngagement(
+    componentActivity: ComponentActivity?,
+    enable: Boolean,
+    onEventSent: (Event.PresentIdNfcEngagement) -> Unit
+) {
+    componentActivity?.let { activity ->
+        onEventSent(
+            Event.PresentIdNfcEngagement(
+                componentActivity = activity,
+                enable = enable
+            )
+        )
     }
 }
 
@@ -404,9 +469,19 @@ private fun Content(
 @Composable
 private fun SheetContent(
     sheetContent: DocumentDetailsBottomSheetContent,
+    presentIdQrCode: String,
     onEventSent: (event: Event) -> Unit,
 ) {
     when (sheetContent) {
+        is DocumentDetailsBottomSheetContent.PresentId -> {
+            PresentIdShareSheet(
+                qrCode = presentIdQrCode,
+                onClose = {
+                    onEventSent(Event.BottomSheet.UpdateBottomSheetState(isOpen = false))
+                }
+            )
+        }
+
         is DocumentDetailsBottomSheetContent.DeleteDocumentConfirmation ->
             DialogBottomSheet(
                 textData = BottomSheetTextDataUi(

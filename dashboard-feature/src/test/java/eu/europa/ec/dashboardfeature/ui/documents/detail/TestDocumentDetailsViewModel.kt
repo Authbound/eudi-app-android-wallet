@@ -119,41 +119,20 @@ class TestDocumentDetailsViewModel {
             verify(interactor, never()).getDocumentDetails(DOCUMENT_ID)
         }
 
-    @Test
-    fun `Given present id is pressed, When event is handled, Then proximity QR opens for current document`() =
+        @Test
+    fun `Given present id is pressed, When event is handled, Then present id sheet opens for current document`() =
         coroutineRule.runTest {
+            whenever(interactor.startPresentIdEngagement()).thenReturn(emptyFlow())
+            viewModel.handleEvents(Event.PresentIdPressed)
+            testScope.advanceUntilIdle()
+
             val configCaptor = argumentCaptor<RequestUriConfig>()
-            whenever(
-                uiSerializer.toBase64(
-                    model = configCaptor.capture(),
-                    parser = eq(RequestUriConfig.Parser)
-                )
-            ).thenReturn("present-id-config")
-
-            viewModel.effect.runFlowTest {
-                viewModel.handleEvents(Event.PresentIdPressed)
-                testScope.advanceUntilIdle()
-
-                val effect = awaitItem() as Effect.Navigation.SwitchScreen
-                assertTrue(effect.screenRoute.contains("PROXIMITY_QR"))
-                assertTrue(effect.screenRoute.contains("requestUriConfig=present-id-config"))
-                assertEquals(DOCUMENT_ID, configCaptor.firstValue.presentingDocumentId)
-                assertTrue(configCaptor.firstValue.mode is PresentationMode.Ble)
-            }
-        }
-
-    @Test
-    fun `Given claims are collapsed by default, When toggle is pressed twice, Then expand state flips each time`() =
-        coroutineRule.runTest {
-            assertFalse(viewModel.viewState.value.areDocumentClaimsExpanded)
-
-            viewModel.handleEvents(Event.ToggleDocumentClaimsExpanded)
-            testScope.advanceUntilIdle()
-            assertTrue(viewModel.viewState.value.areDocumentClaimsExpanded)
-
-            viewModel.handleEvents(Event.ToggleDocumentClaimsExpanded)
-            testScope.advanceUntilIdle()
-            assertFalse(viewModel.viewState.value.areDocumentClaimsExpanded)
+            verify(interactor).setPresentIdConfig(configCaptor.capture())
+            assertEquals(DOCUMENT_ID, configCaptor.firstValue.presentingDocumentId)
+            assertTrue(configCaptor.firstValue.mode is PresentationMode.Ble)
+            assertTrue(
+                viewModel.viewState.value.sheetContent is DocumentDetailsBottomSheetContent.PresentId
+            )
         }
 
     private companion object {

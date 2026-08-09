@@ -16,13 +16,16 @@
 
 package eu.europa.ec.dashboardfeature.ui.documents.detail
 
+import androidx.activity.ComponentActivity
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
 import eu.europa.ec.commonfeature.config.IssuanceFlowType
 import eu.europa.ec.commonfeature.config.IssuanceUiConfig
 import eu.europa.ec.commonfeature.config.PresentationMode
 import eu.europa.ec.commonfeature.config.RequestUriConfig
 import eu.europa.ec.corelogic.model.FormatType
 import eu.europa.ec.dashboardfeature.interactor.DocumentDetailsInteractor
+import eu.europa.ec.dashboardfeature.interactor.HomeInteractorPresentIdPartialState
 import eu.europa.ec.dashboardfeature.interactor.DocumentDetailsInteractorDeleteBookmarkPartialState
 import eu.europa.ec.dashboardfeature.interactor.DocumentDetailsInteractorDeleteDocumentPartialState
 import eu.europa.ec.dashboardfeature.interactor.DocumentDetailsInteractorPartialState
@@ -72,6 +75,9 @@ data class State(
     val isDocumentBookmarked: Boolean = false,
     /** Full claim list is advanced/technical data; collapsed by default. */
     val areDocumentClaimsExpanded: Boolean = false,
+    val presentIdQrCode: String = "",
+    val presentIdPresentationScopeId: String = "",
+    val isPresentIdHandoffInProgress: Boolean = false,
 
     val sheetContent: DocumentDetailsBottomSheetContent = DocumentDetailsBottomSheetContent.DeleteDocumentConfirmation,
 ) : ViewState
@@ -104,6 +110,11 @@ sealed class Event : ViewEvent {
     data object ToggleExpansionStateOfDocumentCredentialsSection : Event()
     data object DocumentCredentialsSectionPrimaryButtonPressed : Event()
     data object PresentIdPressed : Event()
+    data class PresentIdNfcEngagement(
+        val componentActivity: ComponentActivity,
+        val enable: Boolean
+    ) : Event()
+    data object PresentIdLifecycleStopped : Event()
 }
 
 sealed class Effect : ViewSideEffect {
@@ -126,6 +137,7 @@ sealed class Effect : ViewSideEffect {
 
 sealed class DocumentDetailsBottomSheetContent {
     data object DeleteDocumentConfirmation : DocumentDetailsBottomSheetContent()
+    data object PresentId : DocumentDetailsBottomSheetContent()
 
     data class BookmarkStoredInfo(
         val bottomSheetTextData: BottomSheetTextDataUi
@@ -147,6 +159,8 @@ class DocumentDetailsViewModel(
     private val resourceProvider: ResourceProvider,
     @InjectedParam private val documentId: DocumentId,
 ) : MviViewModel<Event, State, Effect>() {
+    private var presentIdJob: Job? = null
+
     override fun setInitialState(): State = State(
         documentDetailsSectionTitle = resourceProvider.getString(R.string.document_details_main_section_text),
         documentIssuerSectionTitle = resourceProvider.getString(R.string.document_details_issuer_section_text),
@@ -168,8 +182,14 @@ class DocumentDetailsViewModel(
             }
 
             is Event.BottomSheet.UpdateBottomSheetState -> {
+                val shouldCancelPresentIdPresentation: Boolean = event.isOpen.not()
+                        && viewState.value.sheetContent is DocumentDetailsBottomSheetContent.PresentId
+                        && viewState.value.isPresentIdHandoffInProgress.not()
                 setState {
                     copy(isBottomSheetOpen = event.isOpen)
+                }
+                if (shouldCancelPresentIdPresentation) {
+                    cancelPresentIdShare()
                 }
             }
 
@@ -248,7 +268,11 @@ class DocumentDetailsViewModel(
                 }
             }
 
-            is Event.PresentIdPressed -> goToPresentId()
+            is Event.PresentIdPressed -> startPresentIdSheet()
+
+            is Event.PresentIdNfcEngagement -> handlePresentIdNfcEngagement(event)
+
+            is Event.PresentIdLifecycleStopped -> stopPresentIdShareFromLifecycle()
         }
     }
 
@@ -427,7 +451,10 @@ class DocumentDetailsViewModel(
 
     private fun showBottomSheet(sheetContent: DocumentDetailsBottomSheetContent) {
         setState {
-            copy(sheetContent = sheetContent)
+            copy(
+                sheetContent = sheetContent,
+                isPresentIdHandoffInProgress = false
+            )
         }
         setEffect {
             Effect.ShowBottomSheet
@@ -497,30 +524,116 @@ class DocumentDetailsViewModel(
         }
     }
 
-    private fun goToPresentId() {
-        val presentIdScreenRoute = generateComposableNavigationLink(
-            screen = ProximityScreens.QR,
-            arguments = generateComposableArguments(
-                mapOf(
-                    RequestUriConfig.serializedKeyName to uiSerializer.toBase64(
-                        model = RequestUriConfig(
-                            mode = PresentationMode.Ble(DashboardScreens.Dashboard.screenRoute),
-                            presentingDocumentId = documentId
-                        ),
-                        parser = RequestUriConfig.Parser
-                    )
-                )
-            )
+    private fun startPresentIdSheet() {
+        val requestUriConfig = RequestUriConfig(
+            mode = PresentationMode.Ble(DashboardScreens.Dashboard.screenRoute),
+            presentingDocumentId = documentId
         )
+        documentDetailsInteractor.setPresentIdConfig(requestUriConfig)
+        presentIdJob?.cancel()
+        setState {
+            copy(
+                presentIdQrCode = "",
+                presentIdPresentationScopeId = requestUriConfig.presentationScopeId,
+                isPresentIdHandoffInProgress = false,
+                sheetContent = DocumentDetailsBottomSheetContent.PresentId
+            )
+        }
+        setEffect { Effect.ShowBottomSheet }
+        presentIdJob = viewModelScope.launch {
+            documentDetailsInteractor.startPresentIdEngagement().collect { response ->
+                when (response) {
+                    is HomeInteractorPresentIdPartialState.QrReady -> {
+                        setState { copy(presentIdQrCode = response.qrCode) }
+                    }
 
+                    is HomeInteractorPresentIdPartialState.Connected -> {
+                        navigateFromPresentIdSheetToRequest()
+                    }
+
+                    is HomeInteractorPresentIdPartialState.Disconnected -> {
+                        cancelPresentIdShare()
+                        hideBottomSheet()
+                    }
+
+                    is HomeInteractorPresentIdPartialState.Error -> {
+                        cancelPresentIdShare()
+                        hideBottomSheet()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun navigateFromPresentIdSheetToRequest() {
+        val presentationScopeId: String = viewState.value.presentIdPresentationScopeId
+        val arguments: Map<String, String> = buildMap {
+            put("scopeId", presentationScopeId)
+            put("presentingDocumentId", documentId)
+        }
+        unsubscribePresentIdShare()
+        documentDetailsInteractor.releasePresentIdPresentationController()
+        setState {
+            copy(
+                isBottomSheetOpen = false,
+                isPresentIdHandoffInProgress = true,
+                presentIdQrCode = ""
+            )
+        }
+        setEffect { Effect.CloseBottomSheet }
         setEffect {
             Effect.Navigation.SwitchScreen(
-                screenRoute = presentIdScreenRoute,
+                screenRoute = generateComposableNavigationLink(
+                    screen = ProximityScreens.Request,
+                    arguments = generateComposableArguments(arguments)
+                ),
                 popUpToScreenRoute = null,
                 inclusive = null
             )
         }
     }
+
+    private fun handlePresentIdNfcEngagement(event: Event.PresentIdNfcEngagement) {
+        val canToggleNfc: Boolean =
+            viewState.value.sheetContent is DocumentDetailsBottomSheetContent.PresentId
+                    && viewState.value.presentIdPresentationScopeId.isNotBlank()
+        if (canToggleNfc) {
+            documentDetailsInteractor.togglePresentIdNfcEngagement(
+                componentActivity = event.componentActivity,
+                toggle = event.enable
+            )
+        }
+    }
+
+    private fun unsubscribePresentIdShare() {
+        presentIdJob?.cancel()
+        presentIdJob = null
+    }
+
+    private fun cancelPresentIdShare() {
+        val hasActivePresentation: Boolean = viewState.value.presentIdPresentationScopeId.isNotBlank()
+        unsubscribePresentIdShare()
+        if (hasActivePresentation) {
+            documentDetailsInteractor.cancelPresentIdPresentation()
+        }
+        setState {
+            copy(
+                presentIdQrCode = "",
+                presentIdPresentationScopeId = "",
+                isPresentIdHandoffInProgress = false
+            )
+        }
+    }
+
+    private fun stopPresentIdShareFromLifecycle() {
+        val shouldStopPresentIdPresentation: Boolean =
+            viewState.value.sheetContent is DocumentDetailsBottomSheetContent.PresentId
+                    && viewState.value.isPresentIdHandoffInProgress.not()
+        if (shouldStopPresentIdPresentation.not()) return
+        cancelPresentIdShare()
+        setState { copy(isBottomSheetOpen = false) }
+    }
+
 
     companion object {
         const val DOCUMENT_DELETED_RESULT_KEY = "documentDeleted"

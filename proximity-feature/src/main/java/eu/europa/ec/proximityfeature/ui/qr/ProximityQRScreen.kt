@@ -244,9 +244,8 @@ private fun Content(
         verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp)
     ) {
         PresentHeader()
-        PresentationPass(
-            presentingDocument = state.presentingDocument,
-            isLoading = state.isLoadingPresentingDocument,
+        // Share channel only: QR + NFC. Identity is shown on home/details, not again here.
+        ShareChannelCard(
             qrCode = state.qrCode,
             onExpandQr = { isQrExpanded = true }
         )
@@ -287,6 +286,49 @@ private fun PresentHeader() {
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
         )
+    }
+}
+
+
+/** Full-screen / deep-link share surface: QR + NFC only (no identity card). */
+@Composable
+private fun ShareChannelCard(
+    qrCode: String,
+    onExpandQr: () -> Unit
+) {
+    val cardShape = RoundedCornerShape(22.dp)
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.glowAccent.copy(alpha = 0.55f),
+                shape = cardShape
+            ),
+        shape = cardShape,
+        color = Color.Transparent,
+        shadowElevation = 10.dp
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.brandNavyDeep,
+                            MaterialTheme.colorScheme.brandNavyMedium
+                        ),
+                        start = Offset(0f, 0f),
+                        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+                    )
+                )
+        ) {
+            PidSecurityPattern(modifier = Modifier.matchParentSize())
+            PassMachineReadableZone(
+                qrCode = qrCode,
+                onExpandQr = onExpandQr
+            )
+        }
     }
 }
 

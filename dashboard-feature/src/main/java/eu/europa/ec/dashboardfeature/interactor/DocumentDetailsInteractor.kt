@@ -16,14 +16,20 @@
 
 package eu.europa.ec.dashboardfeature.interactor
 
+import androidx.activity.ComponentActivity
 import eu.europa.ec.businesslogic.config.ConfigLogic
 import eu.europa.ec.businesslogic.extension.safeAsync
+import eu.europa.ec.commonfeature.config.RequestUriConfig
+import eu.europa.ec.commonfeature.config.toDomainConfig
+import eu.europa.ec.commonfeature.interactor.ScopedPresentationInteractorDelegate
 import eu.europa.ec.businesslogic.provider.UuidProvider
 import eu.europa.ec.commonfeature.util.IdentityCardData
 import eu.europa.ec.commonfeature.util.extractIdentityCardData
 import eu.europa.ec.corelogic.controller.DeleteAllDocumentsPartialState
+import eu.europa.ec.corelogic.controller.TransferEventPartialState
 import eu.europa.ec.corelogic.controller.DeleteDocumentPartialState
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
+import eu.europa.ec.corelogic.controller.WalletCorePresentationController
 import eu.europa.ec.corelogic.extension.localizedIssuerMetadata
 import eu.europa.ec.corelogic.model.DocumentIdentifier
 import eu.europa.ec.corelogic.model.toDocumentIdentifier
@@ -41,6 +47,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.onSubscription
 import java.net.URI
 
 sealed class DocumentDetailsInteractorPartialState {
@@ -95,17 +103,82 @@ interface DocumentDetailsInteractor {
     fun deleteBookmark(
         documentId: String
     ): Flow<DocumentDetailsInteractorDeleteBookmarkPartialState>
+
+    fun setPresentIdConfig(config: RequestUriConfig)
+    fun startPresentIdEngagement(): Flow<HomeInteractorPresentIdPartialState>
+    fun togglePresentIdNfcEngagement(
+        componentActivity: ComponentActivity,
+        toggle: Boolean
+    )
+    fun cancelPresentIdPresentation()
+    fun releasePresentIdPresentationController()
 }
 
 class DocumentDetailsInteractorImpl(
     private val walletCoreDocumentsController: WalletCoreDocumentsController,
     private val resourceProvider: ResourceProvider,
     private val uuidProvider: UuidProvider,
-    private val configLogic: ConfigLogic
-) : DocumentDetailsInteractor {
+    private val configLogic: ConfigLogic,
+    walletCorePresentationController: WalletCorePresentationController? = null
+) : DocumentDetailsInteractor,
+    ScopedPresentationInteractorDelegate(walletCorePresentationController) {
 
     private val genericErrorMsg
         get() = resourceProvider.genericErrorMessage()
+
+    override fun setPresentIdConfig(config: RequestUriConfig) {
+        setScopeId(config.presentationScopeId)
+        walletCorePresentationController.setConfig(config.toDomainConfig())
+    }
+
+    override fun startPresentIdEngagement(): Flow<HomeInteractorPresentIdPartialState> = flow {
+        walletCorePresentationController.events
+            .onSubscription {
+                walletCorePresentationController.startQrEngagement()
+            }.mapNotNull {
+                when (it) {
+                    is TransferEventPartialState.Connected -> {
+                        HomeInteractorPresentIdPartialState.Connected
+                    }
+
+                    is TransferEventPartialState.Error -> {
+                        HomeInteractorPresentIdPartialState.Error(error = it.error)
+                    }
+
+                    is TransferEventPartialState.QrEngagementReady -> {
+                        HomeInteractorPresentIdPartialState.QrReady(qrCode = it.qrCode)
+                    }
+
+                    is TransferEventPartialState.Disconnected -> {
+                        HomeInteractorPresentIdPartialState.Disconnected
+                    }
+
+                    else -> null
+                }
+            }.collect {
+                emit(it)
+            }
+    }.safeAsync {
+        HomeInteractorPresentIdPartialState.Error(error = it.localizedMessage ?: genericErrorMsg)
+    }
+
+    override fun togglePresentIdNfcEngagement(
+        componentActivity: ComponentActivity,
+        toggle: Boolean
+    ) {
+        walletCorePresentationController.toggleNfcEngagement(componentActivity, toggle)
+    }
+
+    override fun cancelPresentIdPresentation() {
+        walletCorePresentationController.stopPresentation()
+        closeScopedPresentationScope()
+    }
+
+    override fun releasePresentIdPresentationController() {
+        releaseScopedPresentationController()
+    }
+
+
 
     override fun getDocumentDetails(
         documentId: DocumentId,

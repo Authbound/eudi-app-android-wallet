@@ -145,6 +145,7 @@ import eu.europa.ec.uilogic.component.wrap.BottomSheetWithTwoBigIcons
 import eu.europa.ec.uilogic.component.wrap.DialogBottomSheet
 import eu.europa.ec.uilogic.component.wrap.GenericBottomSheet
 import eu.europa.ec.uilogic.component.wrap.PresentIdBar
+import eu.europa.ec.uilogic.component.wrap.PresentIdShareSheet
 import eu.europa.ec.uilogic.component.wrap.QuickActionConfig
 import eu.europa.ec.uilogic.component.wrap.QuickActionCard
 import eu.europa.ec.uilogic.component.wrap.WrapIcon
@@ -227,10 +228,19 @@ fun HomeScreen(
         ) {
             HomeScreenSheetContent(
                 sheetContent = state.sheetContent,
+                presentIdQrCode = state.presentIdQrCode,
                 shouldShowAuthboundPidEntry = state.shouldShowAuthboundPidEntry,
                 onEventSent = { event -> viewModel.setEvent(event) },
             )
         }
+    }
+
+    if (isBottomSheetOpen && state.sheetContent is HomeScreenBottomSheetContent.PresentId) {
+        PresentIdNfcLifecycle(
+            context = context,
+            onEventSent = { event -> viewModel.setEvent(event) },
+            onLifecycleStopped = { viewModel.setEvent(Event.PresentIdLifecycleStopped) }
+        )
     }
 
     OneTimeLaunchedEffect {
@@ -242,6 +252,54 @@ fun HomeScreen(
         lifecycleEvent = Lifecycle.Event.ON_RESUME
     ) {
         viewModel.setEvent(Event.GetCredentials)
+    }
+}
+
+
+@Composable
+private fun PresentIdNfcLifecycle(
+    context: Context,
+    onEventSent: (Event.PresentIdNfcEngagement) -> Unit,
+    onLifecycleStopped: () -> Unit
+) {
+    val componentActivity: ComponentActivity? = remember(context) {
+        runCatching { context.findActivity() }.getOrNull()
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(componentActivity) {
+        sendPresentIdNfcEngagement(componentActivity, true, onEventSent)
+        onDispose {
+            sendPresentIdNfcEngagement(componentActivity, false, onEventSent)
+            onLifecycleStopped()
+        }
+    }
+    LifecycleEffect(
+        lifecycleOwner = lifecycleOwner,
+        lifecycleEvent = Lifecycle.Event.ON_RESUME
+    ) {
+        sendPresentIdNfcEngagement(componentActivity, true, onEventSent)
+    }
+    LifecycleEffect(
+        lifecycleOwner = lifecycleOwner,
+        lifecycleEvent = Lifecycle.Event.ON_PAUSE
+    ) {
+        sendPresentIdNfcEngagement(componentActivity, false, onEventSent)
+        onLifecycleStopped()
+    }
+}
+
+private fun sendPresentIdNfcEngagement(
+    componentActivity: ComponentActivity?,
+    enable: Boolean,
+    onEventSent: (Event.PresentIdNfcEngagement) -> Unit
+) {
+    componentActivity?.let { activity ->
+        onEventSent(
+            Event.PresentIdNfcEngagement(
+                componentActivity = activity,
+                enable = enable
+            )
+        )
     }
 }
 
@@ -760,10 +818,20 @@ private fun handleNavigationEffect(
 @Composable
 private fun HomeScreenSheetContent(
     sheetContent: HomeScreenBottomSheetContent,
+    presentIdQrCode: String,
     shouldShowAuthboundPidEntry: Boolean,
     onEventSent: (event: Event) -> Unit,
 ) {
     when (sheetContent) {
+        is HomeScreenBottomSheetContent.PresentId -> {
+            PresentIdShareSheet(
+                qrCode = presentIdQrCode,
+                onClose = {
+                    onEventSent(Event.BottomSheet.Close)
+                }
+            )
+        }
+
         is HomeScreenBottomSheetContent.Authenticate -> {
             BottomSheetWithTwoBigIcons(
                 textData = BottomSheetTextDataUi(

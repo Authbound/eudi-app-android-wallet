@@ -16,6 +16,7 @@
 
 package eu.europa.ec.dashboardfeature.ui.home
 
+import androidx.activity.ComponentActivity
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.viewModelScope
 
@@ -32,6 +33,7 @@ import eu.europa.ec.dashboardfeature.interactor.HomeInteractor
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetCredentialsPartialState
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetHeroCredentialPartialState
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetUserNameViaMainPidDocumentPartialState
+import eu.europa.ec.dashboardfeature.interactor.HomeInteractorPresentIdPartialState
 import eu.europa.ec.dashboardfeature.ui.home.model.HeroCredentialUi
 
 import eu.europa.ec.dashboardfeature.ui.component.BottomNavigationItem
@@ -56,6 +58,7 @@ import eu.europa.ec.uilogic.navigation.ProximityScreens
 import eu.europa.ec.uilogic.navigation.helper.generateComposableArguments
 import eu.europa.ec.uilogic.navigation.helper.generateComposableNavigationLink
 import eu.europa.ec.uilogic.serializer.UiSerializer
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.koin.core.annotation.KoinViewModel
 
@@ -83,6 +86,10 @@ data class State(
     val heroCredentials: List<HeroCredentialUi> = emptyList(),
     val isLoadingHeroCredential: Boolean = false,
     val selectedHeroCredentialDocumentId: DocumentId? = null,
+    val presentIdQrCode: String = "",
+    val presentIdPresentationScopeId: String = "",
+    val presentIdDocumentId: DocumentId? = null,
+    val isPresentIdHandoffInProgress: Boolean = false,
 
     // Credentials list for the home screen (deprecated - moved to hero card)
     val isLoadingCredentials: Boolean = false,
@@ -98,6 +105,11 @@ sealed class Event : ViewEvent {
     data object GetCredentials : Event()
     data class HeroCredentialPressed(val documentId: DocumentId) : Event()
     data class PresentIdPressed(val documentId: DocumentId) : Event()
+    data class PresentIdNfcEngagement(
+        val componentActivity: ComponentActivity,
+        val enable: Boolean
+    ) : Event()
+    data object PresentIdLifecycleStopped : Event()
     data object QrScanPressed : Event()
 
     sealed class AuthenticateCard : Event() {
@@ -188,6 +200,7 @@ sealed class HomeScreenBottomSheetContent {
     data object AddDocument : HomeScreenBottomSheetContent()
     data object Verification : HomeScreenBottomSheetContent()
     data object Sign : HomeScreenBottomSheetContent()
+    data object PresentId : HomeScreenBottomSheetContent()
 
     data class Bluetooth(val availability: BleAvailability) : HomeScreenBottomSheetContent()
 }
@@ -199,6 +212,8 @@ class HomeViewModel(
     private val uiSerializer: UiSerializer,
     private val resourceProvider: ResourceProvider
 ) : MviViewModel<Event, State, Effect>() {
+
+    private var presentIdJob: Job? = null
 
     override fun setInitialState(): State {
         // Quick actions share the navy card base so the home screen reads as one document
@@ -303,10 +318,21 @@ class HomeViewModel(
                 )
 
             is Event.BottomSheet.UpdateBottomSheetState -> {
+                val shouldCancelPresentIdPresentation: Boolean = event.isOpen.not()
+                        && viewState.value.sheetContent is HomeScreenBottomSheetContent.PresentId
+                        && viewState.value.isPresentIdHandoffInProgress.not()
                 setState { copy(isBottomSheetOpen = event.isOpen) }
+                if (shouldCancelPresentIdPresentation) {
+                    cancelPresentIdShare()
+                }
             }
 
             is Event.BottomSheet.Close -> {
+                if (viewState.value.sheetContent is HomeScreenBottomSheetContent.PresentId
+                    && viewState.value.isPresentIdHandoffInProgress.not()
+                ) {
+                    cancelPresentIdShare()
+                }
                 hideBottomSheet()
             }
 
@@ -372,6 +398,14 @@ class HomeViewModel(
                         )
 
                 )
+            }
+
+            is Event.PresentIdNfcEngagement -> {
+                handlePresentIdNfcEngagement(event)
+            }
+
+            is Event.PresentIdLifecycleStopped -> {
+                stopPresentIdShareFromLifecycle()
             }
 
             is Event.StartProximityFlow -> {
@@ -454,7 +488,12 @@ class HomeViewModel(
     }
 
     private fun showBottomSheet(sheetContent: HomeScreenBottomSheetContent) {
-        setState { copy(sheetContent = sheetContent) }
+        setState {
+            copy(
+                sheetContent = sheetContent,
+                isPresentIdHandoffInProgress = false
+            )
+        }
         setEffect { Effect.ShowBottomSheet }
     }
 
@@ -518,30 +557,120 @@ class HomeViewModel(
     }
 
     private fun startProximityFlow() {
-        // The presentation pass screen owns the whole engagement lifecycle (QR, NFC, BLE
-        // permissions); home only decides which document travels with the navigation.
         val selectedDocumentId: DocumentId? = viewState.value.selectedHeroCredentialDocumentId
+        val requestUriConfig = RequestUriConfig(
+            mode = PresentationMode.Ble(DashboardScreens.Dashboard.screenRoute),
+            presentingDocumentId = selectedDocumentId
+        )
+        homeInteractor.setPresentIdConfig(requestUriConfig)
+        presentIdJob?.cancel()
         setState {
             copy(
                 bleAvailability = BleAvailability.AVAILABLE,
-                selectedHeroCredentialDocumentId = null
+                selectedHeroCredentialDocumentId = null,
+                presentIdQrCode = "",
+                presentIdPresentationScopeId = requestUriConfig.presentationScopeId,
+                presentIdDocumentId = selectedDocumentId,
+                isPresentIdHandoffInProgress = false,
+                sheetContent = HomeScreenBottomSheetContent.PresentId
             )
         }
-        val presentIdScreenRoute = generateComposableNavigationLink(
-            screen = ProximityScreens.QR,
-            arguments = generateComposableArguments(
-                mapOf(
-                    RequestUriConfig.serializedKeyName to uiSerializer.toBase64(
-                        model = RequestUriConfig(
-                            mode = PresentationMode.Ble(DashboardScreens.Dashboard.screenRoute),
-                            presentingDocumentId = selectedDocumentId
-                        ),
-                        parser = RequestUriConfig.Parser
-                    )
+        setEffect { Effect.ShowBottomSheet }
+        presentIdJob = viewModelScope.launch {
+            homeInteractor.startPresentIdEngagement().collect { response ->
+                when (response) {
+                    is HomeInteractorPresentIdPartialState.QrReady -> {
+                        setState { copy(presentIdQrCode = response.qrCode) }
+                    }
+
+                    is HomeInteractorPresentIdPartialState.Connected -> {
+                        navigateFromPresentIdSheetToRequest()
+                    }
+
+                    is HomeInteractorPresentIdPartialState.Disconnected -> {
+                        cancelPresentIdShare()
+                        hideBottomSheet()
+                    }
+
+                    is HomeInteractorPresentIdPartialState.Error -> {
+                        cancelPresentIdShare()
+                        hideBottomSheet()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun navigateFromPresentIdSheetToRequest() {
+        val presentationScopeId: String = viewState.value.presentIdPresentationScopeId
+        val presentingDocumentId: DocumentId? = viewState.value.presentIdDocumentId
+        val arguments: Map<String, String> = buildMap {
+            put("scopeId", presentationScopeId)
+            presentingDocumentId
+                ?.takeIf { it.isNotBlank() }
+                ?.let { put("presentingDocumentId", it) }
+        }
+        unsubscribePresentIdShare()
+        homeInteractor.releasePresentIdPresentationController()
+        setState {
+            copy(
+                isBottomSheetOpen = false,
+                isPresentIdHandoffInProgress = true,
+                presentIdQrCode = ""
+            )
+        }
+        setEffect { Effect.CloseBottomSheet(false) }
+        setEffect {
+            Effect.Navigation.SwitchScreen(
+                screenRoute = generateComposableNavigationLink(
+                    screen = ProximityScreens.Request,
+                    arguments = generateComposableArguments(arguments)
                 )
             )
-        )
-        setEffect { Effect.Navigation.SwitchScreen(screenRoute = presentIdScreenRoute) }
+        }
+    }
+
+    private fun handlePresentIdNfcEngagement(event: Event.PresentIdNfcEngagement) {
+        val canToggleNfc: Boolean =
+            viewState.value.sheetContent is HomeScreenBottomSheetContent.PresentId
+                    && viewState.value.presentIdPresentationScopeId.isNotBlank()
+        if (canToggleNfc) {
+            homeInteractor.togglePresentIdNfcEngagement(
+                componentActivity = event.componentActivity,
+                toggle = event.enable
+            )
+        }
+    }
+
+    private fun unsubscribePresentIdShare() {
+        presentIdJob?.cancel()
+        presentIdJob = null
+    }
+
+    private fun cancelPresentIdShare() {
+        val hasActivePresentation: Boolean = viewState.value.presentIdPresentationScopeId.isNotBlank()
+        unsubscribePresentIdShare()
+        if (hasActivePresentation) {
+            homeInteractor.cancelPresentIdPresentation()
+        }
+        setState {
+            copy(
+                presentIdQrCode = "",
+                presentIdPresentationScopeId = "",
+                presentIdDocumentId = null,
+                selectedHeroCredentialDocumentId = null,
+                isPresentIdHandoffInProgress = false
+            )
+        }
+    }
+
+    private fun stopPresentIdShareFromLifecycle() {
+        val shouldStopPresentIdPresentation: Boolean =
+            viewState.value.sheetContent is HomeScreenBottomSheetContent.PresentId
+                    && viewState.value.isPresentIdHandoffInProgress.not()
+        if (shouldStopPresentIdPresentation.not()) return
+        cancelPresentIdShare()
+        setState { copy(isBottomSheetOpen = false) }
     }
 
     private fun navigateToQrSignatureScan() {

@@ -18,7 +18,11 @@ package eu.europa.ec.dashboardfeature.interactor
 
 import android.bluetooth.BluetoothManager
 import android.content.Context
+import androidx.activity.ComponentActivity
 import eu.europa.ec.businesslogic.extension.safeAsync
+import eu.europa.ec.commonfeature.config.RequestUriConfig
+import eu.europa.ec.commonfeature.config.toDomainConfig
+import eu.europa.ec.commonfeature.interactor.ScopedPresentationInteractorDelegate
 import eu.europa.ec.commonfeature.util.CARD_DISPLAY_DATE_PATTERN
 import eu.europa.ec.commonfeature.util.DocumentJsonKeys
 import eu.europa.ec.commonfeature.util.extractIdentityCardData
@@ -26,7 +30,9 @@ import eu.europa.ec.commonfeature.util.extractIdentityCardData
 import eu.europa.ec.commonfeature.util.documentHasExpired
 import eu.europa.ec.commonfeature.util.extractValueFromDocumentOrEmpty
 import eu.europa.ec.corelogic.config.WalletCoreConfig
+import eu.europa.ec.corelogic.controller.TransferEventPartialState
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
+import eu.europa.ec.corelogic.controller.WalletCorePresentationController
 import eu.europa.ec.corelogic.extension.localizedIssuerMetadata
 import eu.europa.ec.corelogic.model.DocumentCategory
 import eu.europa.ec.corelogic.model.DocumentIdentifier
@@ -48,6 +54,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.onSubscription
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -82,19 +90,36 @@ sealed class HomeInteractorGetHeroCredentialPartialState {
     ) : HomeInteractorGetHeroCredentialPartialState()
 }
 
+sealed class HomeInteractorPresentIdPartialState {
+    data class QrReady(val qrCode: String) : HomeInteractorPresentIdPartialState()
+    data class Error(val error: String) : HomeInteractorPresentIdPartialState()
+    data object Connected : HomeInteractorPresentIdPartialState()
+    data object Disconnected : HomeInteractorPresentIdPartialState()
+}
+
 interface HomeInteractor {
     fun isBleAvailable(): Boolean
     fun isBleCentralClientModeEnabled(): Boolean
     fun getUserNameViaMainPidDocument(): Flow<HomeInteractorGetUserNameViaMainPidDocumentPartialState>
     fun getCredentials(): Flow<HomeInteractorGetCredentialsPartialState>
     fun getHeroCredential(): Flow<HomeInteractorGetHeroCredentialPartialState>
+    fun setPresentIdConfig(config: RequestUriConfig)
+    fun startPresentIdEngagement(): Flow<HomeInteractorPresentIdPartialState>
+    fun togglePresentIdNfcEngagement(
+        componentActivity: ComponentActivity,
+        toggle: Boolean
+    )
+    fun cancelPresentIdPresentation()
+    fun releasePresentIdPresentationController()
 }
 
 class HomeInteractorImpl(
     private val resourceProvider: ResourceProvider,
     private val walletCoreDocumentsController: WalletCoreDocumentsController,
-    private val walletCoreConfig: WalletCoreConfig
-) : HomeInteractor {
+    private val walletCoreConfig: WalletCoreConfig,
+    walletCorePresentationController: WalletCorePresentationController? = null
+) : HomeInteractor,
+    ScopedPresentationInteractorDelegate(walletCorePresentationController) {
     private val genericErrorMsg
         get() = resourceProvider.genericErrorMessage()
 
@@ -106,6 +131,58 @@ class HomeInteractorImpl(
 
     override fun isBleCentralClientModeEnabled(): Boolean =
         walletCoreConfig.config.enableBleCentralMode
+
+    override fun setPresentIdConfig(config: RequestUriConfig) {
+        setScopeId(config.presentationScopeId)
+        walletCorePresentationController.setConfig(config.toDomainConfig())
+    }
+
+    override fun startPresentIdEngagement(): Flow<HomeInteractorPresentIdPartialState> = flow {
+        walletCorePresentationController.events
+            .onSubscription {
+                walletCorePresentationController.startQrEngagement()
+            }.mapNotNull {
+                when (it) {
+                    is TransferEventPartialState.Connected -> {
+                        HomeInteractorPresentIdPartialState.Connected
+                    }
+
+                    is TransferEventPartialState.Error -> {
+                        HomeInteractorPresentIdPartialState.Error(error = it.error)
+                    }
+
+                    is TransferEventPartialState.QrEngagementReady -> {
+                        HomeInteractorPresentIdPartialState.QrReady(qrCode = it.qrCode)
+                    }
+
+                    is TransferEventPartialState.Disconnected -> {
+                        HomeInteractorPresentIdPartialState.Disconnected
+                    }
+
+                    else -> null
+                }
+            }.collect {
+                emit(it)
+            }
+    }.safeAsync {
+        HomeInteractorPresentIdPartialState.Error(error = it.localizedMessage ?: genericErrorMsg)
+    }
+
+    override fun togglePresentIdNfcEngagement(
+        componentActivity: ComponentActivity,
+        toggle: Boolean
+    ) {
+        walletCorePresentationController.toggleNfcEngagement(componentActivity, toggle)
+    }
+
+    override fun cancelPresentIdPresentation() {
+        walletCorePresentationController.stopPresentation()
+        closeScopedPresentationScope()
+    }
+
+    override fun releasePresentIdPresentationController() {
+        releaseScopedPresentationController()
+    }
 
     override fun getUserNameViaMainPidDocument(): Flow<HomeInteractorGetUserNameViaMainPidDocumentPartialState> =
         flow {

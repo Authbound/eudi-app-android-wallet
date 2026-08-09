@@ -77,6 +77,10 @@ import eu.europa.ec.dashboardfeature.interactor.HealthInteractorPartialState
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractor
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetCredentialsPartialState
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetHeroCredentialPartialState
+import eu.europa.ec.dashboardfeature.interactor.HomeInteractorPresentIdPartialState
+import eu.europa.ec.commonfeature.config.RequestUriConfig
+import androidx.activity.ComponentActivity
+import kotlinx.coroutines.flow.emptyFlow
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetUserNameViaMainPidDocumentPartialState
 import eu.europa.ec.dashboardfeature.interactor.SettingsInteractor
 import eu.europa.ec.dashboardfeature.interactor.CredentialSummaryUi
@@ -894,6 +898,19 @@ private class FakeHomeInteractor : HomeInteractor {
     override fun getHeroCredential(): Flow<HomeInteractorGetHeroCredentialPartialState> {
         return flowOf(HomeInteractorGetHeroCredentialPartialState.Success(emptyList<HeroCredentialUi>()))
     }
+
+    override fun setPresentIdConfig(config: RequestUriConfig): Unit = Unit
+
+    override fun startPresentIdEngagement(): Flow<HomeInteractorPresentIdPartialState> = emptyFlow()
+
+    override fun togglePresentIdNfcEngagement(
+        componentActivity: ComponentActivity,
+        toggle: Boolean
+    ): Unit = Unit
+
+    override fun cancelPresentIdPresentation(): Unit = Unit
+
+    override fun releasePresentIdPresentationController(): Unit = Unit
 }
 
 private class FakeDocumentsInteractor : DocumentsInteractor {

@@ -42,6 +42,7 @@ import junit.framework.TestCase.assertFalse
 import junit.framework.TestCase.assertTrue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
@@ -417,7 +418,7 @@ class TestHomeViewModel {
         }
 
     @Test
-    fun `Given present id is pressed, When proximity flow starts, Then proximity QR opens with selected document`() =
+    fun `Given present id is pressed, When proximity flow starts, Then present id sheet opens with selected document`() =
         coroutineRule.runTest {
             val selectedDocumentId = "hero-document-id"
             val heroCredentials = listOf(createHeroCredential(selectedDocumentId))
@@ -432,18 +433,8 @@ class TestHomeViewModel {
                     emit(HomeInteractorGetHeroCredentialPartialState.Success(heroCredentials))
                 }
             )
-            val requestConfigCaptor = argumentCaptor<RequestUriConfig>()
-            whenever(
-                uiSerializer.toBase64(
-                    model = requestConfigCaptor.capture(),
-                    parser = eq(RequestUriConfig.Parser)
-                )
-            ).thenReturn("present-id-config")
+            whenever(homeInteractor.startPresentIdEngagement()).thenReturn(emptyFlow())
             val viewModel = createViewModel()
-            val effects: MutableList<Effect> = mutableListOf()
-            val collectJob = launch {
-                viewModel.effect.toList(effects)
-            }
             viewModel.setEvent(Event.GetCredentials)
             testScope.advanceUntilIdle()
 
@@ -453,13 +444,17 @@ class TestHomeViewModel {
             viewModel.setEvent(Event.StartProximityFlow)
             testScope.advanceUntilIdle()
 
-            val navigationEffect = effects.filterIsInstance<Effect.Navigation.SwitchScreen>().last()
-            assertTrue(navigationEffect.screenRoute.contains("PROXIMITY_QR"))
-            assertTrue(navigationEffect.screenRoute.contains("requestUriConfig=present-id-config"))
+            val requestConfigCaptor = argumentCaptor<RequestUriConfig>()
+            verify(homeInteractor).setPresentIdConfig(requestConfigCaptor.capture())
             assertEquals(selectedDocumentId, requestConfigCaptor.firstValue.presentingDocumentId)
             assertTrue(requestConfigCaptor.firstValue.mode is PresentationMode.Ble)
             assertEquals(null, viewModel.viewState.value.selectedHeroCredentialDocumentId)
-            collectJob.cancel()
+            assertEquals(selectedDocumentId, viewModel.viewState.value.presentIdDocumentId)
+            assertEquals(
+                requestConfigCaptor.firstValue.presentationScopeId,
+                viewModel.viewState.value.presentIdPresentationScopeId
+            )
+            assertTrue(viewModel.viewState.value.sheetContent is HomeScreenBottomSheetContent.PresentId)
         }
 
     //region Helper Methods
