@@ -17,7 +17,6 @@
 package eu.europa.ec.businesslogic.config
 
 import android.content.Context
-import eu.europa.ec.businesslogic.util.EmulatorDetector
 import eu.europa.ec.eudi.rqesui.infrastructure.config.EudiRQESUiConfig
 
 class ConfigLogicImpl(val context: Context) : ConfigLogic {
@@ -35,19 +34,6 @@ class ConfigLogicImpl(val context: Context) : ConfigLogic {
 }
 
 private class DevEnvironmentConfig : EnvironmentConfig() {
-    override fun getServerHost(): String = when (environment) {
-        ServerConfig.Debug -> {
-            val host = EmulatorDetector.getLocalhostAddress()
-            "http://$host:3009"
-        }
-        ServerConfig.Release -> "https://staging-mobile.authbound.io"
-    }
-
-    override fun getGatewayHost(): String = when (environment) {
-        ServerConfig.Debug -> {
-            val host = EmulatorDetector.getLocalhostAddress()
-            "http://$host:8080"
-        }
-        ServerConfig.Release -> "https://staging-api.authbound.io"
-    }
+    override fun getServerHost(): String = "https://staging-mobile.authbound.io"
+    override fun getGatewayHost(): String = "https://staging-api.authbound.io"
 }
