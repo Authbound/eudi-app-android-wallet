@@ -482,10 +482,12 @@ fun VisualCredentialCard(
                                                                         }
                                                                 }
                                                         }
-                                                        CredentialStatusBadge(
-                                                                status = config.status,
-                                                                colors = colors
-                                                        )
+                                                        if (config.status != CredentialStatus.ISSUED) {
+                                                                CredentialStatusBadge(
+                                                                        status = config.status,
+                                                                        colors = colors
+                                                                )
+                                                        }
                                                 }
                                         }
 
@@ -755,7 +757,15 @@ private fun PassportCardContent(
                                         letterSpacing = 1.8.sp,
                                         color = colors.textSecondary
                                 )
-                                CredentialStatusBadge(status = config.status, colors = colors)
+                                // Healthy issued credentials need no badge — "Issued" is the
+                                // default state of every card and just reads as UI noise.
+                                // Only surface exceptional lifecycle states.
+                                if (config.status != CredentialStatus.ISSUED) {
+                                        CredentialStatusBadge(
+                                                status = config.status,
+                                                colors = colors
+                                        )
+                                }
                         }
                         Row(
                                 modifier = Modifier.fillMaxWidth(),

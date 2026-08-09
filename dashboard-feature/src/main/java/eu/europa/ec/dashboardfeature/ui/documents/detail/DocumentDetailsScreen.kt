@@ -393,21 +393,29 @@ private fun Content(
                 )
                 VSpacer.ExtraLarge()
 
-                state.documentCredentialsInfoUi?.let { safeDocumentCredentialsInfo ->
-                    ExpandableDocumentCredentialsSection(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = SPACING_SMALL.dp),
-                        documentCredentialsInfoUi = safeDocumentCredentialsInfo,
-                        onExpandedStateChanged = {
-                            onEventSend(Event.ToggleExpansionStateOfDocumentCredentialsSection)
-                        },
-                        onPrimaryButtonClicked = {
-                            onEventSend(Event.DocumentCredentialsSectionPrimaryButtonPressed)
-                        }
-                    )
-                    VSpacer.ExtraLarge()
-                }
+                // Batch-instance counter is EUDI plumbing, not identity. Only surface it
+                // when there is more than one instance or when the wallet is low and
+                // re-issuance is offered — hide the useless "1/1 … More info" chrome.
+                state.documentCredentialsInfoUi
+                    ?.takeIf { info ->
+                        info.totalCredentials > 1 ||
+                            info.expandedInfo?.updateNowButtonText != null
+                    }
+                    ?.let { safeDocumentCredentialsInfo ->
+                        ExpandableDocumentCredentialsSection(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = SPACING_SMALL.dp),
+                            documentCredentialsInfoUi = safeDocumentCredentialsInfo,
+                            onExpandedStateChanged = {
+                                onEventSend(Event.ToggleExpansionStateOfDocumentCredentialsSection)
+                            },
+                            onPrimaryButtonClicked = {
+                                onEventSend(Event.DocumentCredentialsSectionPrimaryButtonPressed)
+                            }
+                        )
+                        VSpacer.ExtraLarge()
+                    }
 
                 DocumentClaimsSection(
                     modifier = Modifier.fillMaxWidth(),
