@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.sp
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.theme.values.brandNavyDeep
 import eu.europa.ec.resourceslogic.theme.values.brandNavyMedium
+import eu.europa.ec.resourceslogic.theme.values.success
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.ImageOrPlaceholder
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
@@ -123,6 +124,7 @@ data class VisualCredentialConfig(
         val hasPhoto: Boolean = false,
         val portraitBase64: String? = null,
         val nationality: String? = null,
+        val birthDate: String? = null,
         val layout: CredentialCardLayout = CredentialCardLayout.COMPACT
 )
 
@@ -746,23 +748,13 @@ private fun PassportCardContent(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.Top
                         ) {
-                                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                        Text(
-                                                text = getTypeLabel(config.visualType),
-                                                style = MaterialTheme.typography.labelSmall,
-                                                fontWeight = FontWeight.SemiBold,
-                                                letterSpacing = 1.5.sp,
-                                                color = colors.textSecondary
-                                        )
-                                        Text(
-                                                text = config.subtitle?.takeIf { it.isNotBlank() }
-                                                        ?: config.title,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = colors.textSecondary.copy(alpha = 0.58f),
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                        )
-                                }
+                                Text(
+                                        text = getTypeLabel(config.visualType),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        letterSpacing = 1.8.sp,
+                                        color = colors.textSecondary
+                                )
                                 CredentialStatusBadge(status = config.status, colors = colors)
                         }
                         Row(
@@ -770,10 +762,18 @@ private fun PassportCardContent(
                                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                                 verticalAlignment = Alignment.CenterVertically
                         ) {
-                                PassportPortraitFrame(
-                                        portraitBase64 = config.portraitBase64,
-                                        colors = colors
-                                )
+                                // Same rule as the presentation pass: a photo window
+                                // belongs to any credential that carries a portrait or is
+                                // an identity document type; attribute-only credentials
+                                // use the full width for their fields instead.
+                                if (config.visualType.isIdentityDocumentType() ||
+                                        !config.portraitBase64.isNullOrBlank()
+                                ) {
+                                        IdentityPortraitFrame(
+                                                portraitBase64 = config.portraitBase64,
+                                                frameTint = colors.textPrimary
+                                        )
+                                }
                                 Column(
                                         modifier = Modifier.weight(1f),
                                         verticalArrangement = Arrangement.spacedBy(9.dp)
@@ -781,34 +781,18 @@ private fun PassportCardContent(
                                         val displayName =
                                                 config.holderName?.takeIf { it.isNotBlank() }
                                                         ?: config.title
-                                        Text(
-                                                text = displayName.uppercase(),
-                                                style =
-                                                        MaterialTheme.typography.titleLarge.copy(
-                                                                fontWeight = FontWeight.Bold,
-                                                                fontSize = 22.sp,
-                                                                lineHeight = 26.sp,
-                                                                letterSpacing = 0.sp
-                                                        ),
-                                                color = colors.textPrimary,
-                                                maxLines = 2,
-                                                overflow = TextOverflow.Ellipsis
+                                        IdentityHolderName(
+                                                name = displayName,
+                                                color = colors.textPrimary
                                         )
-                                        Box(
-                                                modifier =
-                                                        Modifier.fillMaxWidth()
-                                                                .height(1.dp)
-                                                                .background(
-                                                                        colors.textPrimary.copy(
-                                                                                alpha = 0.14f
-                                                                        )
-                                                                )
+                                        IdentityHairline(
+                                                color = colors.textPrimary.copy(alpha = 0.14f)
                                         )
                                         Row(
                                                 modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.spacedBy(22.dp)
+                                                horizontalArrangement = Arrangement.spacedBy(18.dp)
                                         ) {
-                                                PassportLabeledField(
+                                                IdentityLabeledField(
                                                         modifier = Modifier.weight(1f),
                                                         label =
                                                                 stringResource(
@@ -816,9 +800,21 @@ private fun PassportCardContent(
                                                                                 .credential_card_label_nationality
                                                                 ),
                                                         value = config.nationality,
-                                                        colors = colors
+                                                        labelColor = colors.textSecondary,
+                                                        valueColor = colors.textPrimary
                                                 )
-                                                PassportLabeledField(
+                                                IdentityLabeledField(
+                                                        modifier = Modifier.weight(1.25f),
+                                                        label =
+                                                                stringResource(
+                                                                        R.string
+                                                                                .credential_card_label_date_of_birth
+                                                                ),
+                                                        value = config.birthDate,
+                                                        labelColor = colors.textSecondary,
+                                                        valueColor = colors.textPrimary
+                                                )
+                                                IdentityLabeledField(
                                                         modifier = Modifier.weight(1.25f),
                                                         label =
                                                                 stringResource(
@@ -826,7 +822,8 @@ private fun PassportCardContent(
                                                                                 .credential_card_label_valid_until
                                                                 ),
                                                         value = config.expiryDate,
-                                                        colors = colors
+                                                        labelColor = colors.textSecondary,
+                                                        valueColor = colors.textPrimary
                                                 )
                                         }
                                 }
@@ -836,68 +833,6 @@ private fun PassportCardContent(
                                 colors = colors
                         )
                 }
-        }
-}
-
-/** Rounded portrait frame with an accent border, echoing a physical ID photo window. */
-@Composable
-private fun PassportPortraitFrame(
-        portraitBase64: String?,
-        colors: CredentialColorScheme
-) {
-        Box(
-                modifier =
-                        Modifier.width(72.dp)
-                                .height(92.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(colors.textPrimary.copy(alpha = 0.08f))
-                                .border(
-                                        width = 1.5.dp,
-                                        color = colors.accent.copy(alpha = 0.4f),
-                                        shape = RoundedCornerShape(8.dp)
-                                ),
-                contentAlignment = Alignment.Center
-        ) {
-                ImageOrPlaceholder(
-                        modifier =
-                                Modifier.fillMaxSize()
-                                        .padding(2.dp)
-                                        .clip(RoundedCornerShape(6.dp)),
-                        base64Image = portraitBase64.orEmpty(),
-                        contentScale = ContentScale.Crop,
-                        fallbackIcon = AppIcons.User
-                )
-        }
-}
-
-/** Small letterspaced-caps label above its value; hidden entirely when the value is blank. */
-@Composable
-private fun PassportLabeledField(
-        modifier: Modifier = Modifier,
-        label: String,
-        value: String?,
-        colors: CredentialColorScheme
-) {
-        if (value.isNullOrBlank()) return
-        Column(
-                modifier = modifier,
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-                Text(
-                        text = label.uppercase(),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontSize = 9.sp,
-                        letterSpacing = 1.2.sp,
-                        color = colors.textSecondary
-                )
-                Text(
-                        text = value,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = colors.textPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                )
         }
 }
 
@@ -976,12 +911,12 @@ private fun CredentialStatusBadge(
         colors: CredentialColorScheme,
         modifier: Modifier = Modifier
 ) {
-        val (backgroundColor, textColor, label, icon) =
+        val (backgroundColor, dotColor, label, icon) =
                 when (status) {
                         CredentialStatus.ISSUED ->
                                 Quadruple(
-                                        colors.textPrimary.copy(alpha = 0.15f),
-                                        colors.textPrimary,
+                                        colors.textPrimary.copy(alpha = 0.10f),
+                                        MaterialTheme.colorScheme.success,
                                         "Issued",
                                         AppIcons.Verified
                                 )
@@ -1012,8 +947,9 @@ private fun CredentialStatusBadge(
                 Row(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
+                        IdentityStatusDot(color = dotColor)
                         Text(
                                 text = label,
                                 style = MaterialTheme.typography.labelSmall,
@@ -1167,6 +1103,7 @@ private fun PassportCredentialCardPreview() {
                                                 expiryDate = "11/07/2026",
                                                 hasPhoto = false,
                                                 nationality = "FIN",
+                                                birthDate = "15/03/1990",
                                                 layout = CredentialCardLayout.PASSPORT
                                         )
                         )

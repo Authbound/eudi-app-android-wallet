@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -157,6 +158,11 @@ fun QuickActionCard(
                             end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
                         )
                     )
+                    .border(
+                        width = 1.dp,
+                        color = config.accentColor.copy(alpha = 0.28f),
+                        shape = RoundedCornerShape(20.dp)
+                    )
             ) {
                 QuickActionMotif(
                     modifier = Modifier.align(Alignment.TopEnd),
@@ -180,12 +186,17 @@ fun QuickActionCard(
                             modifier = Modifier
                                 .size(48.dp)
                                 .clip(CircleShape)
-                                .background(config.accentColor.copy(alpha = 0.15f)),
+                                .background(config.accentColor.copy(alpha = 0.15f))
+                                .border(
+                                    width = 1.dp,
+                                    color = config.accentColor.copy(alpha = 0.35f),
+                                    shape = CircleShape
+                                ),
                             contentAlignment = Alignment.Center
                         ) {
                             WrapIcon(
                                 iconData = config.icon,
-                                customTint = Color.White,
+                                customTint = config.accentColor,
                                 modifier = Modifier.size(26.dp)
                             )
                         }

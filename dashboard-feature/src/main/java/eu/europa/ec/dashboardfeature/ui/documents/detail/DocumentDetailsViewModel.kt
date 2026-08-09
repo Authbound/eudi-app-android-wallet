@@ -30,6 +30,7 @@ import eu.europa.ec.dashboardfeature.interactor.DocumentDetailsInteractorStoreBo
 import eu.europa.ec.dashboardfeature.ui.documents.detail.model.DocumentDetailsUi
 import eu.europa.ec.dashboardfeature.ui.documents.detail.model.DocumentIssuanceStateUi
 import eu.europa.ec.dashboardfeature.ui.documents.detail.transformer.DocumentDetailsTransformer.transformToDocumentDetailsUi
+import eu.europa.ec.commonfeature.util.IdentityCardData
 import eu.europa.ec.dashboardfeature.ui.documents.model.DocumentCredentialsInfoUi
 import eu.europa.ec.eudi.wallet.document.DocumentId
 import eu.europa.ec.resourceslogic.R
@@ -60,6 +61,7 @@ data class State(
     val isRevoked: Boolean = false,
 
     val documentDetailsUi: DocumentDetailsUi? = null,
+    val identityCardData: IdentityCardData? = null,
     val title: String? = null,
     val issuerName: String? = null,
     val issuerLogo: URI? = null,
@@ -282,6 +284,7 @@ class DocumentDetailsViewModel(
                                 isLoading = false,
                                 error = null,
                                 documentDetailsUi = documentDetailsUi,
+                                identityCardData = response.identityCardData,
                                 documentCredentialsInfoUi = response.documentCredentialsInfoUi,
                                 title = documentDetailsUi.documentName,
                                 isDocumentBookmarked = response.documentIsBookmarked,

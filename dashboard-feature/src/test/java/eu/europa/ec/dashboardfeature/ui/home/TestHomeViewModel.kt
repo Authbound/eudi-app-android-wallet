@@ -25,7 +25,6 @@ import eu.europa.ec.dashboardfeature.interactor.AuthboundPidEntryState
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractor
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetCredentialsPartialState
 import eu.europa.ec.dashboardfeature.interactor.HomeInteractorGetHeroCredentialPartialState
-import eu.europa.ec.dashboardfeature.interactor.HomeInteractorPresentIdPartialState
 import eu.europa.ec.dashboardfeature.ui.documents.detail.model.DocumentIssuanceStateUi
 import eu.europa.ec.dashboardfeature.ui.documents.list.model.DocumentUi
 import eu.europa.ec.dashboardfeature.ui.home.model.HeroCredentialUi
@@ -43,9 +42,7 @@ import junit.framework.TestCase.assertFalse
 import junit.framework.TestCase.assertTrue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -416,12 +413,11 @@ class TestHomeViewModel {
             assertTrue(navigationEffect.screenRoute.contains("DOCUMENT_DETAILS"))
             assertTrue(navigationEffect.screenRoute.contains("documentId=$selectedDocumentId"))
             assertFalse(viewModel.viewState.value.isBottomSheetOpen)
-            verify(homeInteractor, never()).setPresentIdConfig(any())
             collectJob.cancel()
         }
 
     @Test
-    fun `Given present id is pressed, When proximity flow starts, Then present id sheet opens with selected document`() =
+    fun `Given present id is pressed, When proximity flow starts, Then proximity QR opens with selected document`() =
         coroutineRule.runTest {
             val selectedDocumentId = "hero-document-id"
             val heroCredentials = listOf(createHeroCredential(selectedDocumentId))
@@ -436,8 +432,18 @@ class TestHomeViewModel {
                     emit(HomeInteractorGetHeroCredentialPartialState.Success(heroCredentials))
                 }
             )
-            whenever(homeInteractor.startPresentIdEngagement()).thenReturn(emptyFlow())
+            val requestConfigCaptor = argumentCaptor<RequestUriConfig>()
+            whenever(
+                uiSerializer.toBase64(
+                    model = requestConfigCaptor.capture(),
+                    parser = eq(RequestUriConfig.Parser)
+                )
+            ).thenReturn("present-id-config")
             val viewModel = createViewModel()
+            val effects: MutableList<Effect> = mutableListOf()
+            val collectJob = launch {
+                viewModel.effect.toList(effects)
+            }
             viewModel.setEvent(Event.GetCredentials)
             testScope.advanceUntilIdle()
 
@@ -447,142 +453,13 @@ class TestHomeViewModel {
             viewModel.setEvent(Event.StartProximityFlow)
             testScope.advanceUntilIdle()
 
-            val requestConfigCaptor = argumentCaptor<RequestUriConfig>()
-            verify(homeInteractor).setPresentIdConfig(requestConfigCaptor.capture())
+            val navigationEffect = effects.filterIsInstance<Effect.Navigation.SwitchScreen>().last()
+            assertTrue(navigationEffect.screenRoute.contains("PROXIMITY_QR"))
+            assertTrue(navigationEffect.screenRoute.contains("requestUriConfig=present-id-config"))
             assertEquals(selectedDocumentId, requestConfigCaptor.firstValue.presentingDocumentId)
             assertTrue(requestConfigCaptor.firstValue.mode is PresentationMode.Ble)
             assertEquals(null, viewModel.viewState.value.selectedHeroCredentialDocumentId)
-            assertEquals(selectedDocumentId, viewModel.viewState.value.presentIdDocumentId)
-            assertEquals(
-                requestConfigCaptor.firstValue.presentationScopeId,
-                viewModel.viewState.value.presentIdPresentationScopeId
-            )
-            assertTrue(viewModel.viewState.value.sheetContent is HomeScreenBottomSheetContent.PresentId)
-        }
-
-    @Test
-    fun `Given present id sheet is open, When qr becomes ready, Then qr code is shown in state`() =
-        coroutineRule.runTest {
-            val selectedDocumentId = "hero-document-id"
-            val presentIdEvents = MutableSharedFlow<HomeInteractorPresentIdPartialState>()
-            val viewModel = createViewModelWithPresentIdFlow(
-                selectedDocumentId = selectedDocumentId,
-                presentIdEvents = presentIdEvents
-            )
-
-            viewModel.setEvent(Event.PresentIdPressed(selectedDocumentId))
-            testScope.advanceUntilIdle()
-            viewModel.setEvent(Event.StartProximityFlow)
-            testScope.advanceUntilIdle()
-            presentIdEvents.emit(HomeInteractorPresentIdPartialState.QrReady("qr-payload"))
-            testScope.advanceUntilIdle()
-
-            assertEquals("qr-payload", viewModel.viewState.value.presentIdQrCode)
-        }
-
-    @Test
-    fun `Given present id sheet is open, When user closes it, Then presentation is cancelled immediately`() =
-        coroutineRule.runTest {
-            val selectedDocumentId = "hero-document-id"
-            val presentIdEvents = MutableSharedFlow<HomeInteractorPresentIdPartialState>()
-            val viewModel = createViewModelWithPresentIdFlow(
-                selectedDocumentId = selectedDocumentId,
-                presentIdEvents = presentIdEvents
-            )
-
-            viewModel.setEvent(Event.PresentIdPressed(selectedDocumentId))
-            testScope.advanceUntilIdle()
-            viewModel.setEvent(Event.StartProximityFlow)
-            testScope.advanceUntilIdle()
-            viewModel.setEvent(Event.BottomSheet.Close)
-            testScope.advanceUntilIdle()
-
-            verify(homeInteractor).cancelPresentIdPresentation()
-            assertEquals("", viewModel.viewState.value.presentIdPresentationScopeId)
-            assertEquals(null, viewModel.viewState.value.presentIdDocumentId)
-        }
-
-    @Test
-    fun `Given present id sheet is open, When reader connects, Then request screen opens without cancelling presentation`() =
-        coroutineRule.runTest {
-            val selectedDocumentId = "hero-document-id"
-            val presentIdEvents = MutableSharedFlow<HomeInteractorPresentIdPartialState>()
-            val viewModel = createViewModelWithPresentIdFlow(
-                selectedDocumentId = selectedDocumentId,
-                presentIdEvents = presentIdEvents
-            )
-            val effects: MutableList<Effect> = mutableListOf()
-            val collectJob = launch {
-                viewModel.effect.toList(effects)
-            }
-
-            viewModel.setEvent(Event.PresentIdPressed(selectedDocumentId))
-            testScope.advanceUntilIdle()
-            viewModel.setEvent(Event.StartProximityFlow)
-            testScope.advanceUntilIdle()
-            viewModel.setEvent(Event.BottomSheet.UpdateBottomSheetState(isOpen = true))
-            testScope.advanceUntilIdle()
-            assertTrue(viewModel.viewState.value.isBottomSheetOpen)
-            presentIdEvents.emit(HomeInteractorPresentIdPartialState.Connected)
-            testScope.advanceUntilIdle()
-
-            verify(homeInteractor, never()).cancelPresentIdPresentation()
-            verify(homeInteractor).releasePresentIdPresentationController()
-            assertFalse(viewModel.viewState.value.isBottomSheetOpen)
-            val navigationEffect = effects.filterIsInstance<Effect.Navigation.SwitchScreen>().last()
-            assertTrue(navigationEffect.screenRoute.contains("PROXIMITY_REQUEST"))
-            assertTrue(navigationEffect.screenRoute.contains("scopeId=ble_presentation_scope_id"))
-            assertTrue(navigationEffect.screenRoute.contains("presentingDocumentId=$selectedDocumentId"))
             collectJob.cancel()
-        }
-
-    @Test
-    fun `Given present id sheet is open, When lifecycle stops before handoff, Then presentation is cancelled`() =
-        coroutineRule.runTest {
-            val selectedDocumentId = "hero-document-id"
-            val presentIdEvents = MutableSharedFlow<HomeInteractorPresentIdPartialState>()
-            val viewModel = createViewModelWithPresentIdFlow(
-                selectedDocumentId = selectedDocumentId,
-                presentIdEvents = presentIdEvents
-            )
-
-            viewModel.setEvent(Event.PresentIdPressed(selectedDocumentId))
-            testScope.advanceUntilIdle()
-            viewModel.setEvent(Event.StartProximityFlow)
-            testScope.advanceUntilIdle()
-            viewModel.setEvent(Event.BottomSheet.UpdateBottomSheetState(isOpen = true))
-            testScope.advanceUntilIdle()
-            viewModel.setEvent(Event.PresentIdLifecycleStopped)
-            testScope.advanceUntilIdle()
-
-            verify(homeInteractor).cancelPresentIdPresentation()
-            assertFalse(viewModel.viewState.value.isBottomSheetOpen)
-            assertEquals("", viewModel.viewState.value.presentIdPresentationScopeId)
-            assertEquals(null, viewModel.viewState.value.presentIdDocumentId)
-        }
-
-    @Test
-    fun `Given present id handoff is in progress, When lifecycle stops, Then presentation is not cancelled`() =
-        coroutineRule.runTest {
-            val selectedDocumentId = "hero-document-id"
-            val presentIdEvents = MutableSharedFlow<HomeInteractorPresentIdPartialState>()
-            val viewModel = createViewModelWithPresentIdFlow(
-                selectedDocumentId = selectedDocumentId,
-                presentIdEvents = presentIdEvents
-            )
-
-            viewModel.setEvent(Event.PresentIdPressed(selectedDocumentId))
-            testScope.advanceUntilIdle()
-            viewModel.setEvent(Event.StartProximityFlow)
-            testScope.advanceUntilIdle()
-            presentIdEvents.emit(HomeInteractorPresentIdPartialState.Connected)
-            testScope.advanceUntilIdle()
-            viewModel.setEvent(Event.PresentIdLifecycleStopped)
-            testScope.advanceUntilIdle()
-
-            verify(homeInteractor, never()).cancelPresentIdPresentation()
-            verify(homeInteractor).releasePresentIdPresentationController()
-            assertFalse(viewModel.viewState.value.isBottomSheetOpen)
         }
 
     //region Helper Methods
@@ -594,29 +471,6 @@ class TestHomeViewModel {
             uiSerializer = uiSerializer,
             resourceProvider = resourceProvider
         )
-    }
-
-    private suspend fun createViewModelWithPresentIdFlow(
-        selectedDocumentId: String,
-        presentIdEvents: MutableSharedFlow<HomeInteractorPresentIdPartialState>
-    ): HomeViewModel {
-        val heroCredentials = listOf(createHeroCredential(selectedDocumentId))
-        whenever(homeInteractor.isBleAvailable()).thenReturn(true)
-        whenever(homeInteractor.getCredentials()).thenReturn(
-            flow {
-                emit(HomeInteractorGetCredentialsPartialState.Success(emptyList()))
-            }
-        )
-        whenever(homeInteractor.getHeroCredential()).thenReturn(
-            flow {
-                emit(HomeInteractorGetHeroCredentialPartialState.Success(heroCredentials))
-            }
-        )
-        whenever(homeInteractor.startPresentIdEngagement()).thenReturn(presentIdEvents)
-        return createViewModel().also { viewModel ->
-            viewModel.setEvent(Event.GetCredentials)
-            testScope.advanceUntilIdle()
-        }
     }
 
     private fun createDocumentUi(id: String, name: String): DocumentUi {

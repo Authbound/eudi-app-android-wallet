@@ -65,7 +65,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -90,7 +89,6 @@ import eu.europa.ec.resourceslogic.theme.values.brandNavyDeep
 import eu.europa.ec.resourceslogic.theme.values.brandNavyMedium
 import eu.europa.ec.resourceslogic.theme.values.glowAccent
 import eu.europa.ec.uilogic.component.AppIcons
-import eu.europa.ec.uilogic.component.ImageOrPlaceholder
 import eu.europa.ec.uilogic.component.content.ContentScreen
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
 import eu.europa.ec.uilogic.component.loader.SkeletonBox
@@ -102,6 +100,10 @@ import eu.europa.ec.uilogic.component.utils.SPACING_LARGE
 import eu.europa.ec.uilogic.component.utils.SPACING_MEDIUM
 import eu.europa.ec.uilogic.component.utils.SPACING_SMALL
 import eu.europa.ec.uilogic.component.utils.rememberAnimationsEnabled
+import eu.europa.ec.uilogic.component.wrap.IdentityHairline
+import eu.europa.ec.uilogic.component.wrap.IdentityHolderName
+import eu.europa.ec.uilogic.component.wrap.IdentityLabeledField
+import eu.europa.ec.uilogic.component.wrap.IdentityPortraitFrame
 import eu.europa.ec.uilogic.component.wrap.WrapIcon
 import eu.europa.ec.uilogic.component.wrap.WrapImage
 import eu.europa.ec.uilogic.component.wrap.WrapModalBottomSheet
@@ -242,13 +244,9 @@ private fun Content(
         verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp)
     ) {
         PresentHeader()
-        if (state.isLoadingPresentingDocument || state.presentingDocument != null) {
-            PresentingPidCard(
-                presentingDocument = state.presentingDocument,
-                isLoading = state.isLoadingPresentingDocument
-            )
-        }
-        PresentationMethodsCard(
+        PresentationPass(
+            presentingDocument = state.presentingDocument,
+            isLoading = state.isLoadingPresentingDocument,
             qrCode = state.qrCode,
             onExpandQr = { isQrExpanded = true }
         )
@@ -292,16 +290,22 @@ private fun PresentHeader() {
     }
 }
 
+/**
+ * The presentation pass: one artifact holding the identity zone and the machine-readable
+ * zone (QR + NFC), joined by a perforated tear line. The QR is rendered at a directly
+ * scannable size — enlarging it is an optional extra, never a required step.
+ */
 @Composable
-private fun PresentingPidCard(
+private fun PresentationPass(
     presentingDocument: ProximityPresentingDocumentUi?,
-    isLoading: Boolean
+    isLoading: Boolean,
+    qrCode: String,
+    onExpandQr: () -> Unit
 ) {
     val cardShape = RoundedCornerShape(22.dp)
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(304.dp)
             .border(
                 width = 1.dp,
                 color = MaterialTheme.colorScheme.glowAccent.copy(alpha = 0.55f),
@@ -313,7 +317,7 @@ private fun PresentingPidCard(
     ) {
         Box(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .background(
                     brush = Brush.linearGradient(
                         colors = listOf(
@@ -326,307 +330,101 @@ private fun PresentingPidCard(
                 )
         ) {
             PidSecurityPattern(modifier = Modifier.matchParentSize())
-            if (isLoading) {
-                PidCardSkeleton()
-            } else if (presentingDocument != null) {
-                PidCardContent(presentingDocument = presentingDocument)
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .padding(top = 18.dp, bottom = 14.dp)
+                ) {
+                    if (isLoading) {
+                        PassIdentitySkeleton()
+                    } else if (presentingDocument != null) {
+                        PassIdentityZone(presentingDocument = presentingDocument)
+                    }
+                }
+                PassPerforation()
+                PassMachineReadableZone(
+                    qrCode = qrCode,
+                    onExpandQr = onExpandQr
+                )
             }
         }
     }
 }
 
 @Composable
-private fun PidCardContent(
-    presentingDocument: ProximityPresentingDocumentUi
-) {
+private fun PassIdentityZone(presentingDocument: ProximityPresentingDocumentUi) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(20.dp),
-        verticalArrangement = Arrangement.SpaceBetween
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top
+            horizontalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = presentingDocument.documentName.uppercase(),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 1.6.sp,
-                    color = Color.White.copy(alpha = 0.72f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = presentingDocument.documentCode,
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White.copy(alpha = 0.92f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+            Text(
+                text = presentingDocument.documentName.uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 1.6.sp,
+                color = Color.White.copy(alpha = 0.72f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
             presentingDocument.countryCode?.let { countryCode ->
                 Surface(
                     color = Color.White.copy(alpha = 0.10f),
-                    shape = RoundedCornerShape(16.dp)
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(
                         text = countryCode,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                     )
                 }
             }
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(18.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ImageOrPlaceholder(
-                modifier = Modifier
-                    .width(118.dp)
-                    .height(152.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .border(
-                        width = 1.5.dp,
-                        color = Color.White.copy(alpha = 0.28f),
-                        shape = RoundedCornerShape(10.dp)
-                    ),
-                base64Image = presentingDocument.portraitBase64.orEmpty(),
-                contentScale = ContentScale.Crop,
-                fallbackIcon = AppIcons.User
-            )
+            // Identity documents carry the photo window (real portrait or ghost
+            // silhouette); attribute-only credentials use the full width instead.
+            if (presentingDocument.isIdentityDocument) {
+                IdentityPortraitFrame(portraitBase64 = presentingDocument.portraitBase64)
+            }
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(9.dp)
             ) {
-                PidField(
-                    label = stringResource(id = R.string.proximity_qr_field_name),
-                    value = presentingDocument.holderName ?: presentingDocument.documentName
+                IdentityHolderName(
+                    name = presentingDocument.holderName ?: presentingDocument.documentName
                 )
-                PidDivider()
-                PidDetailGrid(
-                    details = buildPidDetails(presentingDocument = presentingDocument)
-                )
-            }
-        }
-        PidDivider()
-    }
-}
-
-private data class PidDetailUi(
-    val label: String,
-    val value: String
-)
-
-private data class PidDetailsUi(
-    val birthDate: PidDetailUi?,
-    val nationality: PidDetailUi?,
-    val sex: PidDetailUi?,
-    val validUntil: PidDetailUi?
-)
-
-@Composable
-private fun buildPidDetails(
-    presentingDocument: ProximityPresentingDocumentUi
-): PidDetailsUi {
-    return PidDetailsUi(
-        birthDate = presentingDocument.birthDate?.let { birthDate ->
-            PidDetailUi(
-                label = stringResource(id = R.string.proximity_qr_field_birth_date),
-                value = birthDate
-            )
-        },
-        nationality = presentingDocument.countryCode?.let { countryCode ->
-            PidDetailUi(
-                label = stringResource(id = R.string.proximity_qr_field_nationality),
-                value = countryCode
-            )
-        },
-        sex = presentingDocument.sex?.let { sex ->
-            PidDetailUi(
-                label = stringResource(id = R.string.proximity_qr_field_sex),
-                value = sex
-            )
-        },
-        validUntil = presentingDocument.validUntil?.let { validUntil ->
-            PidDetailUi(
-                label = stringResource(id = R.string.proximity_qr_field_valid_until),
-                value = validUntil
-            )
-        }
-    )
-}
-
-@Composable
-private fun PidDetailGrid(details: PidDetailsUi) {
-    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        details.birthDate?.let { detail ->
-            PidInlineField(
-                label = detail.label,
-                value = detail.value
-            )
-        }
-        if (details.nationality != null || details.sex != null) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
-            ) {
-                details.nationality?.let { detail ->
-                    PidCompactField(
-                        modifier = Modifier.weight(1f),
-                        label = detail.label,
-                        value = detail.value
+                IdentityHairline()
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(18.dp)
+                ) {
+                    IdentityLabeledField(
+                        modifier = Modifier.weight(1.2f),
+                        label = stringResource(id = R.string.proximity_qr_field_birth_date),
+                        value = presentingDocument.birthDate
                     )
-                } ?: Spacer(modifier = Modifier.weight(1f))
-                details.sex?.let { detail ->
-                    PidCompactField(
-                        modifier = Modifier.weight(1f),
-                        label = detail.label,
-                        value = detail.value
+                    IdentityLabeledField(
+                        modifier = Modifier.weight(0.8f),
+                        label = stringResource(id = R.string.proximity_qr_field_sex),
+                        value = presentingDocument.sex
                     )
-                } ?: Spacer(modifier = Modifier.weight(1f))
-            }
-        }
-        details.validUntil?.let { detail ->
-            PidInlineField(
-                label = detail.label,
-                value = detail.value
-            )
-        }
-    }
-}
-
-@Composable
-private fun PidInlineField(
-    label: String,
-    value: String
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = label.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            fontSize = 9.sp,
-            letterSpacing = 1.sp,
-            color = Color.White.copy(alpha = 0.56f),
-            modifier = Modifier.width(42.dp),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            text = value.uppercase(),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color = Color.White,
-            modifier = Modifier.weight(1f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
-@Composable
-private fun PidCompactField(
-    modifier: Modifier = Modifier,
-    label: String,
-    value: String
-) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(2.dp)
-    ) {
-        Text(
-            text = label.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            fontSize = 9.sp,
-            letterSpacing = 1.sp,
-            color = Color.White.copy(alpha = 0.56f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            text = value.uppercase(),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color = Color.White,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
-@Composable
-private fun PidField(
-    label: String,
-    value: String
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-        Text(
-            text = label.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            fontSize = 10.sp,
-            letterSpacing = 1.1.sp,
-            color = Color.White.copy(alpha = 0.56f)
-        )
-        Text(
-            text = value.uppercase(),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
-@Composable
-private fun PidDivider() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(1.dp)
-            .background(Color.White.copy(alpha = 0.14f))
-    )
-}
-
-@Composable
-private fun PidCardSkeleton() {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
-    ) {
-        SkeletonBox(
-            modifier = Modifier.fillMaxWidth(),
-            height = 42.dp,
-            cornerRadius = 12.dp
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)) {
-            SkeletonBox(
-                modifier = Modifier.width(118.dp),
-                height = 152.dp,
-                cornerRadius = 10.dp
-            )
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
-            ) {
-                repeat(3) {
-                    SkeletonBox(
-                        modifier = Modifier.fillMaxWidth(),
-                        height = 36.dp,
-                        cornerRadius = 8.dp
+                    IdentityLabeledField(
+                        modifier = Modifier.weight(1.2f),
+                        label = stringResource(id = R.string.proximity_qr_field_valid_until),
+                        value = presentingDocument.validUntil
                     )
                 }
             }
@@ -634,69 +432,88 @@ private fun PidCardSkeleton() {
     }
 }
 
+/** Notched, dashed tear line joining the identity zone to the machine-readable zone. */
 @Composable
-private fun PresentationMethodsCard(
+private fun PassPerforation() {
+    val notchColor = MaterialTheme.colorScheme.background
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(22.dp)
+    ) {
+        val notchRadius = 11.dp.toPx()
+        val centerY = size.height / 2f
+        val dash = 5.dp.toPx()
+        val gap = 6.dp.toPx()
+        val lineColor = Color.White.copy(alpha = 0.20f)
+        var x = notchRadius + gap
+        while (x < size.width - notchRadius - gap) {
+            drawLine(
+                color = lineColor,
+                start = Offset(x, centerY),
+                end = Offset(minOf(x + dash, size.width - notchRadius - gap), centerY),
+                strokeWidth = 1.dp.toPx()
+            )
+            x += dash + gap
+        }
+        drawCircle(color = notchColor, radius = notchRadius, center = Offset(0f, centerY))
+        drawCircle(color = notchColor, radius = notchRadius, center = Offset(size.width, centerY))
+    }
+}
+
+@Composable
+private fun PassMachineReadableZone(
     qrCode: String,
     onExpandQr: () -> Unit
 ) {
-    val cardShape = RoundedCornerShape(22.dp)
-    val expandQrLabel = stringResource(id = R.string.proximity_qr_enlarge_qr)
-    Surface(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.glowAccent.copy(alpha = 0.42f),
-                shape = cardShape
-            )
-            .clickable(
-                onClickLabel = expandQrLabel,
-                role = Role.Button,
-                onClick = onExpandQr
-            ),
-        shape = cardShape,
-        color = MaterialTheme.colorScheme.brandNavyMedium.copy(alpha = 0.28f),
-        shadowElevation = 8.dp
+            .padding(horizontal = 20.dp)
+            .padding(top = 14.dp, bottom = 18.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp)
-        ) {
-            Text(
-                text = stringResource(id = R.string.proximity_qr_share_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+        QrPreview(
+            qrCode = qrCode,
+            size = 224.dp,
+            onClick = onExpandQr
+        )
+        NfcReadyRow(modifier = Modifier.widthIn(max = 240.dp))
+    }
+}
+
+@Composable
+private fun PassIdentitySkeleton() {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp)
+    ) {
+        SkeletonBox(
+            modifier = Modifier.fillMaxWidth(0.6f),
+            height = 16.dp,
+            cornerRadius = 8.dp
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            SkeletonBox(
+                modifier = Modifier.width(72.dp),
+                height = 92.dp,
+                cornerRadius = 8.dp
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(SPACING_MEDIUM.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp)
             ) {
-                QrPreview(
-                    qrCode = qrCode,
-                    size = 124.dp,
-                    onClick = onExpandQr
+                SkeletonBox(
+                    modifier = Modifier.fillMaxWidth(),
+                    height = 22.dp,
+                    cornerRadius = 8.dp
                 )
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp)
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(
-                            text = stringResource(id = R.string.proximity_qr_scan_title),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = stringResource(id = R.string.proximity_qr_tap_to_enlarge),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.tertiary
-                        )
-                    }
-                    NfcReadyRow()
-                }
+                SkeletonBox(
+                    modifier = Modifier.fillMaxWidth(),
+                    height = 30.dp,
+                    cornerRadius = 8.dp
+                )
             }
         }
     }

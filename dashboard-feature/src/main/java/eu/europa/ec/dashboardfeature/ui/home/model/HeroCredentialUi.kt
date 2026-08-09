@@ -39,7 +39,8 @@ data class HeroCredentialUi(
     val status: DocumentIssuanceStateUi,
     val hasPhoto: Boolean,
     val portraitBase64: String?,
-    val nationality: String? = null
+    val nationality: String? = null,
+    val birthDate: String? = null
 ) {
     /**
      * Convert to VisualCredentialConfig for the visual credential card component.
@@ -62,6 +63,7 @@ data class HeroCredentialUi(
             hasPhoto = hasPhoto,
             portraitBase64 = portraitBase64,
             nationality = nationality,
+            birthDate = birthDate,
             layout = CredentialCardLayout.PASSPORT
         )
     }

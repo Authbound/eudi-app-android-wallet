@@ -19,6 +19,8 @@ package eu.europa.ec.dashboardfeature.interactor
 import eu.europa.ec.businesslogic.config.ConfigLogic
 import eu.europa.ec.businesslogic.extension.safeAsync
 import eu.europa.ec.businesslogic.provider.UuidProvider
+import eu.europa.ec.commonfeature.util.IdentityCardData
+import eu.europa.ec.commonfeature.util.extractIdentityCardData
 import eu.europa.ec.corelogic.controller.DeleteAllDocumentsPartialState
 import eu.europa.ec.corelogic.controller.DeleteDocumentPartialState
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
@@ -50,6 +52,7 @@ sealed class DocumentDetailsInteractorPartialState {
         val isRevoked: Boolean,
         val isReIssuanceFailed: Boolean = false,
         val documentCredentialsInfoUi: DocumentCredentialsInfoUi,
+        val identityCardData: IdentityCardData? = null,
     ) : DocumentDetailsInteractorPartialState()
 
     data class Failure(val error: String) : DocumentDetailsInteractorPartialState()
@@ -158,6 +161,10 @@ class DocumentDetailsInteractorImpl(
                             isRevoked = isRevokedAsync.await(),
                             isReIssuanceFailed = isReIssuanceFailed,
                             documentCredentialsInfoUi = documentCredentialsInfo,
+                            identityCardData = extractIdentityCardData(
+                                document = safeIssuedDocument,
+                                resourceProvider = resourceProvider
+                            ),
                         )
                     )
                 }

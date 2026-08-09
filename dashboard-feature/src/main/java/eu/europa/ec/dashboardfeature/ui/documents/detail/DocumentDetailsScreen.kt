@@ -50,13 +50,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import eu.europa.ec.commonfeature.util.DocumentJsonKeys
+import eu.europa.ec.commonfeature.util.IdentityCardData
 import eu.europa.ec.corelogic.model.DocumentIdentifier
 import eu.europa.ec.corelogic.util.CoreActions
 import eu.europa.ec.dashboardfeature.ui.common.resolveCredentialVisualType
@@ -94,6 +93,7 @@ import eu.europa.ec.uilogic.component.wrap.CredentialCardLayout
 import eu.europa.ec.uilogic.component.wrap.CredentialStatus
 import eu.europa.ec.uilogic.component.wrap.DialogBottomSheet
 import eu.europa.ec.uilogic.component.wrap.ExpandableListItemUi
+import eu.europa.ec.uilogic.component.wrap.IdentityStatusDot
 import eu.europa.ec.uilogic.component.wrap.SimpleBottomSheet
 import eu.europa.ec.uilogic.component.wrap.TextConfig
 import eu.europa.ec.uilogic.component.wrap.VisualCredentialCard
@@ -321,6 +321,7 @@ private fun Content(
                 DocumentHero(
                     modifier = Modifier.fillMaxWidth(),
                     documentDetailsUi = safeDocumentDetailsUi,
+                    identityCardData = state.identityCardData,
                     issuerName = state.issuerName,
                     hideSensitiveContent = state.hideSensitiveContent,
                     isRevoked = state.isRevoked,
@@ -630,16 +631,18 @@ private fun CollapsedDocumentCredentials(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            WrapCard {
+            // Quiet meta row: credential availability is supporting information, so it
+            // reads as a small status dot + muted label instead of a colored card that
+            // competes with the document card above it.
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(SPACING_SMALL.dp)
+            ) {
+                IdentityStatusDot(color = MaterialTheme.colorScheme.success)
                 Text(
-                    modifier = Modifier
-                        .padding(
-                            vertical = SPACING_SMALL.dp,
-                            horizontal = SPACING_MEDIUM.dp
-                        ),
                     text = title,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.success,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -648,9 +651,8 @@ private fun CollapsedDocumentCredentials(
                     onClick = onMoreInfoClicked
                 ),
                 text = collapsedInfo.moreInfoText,
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
-                textDecoration = TextDecoration.Underline,
             )
         }
     }
@@ -660,6 +662,7 @@ private fun CollapsedDocumentCredentials(
 private fun DocumentHero(
     modifier: Modifier = Modifier,
     documentDetailsUi: DocumentDetailsUi,
+    identityCardData: IdentityCardData?,
     issuerName: String?,
     hideSensitiveContent: Boolean,
     isRevoked: Boolean,
@@ -675,6 +678,7 @@ private fun DocumentHero(
         VisualCredentialCard(
             modifier = Modifier.fillMaxWidth(),
             config = documentDetailsUi.toVisualCredentialConfig(
+                identityCardData = identityCardData,
                 issuerName = issuerName,
                 hideSensitiveContent = hideSensitiveContent,
                 isRevoked = isRevoked
@@ -762,21 +766,12 @@ private fun ButtonsSection(onEventSend: (Event) -> Unit) {
 }
 
 private fun DocumentDetailsUi.toVisualCredentialConfig(
+    identityCardData: IdentityCardData?,
     issuerName: String?,
     hideSensitiveContent: Boolean,
     isRevoked: Boolean
 ): VisualCredentialConfig {
-    val firstName = claimText(DocumentJsonKeys.FIRST_NAME)
-    val lastName = claimText(DocumentJsonKeys.LAST_NAME)
-    val holderName = listOf(firstName, lastName)
-        .filterNot { it.isNullOrBlank() }
-        .joinToString(" ")
-        .takeIf { it.isNotBlank() }
-    val portraitBase64 = claimImage(DocumentJsonKeys.PORTRAIT)
-        ?: claimImage(DocumentJsonKeys.PICTURE)
-    val nationality = claimText(DocumentJsonKeys.NATIONALITY)
-        ?: claimText(DocumentJsonKeys.NATIONALITIES)
-        ?: claimText(DocumentJsonKeys.ISSUING_COUNTRY)
+    val portraitBase64 = identityCardData?.portraitBase64
 
     return VisualCredentialConfig(
         id = documentId,
@@ -786,15 +781,16 @@ private fun DocumentDetailsUi.toVisualCredentialConfig(
         ),
         title = documentName,
         subtitle = null,
-        holderName = holderName.takeUnless { hideSensitiveContent },
+        holderName = identityCardData?.holderName.takeUnless { hideSensitiveContent },
         issuerName = issuerName,
         primaryField = null,
         secondaryField = null,
         status = if (isRevoked) CredentialStatus.REVOKED else documentIssuanceStateUi.toCredentialStatus(),
-        expiryDate = claimText(DocumentJsonKeys.EXPIRY_DATE).takeUnless { hideSensitiveContent },
+        expiryDate = identityCardData?.expiryDate.takeUnless { hideSensitiveContent },
         hasPhoto = !hideSensitiveContent && !portraitBase64.isNullOrBlank(),
         portraitBase64 = portraitBase64.takeUnless { hideSensitiveContent },
-        nationality = nationality.takeUnless { hideSensitiveContent },
+        nationality = identityCardData?.nationality.takeUnless { hideSensitiveContent },
+        birthDate = identityCardData?.birthDate.takeUnless { hideSensitiveContent },
         layout = CredentialCardLayout.PASSPORT
     )
 }
@@ -806,41 +802,6 @@ private fun DocumentIssuanceStateUi.toCredentialStatus(): CredentialStatus =
         DocumentIssuanceStateUi.Failed,
         DocumentIssuanceStateUi.Revoked -> CredentialStatus.REVOKED
         DocumentIssuanceStateUi.Expired -> CredentialStatus.EXPIRED
-    }
-
-private fun DocumentDetailsUi.claimText(key: String): String? =
-    documentClaims.claimHeader(key)?.textValue()
-
-private fun DocumentDetailsUi.claimImage(key: String): String? =
-    documentClaims.claimHeader(key)?.imageValue()
-
-private fun List<ExpandableListItemUi>.claimHeader(key: String): ListItemDataUi? =
-    firstNotNullOfOrNull { item -> item.claimHeader(key) }
-
-private fun ExpandableListItemUi.claimHeader(key: String): ListItemDataUi? {
-    header.takeIf { it.matchesClaimKey(key) }?.let { return it }
-    return when (this) {
-        is ExpandableListItemUi.NestedListItem -> nestedItems.claimHeader(key)
-        is ExpandableListItemUi.SingleListItem -> null
-    }
-}
-
-private fun ListItemDataUi.matchesClaimKey(key: String): Boolean {
-    val pathKey = itemId.substringAfterLast(",")
-    return pathKey.equals(key, ignoreCase = true) ||
-            overlineText?.equals(key, ignoreCase = true) == true
-}
-
-private fun ListItemDataUi.textValue(): String? =
-    when (val content = mainContentData) {
-        is ListItemMainContentDataUi.Text -> content.text.takeIf { it.isNotBlank() }
-        is ListItemMainContentDataUi.Image -> content.base64Image.takeIf { it.isNotBlank() }
-    }
-
-private fun ListItemDataUi.imageValue(): String? =
-    when (val leading = leadingContentData) {
-        is ListItemLeadingContentDataUi.UserImage -> leading.userBase64Image.takeIf { it.isNotBlank() }
-        else -> textValue()
     }
 
 private const val SHARED_BOUNDS_KEY = "bounds"

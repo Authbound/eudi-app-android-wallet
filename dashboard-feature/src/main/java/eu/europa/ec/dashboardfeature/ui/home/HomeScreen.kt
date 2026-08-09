@@ -76,7 +76,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Surface
@@ -95,7 +94,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -135,7 +133,6 @@ import eu.europa.ec.uilogic.component.content.ContentScreen
 import eu.europa.ec.uilogic.component.content.ScreenNavigateAction
 import eu.europa.ec.uilogic.component.preview.PreviewTheme
 import eu.europa.ec.uilogic.component.preview.ThemeModePreviews
-import eu.europa.ec.uilogic.component.qr.rememberQrBitmapPainter
 import eu.europa.ec.uilogic.component.utils.HSpacer
 import eu.europa.ec.uilogic.component.utils.LifecycleEffect
 import eu.europa.ec.uilogic.component.utils.OneTimeLaunchedEffect
@@ -149,7 +146,6 @@ import eu.europa.ec.uilogic.component.wrap.DialogBottomSheet
 import eu.europa.ec.uilogic.component.wrap.GenericBottomSheet
 import eu.europa.ec.uilogic.component.wrap.QuickActionConfig
 import eu.europa.ec.uilogic.component.wrap.QuickActionCard
-import eu.europa.ec.uilogic.component.wrap.WrapImage
 import eu.europa.ec.uilogic.component.wrap.WrapIcon
 import eu.europa.ec.uilogic.component.wrap.WrapIconButton
 import eu.europa.ec.uilogic.component.wrap.WrapModalBottomSheet
@@ -230,19 +226,10 @@ fun HomeScreen(
         ) {
             HomeScreenSheetContent(
                 sheetContent = state.sheetContent,
-                presentIdQrCode = state.presentIdQrCode,
                 shouldShowAuthboundPidEntry = state.shouldShowAuthboundPidEntry,
                 onEventSent = { event -> viewModel.setEvent(event) },
             )
         }
-    }
-
-    if (isBottomSheetOpen && state.sheetContent is HomeScreenBottomSheetContent.PresentId) {
-        PresentIdNfcLifecycle(
-            context = context,
-            onEventSent = { event -> viewModel.setEvent(event) },
-            onLifecycleStopped = { viewModel.setEvent(Event.PresentIdLifecycleStopped) }
-        )
     }
 
     OneTimeLaunchedEffect {
@@ -254,53 +241,6 @@ fun HomeScreen(
         lifecycleEvent = Lifecycle.Event.ON_RESUME
     ) {
         viewModel.setEvent(Event.GetCredentials)
-    }
-}
-
-@Composable
-private fun PresentIdNfcLifecycle(
-    context: Context,
-    onEventSent: (Event.PresentIdNfcEngagement) -> Unit,
-    onLifecycleStopped: () -> Unit
-) {
-    val componentActivity: ComponentActivity? = remember(context) {
-        runCatching { context.findActivity() }.getOrNull()
-    }
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(componentActivity) {
-        sendPresentIdNfcEngagement(componentActivity, true, onEventSent)
-        onDispose {
-            sendPresentIdNfcEngagement(componentActivity, false, onEventSent)
-            onLifecycleStopped()
-        }
-    }
-    LifecycleEffect(
-        lifecycleOwner = lifecycleOwner,
-        lifecycleEvent = Lifecycle.Event.ON_RESUME
-    ) {
-        sendPresentIdNfcEngagement(componentActivity, true, onEventSent)
-    }
-    LifecycleEffect(
-        lifecycleOwner = lifecycleOwner,
-        lifecycleEvent = Lifecycle.Event.ON_PAUSE
-    ) {
-        sendPresentIdNfcEngagement(componentActivity, false, onEventSent)
-        onLifecycleStopped()
-    }
-}
-
-private fun sendPresentIdNfcEngagement(
-    componentActivity: ComponentActivity?,
-    enable: Boolean,
-    onEventSent: (Event.PresentIdNfcEngagement) -> Unit
-) {
-    componentActivity?.let { activity ->
-        onEventSent(
-            Event.PresentIdNfcEngagement(
-                componentActivity = activity,
-                enable = enable
-            )
-        )
     }
 }
 
@@ -819,20 +759,10 @@ private fun handleNavigationEffect(
 @Composable
 private fun HomeScreenSheetContent(
     sheetContent: HomeScreenBottomSheetContent,
-    presentIdQrCode: String,
     shouldShowAuthboundPidEntry: Boolean,
     onEventSent: (event: Event) -> Unit,
 ) {
     when (sheetContent) {
-        is HomeScreenBottomSheetContent.PresentId -> {
-            PresentIdShareSheet(
-                qrCode = presentIdQrCode,
-                onClose = {
-                    onEventSent(Event.BottomSheet.Close)
-                }
-            )
-        }
-
         is HomeScreenBottomSheetContent.Authenticate -> {
             BottomSheetWithTwoBigIcons(
                 textData = BottomSheetTextDataUi(
@@ -1017,149 +947,6 @@ private fun HomeScreenSheetContent(
                     )
                 },
                 onNegativeClick = { onEventSent(Event.BottomSheet.Bluetooth.SecondaryButtonPressed) }
-            )
-        }
-    }
-}
-
-@Composable
-private fun PresentIdShareSheet(
-    qrCode: String,
-    onClose: () -> Unit
-) {
-    val closeLabel: String = stringResource(id = R.string.content_description_close_icon)
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = SPACING_LARGE.dp)
-            .padding(bottom = SPACING_LARGE.dp),
-        verticalArrangement = Arrangement.spacedBy(SPACING_LARGE.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.proximity_qr_scan_title),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.brandNavyMedium.copy(alpha = 0.52f))
-                    .clickable(
-                        onClickLabel = closeLabel,
-                        role = Role.Button,
-                        onClick = onClose
-                    )
-                    .semantics {
-                        contentDescription = closeLabel
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                WrapIcon(
-                    iconData = AppIcons.Close,
-                    customTint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-        }
-        BoxWithConstraints(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center
-        ) {
-            val availableWidth: Dp = maxWidth - (SPACING_LARGE * 2).dp
-            val qrSize: Dp = if (availableWidth < 312.dp) availableWidth else 312.dp
-            PresentIdQrPreview(
-                qrCode = qrCode,
-                size = qrSize
-            )
-        }
-        HorizontalDivider(
-            modifier = Modifier.padding(horizontal = SPACING_SMALL.dp),
-            thickness = 1.dp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f)
-        )
-        PresentIdNfcReadyStatus(
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
-}
-
-@Composable
-private fun PresentIdQrPreview(
-    qrCode: String,
-    size: Dp
-) {
-    Surface(
-        modifier = Modifier.size(size),
-        shape = RoundedCornerShape(22.dp),
-        color = Color.White,
-        shadowElevation = 8.dp
-    ) {
-        Box(
-            modifier = Modifier.padding(10.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            if (qrCode.isNotEmpty()) {
-                WrapImage(
-                    modifier = Modifier.fillMaxSize(),
-                    painter = rememberQrBitmapPainter(
-                        content = qrCode,
-                        size = size - 20.dp
-                    ),
-                    contentDescription = stringResource(
-                        id = R.string.content_description_qr_code_icon
-                    )
-                )
-            } else {
-                CircularProgressIndicator(
-                    color = MaterialTheme.colorScheme.tertiary
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun PresentIdNfcReadyStatus(
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(68.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.brandNavyMedium.copy(alpha = 0.55f)),
-            contentAlignment = Alignment.Center
-        ) {
-            WrapImage(
-                iconData = AppIcons.NFC,
-                modifier = Modifier.size(42.dp)
-            )
-        }
-        Spacer(modifier = Modifier.width(SPACING_MEDIUM.dp))
-        Column(
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.proximity_qr_nfc_ready),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = stringResource(R.string.proximity_qr_hold_near_reader),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

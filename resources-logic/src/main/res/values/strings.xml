@@ -250,7 +250,7 @@
     <string name="dashboard_intent_chooser_logs_share_title">Share logs</string>
 
     <string name="dashboard_quick_action_add_credential">Add Credential</string>
-    <string name="dashboard_quick_action_add_credential_description">Add new credentials to your wallet</string>
+    <string name="dashboard_quick_action_add_credential_description">ID, license and more</string>
     <string name="dashboard_home_screen_credential_section">Your Credentials</string>
     <string name="dashboard_home_screen_view_all">View All</string>
     <string name="dashboard_home_screen_no_credentials_title">No Credentials Yet</string>
@@ -291,7 +291,8 @@
     <string name="home_screen_welcome_user_message">Welcome back, %1$s</string>
     <string name="home_screen_settings_title">Settings</string>
     <string name="home_screen_authentication_card_title">Authenticate in person or online</string>
-    <string name="home_screen_sign_card_title">Electronically sign digital documents</string>
+    <string name="home_screen_authenticate_quick_action_description">In person or online</string>
+    <string name="home_screen_sign_card_title">Sign documents electronically</string>
     <string name="home_screen_authenticate">Authenticate</string>
     <string name="home_screen_authenticate_description">Authenticate by sharing your data in person (in close proximity) or online (website/service).</string>
     <string name="home_screen_sign">Sign</string>
@@ -322,6 +323,7 @@
     <string name="home_hero_present_id_methods">QR + NFC</string>
     <string name="credential_card_label_nationality">Nationality</string>
     <string name="credential_card_label_valid_until">Valid until</string>
+    <string name="credential_card_label_date_of_birth">Date of birth</string>
     <string name="home_hero_empty_title">Get Your Digital ID</string>
     <string name="home_hero_empty_description">Your wallet is ready for your first digital credential</string>
     <string name="home_hero_pid_subtitle">Personal Identification Data</string>

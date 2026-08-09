@@ -16,15 +16,14 @@
 
 package eu.europa.ec.proximityfeature.interactor
 
-import android.util.Base64
 import androidx.activity.ComponentActivity
-import eu.europa.ec.businesslogic.extension.encodeToBase64String
 import eu.europa.ec.businesslogic.extension.safeAsync
 import eu.europa.ec.commonfeature.config.RequestUriConfig
 import eu.europa.ec.commonfeature.config.toDomainConfig
 import eu.europa.ec.commonfeature.interactor.ScopedPresentationInteractor
 import eu.europa.ec.commonfeature.interactor.ScopedPresentationInteractorDelegate
 import eu.europa.ec.commonfeature.util.DocumentJsonKeys
+import eu.europa.ec.commonfeature.util.extractIdentityCardData
 import eu.europa.ec.commonfeature.util.extractValueFromDocumentOrEmpty
 import eu.europa.ec.corelogic.controller.TransferEventPartialState
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
@@ -33,8 +32,6 @@ import eu.europa.ec.corelogic.model.DocumentIdentifier
 import eu.europa.ec.corelogic.model.toDocumentIdentifier
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.eudi.wallet.document.IssuedDocument
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -58,6 +55,7 @@ data class ProximityPresentingDocumentUi(
     val sex: String?,
     val validUntil: String?,
     val portraitBase64: String?,
+    val isIdentityDocument: Boolean = true,
 )
 
 interface ProximityQRInteractor : ScopedPresentationInteractor {
@@ -136,42 +134,26 @@ class ProximityQRInteractorImpl(
         return runCatching {
             val document = getConfiguredPresentingDocument()
                 ?: return null
-            val firstName = extractValueFromDocumentOrEmpty(
+            val identityCardData = extractIdentityCardData(
                 document = document,
-                key = DocumentJsonKeys.FIRST_NAME
+                resourceProvider = resourceProvider
             )
-            val lastName = extractValueFromDocumentOrEmpty(
-                document = document,
-                key = DocumentJsonKeys.LAST_NAME
-            )
-            val holderName = listOf(firstName, lastName)
-                .filter { it.isNotBlank() }
-                .joinToString(" ")
-                .takeIf { it.isNotBlank() }
-            val portraitClaimValue: Any? = document.data.claims
-                .firstOrNull { it.identifier == DocumentJsonKeys.PORTRAIT }
-                ?.value
-            val portraitBase64: String? = when (portraitClaimValue) {
-                is ByteArray -> portraitClaimValue.encodeToBase64String(Base64.URL_SAFE)
-                is String -> portraitClaimValue
-                else -> null
-            }
-            val validUntil = document.getValidUntil().getOrNull()?.let { instant ->
-                SimpleDateFormat("dd/MM/yyyy", resourceProvider.getLocale())
-                    .format(Date(instant.toEpochMilli()))
-            }
-            val countryCode = getCountryCode(document)
-            val birthDate = getBirthDate(document)
             val sex = getSex(document)
+            val documentCode = getDocumentCode(document)
             ProximityPresentingDocumentUi(
-                holderName = holderName,
+                holderName = identityCardData.holderName,
                 documentName = document.name,
-                documentCode = getDocumentCode(document),
-                countryCode = countryCode,
-                birthDate = birthDate,
+                documentCode = documentCode,
+                countryCode = identityCardData.nationality,
+                birthDate = identityCardData.birthDate,
                 sex = sex,
-                validUntil = validUntil,
-                portraitBase64 = portraitBase64
+                validUntil = identityCardData.expiryDate,
+                portraitBase64 = identityCardData.portraitBase64,
+                // Same rule as the credential cards: a portrait window belongs to any
+                // credential that carries a portrait or is an identity document type;
+                // attribute-only credentials (e.g. age attestations) get neither.
+                isIdentityDocument = identityCardData.portraitBase64 != null ||
+                        documentCode != DOCUMENT_CODE_AGE
             )
         }.getOrNull()
     }
@@ -189,29 +171,6 @@ class ProximityQRInteractorImpl(
             ?: walletCoreDocumentsController.getAllIssuedDocuments().firstOrNull()
     }
 
-    private fun getCountryCode(document: IssuedDocument): String? {
-        return listOf(
-            DocumentJsonKeys.NATIONALITY,
-            DocumentJsonKeys.NATIONALITIES,
-            DocumentJsonKeys.ISSUING_COUNTRY
-        ).firstNotNullOfOrNull { key ->
-            normalizeCountryCode(extractValueFromDocumentOrEmpty(document, key))
-        }
-    }
-
-    private fun getBirthDate(document: IssuedDocument): String? {
-        val rawBirthDate = extractValueFromDocumentOrEmpty(
-            document = document,
-            key = DocumentJsonKeys.BIRTH_DATE
-        ).takeIf { it.isNotBlank() } ?: return null
-        val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.ROOT)
-        val outputFormat = SimpleDateFormat("dd/MM/yyyy", resourceProvider.getLocale())
-        return runCatching {
-            val parsedBirthDate = inputFormat.parse(rawBirthDate) ?: return@runCatching rawBirthDate
-            outputFormat.format(parsedBirthDate)
-        }.getOrDefault(rawBirthDate)
-    }
-
     private fun getSex(document: IssuedDocument): String? {
         val rawSex = DocumentJsonKeys.GENDER_KEYS.firstNotNullOfOrNull { key ->
             extractValueFromDocumentOrEmpty(document, key).takeIf { it.isNotBlank() }
@@ -222,7 +181,7 @@ class ProximityQRInteractorImpl(
     private fun getDocumentCode(document: IssuedDocument): String {
         return when (val documentIdentifier = document.toDocumentIdentifier()) {
             DocumentIdentifier.MdocPid,
-            DocumentIdentifier.SdJwtPid -> "PID"
+            DocumentIdentifier.SdJwtPid -> DOCUMENT_CODE_PID
 
             is DocumentIdentifier.OTHER -> getOtherDocumentCode(
                 formatType = documentIdentifier.formatType,
@@ -235,35 +194,18 @@ class ProximityQRInteractorImpl(
         formatType: String,
         documentName: String
     ): String {
-        val source = "$formatType $documentName".lowercase(Locale.ROOT)
+        // Match on whole words so e.g. "language" or "agency" in a document name can
+        // never classify an identity document as an age attestation.
+        val sourceWords = "$formatType $documentName"
+            .lowercase(Locale.ROOT)
+            .split(WORD_SEPARATOR_REGEX)
+            .toSet()
         return when {
-            source.contains("mdl") || source.contains("driving") -> "MDL"
-            source.contains("photo") -> "PHOTO ID"
-            source.contains("age") -> "AGE"
-            else -> "ID"
+            "mdl" in sourceWords || "driving" in sourceWords -> DOCUMENT_CODE_MDL
+            "photo" in sourceWords -> DOCUMENT_CODE_PHOTO_ID
+            "age" in sourceWords -> DOCUMENT_CODE_AGE
+            else -> DOCUMENT_CODE_GENERIC
         }
-    }
-
-    private fun normalizeCountryCode(raw: String): String? {
-        val countryCode = raw
-            .removePrefix("[")
-            .removeSuffix("]")
-            .split(",")
-            .firstOrNull()
-            ?.trim()
-            ?.trim('"')
-            ?.uppercase(Locale.ROOT)
-            ?.takeIf { it.isNotBlank() }
-            ?: return null
-        if (countryCode.length == 3) return countryCode
-        if (countryCode.length != 2) return countryCode
-        return runCatching {
-            Locale.Builder()
-                .setRegion(countryCode)
-                .build()
-                .isO3Country
-                .uppercase(Locale.ROOT)
-        }.getOrDefault(countryCode)
     }
 
     private fun normalizeSex(raw: String): String? {
@@ -273,5 +215,15 @@ class ProximityQRInteractorImpl(
             "0", "9", "not known", "not applicable", "unknown", "unset" -> null
             else -> raw.trim().uppercase(Locale.ROOT).takeIf { it.isNotBlank() }
         }
+    }
+
+    private companion object {
+        const val DOCUMENT_CODE_PID = "PID"
+        const val DOCUMENT_CODE_MDL = "MDL"
+        const val DOCUMENT_CODE_PHOTO_ID = "PHOTO ID"
+        const val DOCUMENT_CODE_AGE = "AGE"
+        const val DOCUMENT_CODE_GENERIC = "ID"
+
+        val WORD_SEPARATOR_REGEX = Regex("[^a-z0-9]+")
     }
 }

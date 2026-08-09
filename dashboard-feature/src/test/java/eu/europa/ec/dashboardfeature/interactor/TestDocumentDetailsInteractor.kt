@@ -18,6 +18,7 @@ package eu.europa.ec.dashboardfeature.interactor
 
 import eu.europa.ec.businesslogic.config.ConfigLogic
 import eu.europa.ec.businesslogic.provider.UuidProvider
+import eu.europa.ec.commonfeature.util.IdentityCardData
 import eu.europa.ec.corelogic.controller.DeleteAllDocumentsPartialState
 import eu.europa.ec.corelogic.controller.DeleteDocumentPartialState
 import eu.europa.ec.corelogic.controller.WalletCoreDocumentsController
@@ -164,6 +165,7 @@ class TestDocumentDetailsInteractor {
                         issuerLogo = null,
                         isRevoked = false,
                         documentCredentialsInfoUi = documentCredentialsInfoUi,
+                        identityCardData = mockedPidIdentityCardData,
                     ),
                     awaitItem()
                 )
@@ -217,6 +219,7 @@ class TestDocumentDetailsInteractor {
                         issuerLogo = null,
                         isRevoked = false,
                         documentCredentialsInfoUi = documentCredentialsInfoUi,
+                        identityCardData = mockedPidIdentityCardData,
                     ),
                     awaitItem()
                 )
@@ -251,6 +254,7 @@ class TestDocumentDetailsInteractor {
                         isRevoked = false,
                         isReIssuanceFailed = true,
                         documentCredentialsInfoUi = documentCredentialsInfoUi,
+                        identityCardData = mockedPidIdentityCardData,
                     ),
                     awaitItem()
                 )
@@ -301,6 +305,7 @@ class TestDocumentDetailsInteractor {
                         issuerLogo = null,
                         isRevoked = false,
                         documentCredentialsInfoUi = documentCredentialsInfoUi,
+                        identityCardData = mockedPidIdentityCardData,
                     ),
                     awaitItem()
                 )
@@ -351,6 +356,7 @@ class TestDocumentDetailsInteractor {
                         issuerLogo = null,
                         isRevoked = false,
                         documentCredentialsInfoUi = documentCredentialsInfoUi,
+                        identityCardData = mockedMdlIdentityCardData,
                     ),
                     awaitItem()
                 )
@@ -463,6 +469,7 @@ class TestDocumentDetailsInteractor {
                         issuerLogo = null,
                         isRevoked = false,
                         documentCredentialsInfoUi = documentCredentialsInfoUi,
+                        identityCardData = mockedPidIdentityCardData.copy(holderName = null),
                     ),
                     awaitItem()
                 )
@@ -883,6 +890,21 @@ class TestDocumentDetailsInteractor {
     //endregion
 
     //region helper functions
+
+    // Identity fields the interactor extracts from the mocked documents' claims;
+    // dates come from the fixtures' getValidUntil() formatted for the default locale.
+    // The mocked MDL's string portrait claim ("SE") is junk, not an image, so the
+    // extractor rejects it and both fixtures resolve to no portrait.
+    private val mockedPidIdentityCardData = IdentityCardData(
+        holderName = "JAN ANDERSSON",
+        portraitBase64 = null,
+        nationality = null,
+        birthDate = null,
+        expiryDate = "13/05/2030",
+    )
+
+    private val mockedMdlIdentityCardData = mockedPidIdentityCardData
+
     private suspend fun mockGetAllDocumentsCall(response: List<IssuedDocument>) {
         whenever(walletCoreDocumentsController.getAllDocuments())
             .thenReturn(response)
