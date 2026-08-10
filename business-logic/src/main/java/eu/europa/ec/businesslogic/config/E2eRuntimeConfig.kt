@@ -20,7 +20,7 @@ import eu.europa.ec.businesslogic.BuildConfig
 
 object E2eRuntimeConfig {
 
-    private const val DEV_FLAVOR: String = "dev"
+    private val ALLOWED_FLAVORS: Set<String> = setOf("dev", "demo")
 
     const val SYNTHETIC_USER_ID: String = "e2e-wallet-user"
 
@@ -45,6 +45,6 @@ object E2eRuntimeConfig {
         flavor: String,
         requested: Boolean
     ): Boolean {
-        return isDebug && flavor == DEV_FLAVOR && requested
+        return isDebug && flavor in ALLOWED_FLAVORS && requested
     }
 }

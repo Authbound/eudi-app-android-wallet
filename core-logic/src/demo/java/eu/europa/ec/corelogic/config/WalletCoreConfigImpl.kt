@@ -19,6 +19,7 @@ package eu.europa.ec.corelogic.config
 import android.content.Context
 import android.os.Build
 import eu.europa.ec.businesslogic.config.ConfigLogic
+import eu.europa.ec.businesslogic.config.E2eRuntimeConfig
 import eu.europa.ec.corelogic.BuildConfig
 import eu.europa.ec.corelogic.model.DocumentIdentifier
 import eu.europa.ec.eudi.wallet.EudiWalletConfig
@@ -75,6 +76,11 @@ internal class WalletCoreConfigImpl(
     private val authboundWalletProviderConfig: WalletProviderConfig
         get() = AuthboundWalletProviderConfig(
             baseUrl = "${configLogic.environmentConfig.getServerHost()}/v1/mobile/wallet-provider"
+        )
+
+    private val e2eWalletProviderConfig: WalletProviderConfig
+        get() = AuthboundWalletProviderConfig(
+            baseUrl = "http://$localhostAddress:3009/v1/mobile/wallet-provider"
         )
 
     private val euWalletProviderConfig: WalletProviderConfig
@@ -153,8 +159,7 @@ internal class WalletCoreConfigImpl(
             return _config!!
         }
 
-    override val issuersConfig: List<VciConfig>
-        get() = listOf(
+    private val defaultIssuers: List<VciConfig> = listOf(
             VciConfig(
                 walletProviderConfig = authboundWalletProviderConfig,
                 config = OpenId4VciManager.Config.Builder()
@@ -189,6 +194,25 @@ internal class WalletCoreConfigImpl(
                 order = 2
             ),
         )
+
+    private val e2eIssuers: List<VciConfig> = listOf(
+        VciConfig(
+            walletProviderConfig = e2eWalletProviderConfig,
+            config = OpenId4VciManager.Config.Builder()
+                .withIssuerUrl(issuerUrl = "${E2eRuntimeConfig.issuerBaseUrl}/api/v1/openid4vci")
+                .withClientAuthenticationType(
+                    OpenId4VciManager.ClientAuthenticationType.None(clientId = "wallet.authbound.io")
+                )
+                .withAuthFlowRedirectionURI(BuildConfig.ISSUE_AUTHORIZATION_DEEPLINK)
+                .withParUsage(OpenId4VciManager.Config.ParUsage.IF_SUPPORTED)
+                .withDPopConfig(DPopConfig.Default)
+                .build(),
+            order = 0
+        )
+    )
+
+    override val issuersConfig: List<VciConfig>
+        get() = if (E2eRuntimeConfig.isEnabled) e2eIssuers else defaultIssuers
 
     override val documentIssuanceConfig: DocumentIssuanceConfig
         get() = DocumentIssuanceConfig(

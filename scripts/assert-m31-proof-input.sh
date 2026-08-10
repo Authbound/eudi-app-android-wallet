@@ -35,11 +35,14 @@ raw_dir="$proof_resources/raw"
 [[ -d "$raw_dir" && ! -L "$raw_dir" ]] \
     || fail "proof raw directory must be an existing non-symlink directory"
 
-ca_file="$raw_dir/authbound_verifier_root_ca.pem"
-[[ -f "$ca_file" && ! -L "$ca_file" ]] \
-    || fail "proof CA must be an existing non-symlink regular file"
-[[ $(file_mode "$ca_file") == "600" ]] \
-    || fail "proof CA must have mode 0600"
+for ca_file in \
+    "$raw_dir/authbound_verifier_root_ca.pem" \
+    "$raw_dir/authbound_m31_network_ca.pem"; do
+    [[ -f "$ca_file" && ! -L "$ca_file" ]] \
+        || fail "proof CA must be an existing non-symlink regular file"
+    [[ $(file_mode "$ca_file") == "600" ]] \
+        || fail "proof CA must have mode 0600"
+done
 
 repository_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 gradle_file="$repository_root/resources-logic/build.gradle.kts"
@@ -61,8 +64,10 @@ rg -Uq 'sourceSets\.named\("demo"\)\s*\{\s*res\.srcDir\(proofResources\)' "$grad
     || fail "demo network configuration must not trust user CAs"
 rg -q '<certificates src="system" />' "$network_config" \
     || fail "demo network configuration must trust system CAs"
-rg -q '<certificates src="@raw/authbound_verifier_root_ca" />' "$network_config" \
-    || fail "demo network configuration must trust the generated root CA"
+rg -q '<certificates src="@raw/authbound_m31_network_ca" />' "$network_config" \
+    || fail "demo network configuration must trust only the generated network CA bundle"
+! rg -q '<certificates src="@raw/authbound_verifier_root_ca" />' "$network_config" \
+    || fail "verifier reader trust must remain separate from network trust"
 
 ! rg -q 'X509TrustManager|TrustManager|HostnameVerifier|sslManager|SSLContext|trustAllCerts' "$ktor_client" \
     || fail "demo Ktor client must use platform trust"

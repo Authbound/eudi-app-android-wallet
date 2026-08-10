@@ -34,10 +34,10 @@ class TestE2eRuntimeConfig {
     }
 
     @Test
-    fun `Given non dev flavor When gating is evaluated Then E2E mode is disabled`() {
+    fun `Given unsupported flavor When gating is evaluated Then E2E mode is disabled`() {
         val isEnabled = E2eRuntimeConfig.isEnabled(
             isDebug = true,
-            flavor = "demo",
+            flavor = "prod",
             requested = true
         )
 
@@ -60,6 +60,17 @@ class TestE2eRuntimeConfig {
         val isEnabled = E2eRuntimeConfig.isEnabled(
             isDebug = true,
             flavor = "dev",
+            requested = true
+        )
+
+        assertTrue(isEnabled)
+    }
+
+    @Test
+    fun `Given debug demo build with E2E requested When gating is evaluated Then E2E mode is enabled`() {
+        val isEnabled = E2eRuntimeConfig.isEnabled(
+            isDebug = true,
+            flavor = "demo",
             requested = true
         )
 

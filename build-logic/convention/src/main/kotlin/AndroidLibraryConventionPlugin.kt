@@ -157,10 +157,10 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
                     manifestPlaceholders["rqesDocRetrievalHost"] = rqesDocRetrievalHost
                 }
                 configureFlavors(this) { flavor ->
-                    val isDevFlavor = flavor == AppFlavor.Dev
+                    val isE2eFlavor = flavor == AppFlavor.Dev || flavor == AppFlavor.Demo
                     addConfigField(
                         "E2E_MODE",
-                        if (isDevFlavor) {
+                        if (isE2eFlavor) {
                             (project.getProperty<String>("E2E_MODE") ?: "false").toBoolean()
                         } else {
                             false
@@ -168,15 +168,15 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
                     )
                     addConfigField(
                         "E2E_ISSUER_BASE_URL",
-                        if (isDevFlavor) project.getProperty("E2E_ISSUER_BASE_URL") ?: "" else ""
+                        if (isE2eFlavor) project.getProperty("E2E_ISSUER_BASE_URL") ?: "" else ""
                     )
                     addConfigField(
                         "E2E_VERIFIER_API_URL",
-                        if (isDevFlavor) project.getProperty("E2E_VERIFIER_API_URL") ?: "" else ""
+                        if (isE2eFlavor) project.getProperty("E2E_VERIFIER_API_URL") ?: "" else ""
                     )
                     addConfigField(
                         "E2E_VERIFIER_UI_URL",
-                        if (isDevFlavor) project.getProperty("E2E_VERIFIER_UI_URL") ?: "" else ""
+                        if (isE2eFlavor) project.getProperty("E2E_VERIFIER_UI_URL") ?: "" else ""
                     )
                 }
                 configureGradleManagedDevices(this)
