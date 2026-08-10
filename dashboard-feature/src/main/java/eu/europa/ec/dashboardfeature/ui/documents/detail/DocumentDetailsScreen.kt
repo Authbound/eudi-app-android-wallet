@@ -104,6 +104,8 @@ import eu.europa.ec.uilogic.component.wrap.DialogBottomSheet
 import eu.europa.ec.uilogic.component.wrap.ExpandableListItemUi
 import eu.europa.ec.uilogic.component.wrap.IdentityStatusDot
 import eu.europa.ec.uilogic.component.wrap.PresentIdBar
+import eu.europa.ec.uilogic.component.wrap.PassportFieldDensity
+import eu.europa.ec.uilogic.component.wrap.ClaimPropertyList
 import eu.europa.ec.uilogic.component.wrap.PresentIdShareSheet
 import eu.europa.ec.uilogic.component.wrap.SimpleBottomSheet
 import eu.europa.ec.uilogic.component.wrap.TextConfig
@@ -417,12 +419,17 @@ private fun Content(
                         VSpacer.ExtraLarge()
                     }
 
-                DocumentClaimsSection(
+                val claimProperties = ClaimPropertyMapper.toClaimProperties(
+                    claims = safeDocumentDetailsUi.documentClaims,
+                    visualType = resolveCredentialVisualType(
+                        documentIdentifier = safeDocumentDetailsUi.documentIdentifier,
+                        issuerName = state.issuerName
+                    ),
+                )
+                ClaimPropertyList(
                     modifier = Modifier.fillMaxWidth(),
-                    sectionTitle = state.documentDetailsSectionTitle,
-                    documentDetailsUi = safeDocumentDetailsUi,
-                    areClaimsExpanded = state.areDocumentClaimsExpanded,
-                    onEventSend = onEventSend,
+                    title = state.documentDetailsSectionTitle,
+                    properties = claimProperties,
                 )
 
                 if (state.issuerName != null || state.issuerLogo != null) {
@@ -905,7 +912,8 @@ private fun DocumentDetailsUi.toVisualCredentialConfig(
         portraitBase64 = portraitBase64,
         nationality = identityCardData?.nationality,
         birthDate = identityCardData?.birthDate,
-        layout = CredentialCardLayout.PASSPORT
+        layout = CredentialCardLayout.PASSPORT,
+        passportFieldDensity = PassportFieldDensity.SUMMARY
     )
 }
 

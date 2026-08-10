@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -109,6 +110,15 @@ enum class CredentialCardLayout {
         PASSPORT
 }
 
+/**
+ * How many identity fields the passport face shows.
+ * [FULL] is for home hero; [SUMMARY] is for document details (facts live in ClaimPropertyList).
+ */
+enum class PassportFieldDensity {
+        FULL,
+        SUMMARY
+}
+
 /** Configuration for visual credential card. */
 data class VisualCredentialConfig(
         val id: String,
@@ -125,7 +135,8 @@ data class VisualCredentialConfig(
         val portraitBase64: String? = null,
         val nationality: String? = null,
         val birthDate: String? = null,
-        val layout: CredentialCardLayout = CredentialCardLayout.COMPACT
+        val layout: CredentialCardLayout = CredentialCardLayout.COMPACT,
+        val passportFieldDensity: PassportFieldDensity = PassportFieldDensity.FULL
 )
 
 /** Color scheme for credential types. */
@@ -742,7 +753,7 @@ private fun PassportCardContent(
                 Column(
                         modifier =
                                 Modifier.fillMaxSize()
-                                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                                        .padding(horizontal = 20.dp, vertical = 18.dp),
                         verticalArrangement = Arrangement.SpaceBetween
                 ) {
                         Row(
@@ -798,57 +809,112 @@ private fun PassportCardContent(
                                         IdentityHairline(
                                                 color = colors.textPrimary.copy(alpha = 0.14f)
                                         )
-                                        // Two-row field grid so full dd/MM/yyyy dates fit on phone
-                                        // widths (three columns was truncating values mid-date).
-                                        Column(
-                                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                                Row(
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                        horizontalArrangement =
-                                                                Arrangement.spacedBy(18.dp)
-                                                ) {
+                                        when (config.passportFieldDensity) {
+                                                PassportFieldDensity.SUMMARY -> {
+                                                        // Details screen: one key fact on the face;
+                                                        // full claims live in ClaimPropertyList.
                                                         IdentityLabeledField(
-                                                                modifier = Modifier.weight(1f),
+                                                                modifier = Modifier.fillMaxWidth(),
                                                                 label =
                                                                         stringResource(
                                                                                 R.string
-                                                                                        .credential_card_label_nationality
+                                                                                        .credential_card_label_valid_until
                                                                         ),
-                                                                value = config.nationality,
-                                                                labelColor = colors.textSecondary,
-                                                                valueColor = colors.textPrimary
-                                                        )
-                                                        IdentityLabeledField(
-                                                                modifier = Modifier.weight(1.25f),
-                                                                label =
-                                                                        stringResource(
-                                                                                R.string
-                                                                                        .credential_card_label_date_of_birth
-                                                                        ),
-                                                                value = config.birthDate,
+                                                                value = config.expiryDate,
                                                                 labelColor = colors.textSecondary,
                                                                 valueColor = colors.textPrimary
                                                         )
                                                 }
-                                                IdentityLabeledField(
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                        label =
-                                                                stringResource(
-                                                                        R.string
-                                                                                .credential_card_label_valid_until
-                                                                ),
-                                                        value = config.expiryDate,
-                                                        labelColor = colors.textSecondary,
-                                                        valueColor = colors.textPrimary
-                                                )
+                                                PassportFieldDensity.FULL -> {
+                                                        // Home hero: compact identity strip.
+                                                        Column(
+                                                                verticalArrangement =
+                                                                        Arrangement.spacedBy(8.dp)
+                                                        ) {
+                                                                Row(
+                                                                        modifier =
+                                                                                Modifier.fillMaxWidth(),
+                                                                        horizontalArrangement =
+                                                                                Arrangement
+                                                                                        .spacedBy(
+                                                                                                16.dp
+                                                                                        )
+                                                                ) {
+                                                                        IdentityLabeledField(
+                                                                                modifier =
+                                                                                        Modifier
+                                                                                                .weight(
+                                                                                                        1f
+                                                                                                ),
+                                                                                label =
+                                                                                        stringResource(
+                                                                                                R
+                                                                                                        .string
+                                                                                                        .credential_card_label_nationality
+                                                                                        ),
+                                                                                value =
+                                                                                        config
+                                                                                                .nationality,
+                                                                                labelColor =
+                                                                                        colors
+                                                                                                .textSecondary,
+                                                                                valueColor =
+                                                                                        colors
+                                                                                                .textPrimary
+                                                                        )
+                                                                        IdentityLabeledField(
+                                                                                modifier =
+                                                                                        Modifier
+                                                                                                .weight(
+                                                                                                        1.25f
+                                                                                                ),
+                                                                                label =
+                                                                                        stringResource(
+                                                                                                R
+                                                                                                        .string
+                                                                                                        .credential_card_label_date_of_birth
+                                                                                        ),
+                                                                                value =
+                                                                                        config
+                                                                                                .birthDate,
+                                                                                labelColor =
+                                                                                        colors
+                                                                                                .textSecondary,
+                                                                                valueColor =
+                                                                                        colors
+                                                                                                .textPrimary
+                                                                        )
+                                                                }
+                                                                IdentityLabeledField(
+                                                                        modifier =
+                                                                                Modifier
+                                                                                        .fillMaxWidth(),
+                                                                        label =
+                                                                                stringResource(
+                                                                                        R.string
+                                                                                                .credential_card_label_valid_until
+                                                                                ),
+                                                                        value = config.expiryDate,
+                                                                        labelColor =
+                                                                                colors
+                                                                                        .textSecondary,
+                                                                        valueColor =
+                                                                                colors.textPrimary
+                                                                )
+                                                        }
+                                                }
                                         }
                                 }
                         }
-                        PassportFooterRule(
-                                issuerName = config.issuerName,
-                                colors = colors
-                        )
+                        if (config.passportFieldDensity == PassportFieldDensity.FULL) {
+                                PassportFooterRule(
+                                        issuerName = config.issuerName,
+                                        colors = colors
+                                )
+                        } else {
+                                // SUMMARY (details): issuer is shown once below the card.
+                                Spacer(modifier = Modifier.height(4.dp))
+                        }
                 }
         }
 }
