@@ -22,10 +22,17 @@ import android.net.Uri
 import android.os.Bundle
 import com.google.common.truth.Truth.assertThat
 import eu.europa.ec.authenticationlogic.gate.LocalUnlockTracker
+import eu.europa.ec.businesslogic.model.CredentialClaim
+import eu.europa.ec.businesslogic.model.VerificationRequest
 import eu.europa.ec.businesslogic.controller.session.PresentationSessionController
 import eu.europa.ec.businesslogic.provider.UuidProvider
+import eu.europa.ec.notificationlogic.controller.ActionNotification
+import eu.europa.ec.notificationlogic.controller.UserScopedPushNotificationController
+import eu.europa.ec.notificationlogic.controller.WalletNotification
 import eu.europa.ec.uilogic.di.LogicUiModule
 import eu.europa.ec.uilogic.di.module as logicUiModule
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -48,10 +55,12 @@ import org.robolectric.annotation.Config
 class TestMainActivity {
 
     private lateinit var localUnlockTracker: FakeLocalUnlockTracker
+    private lateinit var pushNotificationController: FakePushNotificationController
 
     @Before
-    fun before() {
+    fun before(): Unit {
         localUnlockTracker = FakeLocalUnlockTracker()
+        pushNotificationController = FakePushNotificationController()
         startKoin {
             modules(
                 LogicUiModule().logicUiModule(),
@@ -59,13 +68,14 @@ class TestMainActivity {
                     single<LocalUnlockTracker> { localUnlockTracker }
                     single<PresentationSessionController> { FakePresentationSessionController() }
                     single<UuidProvider> { FakeUuidProvider() }
+                    single<UserScopedPushNotificationController> { pushNotificationController }
                 }
             )
         }
     }
 
     @After
-    fun after() {
+    fun after(): Unit {
         stopKoin()
     }
 
@@ -78,6 +88,16 @@ class TestMainActivity {
         assertThat(localUnlockTracker.isUnlockedChecks).isEqualTo(0)
         assertThat(Shadows.shadowOf(controller.get()).peekNextStartedActivityForResult()).isNull()
         assertThat(controller.get().isFinishing).isFalse()
+    }
+
+    @Test
+    fun `Given an authenticated activity start, When Firebase may have rotated its token, Then current device sync is requested`(): Unit {
+        val controller: ActivityController<TestableMainActivity> = buildActivity()
+
+        controller.create().start()
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        assertThat(pushNotificationController.syncRequests).isEqualTo(1)
     }
 
     @Test
@@ -144,6 +164,36 @@ class TestMainActivity {
         assertThat(controller.get().isFinishing).isTrue()
     }
 
+    @Test
+    fun `Given launcher intent contains wallet refresh, When activity is created, Then only the opaque refresh is forwarded`(): Unit {
+        val intent = Intent().apply {
+            putExtra("type", "wallet_refresh")
+            putExtra("created_at", "2026-07-10T12:00:00Z")
+            putExtra("action_id", "must-not-be-forwarded")
+        }
+
+        Robolectric.buildActivity(TestableMainActivity::class.java, intent).create()
+
+        assertThat(pushNotificationController.received).containsExactly(
+            mapOf(
+                "type" to "wallet_refresh",
+                "created_at" to "2026-07-10T12:00:00Z"
+            )
+        )
+    }
+
+    @Test
+    fun `Given launcher intent contains user scoped data, When activity is created, Then it is not forwarded`(): Unit {
+        val intent = Intent().apply {
+            putExtra("type", "action_request")
+            putExtra("user_id", "user-1")
+        }
+
+        Robolectric.buildActivity(TestableMainActivity::class.java, intent).create()
+
+        assertThat(pushNotificationController.received).isEmpty()
+    }
+
     private fun buildActivity(): ActivityController<TestableMainActivity> {
         return Robolectric.buildActivity(TestableMainActivity::class.java)
     }
@@ -187,6 +237,33 @@ private class FakeUuidProvider : UuidProvider {
     override fun provideUuid(): String {
         return "test-session-id"
     }
+}
+
+private class FakePushNotificationController : UserScopedPushNotificationController {
+    val received: MutableList<Map<String, String>> = mutableListOf()
+    var syncRequests: Int = 0
+
+    override suspend fun registerForPushNotifications(userId: String): Result<String> =
+        Result.success("test-token")
+
+    override suspend fun unregisterPushNotifications(userId: String): Result<Unit> =
+        Result.success(Unit)
+
+    override suspend fun syncCurrentDeviceToken(token: String?): Result<Unit> {
+        syncRequests += 1
+        return Result.success(Unit)
+    }
+
+    override fun observeCredentialClaims(): Flow<CredentialClaim> = emptyFlow()
+    override fun observeVerificationRequests(): Flow<VerificationRequest> = emptyFlow()
+    override fun observeActionRequests(): Flow<ActionNotification> = emptyFlow()
+    override fun observeGeneralNotifications(): Flow<WalletNotification> = emptyFlow()
+
+    override fun handleIncomingNotification(data: Map<String, String>): Unit {
+        received += data
+    }
+
+    override fun clearUserNotifications(userId: String): Unit = Unit
 }
 
 private class TestableMainActivity : MainActivity() {

@@ -21,6 +21,7 @@ import eu.europa.ec.networklogic.model.request.ActionRespondRequest
 import eu.europa.ec.networklogic.model.request.CompletePairingRequest
 import eu.europa.ec.networklogic.model.request.CompleteProfileRequest
 import eu.europa.ec.networklogic.model.request.RecordLegalAcceptanceRequest
+import eu.europa.ec.networklogic.model.request.UpdateDeviceTokenRequest
 import eu.europa.ec.networklogic.model.request.CreateVerificationSessionRequest
 import eu.europa.ec.networklogic.model.request.CreateAuthboundPidSessionRequest
 import eu.europa.ec.networklogic.model.request.DummyRequest
@@ -61,6 +62,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
@@ -135,12 +137,17 @@ interface ApiClient {
 
     // Device linking endpoints
     suspend fun completePairing(
-        completionUrl: String,
+        sessionId: String,
         body: CompletePairingRequest,
         bearerToken: String
     ): ApiResponse<PairingCompleteResponse>
 
     suspend fun unlinkCurrentDevice(bearerToken: String): ApiResponse<Unit>
+
+    suspend fun updateCurrentDeviceToken(
+        body: UpdateDeviceTokenRequest,
+        bearerToken: String
+    ): ApiResponse<Unit>
 
     suspend fun getDeviceStatus(
         bearerToken: String
@@ -528,12 +535,12 @@ class KtorApiClient(
     // ============================================================================
 
     override suspend fun completePairing(
-        completionUrl: String,
+        sessionId: String,
         body: CompletePairingRequest,
         bearerToken: String
     ): ApiResponse<PairingCompleteResponse> {
         return executeRequest {
-            httpClient.post(completionUrl) {
+            httpClient.post("$baseUrl/v1/mobile/pairing/complete/$sessionId") {
                 contentType(ContentType.Application.Json)
                 authboundMobileContractHeaders()
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
@@ -547,6 +554,20 @@ class KtorApiClient(
             httpClient.delete("$baseUrl/v1/mobile/pairing/devices/current") {
                 authboundMobileContractHeaders()
                 header(HttpHeaders.Authorization, "Bearer $bearerToken")
+            }
+        }
+    }
+
+    override suspend fun updateCurrentDeviceToken(
+        body: UpdateDeviceTokenRequest,
+        bearerToken: String
+    ): ApiResponse<Unit> {
+        return executeUnitRequest {
+            httpClient.put("$baseUrl/v1/mobile/pairing/devices/current/token") {
+                contentType(ContentType.Application.Json)
+                authboundMobileContractHeaders()
+                header(HttpHeaders.Authorization, "Bearer $bearerToken")
+                setBody(body)
             }
         }
     }

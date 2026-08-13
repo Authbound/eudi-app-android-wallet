@@ -44,6 +44,7 @@ dependencies {
     implementation(libs.supabase.auth.kt)
 
     testImplementation(project(LibraryModule.TestLogic.path))
+    testImplementation(libs.ktor.client.mock)
 }
 
 excludeFromKoverReport(

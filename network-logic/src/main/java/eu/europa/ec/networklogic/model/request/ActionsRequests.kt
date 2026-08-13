@@ -88,3 +88,9 @@ data class CompletePairingRequest(
     @SerialName("challengeResponse")
     val challengeResponse: String
 )
+
+@Serializable
+data class UpdateDeviceTokenRequest(
+    @SerialName("fcmToken")
+    val fcmToken: String
+)

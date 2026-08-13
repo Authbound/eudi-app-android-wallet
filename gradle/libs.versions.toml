@@ -180,6 +180,7 @@ mockk-android = { group = "io.mockk", name = "mockk-android", version.ref = "moc
 truth = { group = "com.google.truth", name = "truth", version.ref = "truth" }
 ktor-android = { group = "io.ktor", name = "ktor-client-android", version.ref = "ktor" }
 ktor-logging = { group = "io.ktor", name = "ktor-client-logging", version.ref = "ktor" }
+ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 slf4j = { group = "org.slf4j", name = "slf4j-simple", version.ref = "slf4j" }
