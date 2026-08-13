@@ -74,8 +74,8 @@ rg -Uq 'sourceSets\.named\("demo"\)\s*\{\s*res\.srcDir\(proofResources\)' "$grad
     || fail "demo network configuration must not trust user CAs"
 rg -q '<certificates src="system" />' "$network_config" \
     || fail "demo network configuration must trust system CAs"
-rg -q '<certificates src="@raw/authbound_verifier_root_ca" />' "$network_config" \
-    || fail "ordinary demo network trust must remain unchanged"
+! rg -q '<certificates src="@raw/authbound_verifier_root_ca" />' "$network_config" \
+    || fail "reader trust must not become ordinary demo TLS trust"
 ! rg -q 'authbound_m31_network_ca' "$network_config" \
     || fail "ordinary demo network trust must not include proof-only CAs"
 ! rg -q 'src\s*=\s*"user"' "$proof_network_config" \

@@ -18,7 +18,6 @@
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
-            <certificates src="@raw/authbound_verifier_root_ca" />
         </trust-anchors>
     </base-config>
 </network-security-config>
