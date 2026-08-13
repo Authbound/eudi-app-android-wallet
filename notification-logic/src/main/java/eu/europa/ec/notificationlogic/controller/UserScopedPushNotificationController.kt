@@ -24,6 +24,14 @@ import eu.europa.ec.businesslogic.model.VerificationRequestStatus
 import eu.europa.ec.businesslogic.model.VerificationType
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
+import com.google.gson.JsonParser
+import eu.europa.ec.networklogic.api.ApiClient
+import eu.europa.ec.networklogic.model.ApiResponse
+import eu.europa.ec.networklogic.model.request.UpdateDeviceTokenRequest
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.user.UserSession
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -39,6 +47,7 @@ import kotlin.coroutines.suspendCoroutine
 interface UserScopedPushNotificationController {
     suspend fun registerForPushNotifications(userId: String): Result<String>
     suspend fun unregisterPushNotifications(userId: String): Result<Unit>
+    suspend fun syncCurrentDeviceToken(token: String? = null): Result<Unit>
 
     // Notification flows
     fun observeCredentialClaims(): Flow<CredentialClaim>
@@ -96,9 +105,25 @@ enum class NotificationType {
     GENERAL
 }
 
+internal fun ApiResponse<Unit>.isUnlinkedDeviceResponse(): Boolean {
+    if (code() != 404) {
+        return false
+    }
+    val responseBody: String = errorBody() ?: return false
+    return runCatching {
+        JsonParser.parseString(responseBody)
+            .asJsonObject
+            .getAsJsonObject("error")
+            .get("code")
+            .asString == "DEVICE_NOT_FOUND"
+    }.getOrDefault(false)
+}
+
 class UserScopedPushNotificationControllerImpl(
     private val firebaseMessaging: FirebaseMessaging,
-    private val logController: LogController
+    private val logController: LogController,
+    private val apiClient: ApiClient,
+    private val supabaseClient: SupabaseClient
 ) : UserScopedPushNotificationController {
 
     companion object {
@@ -122,14 +147,15 @@ class UserScopedPushNotificationControllerImpl(
     private val _verificationRequests = MutableSharedFlow<VerificationRequest>(replay = 10)
     private val _actionRequests = MutableSharedFlow<ActionNotification>(replay = 10)
     private val _generalNotifications = MutableSharedFlow<WalletNotification>(replay = 20)
-    
+
+    private val userScopeLock = Any()
     private var currentUserId: String? = null
     
     override suspend fun registerForPushNotifications(userId: String): Result<String> = 
         suspendCoroutine { continuation ->
             try {
-                currentUserId = userId
-                logController.d("UserScopedPush", "Registering push notifications for user: ${userId.take(8)}...")
+                switchUserScope(userId)
+                logController.d(TAG, "Registering push notifications")
                 
                 firebaseMessaging.token.addOnCompleteListener { task ->
                     if (!task.isSuccessful) {
@@ -140,11 +166,7 @@ class UserScopedPushNotificationControllerImpl(
                     }
 
                     val token = task.result
-                    logController.d("UserScopedPush", "FCM token obtained for user: ${userId.take(8)}...")
-                    
-                    // Subscribe to user-specific topics
-                    subscribeToUserTopics(userId, token)
-                    
+                    logController.d(TAG, "FCM token obtained")
                     continuation.resume(Result.success(token))
                 }
             } catch (e: Exception) {
@@ -156,12 +178,8 @@ class UserScopedPushNotificationControllerImpl(
     override suspend fun unregisterPushNotifications(userId: String): Result<Unit> = 
         suspendCoroutine { continuation ->
             try {
-                logController.d("UserScopedPush", "Unregistering push notifications for user: ${userId.take(8)}...")
-                
-                // Unsubscribe from user-specific topics
-                unsubscribeFromUserTopics(userId)
-                
-                currentUserId = null
+                logController.d(TAG, "Unregistering push notifications")
+                clearUserNotifications(userId)
                 continuation.resume(Result.success(Unit))
                 
             } catch (e: Exception) {
@@ -169,62 +187,30 @@ class UserScopedPushNotificationControllerImpl(
                 continuation.resume(Result.failure(e))
             }
         }
-    
-    private fun subscribeToUserTopics(userId: String, token: String) {
-        val userTopic = "user_$userId"
-        val claimsTopic = "claims_$userId"
-        val verificationTopic = "verification_$userId"
-        val actionsTopic = "actions_$userId"
 
-        firebaseMessaging.subscribeToTopic(userTopic)
-            .addOnSuccessListener {
-                logController.d(TAG, "Subscribed to user topic: $userTopic")
+    override suspend fun syncCurrentDeviceToken(token: String?): Result<Unit> = runCatching {
+        val session: UserSession = supabaseClient.auth.currentSessionOrNull()
+            ?: return Result.success(Unit)
+        val userId: String = session.user?.id
+            ?: throw SecurityException("Authenticated session has no user")
+        switchUserScope(userId)
+        val currentToken: String = token ?: suspendCoroutine { continuation ->
+            firebaseMessaging.token.addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    continuation.resume(task.result)
+                } else {
+                    continuation.resumeWith(
+                        Result.failure(task.exception ?: Exception("Unknown FCM error"))
+                    )
+                }
             }
-            .addOnFailureListener { e ->
-                logController.e(TAG, e)
-            }
-
-        firebaseMessaging.subscribeToTopic(claimsTopic)
-            .addOnSuccessListener {
-                logController.d(TAG, "Subscribed to claims topic: $claimsTopic")
-            }
-            .addOnFailureListener { e ->
-                logController.e(TAG, e)
-            }
-
-        firebaseMessaging.subscribeToTopic(verificationTopic)
-            .addOnSuccessListener {
-                logController.d(TAG, "Subscribed to verification topic: $verificationTopic")
-            }
-            .addOnFailureListener { e ->
-                logController.e(TAG, e)
-            }
-
-        firebaseMessaging.subscribeToTopic(actionsTopic)
-            .addOnSuccessListener {
-                logController.d(TAG, "Subscribed to actions topic: $actionsTopic")
-            }
-            .addOnFailureListener { e ->
-                logController.e(TAG, e)
-            }
-    }
-    
-    private fun unsubscribeFromUserTopics(userId: String) {
-        val topics = listOf(
-            "user_$userId",
-            "claims_$userId",
-            "verification_$userId",
-            "actions_$userId"
+        }
+        val response: ApiResponse<Unit> = apiClient.updateCurrentDeviceToken(
+            body = UpdateDeviceTokenRequest(fcmToken = currentToken),
+            bearerToken = session.accessToken
         )
-        
-        topics.forEach { topic ->
-            firebaseMessaging.unsubscribeFromTopic(topic)
-                .addOnSuccessListener {
-                    logController.d("UserScopedPush", "Unsubscribed from topic: $topic")
-                }
-                .addOnFailureListener { e ->
-                    logController.w("UserScopedPush") { "Failed to unsubscribe from $topic: ${e.message}" }
-                }
+        if (!response.isSuccessful && !response.isUnlinkedDeviceResponse()) {
+            throw Exception("Failed to update push notification token: HTTP ${response.code()}")
         }
     }
     
@@ -237,28 +223,41 @@ class UserScopedPushNotificationControllerImpl(
     override fun observeGeneralNotifications(): Flow<WalletNotification> = _generalNotifications.asSharedFlow()
     
     override fun handleIncomingNotification(data: Map<String, String>) {
-        try {
-            val notificationType = data["type"] ?: return
-            val userId = data["user_id"] ?: return
-            
-            // Verify notification is for current user
-            if (currentUserId != userId) {
-                logController.w("UserScopedPush") { "Received notification for different user - ignoring" }
-                return
+        synchronized(userScopeLock) {
+            try {
+                val notificationType = data["type"] ?: return@synchronized
+                if (notificationType == "wallet_refresh") {
+                    handleOpaqueWalletRefresh(data)
+                    return@synchronized
+                }
+                val userId = data["user_id"] ?: return@synchronized
+                if (currentUserId != userId) {
+                    logController.w(TAG) { "Received notification for different user - ignoring" }
+                    return@synchronized
+                }
+                logController.d(TAG, "Processing notification type: $notificationType")
+                when (notificationType) {
+                    "credential_claim" -> handleCredentialClaimNotification(data)
+                    "verification_request" -> handleVerificationRequestNotification(data)
+                    "action_request" -> handleActionRequestNotification(data)
+                    else -> handleGeneralNotification(data)
+                }
+            } catch (e: Exception) {
+                logController.e(TAG, e)
             }
-            
-            logController.d("UserScopedPush", "Processing notification type: $notificationType for user: ${userId.take(8)}...")
-            
-            when (notificationType) {
-                "credential_claim" -> handleCredentialClaimNotification(data)
-                "verification_request" -> handleVerificationRequestNotification(data)
-                "action_request" -> handleActionRequestNotification(data)
-                else -> handleGeneralNotification(data)
-            }
-            
-        } catch (e: Exception) {
-            logController.e("UserScopedPush", e)
         }
+    }
+
+    private fun handleOpaqueWalletRefresh(data: Map<String, String>) {
+        _generalNotifications.tryEmit(
+            WalletNotification(
+                id = data["created_at"] ?: System.currentTimeMillis().toString(),
+                type = NotificationType.ACTION_REQUEST,
+                title = "Authbound update available",
+                message = "Open Authbound to refresh",
+                data = data
+            )
+        )
     }
     
     private fun handleCredentialClaimNotification(data: Map<String, String>) {
@@ -455,9 +454,27 @@ class UserScopedPushNotificationControllerImpl(
         _generalNotifications.tryEmit(notification)
     }
     
-    override fun clearUserNotifications(userId: String) {
-        logController.d("UserScopedPush", "Clearing notifications for user: ${userId.take(8)}...")
-        // Clear any cached notifications for the user
-        // In a full implementation, this would clear local notification storage
+    private fun switchUserScope(userId: String): Unit = synchronized(userScopeLock) {
+        if (currentUserId != userId) {
+            resetNotificationReplay()
+            currentUserId = userId
+        }
     }
-} 
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override fun clearUserNotifications(userId: String): Unit = synchronized(userScopeLock) {
+        logController.d(TAG, "Clearing user notifications")
+        if (currentUserId == null || currentUserId == userId) {
+            currentUserId = null
+            resetNotificationReplay()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun resetNotificationReplay(): Unit {
+        _credentialClaims.resetReplayCache()
+        _verificationRequests.resetReplayCache()
+        _actionRequests.resetReplayCache()
+        _generalNotifications.resetReplayCache()
+    }
+}

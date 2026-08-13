@@ -19,22 +19,31 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import eu.europa.ec.notificationlogic.controller.UserScopedPushNotificationController
 import eu.europa.ec.businesslogic.controller.log.LogController
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 
 class PushNotificationService : FirebaseMessagingService() {
 
     private val userScopedController: UserScopedPushNotificationController by inject()
     private val logController: LogController by inject()
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         try {
-            logController.d("PushNotificationService", "Received message from: ${remoteMessage.from}")
+            logController.d("PushNotificationService", "Received push notification")
             
             // Extract data payload
             val data = remoteMessage.data
             
             if (data.isNotEmpty()) {
-                logController.d("PushNotificationService", "Message data payload: $data")
+                logController.d(
+                    "PushNotificationService",
+                    "Received notification type: ${data["type"] ?: "unknown"}"
+                )
                 // Route message to user-scoped controller for processing
                 userScopedController.handleIncomingNotification(data)
             } else {
@@ -42,8 +51,8 @@ class PushNotificationService : FirebaseMessagingService() {
             }
             
             // Handle notification payload if present
-            remoteMessage.notification?.let { notification ->
-                logController.d("PushNotificationService", "Message notification: ${notification.title}")
+            remoteMessage.notification?.let {
+                logController.d("PushNotificationService", "Received display notification")
                 // For display notifications, we could show system notifications here
                 // but for EUDI wallet, we primarily use data messages for security
             }
@@ -54,18 +63,17 @@ class PushNotificationService : FirebaseMessagingService() {
     }
 
     override fun onNewToken(token: String) {
-        try {
-            logController.d("PushNotificationService", "New FCM token received: ${token.take(16)}...")
-            
-            // Store the new token for future registration
-            // The actual registration with backend happens when user authenticates
-            // and the UserScopedPushNotificationController.registerForPushNotifications is called
-            
-            // TODO: If user is already authenticated, we should update the token on the backend
-            // This would require access to authentication state and backend API
-            
-        } catch (e: Exception) {
-            logController.e("PushNotificationService", e)
+        serviceScope.launch {
+            try {
+                userScopedController.syncCurrentDeviceToken(token).getOrThrow()
+            } catch (e: Exception) {
+                logController.e("PushNotificationService", e)
+            }
         }
     }
-} 
+
+    override fun onDestroy() {
+        serviceScope.cancel()
+        super.onDestroy()
+    }
+}

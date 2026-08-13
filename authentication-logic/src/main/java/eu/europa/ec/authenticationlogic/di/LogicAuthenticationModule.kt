@@ -56,6 +56,7 @@ import eu.europa.ec.businesslogic.controller.crypto.KeystoreController
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
 import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
+import eu.europa.ec.notificationlogic.controller.UserScopedPushNotificationController
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import io.github.jan.supabase.SupabaseClient
 import org.koin.core.annotation.ComponentScan
@@ -208,7 +209,8 @@ fun provideSignOutUseCase(
     prefKeys: PrefKeysV2,
     pinStorageController: PinStorageController,
     localUnlockTracker: LocalUnlockTracker,
-    logController: LogController
+    logController: LogController,
+    pushNotificationController: UserScopedPushNotificationController
 ): SignOutUseCase = SignOutUseCaseImpl(
     supabaseAuthRepository,
     prefsController,
@@ -216,7 +218,8 @@ fun provideSignOutUseCase(
     prefKeys,
     pinStorageController,
     localUnlockTracker,
-    logController
+    logController,
+    pushNotificationController
 )
 
 @Factory

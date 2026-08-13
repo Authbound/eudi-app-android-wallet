@@ -304,7 +304,7 @@ open class ActionsRepositoryImpl(
             )
 
             val response = apiClient.completePairing(
-                completionUrl = parsedPayload.completionUrl,
+                sessionId = parsedPayload.sessionId,
                 body = request,
                 bearerToken = token
             )

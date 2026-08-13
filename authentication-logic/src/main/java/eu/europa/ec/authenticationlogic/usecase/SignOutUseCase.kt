@@ -23,6 +23,7 @@ import eu.europa.ec.businesslogic.controller.crypto.KeystoreController
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.controller.storage.PrefKeysV2
 import eu.europa.ec.businesslogic.controller.storage.PrefsControllerV2
+import eu.europa.ec.notificationlogic.controller.UserScopedPushNotificationController
 import kotlinx.coroutines.withContext
 
 /**
@@ -56,7 +57,8 @@ class SignOutUseCaseImpl(
     private val prefKeys: PrefKeysV2,
     private val pinStorageController: PinStorageController,
     private val localUnlockTracker: LocalUnlockTracker,
-    private val logController: LogController
+    private val logController: LogController,
+    private val pushNotificationController: UserScopedPushNotificationController
 ):SignOutUseCase {
 
    override suspend operator fun invoke(mode: SignOutMode) =
@@ -110,11 +112,16 @@ class SignOutUseCaseImpl(
                     }
                 }
 
-                // 4) Clear remote session after local destructive cleanup
+                // 4) Drop replayed user notifications before another account can observe them.
+                if (userId != null) {
+                    pushNotificationController.clearUserNotifications(userId)
+                }
+
+                // 5) Clear remote session after local destructive cleanup
                 supabaseAuthRepository.signOut()
                 logController.d("SignOutUseCaseV2", "Supabase session cleared")
 
-                // 5) Invalidate in-memory user context
+                // 6) Invalidate in-memory user context
                 runCatching { prefsController.invalidateCache() }
                     .onFailure { logController.w("SignOutUseCaseV2") { "Failed to invalidate cache: ${it.message}" } }
 

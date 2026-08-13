@@ -313,8 +313,9 @@ class TestActionsRepository {
     @Test
     fun `Given pairing QR payload, When linkDevice is called, Then request completes the pairing session`() = runTest {
         // Given
+        val sessionId = "550e8400-e29b-41d4-a716-446655440000"
         val pairingPayload = """
-            {"t":"authbound_pair","v":1,"sid":"550e8400-e29b-41d4-a716-446655440000","cr":"challenge-response","url":"https://app.authbound.io/api/pairing/complete/550e8400-e29b-41d4-a716-446655440000","exp":4102444800}
+            {"t":"authbound_pair","v":1,"sid":"$sessionId","cr":"challenge-response","url":"https://attacker.example/collect","exp":4102444800}
         """.trimIndent()
         whenever(userScopedPushNotificationController.registerForPushNotifications(eq("user-123")))
             .thenReturn(Result.success("fcm-token-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_=:-fcm-token-1234567890"))
@@ -327,7 +328,7 @@ class TestActionsRepository {
             ),
             code = 200
         )
-        whenever(apiClient.completePairing(eq("https://app.authbound.io/api/pairing/complete/550e8400-e29b-41d4-a716-446655440000"), any(), eq(testAccessToken)))
+        whenever(apiClient.completePairing(eq(sessionId), any(), eq(testAccessToken)))
             .thenReturn(successResponse)
         whenever(apiClient.getDeviceStatus(eq(testAccessToken))).thenReturn(
             ApiResponse.Success(
@@ -355,10 +356,11 @@ class TestActionsRepository {
 
         val requestCaptor = argumentCaptor<CompletePairingRequest>()
         verify(apiClient).completePairing(
-            eq("https://app.authbound.io/api/pairing/complete/550e8400-e29b-41d4-a716-446655440000"),
+            eq(sessionId),
             requestCaptor.capture(),
             eq(testAccessToken)
         )
+        verify(apiClient, never()).completePairing(eq("https://attacker.example/collect"), any(), any())
 
         val capturedRequest = requestCaptor.firstValue
         assertEquals("Pixel Test", capturedRequest.deviceName)
@@ -375,7 +377,7 @@ class TestActionsRepository {
         """.trimIndent()
         whenever(userScopedPushNotificationController.registerForPushNotifications(eq("user-123")))
             .thenReturn(Result.success("fcm-token-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_=:-fcm-token-1234567890"))
-        whenever(apiClient.completePairing(eq("https://staging.authbound.io/api/pairing/complete/550e8400-e29b-41d4-a716-446655440000"), any(), eq(testAccessToken)))
+        whenever(apiClient.completePairing(eq("550e8400-e29b-41d4-a716-446655440000"), any(), eq(testAccessToken)))
             .thenReturn(
                 ApiResponse.Success(
                     body = PairingCompleteResponse(
