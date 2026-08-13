@@ -47,6 +47,9 @@ plugins {
     id("project.rqes.sdk")
 }
 
+val useM31ProofNetworkConfig =
+    providers.gradleProperty("authboundM31ProofResourcesDir").isPresent
+
 extensions.configure<LibraryExtension>("android") {
     namespace = "eu.europa.ec.assemblylogic"
 
@@ -57,6 +60,12 @@ extensions.configure<LibraryExtension>("android") {
     defaultConfig {
         // App name
         manifestPlaceholders["appName"] = "Authbound Wallet"
+        manifestPlaceholders["networkSecurityConfig"] =
+            if (useM31ProofNetworkConfig) {
+                "@xml/authbound_m31_network_security_config"
+            } else {
+                "@xml/network_security_config"
+            }
     }
 }
 

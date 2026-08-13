@@ -38,13 +38,17 @@ providers.gradleProperty("authboundM31ProofResourcesDir").orNull?.let { rawPath 
     require(proofResourcesPath.isAbsolute)
     val proofResources = proofResourcesPath.toFile()
     val proofRaw = proofResourcesPath.resolve("raw")
+    val proofXml = proofResourcesPath.resolve("xml")
     val proofCa = proofRaw.resolve("authbound_verifier_root_ca.pem")
     val proofNetworkCa = proofRaw.resolve("authbound_m31_network_ca.pem")
+    val proofNetworkConfig = proofXml.resolve("authbound_m31_network_security_config.xml")
 
     require(Files.isDirectory(proofResourcesPath, NOFOLLOW_LINKS))
     require(Files.isDirectory(proofRaw, NOFOLLOW_LINKS))
+    require(Files.isDirectory(proofXml, NOFOLLOW_LINKS))
     require(Files.isRegularFile(proofCa, NOFOLLOW_LINKS))
     require(Files.isRegularFile(proofNetworkCa, NOFOLLOW_LINKS))
+    require(Files.isRegularFile(proofNetworkConfig, NOFOLLOW_LINKS))
 
     extensions.configure<LibraryExtension>("android") {
         sourceSets.named("demo") {
