@@ -61,6 +61,7 @@ import eu.europa.ec.eudi.wallet.issue.openid4vci.IssueEvent
 import eu.europa.ec.eudi.wallet.issue.openid4vci.Offer
 import eu.europa.ec.eudi.wallet.issue.openid4vci.OfferResult
 import eu.europa.ec.eudi.wallet.issue.openid4vci.OpenId4VciManager
+import eu.europa.ec.networklogic.repository.WalletReactivationRequiredException
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.businesslogic.controller.wallet.UserDocumentOwnershipController
@@ -102,7 +103,10 @@ sealed class IssueDocumentsPartialState {
         val nonIssuedDocuments: Map<String, String>,
     ) : IssueDocumentsPartialState()
 
-    data class Failure(val errorMessage: String) : IssueDocumentsPartialState()
+    data class Failure(
+        val errorMessage: String,
+        val walletReactivationRequired: Boolean = false,
+    ) : IssueDocumentsPartialState()
     data class UserAuthRequired(
         val crypto: BiometricCrypto,
         val resultHandler: DeviceAuthenticationResult,
@@ -1024,11 +1028,14 @@ class WalletCoreDocumentsControllerImpl(
                     if (event.cause is MissingKeyAttestationChainException) {
                         logController.w(TAG) { event.cause.message.orEmpty() }
                     }
+                    val walletReactivationRequired = generateSequence(event.cause) { it.cause }
+                        .any { it is WalletReactivationRequiredException }
                     logController.e(TAG) { "Issuance FAILURE event received: ${event.cause::class.simpleName}: ${event.cause.message}" }
                     logController.e(TAG, event.cause)
                     trySendBlocking(
                         IssueDocumentsPartialState.Failure(
-                            errorMessage = documentErrorMessage
+                            errorMessage = documentErrorMessage,
+                            walletReactivationRequired = walletReactivationRequired,
                         )
                     )
                 }

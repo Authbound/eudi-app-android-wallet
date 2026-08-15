@@ -546,7 +546,8 @@ class TestDocumentOfferInteractor {
             mockWalletDocumentsControllerIssueByUriEventEmission(
                 offerUri = mockedUriPath1,
                 event = IssueDocumentsPartialState.Failure(
-                    errorMessage = mockedPlainFailureMessage
+                    errorMessage = mockedPlainFailureMessage,
+                    walletReactivationRequired = true,
                 )
             )
 
@@ -559,7 +560,8 @@ class TestDocumentOfferInteractor {
             ).runFlowTest {
                 // Then
                 val expectedResult = IssueDocumentsInteractorPartialState.Failure(
-                    errorMessage = mockedPlainFailureMessage
+                    errorMessage = mockedPlainFailureMessage,
+                    walletReactivationRequired = true,
                 )
                 assertEquals(expectedResult, awaitItem())
             }

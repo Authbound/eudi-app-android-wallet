@@ -19,6 +19,8 @@ package eu.europa.ec.issuancefeature.ui.offer
 import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.viewModelScope
+import eu.europa.ec.authenticationlogic.controller.storage.RecoveryCheckpointController
+import eu.europa.ec.authenticationlogic.model.RecoveryCheckpoint
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.businesslogic.extension.ifEmptyOrNull
 import eu.europa.ec.businesslogic.extension.toUri
@@ -48,6 +50,7 @@ import eu.europa.ec.uilogic.mvi.MviViewModel
 import eu.europa.ec.uilogic.mvi.ViewEvent
 import eu.europa.ec.uilogic.mvi.ViewSideEffect
 import eu.europa.ec.uilogic.mvi.ViewState
+import eu.europa.ec.uilogic.navigation.AuthenticationScreens
 import eu.europa.ec.uilogic.navigation.IssuanceScreens
 import eu.europa.ec.uilogic.navigation.PresentationScreens
 import eu.europa.ec.uilogic.navigation.helper.DeepLinkType
@@ -82,6 +85,7 @@ sealed class Event : ViewEvent {
     data class OnResumeIssuance(val uri: String) : Event()
     data class OnDynamicPresentation(val uri: String) : Event()
     data object DismissError : Event()
+    data object ReactivateWallet : Event()
 
     data class StickyButtonPressed(val context: Context) : Event()
 }
@@ -113,6 +117,7 @@ class DocumentOfferViewModel(
     private val resourceProvider: ResourceProvider,
     private val uiSerializer: UiSerializer,
     private val logController: LogController,
+    private val recoveryCheckpointController: RecoveryCheckpointController,
     @InjectedParam private val offerSerializedConfig: String,
 ) : MviViewModel<Event, State, Effect>() {
 
@@ -153,6 +158,8 @@ class DocumentOfferViewModel(
             is Event.DismissError -> {
                 setState { copy(error = null) }
             }
+
+            is Event.ReactivateWallet -> reactivateWallet()
 
             is Event.StickyButtonPressed -> {
                 issueDocuments(
@@ -348,10 +355,22 @@ class DocumentOfferViewModel(
                         setState {
                             copy(
                                 isLoading = false,
-                                error = ContentErrorConfig(
-                                    errorSubTitle = response.errorMessage,
-                                    onCancel = { setEvent(Event.DismissError) }
-                                )
+                                error = if (response.walletReactivationRequired) {
+                                    ContentErrorConfig(
+                                        errorTitle = "Wallet reactivation required",
+                                        errorSubTitle = "This installation no longer matches the active " +
+                                                "wallet for your account. Reactivating removes credentials " +
+                                                "and the PIN stored in this app before setting it up again.",
+                                        onCancel = { setEvent(Event.DismissError) },
+                                        onSecondaryAction = { setEvent(Event.ReactivateWallet) },
+                                        secondaryActionLabel = "Reactivate wallet",
+                                    )
+                                } else {
+                                    ContentErrorConfig(
+                                        errorSubTitle = response.errorMessage,
+                                        onCancel = { setEvent(Event.DismissError) }
+                                    )
+                                }
                             )
                         }
                     }
@@ -402,6 +421,30 @@ class DocumentOfferViewModel(
                             )
                         }
                     }
+                }
+            }
+        }
+    }
+
+    private fun reactivateWallet() {
+        viewModelScope.launch {
+            runCatching {
+                recoveryCheckpointController.setCheckpoint(RecoveryCheckpoint.LOCAL_RESET_IN_PROGRESS)
+            }.onSuccess {
+                setEffect {
+                    Effect.Navigation.SwitchScreen(
+                        screenRoute = AuthenticationScreens.WalletSetup.screenRoute
+                    )
+                }
+            }.onFailure { error ->
+                logController.e("DocumentOfferViewModel", error)
+                setState {
+                    copy(
+                        error = ContentErrorConfig(
+                            errorSubTitle = "Could not start wallet reactivation. Please try again.",
+                            onCancel = { setEvent(Event.DismissError) }
+                        )
+                    )
                 }
             }
         }

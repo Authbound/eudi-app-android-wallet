@@ -82,7 +82,10 @@ sealed class IssueDocumentsInteractorPartialState {
         val successRoute: String,
     ) : IssueDocumentsInteractorPartialState()
 
-    data class Failure(val errorMessage: String) : IssueDocumentsInteractorPartialState()
+    data class Failure(
+        val errorMessage: String,
+        val walletReactivationRequired: Boolean = false,
+    ) : IssueDocumentsInteractorPartialState()
 
     data class UserAuthRequired(
         val crypto: BiometricCrypto,
@@ -239,7 +242,10 @@ class DocumentOfferInteractorImpl(
                     when (response) {
                         is IssueDocumentsPartialState.Failure -> {
                             logController.e("DocumentOfferInteractor") { "issueDocuments failure: ${response.errorMessage}" }
-                            IssueDocumentsInteractorPartialState.Failure(errorMessage = response.errorMessage)
+                            IssueDocumentsInteractorPartialState.Failure(
+                                errorMessage = response.errorMessage,
+                                walletReactivationRequired = response.walletReactivationRequired,
+                            )
                         }
 
                         is IssueDocumentsPartialState.PartialSuccess -> {
@@ -308,7 +314,10 @@ class DocumentOfferInteractorImpl(
                 when (response) {
                     is IssueDocumentsPartialState.Failure -> {
                         logController.e("DocumentOfferInteractor") { "issueDocumentsFromOffer failure: ${response.errorMessage}" }
-                        IssueDocumentsInteractorPartialState.Failure(errorMessage = response.errorMessage)
+                        IssueDocumentsInteractorPartialState.Failure(
+                            errorMessage = response.errorMessage,
+                            walletReactivationRequired = response.walletReactivationRequired,
+                        )
                     }
                     is IssueDocumentsPartialState.PartialSuccess -> {
                         IssueDocumentsInteractorPartialState.Success(

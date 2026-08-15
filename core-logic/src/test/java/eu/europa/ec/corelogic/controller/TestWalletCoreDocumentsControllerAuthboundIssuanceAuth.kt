@@ -52,6 +52,7 @@ import eu.europa.ec.eudi.wallet.issue.openid4vci.IssueEvent
 import eu.europa.ec.eudi.wallet.issue.openid4vci.Offer
 import eu.europa.ec.eudi.wallet.issue.openid4vci.OfferResult
 import eu.europa.ec.eudi.wallet.issue.openid4vci.OpenId4VciManager
+import eu.europa.ec.networklogic.repository.WalletReactivationRequiredException
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.storagelogic.dao.BookmarkDao
 import eu.europa.ec.storagelogic.dao.FailedReIssuedDocumentDao
@@ -403,6 +404,36 @@ class TestWalletCoreDocumentsControllerAuthboundIssuanceAuth {
                     executor = anyOrNull(),
                     onIssueEvent = any()
                 )
+            }
+        }
+
+    @Test
+    fun `Given stale WUA failure, When Authbound issuance fails, Then reactivation is required`() =
+        coroutineRule.runTest {
+            val offer: Offer = authboundOffer()
+            doAnswer { invocation ->
+                val listener: OpenId4VciManager.OnIssueEvent =
+                    invocation.getArgument<OpenId4VciManager.OnIssueEvent>(3)
+                listener.onResult(
+                    IssueEvent.Failure(
+                        RuntimeException("wrapped", WalletReactivationRequiredException())
+                    )
+                )
+                Unit
+            }.whenever(manager).issueDocumentByOffer(
+                offer = eq(offer),
+                txCode = anyOrNull(),
+                executor = anyOrNull(),
+                onIssueEvent = any()
+            )
+
+            controller.issueDocumentsByOffer(offer).runFlowTest {
+                val authRequired = awaitItem() as IssueDocumentsPartialState.UserAuthRequired
+                authRequired.resultHandler.onAuthenticationSuccess()
+
+                val failure = awaitItem() as IssueDocumentsPartialState.Failure
+
+                assertTrue(failure.walletReactivationRequired)
             }
         }
 

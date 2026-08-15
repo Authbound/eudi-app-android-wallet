@@ -63,6 +63,9 @@ data class WalletProofChallenge(
     val attestationNonceExpiresAt: String,
 )
 
+class WalletReactivationRequiredException :
+    IllegalStateException("Wallet reactivation required")
+
 interface WalletAttestationRepository {
 
     suspend fun createProofChallenge(
@@ -181,6 +184,15 @@ class WalletAttestationRepositoryImpl(
     private suspend fun HttpResponse.requireSuccess(endpoint: String) {
         if (!status.isSuccess()) {
             Log.e(TAG, "HTTP ${status.value} from $endpoint")
+            val errorCode = runCatching {
+                Json.parseToJsonElement(bodyAsText())
+                    .jsonObject["code"]
+                    ?.jsonPrimitive
+                    ?.content
+            }.getOrNull()
+            if (status.value == 409 && errorCode == "WUA_REACTIVATION_REQUIRED") {
+                throw WalletReactivationRequiredException()
+            }
             throw IllegalStateException(
                 "Wallet attestation request failed: HTTP ${status.value} from $endpoint"
             )
