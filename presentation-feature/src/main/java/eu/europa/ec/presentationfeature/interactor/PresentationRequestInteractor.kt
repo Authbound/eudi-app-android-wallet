@@ -17,6 +17,7 @@
 package eu.europa.ec.presentationfeature.interactor
 
 import eu.europa.ec.businesslogic.controller.log.LogController
+import eu.europa.ec.businesslogic.extension.isExpired
 import eu.europa.ec.businesslogic.extension.safeAsync
 import eu.europa.ec.businesslogic.provider.UuidProvider
 import eu.europa.ec.commonfeature.config.RequestUriConfig
@@ -87,14 +88,23 @@ class PresentationRequestInteractorImpl(
                             verifierIsTrusted = response.verifierIsTrusted,
                         )
                     } else {
+                        val storageDocuments =
+                            walletCoreDocumentsController.getAllIssuedDocuments()
+                        val storageDocumentsById = storageDocuments.associateBy { it.id }
                         val documentsDomain = RequestTransformer.transformToDomainItems(
-                            storageDocuments = walletCoreDocumentsController.getAllIssuedDocuments(),
+                            storageDocuments = storageDocuments,
                             requestDocuments = response.requestData,
                             resourceProvider = resourceProvider,
                             uuidProvider = uuidProvider
                         ).getOrThrow()
                             .filterNot {
-                                walletCoreDocumentsController.isDocumentRevoked(it.docId)
+                                walletCoreDocumentsController.isDocumentRevoked(it.docId) ||
+                                        storageDocumentsById[it.docId]
+                                            ?.getValidUntil()
+                                            ?.fold(
+                                                onSuccess = { validUntil -> validUntil.isExpired() },
+                                                onFailure = { true }
+                                            ) != false
                             }
 
                         if (documentsDomain.isNotEmpty()) {
