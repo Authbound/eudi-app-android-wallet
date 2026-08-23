@@ -16,6 +16,7 @@
 
 package eu.europa.ec.dashboardfeature.ui.dashboard
 
+import android.annotation.SuppressLint
 import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -90,6 +91,7 @@ import kotlinx.coroutines.launch
 
 
 @OptIn(ExperimentalMaterial3Api::class)
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 internal fun DashboardScreen(
     hostNavController: NavController,
@@ -101,6 +103,7 @@ internal fun DashboardScreen(
     settingsViewModel: SettingsViewModel,
 ) {
     val context: Context = LocalContext.current
+    val featureComingSoonMessage: String = stringResource(R.string.feature_coming_soon)
     val bottomNavigationController: NavHostController = rememberNavController()
     val state: State by viewModel.viewState.collectAsStateWithLifecycle()
     val actionsState: eu.europa.ec.dashboardfeature.ui.actions.State by actionsViewModel.viewState.collectAsStateWithLifecycle()
@@ -130,7 +133,7 @@ internal fun DashboardScreen(
                 }
             )
         }
-    ) { padding ->
+    ) { _ ->
         NavHost(
             modifier = Modifier
                 .fillMaxSize(),
@@ -340,7 +343,7 @@ internal fun DashboardScreen(
                 is Effect.ShowComingSoon -> {
                     android.widget.Toast.makeText(
                         context,
-                        context.getString(R.string.feature_coming_soon),
+                        featureComingSoonMessage,
                         android.widget.Toast.LENGTH_SHORT
                     ).show()
                 }

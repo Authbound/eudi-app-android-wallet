@@ -1103,6 +1103,7 @@ private fun QuickActionsSection(
     onQuickActionClick: (String) -> Unit
 ) {
     val context = LocalContext.current
+    val featureComingSoonMessage: String = stringResource(R.string.feature_coming_soon)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1146,7 +1147,7 @@ private fun QuickActionsSection(
                                 if (isComingSoon) {
                                     android.widget.Toast.makeText(
                                         context,
-                                        context.getString(R.string.feature_coming_soon),
+                                        featureComingSoonMessage,
                                         android.widget.Toast.LENGTH_SHORT
                                     ).show()
                                 } else {

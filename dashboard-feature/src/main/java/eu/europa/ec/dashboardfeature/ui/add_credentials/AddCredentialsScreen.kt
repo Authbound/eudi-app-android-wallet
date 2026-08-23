@@ -15,9 +15,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
-import eu.europa.ec.dashboardfeature.interactor.AddCredentialsInteractorImpl
-import eu.europa.ec.dashboardfeature.interactor.TransactionsInteractorImpl
 import eu.europa.ec.resourceslogic.R
 import eu.europa.ec.uilogic.component.AppIcons
 import eu.europa.ec.uilogic.component.content.ContentScreen
@@ -32,6 +29,11 @@ fun AddCredentialsScreen(
     navHostController: NavController,
     viewModel: AddCredentialsViewModel,
 ) {
+    ScreenContent()
+}
+
+@Composable
+private fun ScreenContent() {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -82,8 +84,5 @@ private fun Content() {
 @ThemeModePreviews
 @Composable
 private fun AddCredentialsScreenPreview() {
-    AddCredentialsScreen(
-        rememberNavController(),
-        viewModel = AddCredentialsViewModel(AddCredentialsInteractorImpl())
-    )
+    ScreenContent()
 }
