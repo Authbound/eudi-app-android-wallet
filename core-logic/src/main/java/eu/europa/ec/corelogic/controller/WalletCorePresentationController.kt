@@ -18,10 +18,10 @@ package eu.europa.ec.corelogic.controller
 
 import android.content.Intent
 import androidx.activity.ComponentActivity
+import androidx.biometric.BiometricPrompt
 import eu.europa.ec.authenticationlogic.model.BiometricCrypto
 import eu.europa.ec.businesslogic.controller.session.PresentationSessionController
 import eu.europa.ec.businesslogic.controller.log.LogController
-import eu.europa.ec.businesslogic.extension.addOrReplace
 import eu.europa.ec.businesslogic.extension.safeAsync
 import eu.europa.ec.businesslogic.extension.toUri
 import eu.europa.ec.corelogic.di.PRESENTATION_WALLET_QUALIFIER
@@ -57,6 +57,7 @@ import kotlinx.coroutines.launch
 import org.koin.core.qualifier.named
 import org.koin.core.annotation.Scope
 import org.koin.core.annotation.Scoped
+import org.multipaz.securearea.KeyUnlockData
 import java.net.URI
 
 sealed class PresentationControllerConfig(val initiatorRoute: String) {
@@ -117,6 +118,38 @@ sealed class WalletCorePartialState {
     data class Redirect(val uri: URI) : WalletCorePartialState()
     data object RequestIsReadyToBeSent : WalletCorePartialState()
     data class IntentToSend(val intent: Intent) : WalletCorePartialState()
+}
+
+internal data class PresentationDocumentUnlockData(
+    val document: DisclosedDocument,
+    val keyUnlockData: KeyUnlockData?,
+    val cryptoObject: BiometricPrompt.CryptoObject?,
+)
+
+internal fun presentationAuthenticationData(
+    disclosedDocuments: MutableList<DisclosedDocument>,
+    documentUnlockData: List<PresentationDocumentUnlockData>,
+): AuthenticationData {
+    check(disclosedDocuments == documentUnlockData.map { it.document }) {
+        "Presentation documents changed while preparing authentication"
+    }
+    // Timed-auth keys share Android's authentication validity window and return no CryptoObject.
+    // A CryptoObject identifies an auth-per-operation key, which cannot be grouped into one prompt.
+    check(documentUnlockData.none { it.cryptoObject != null }) {
+        "Presentation contains a key that requires authentication for every operation"
+    }
+
+    return AuthenticationData(
+        crypto = BiometricCrypto(cryptoObject = null),
+        onAuthenticationSuccess = {
+            disclosedDocuments.clear()
+            disclosedDocuments.addAll(
+                documentUnlockData.map { (document, keyUnlockData) ->
+                    document.copy(keyUnlockData = keyUnlockData)
+                }
+            )
+        },
+    )
 }
 
 /**
@@ -369,37 +402,26 @@ class WalletCorePresentationControllerImpl(
 
     override fun checkForKeyUnlock() = flow {
         disclosedDocuments?.let { documents ->
-
-            val authenticationData = mutableListOf<AuthenticationData>()
-
             if (eudiWallet.config.userAuthenticationRequired) {
-
-                val keyUnlockDataMap = documents.associateWith { disclosedDocument ->
-                    eudiWallet.getDefaultKeyUnlockData(documentId = disclosedDocument.documentId)
-                }
-
-                for ((doc, kud) in keyUnlockDataMap) {
-
-                    val cryptoObject = kud?.getCryptoObjectForSigning()
-
-                    authenticationData.add(
-                        AuthenticationData(
-                            crypto = BiometricCrypto(cryptoObject),
-                            onAuthenticationSuccess = {
-                                disclosedDocuments?.addOrReplace(
-                                    value = doc.copy(keyUnlockData = kud),
-                                    replaceCondition = { disclosedDocument ->
-                                        disclosedDocument.documentId == doc.documentId
-                                    }
-                                )
-                            }
-                        )
+                val documentUnlockData = documents.map { document ->
+                    val keyUnlockData = eudiWallet.getDefaultKeyUnlockData(
+                        documentId = document.documentId
+                    )
+                    PresentationDocumentUnlockData(
+                        document = document,
+                        keyUnlockData = keyUnlockData,
+                        cryptoObject = keyUnlockData?.getCryptoObjectForSigning(),
                     )
                 }
 
                 emit(
                     CheckKeyUnlockPartialState.UserAuthenticationRequired(
-                        authenticationData
+                        authenticationData = listOf(
+                            presentationAuthenticationData(
+                                disclosedDocuments = documents,
+                                documentUnlockData = documentUnlockData,
+                            )
+                        )
                     )
                 )
 
