@@ -27,13 +27,16 @@ import eu.europa.ec.corelogic.controller.WalletCorePresentationController
 import eu.europa.ec.eudi.wallet.document.IssuedDocument
 import eu.europa.ec.resourceslogic.provider.ResourceProvider
 import eu.europa.ec.testfeature.util.StringResourceProviderMocker.mockTransformToUiItemsStrings
+import eu.europa.ec.testfeature.util.copy
 import eu.europa.ec.businesslogic.controller.log.LogController
 import eu.europa.ec.testfeature.util.getMockedMdlWithBasicFields
 import eu.europa.ec.testfeature.util.getMockedPidWithBasicFields
+import eu.europa.ec.testfeature.util.mockedMdlId
 import eu.europa.ec.testfeature.util.mockedExceptionWithMessage
 import eu.europa.ec.testfeature.util.mockedExceptionWithNoMessage
 import eu.europa.ec.testfeature.util.mockedGenericErrorMessage
 import eu.europa.ec.testfeature.util.mockedPlainFailureMessage
+import eu.europa.ec.testfeature.util.mockedPidId
 import eu.europa.ec.testfeature.util.mockedValidMdlWithBasicFieldsRequestDocument
 import eu.europa.ec.testfeature.util.mockedValidPidWithBasicFieldsRequestDocument
 import eu.europa.ec.testfeature.util.mockedVerifierIsTrusted
@@ -58,6 +61,7 @@ import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.net.URI
+import java.time.Instant
 
 class TestPresentationRequestInteractor {
 
@@ -297,6 +301,67 @@ class TestPresentationRequestInteractor {
                         awaitItem()
                     )
                 }
+        }
+
+    @Test
+    fun `Given expired and revoked credentials, When getRequestDocuments is called, Then no data is returned`() =
+        coroutineRule.runTest {
+            val expiredPid = getMockedPidWithBasicFields().copy(
+                validUntil = Result.success(Instant.EPOCH)
+            )
+            val revokedMdl = getMockedMdlWithBasicFields()
+            mockGetAllIssuedDocumentsCall(response = listOf(expiredPid, revokedMdl))
+            whenever(walletCoreDocumentsController.isDocumentRevoked(mockedPidId))
+                .thenReturn(false)
+            whenever(walletCoreDocumentsController.isDocumentRevoked(mockedMdlId))
+                .thenReturn(true)
+            mockTransformToUiItemsStrings(resourceProvider = resourceProvider)
+            mockWalletCorePresentationControllerEventEmission(
+                event = TransferEventPartialState.RequestReceived(
+                    requestData = listOf(
+                        mockedValidPidWithBasicFieldsRequestDocument,
+                        mockedValidMdlWithBasicFieldsRequestDocument
+                    ),
+                    verifierName = mockedVerifierName,
+                    verifierIsTrusted = mockedVerifierIsTrusted
+                )
+            )
+
+            interactor.getRequestDocuments().runFlowTest {
+                val expectedResult = PresentationRequestInteractorPartialState.NoData(
+                    verifierName = mockedVerifierName,
+                    verifierIsTrusted = mockedVerifierIsTrusted
+                )
+
+                assertEquals(expectedResult, awaitItem())
+            }
+        }
+
+    @Test
+    fun `Given unreadable credential expiration, When getRequestDocuments is called, Then no data is returned`() =
+        coroutineRule.runTest {
+            val invalidExpirationPid = getMockedPidWithBasicFields().copy(
+                validUntil = Result.failure(IllegalStateException("invalid expiration"))
+            )
+            mockGetAllIssuedDocumentsCall(response = listOf(invalidExpirationPid))
+            mockIsDocumentRevoked(isRevoked = false)
+            mockTransformToUiItemsStrings(resourceProvider = resourceProvider)
+            mockWalletCorePresentationControllerEventEmission(
+                event = TransferEventPartialState.RequestReceived(
+                    requestData = listOf(mockedValidPidWithBasicFieldsRequestDocument),
+                    verifierName = mockedVerifierName,
+                    verifierIsTrusted = mockedVerifierIsTrusted
+                )
+            )
+
+            interactor.getRequestDocuments().runFlowTest {
+                val expectedResult = PresentationRequestInteractorPartialState.NoData(
+                    verifierName = mockedVerifierName,
+                    verifierIsTrusted = mockedVerifierIsTrusted
+                )
+
+                assertEquals(expectedResult, awaitItem())
+            }
         }
 
     // Case 6:
